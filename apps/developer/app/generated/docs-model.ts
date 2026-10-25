@@ -5295,7 +5295,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "content_limit",
                               "required": true,
-                              "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                              "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit.",
                               "enum": [
                                 "sfw",
                                 "nsfw"
@@ -5662,7 +5662,7 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "intros",
-                              "doc": "Present when include=intros. Empty array if none.",
+                              "doc": "Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
@@ -6203,7 +6203,7 @@ export const docsModel: DocsModel = {
                                     "name": "title",
                                     "required": true,
                                     "nullable": true,
-                                    "doc": "Must not be used as a discriminant.",
+                                    "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                                     "type": "string"
                                   },
                                   {
@@ -9923,7 +9923,7 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "intros",
-                              "doc": "Character descriptions, one per language. Present when include=intros. Empty array if none.",
+                              "doc": "Character descriptions, one per language. Present when include=intros. A character that appears in any work whose content_limit is sfw gets only text a safety review cleared (the original, a redacted version, or a rewritten one with is_machine true; unreviewed text is never served); the originals go only to nsfw=true callers on a character whose every work is nsfw. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
@@ -11901,7 +11901,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "intros",
-                        "doc": "Character descriptions, one per language. Present when include=intros. Empty array if none.",
+                        "doc": "Character descriptions, one per language. Present when include=intros. A character that appears in any work whose content_limit is sfw gets only text a safety review cleared (the original, a redacted version, or a rewritten one with is_machine true; unreviewed text is never served); the originals go only to nsfw=true callers on a character whose every work is nsfw. Empty array if none.",
                         "type": "array",
                         "itemsOf": {
                           "type": "object",
@@ -15025,7 +15025,7 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "content_limit",
                                   "required": true,
-                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit.",
                                   "enum": [
                                     "sfw",
                                     "nsfw"
@@ -15392,7 +15392,7 @@ export const docsModel: DocsModel = {
                                 },
                                 {
                                   "name": "intros",
-                                  "doc": "Present when include=intros. Empty array if none.",
+                                  "doc": "Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none.",
                                   "type": "array",
                                   "itemsOf": {
                                     "type": "object",
@@ -15933,7 +15933,7 @@ export const docsModel: DocsModel = {
                                         "name": "title",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "Must not be used as a discriminant.",
+                                        "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                                         "type": "string"
                                       },
                                       {
@@ -29548,7 +29548,7 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "content_limit",
                                   "required": true,
-                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit.",
                                   "enum": [
                                     "sfw",
                                     "nsfw"
@@ -29915,7 +29915,7 @@ export const docsModel: DocsModel = {
                                 },
                                 {
                                   "name": "intros",
-                                  "doc": "Present when include=intros. Empty array if none.",
+                                  "doc": "Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none.",
                                   "type": "array",
                                   "itemsOf": {
                                     "type": "object",
@@ -30456,7 +30456,7 @@ export const docsModel: DocsModel = {
                                         "name": "title",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "Must not be used as a discriminant.",
+                                        "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                                         "type": "string"
                                       },
                                       {
@@ -49691,7 +49691,7 @@ export const docsModel: DocsModel = {
                               "name": "title",
                               "required": true,
                               "nullable": true,
-                              "doc": "Must not be used as a discriminant.",
+                              "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                               "type": "string"
                             },
                             {
@@ -51281,7 +51281,7 @@ export const docsModel: DocsModel = {
                         "name": "title",
                         "required": true,
                         "nullable": true,
-                        "doc": "Must not be used as a discriminant.",
+                        "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                         "type": "string"
                       },
                       {
@@ -82852,7 +82852,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "content_limit",
                               "required": true,
-                              "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                              "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit.",
                               "enum": [
                                 "sfw",
                                 "nsfw"
@@ -83219,7 +83219,7 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "intros",
-                              "doc": "Present when include=intros. Empty array if none.",
+                              "doc": "Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
@@ -83760,7 +83760,7 @@ export const docsModel: DocsModel = {
                                     "name": "title",
                                     "required": true,
                                     "nullable": true,
-                                    "doc": "Must not be used as a discriminant.",
+                                    "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                                     "type": "string"
                                   },
                                   {
@@ -86376,7 +86376,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "content_limit",
                         "required": true,
-                        "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                        "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit.",
                         "enum": [
                           "sfw",
                           "nsfw"
@@ -86743,7 +86743,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "intros",
-                        "doc": "Present when include=intros. Empty array if none.",
+                        "doc": "Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none.",
                         "type": "array",
                         "itemsOf": {
                           "type": "object",
@@ -87284,7 +87284,7 @@ export const docsModel: DocsModel = {
                               "name": "title",
                               "required": true,
                               "nullable": true,
-                              "doc": "Must not be used as a discriminant.",
+                              "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                               "type": "string"
                             },
                             {
@@ -102616,7 +102616,7 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "content_limit",
                                   "required": true,
-                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit.",
                                   "enum": [
                                     "sfw",
                                     "nsfw"
@@ -102983,7 +102983,7 @@ export const docsModel: DocsModel = {
                                 },
                                 {
                                   "name": "intros",
-                                  "doc": "Present when include=intros. Empty array if none.",
+                                  "doc": "Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none.",
                                   "type": "array",
                                   "itemsOf": {
                                     "type": "object",
@@ -103505,7 +103505,7 @@ export const docsModel: DocsModel = {
                                         "name": "title",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "Must not be used as a discriminant.",
+                                        "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                                         "type": "string"
                                       },
                                       {
@@ -105637,7 +105637,7 @@ export const docsModel: DocsModel = {
                               "name": "title",
                               "required": true,
                               "nullable": true,
-                              "doc": "Must not be used as a discriminant.",
+                              "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                               "type": "string"
                             },
                             {
@@ -137885,7 +137885,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "content_limit",
                               "required": true,
-                              "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                              "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit.",
                               "enum": [
                                 "sfw",
                                 "nsfw"
@@ -138252,7 +138252,7 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "intros",
-                              "doc": "Present when include=intros. Empty array if none.",
+                              "doc": "Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
@@ -138793,7 +138793,7 @@ export const docsModel: DocsModel = {
                                     "name": "title",
                                     "required": true,
                                     "nullable": true,
-                                    "doc": "Must not be used as a discriminant.",
+                                    "doc": "Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.",
                                     "type": "string"
                                   },
                                   {
