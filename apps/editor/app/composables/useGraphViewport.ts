@@ -1,13 +1,15 @@
 const MIN_SCALE = 0.25
 const MAX_SCALE = 2
 const FIT_PADDING = 32
+const LEGIBLE_SCALE = 0.6
 
 const clamp = (value: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, value))
 
 export const useGraphViewport = (
   viewport: Ref<HTMLElement | null>,
-  content: ComputedRef<{ width: number; height: number }>
+  content: ComputedRef<{ width: number; height: number }>,
+  focus: () => { x: number; y: number } | null = () => null
 ) => {
   const viewW = ref(0)
   const viewH = ref(0)
@@ -56,6 +58,23 @@ export const useGraphViewport = (
     }
     if (smooth) withAnimation(apply)
     else apply()
+  }
+
+  const frameLegibly = () => {
+    const { width, height } = content.value
+    const k = Math.min(
+      (viewW.value - FIT_PADDING * 2) / width,
+      (viewH.value - FIT_PADDING * 2) / height,
+      1
+    )
+    const start = focus()
+    if (k >= LEGIBLE_SCALE || !start) {
+      fit(false)
+      return
+    }
+    scale.value = LEGIBLE_SCALE
+    offsetX.value = viewW.value / 2 - start.x * LEGIBLE_SCALE
+    offsetY.value = FIT_PADDING * 2 - start.y * LEGIBLE_SCALE
   }
 
   const zoomAt = (factor: number, atX: number, atY: number) => {
@@ -144,7 +163,7 @@ export const useGraphViewport = (
     ([ready]) => {
       if (ready && !framed && viewW.value && viewH.value) {
         framed = true
-        fit(false)
+        frameLegibly()
       }
     },
     { immediate: true }

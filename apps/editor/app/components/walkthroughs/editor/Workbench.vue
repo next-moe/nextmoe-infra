@@ -28,6 +28,26 @@ const work = ref<CatalogWork | null>(null)
 const roster = ref<CatalogWorkCharacter[]>([])
 const rosterLoaded = ref(false)
 
+const loadRoster = async (id: string) => {
+  const out: CatalogWorkCharacter[] = []
+  let cursor: string | null = null
+  for (let page = 0; page < 10; page++) {
+    const res: {
+      items: CatalogWorkCharacter[]
+      next_cursor?: string | null
+    } | null = await api<{
+      items: CatalogWorkCharacter[]
+      next_cursor?: string | null
+    }>(`/v2/catalog/works/${id}/characters`, {
+      query: { nsfw: true, limit: 100, ...(cursor ? { cursor } : {}) }
+    }).catch(() => null)
+    out.push(...(res?.items ?? []))
+    cursor = res?.next_cursor ?? null
+    if (!cursor) break
+  }
+  return out
+}
+
 const loadWork = async (id: string | null) => {
   if (!id) return
   rosterLoaded.value = false
@@ -35,13 +55,10 @@ const loadWork = async (id: string | null) => {
     api<CatalogWork>(`/v2/catalog/works/${id}`, {
       query: { nsfw: true }
     }).catch(() => null),
-    api<{ items: CatalogWorkCharacter[] }>(
-      `/v2/catalog/works/${id}/characters`,
-      { query: { nsfw: true, limit: 200 } }
-    ).catch(() => null)
+    loadRoster(id)
   ])
   work.value = summary
-  roster.value = characters?.items ?? []
+  roster.value = characters
   rosterLoaded.value = true
 }
 watch(() => props.workId, loadWork, { immediate: true })

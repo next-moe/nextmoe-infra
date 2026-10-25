@@ -55,6 +55,10 @@ export const normalizeChart = (raw: unknown): WtChart => {
   }
 }
 
+// Charts are plain JSON. structuredClone throws on the Vue proxies nested in
+// a chart read from the editor's draft, and every edit failed with it.
+export const cloneChart = <T>(value: T): T => JSON.parse(JSON.stringify(value))
+
 export const nextKey = (prefix: string, taken: Iterable<string>) => {
   const used = new Set(taken)
   let n = used.size + 1

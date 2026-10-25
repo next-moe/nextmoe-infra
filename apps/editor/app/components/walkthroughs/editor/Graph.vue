@@ -28,7 +28,10 @@ const size = computed(() => ({
   width: layout.value.width,
   height: layout.value.height
 }))
-const view = useGraphViewport(viewport, size)
+const view = useGraphViewport(viewport, size, () => {
+  const entry = layout.value.nodes.find((n) => n.kind === 'entry')
+  return entry ? { x: entry.x, y: entry.y } : null
+})
 
 const selectedSegment = computed(() =>
   doc.selection.value?.kind === 'segment' ? doc.selection.value.key : null

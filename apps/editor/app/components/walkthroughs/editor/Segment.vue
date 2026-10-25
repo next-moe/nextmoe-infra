@@ -3,7 +3,7 @@ import { cn } from '@kungal/ui-core'
 import type { KunDropdownItem } from '@kungal/ui-vue'
 import type { WtNode, WtSegment, WtStepType } from '#shared/types/walkthrough'
 import { wtTone } from '~/constants/walkthrough'
-import { blankStep, keysOf, nextKey } from '~/utils/walkthrough/doc'
+import { blankStep, cloneChart, keysOf, nextKey } from '~/utils/walkthrough/doc'
 import { focusStep } from '~/utils/walkthrough/focus'
 import { useStepDrag } from '~/utils/walkthrough/drag'
 
@@ -122,7 +122,7 @@ const onMenu = async (item: KunDropdownItem) => {
     const key = nextKey('g', keysOf(doc.chart.value.segments))
     doc.edit((d) => {
       const i = d.segments.findIndex((x) => x.key === props.segment.key)
-      const copy = structuredClone(toRaw(d.segments[i]!))
+      const copy = cloneChart(d.segments[i]!)
       copy.key = key
       d.segments.splice(i + 1, 0, copy)
     })
@@ -144,7 +144,7 @@ const onHeaderDragStart = (event: DragEvent) =>
     :data-wt-segment="props.segment.key"
     :class="
       cn(
-        'bg-content1 relative rounded-xl border transition-[box-shadow,border-color] [contain-intrinsic-size:auto_180px] [content-visibility:auto]',
+        'bg-content1 relative scroll-mt-4 rounded-xl border transition-[box-shadow,border-color] [contain-intrinsic-size:auto_180px] [content-visibility:auto]',
         selected ? 'border-primary-300 shadow-kun-md' : 'border-default-200',
         issues.length && !selected && 'border-warning-300',
         drag.segmentOver.value === props.segment.key &&

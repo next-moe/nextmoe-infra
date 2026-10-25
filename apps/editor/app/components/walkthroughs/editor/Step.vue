@@ -3,7 +3,7 @@ import { cn } from '@kungal/ui-core'
 import type { KunDropdownItem } from '@kungal/ui-vue'
 import type { WtStep, WtStepType } from '#shared/types/walkthrough'
 import { WT_STEP_META } from '~/constants/walkthrough'
-import { blankStep, keysOf, nextKey } from '~/utils/walkthrough/doc'
+import { blankStep, cloneChart, keysOf, nextKey } from '~/utils/walkthrough/doc'
 import {
   composing,
   focusSibling,
@@ -90,7 +90,7 @@ const move = (delta: number) => {
 
 const duplicate = () => {
   withSegment((steps) =>
-    steps.splice(props.index + 1, 0, structuredClone(toRaw(props.step)))
+    steps.splice(props.index + 1, 0, cloneChart(props.step))
   )
   focusStep(props.segmentKey, props.index + 1)
 }

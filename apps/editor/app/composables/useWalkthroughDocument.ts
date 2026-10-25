@@ -6,7 +6,11 @@ import type {
   WtPin,
   WtTarget
 } from '#shared/types/walkthrough'
-import { normalizeChart, validateChart } from '~/utils/walkthrough/doc'
+import {
+  cloneChart,
+  normalizeChart,
+  validateChart
+} from '~/utils/walkthrough/doc'
 
 const HISTORY_LIMIT = 300
 const COALESCE_MS = 1200
@@ -28,7 +32,9 @@ export interface WalkthroughDocumentSource {
 export const createWalkthroughDocument = (
   source: WalkthroughDocumentSource
 ) => {
-  const chart = shallowRef<WtChart>(normalizeChart(source.chart()))
+  const chart = shallowRef<WtChart>(
+    normalizeChart(cloneChart(source.chart() ?? {}))
+  )
   const past = shallowRef<WtChart[]>([])
   const future = shallowRef<WtChart[]>([])
   let group: string | null = null
@@ -55,7 +61,7 @@ export const createWalkthroughDocument = (
 
   const edit = (mutate: (draft: WtChart) => void, coalesce?: string) => {
     if (readonly.value) return
-    const next = structuredClone(toRaw(chart.value))
+    const next = cloneChart(chart.value)
     mutate(next)
     const now = Date.now()
     if (!coalesce || coalesce !== group || now - groupAt > COALESCE_MS) {
@@ -96,7 +102,7 @@ export const createWalkthroughDocument = (
       past.value = [...past.value, chart.value]
       future.value = []
       group = null
-      chart.value = normalizeChart(structuredClone(incoming))
+      chart.value = normalizeChart(cloneChart(incoming))
     }
   )
 

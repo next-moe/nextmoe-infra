@@ -9,7 +9,7 @@ import {
   nextKey,
   segmentCharacterKey
 } from '~/utils/walkthrough/doc'
-import { focusStep } from '~/utils/walkthrough/focus'
+import { focusStep, settleInto } from '~/utils/walkthrough/focus'
 
 const SHOW_ZH_KEY = 'nextmoe-editor-walkthrough-show-zh'
 const COMMON = '__common__'
@@ -149,9 +149,10 @@ watch(
       ) {
         return
       }
-      scroller.value
-        ?.querySelector(`[data-wt-segment="${target.key}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const card = scroller.value?.querySelector(
+        `[data-wt-segment="${target.key}"]`
+      )
+      if (card) await settleInto(card, 'start')
     }
   }
 )

@@ -2,6 +2,21 @@ import { nextTick } from 'vue'
 
 const STEP_INPUT = '[data-wt-step-input]'
 
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+
+// Segment cards use content-visibility: auto, so cards between here and the
+// target only have their estimated height until they render. A single scroll
+// landed a revealed segment at the bottom of the outline instead of its top.
+export const settleInto = async (
+  el: Element,
+  block: ScrollLogicalPosition = 'start'
+) => {
+  for (let i = 0; i < 3; i++) {
+    el.scrollIntoView({ block })
+    await nextFrame()
+  }
+}
+
 export const stepInputSelector = (segment: string, index: number) =>
   `[data-wt-step-input="${segment}:${index}"]`
 
@@ -20,7 +35,10 @@ export const focusStep = async (
     const at = caret === 'start' ? 0 : el.value.length
     el.setSelectionRange(at, at)
   }
-  el.scrollIntoView({ block: 'nearest' })
+  const box = el.getBoundingClientRect()
+  if (box.top < 0 || box.bottom > window.innerHeight) {
+    await settleInto(el, 'center')
+  }
   return true
 }
 

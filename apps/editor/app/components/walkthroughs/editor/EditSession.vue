@@ -20,6 +20,14 @@ onBeforeUnmount(session.dispose)
 const workspace = session.root.workspace
 const editor = workspace.editor
 provideEditorContext(workspace.context)
+provideWorkspaceNav({
+  section: ref(''),
+  item: ref(null),
+  sections: computed(() => []),
+  changesBySection: computed(() => ({})),
+  go: () => undefined,
+  jumpToField: () => undefined
+})
 
 const value = <T,>(key: string, fallback: T) =>
   (editor.draft.value[key] ?? fallback) as T

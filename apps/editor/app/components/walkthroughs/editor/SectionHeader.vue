@@ -21,39 +21,44 @@ const issues = computed(() =>
 </script>
 
 <template>
-  <div
-    :data-wt-section="props.section.key"
-    class="flex flex-wrap items-center gap-2 pt-3 pb-1"
-  >
-    <KunIcon name="lucide:bookmark" class="text-default-400 size-4 shrink-0" />
-    <KunInput
-      :model-value="props.section.title"
-      size="sm"
-      placeholder="分节标题"
-      :disabled="doc.readonly.value"
-      :is-invalid="issues.length > 0"
-      class-name="w-auto min-w-48 border-transparent bg-transparent shadow-none text-base font-semibold hover:border-default-200 focus:border-default-300"
-      @update:model-value="
-        update({ title: String($event) }, `section:${props.section.key}`)
-      "
-      @blur="doc.breakCoalescing"
-    />
-    <KunInput
-      v-if="doc.lang.value === 'ja'"
-      :model-value="props.section.title_zh ?? ''"
-      size="sm"
-      placeholder="中文标题（可选）"
-      :disabled="doc.readonly.value"
-      class-name="w-auto min-w-40 border-transparent bg-transparent shadow-none text-default-500 hover:border-default-200 focus:border-default-300"
-      @update:model-value="
-        update(
-          { title_zh: String($event) || null },
-          `section-zh:${props.section.key}`
-        )
-      "
-      @blur="doc.breakCoalescing"
-    />
-    <div class="flex flex-wrap items-center gap-1">
+  <div :data-wt-section="props.section.key" class="space-y-1 pt-4 pb-1">
+    <div class="flex items-center gap-2">
+      <KunIcon
+        name="lucide:bookmark"
+        class="text-default-400 size-4 shrink-0"
+      />
+      <div class="min-w-0 flex-[3]">
+        <KunInput
+          :model-value="props.section.title"
+          size="sm"
+          placeholder="分节标题"
+          :disabled="doc.readonly.value"
+          :is-invalid="issues.length > 0"
+          class-name="border-transparent bg-transparent shadow-none px-2 text-base font-semibold hover:border-default-200 focus:border-default-300"
+          @update:model-value="
+            update({ title: String($event) }, `section:${props.section.key}`)
+          "
+          @blur="doc.breakCoalescing"
+        />
+      </div>
+      <div v-if="doc.lang.value === 'ja'" class="min-w-0 flex-[2]">
+        <KunInput
+          :model-value="props.section.title_zh ?? ''"
+          size="sm"
+          placeholder="中文标题（可选）"
+          :disabled="doc.readonly.value"
+          class-name="border-transparent bg-transparent shadow-none px-2 text-default-500 hover:border-default-200 focus:border-default-300"
+          @update:model-value="
+            update(
+              { title_zh: String($event) || null },
+              `section-zh:${props.section.key}`
+            )
+          "
+          @blur="doc.breakCoalescing"
+        />
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-1 pl-6">
       <span
         v-for="key in props.section.characters"
         :key="key"
