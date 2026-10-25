@@ -55,7 +55,7 @@ func (c *Catalog) proposalQuery(f proposalFilter, limit int, cursor int64) (edit
 			p := problem.New(problem.CodeUnknownEnumValue, "", "", "object= is not an editable family.")
 			p.Errors = []problem.FieldError{{Parameter: "object", Reason: problem.ReasonUnknownValue,
 				Detail: "allowed values: work, company, character, release, tag, engine, series",
-				Params: &problem.FieldParams{Allowed: &[]string{"work", "company", "character", "release", "tag", "engine", "series", "person", "credit_name", "trait"}}}}
+				Params: &problem.FieldParams{Allowed: &[]string{"work", "company", "character", "release", "tag", "engine", "series", "person", "credit_name", "trait", "walkthrough"}}}}
 			return out, p
 		}
 		out.EntityType = entityType

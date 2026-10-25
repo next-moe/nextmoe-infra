@@ -30,6 +30,7 @@ type walkthroughRow struct {
 	SourceURL           string
 	SourceAuthor        string
 	SourceUpdatedOn     *time.Time
+	Lang                string
 	UpdatedAt           time.Time
 	EndingCount         int
 	SaveCount           int
@@ -44,7 +45,7 @@ type walkthroughRow struct {
 	TitleNSFW           *bool
 }
 
-const walkthroughColumns = `wt.id, wt.work_id, src.key AS source, wt.source_url, wt.source_author, wt.source_updated_on, wt.updated_at,
+const walkthroughColumns = `wt.id, wt.work_id, src.key AS source, wt.source_url, wt.source_author, wt.source_updated_on, wt.lang, wt.updated_at,
 	jsonb_array_length(wt.chart->'endings') AS ending_count, jsonb_array_length(wt.chart->'saves') AS save_count,
 	jsonb_array_length(wt.chart->'segments') AS segment_count, (wt.chart->'characters')::text AS characters,
 	w.site, w.product_work_id, w.content_rating, w.display_nsfw, w.cover_art_all_explicit, w.title_nsfw`
@@ -177,7 +178,7 @@ func (s *PublicService) walkthroughItems(ctx context.Context, rows []walkthrough
 		}
 		item := dto.PublicWalkthrough{
 			ID: r.ID, WorkID: r.WorkID, Source: r.Source, SourceURL: r.SourceURL, SourceAuthor: r.SourceAuthor,
-			SourceUpdatedOn: r.SourceUpdatedOn, UpdatedAt: r.UpdatedAt,
+			SourceUpdatedOn: r.SourceUpdatedOn, Lang: r.Lang, UpdatedAt: r.UpdatedAt,
 			WorkContentLimit: shelfLimitKey(r.Site, r.ProductWorkID, shelfFacts{
 				DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW,
 			}, r.ContentRating),

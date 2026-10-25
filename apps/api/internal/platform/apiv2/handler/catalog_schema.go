@@ -104,6 +104,8 @@ func schemaEntityType(object string) string {
 		return editspec.TypeCreditName
 	case "trait":
 		return editspec.TypeTrait
+	case "walkthrough":
+		return editspec.TypeWalkthrough
 	default:
 		return ""
 	}

@@ -99,7 +99,8 @@ export const ENTITY_FAMILY: Record<string, { label: string; path: string }> = {
   series: { label: '系列', path: '/series' },
   person: { label: '人物', path: '/persons' },
   credit_name: { label: '署名名', path: '/credit-names' },
-  trait: { label: '特质', path: '/traits' }
+  trait: { label: '特质', path: '/traits' },
+  walkthrough: { label: '攻略', path: '/walkthroughs' }
 }
 
 export const LANGUAGE_LABELS: Record<string, string> = {

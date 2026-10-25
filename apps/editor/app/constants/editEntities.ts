@@ -12,6 +12,7 @@ export type EditFamily =
   | 'trait'
   | 'series'
   | 'engine'
+  | 'walkthrough'
 
 export interface EntityMeta {
   family: EditFamily
@@ -129,6 +130,16 @@ export const ENTITY_META: Record<EditFamily, EntityMeta> = {
     icon: 'lucide:cpu',
     description: '游戏引擎：名称、别名与介绍。',
     searchable: true,
+    listQuery: false
+  },
+  walkthrough: {
+    family: 'walkthrough',
+    label: '攻略',
+    path: '/walkthroughs',
+    collection: 'walkthroughs',
+    icon: 'lucide:route',
+    description: '作品的选项图：按角色拆分的路线、存档点与结局。',
+    searchable: false,
     listQuery: false
   }
 }
@@ -549,6 +560,28 @@ export const ENGINE_EDIT_CONFIG: EditEntityConfig = {
   }
 }
 
+export const WALKTHROUGH_EDIT_CONFIG: EditEntityConfig = {
+  family: 'walkthrough',
+  entityType: 'catalog.walkthrough',
+  groups: [BASIC, OTHER],
+  fields: {
+    'catalog.walkthrough.chart': { label: '攻略图', group: 'basic' },
+    'catalog.walkthrough.pins': { label: '角色关联', group: 'basic' },
+    'catalog.walkthrough.lang': { label: '攻略语言', group: 'basic' },
+    'catalog.walkthrough.work_id': {
+      label: '所属作品',
+      group: 'basic',
+      control: 'ref',
+      ref: 'work'
+    },
+    'catalog.walkthrough.hidden': {
+      label: '隐藏这篇攻略',
+      group: 'other',
+      control: 'switch'
+    }
+  }
+}
+
 export const EDIT_CONFIGS: Record<EditFamily, EditEntityConfig> = {
   work: WORK_EDIT_CONFIG,
   release: RELEASE_EDIT_CONFIG,
@@ -559,7 +592,8 @@ export const EDIT_CONFIGS: Record<EditFamily, EditEntityConfig> = {
   tag: TAG_EDIT_CONFIG,
   trait: TRAIT_EDIT_CONFIG,
   series: SERIES_EDIT_CONFIG,
-  engine: ENGINE_EDIT_CONFIG
+  engine: ENGINE_EDIT_CONFIG,
+  walkthrough: WALKTHROUGH_EDIT_CONFIG
 }
 
 export const isEditFamily = (family: string): family is EditFamily =>

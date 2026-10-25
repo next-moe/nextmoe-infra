@@ -31,6 +31,11 @@ const (
 	EditPersonReview authz.Permission = "edit.catalog.person.review"
 )
 
+const (
+	EditWalkthrough       authz.Permission = "edit.catalog.walkthrough"
+	EditWalkthroughReview authz.Permission = "edit.catalog.walkthrough.review"
+)
+
 const EditTrusted authz.Permission = "catalog.edit.trusted"
 
 // ClaimTrusted is deliberately not implied by EditTrusted: the two were one key
@@ -49,9 +54,9 @@ const MergeReview authz.Permission = "catalog.merge.review"
 const DiscussionModerate authz.Permission = "catalog.discussion.moderate"
 const DeleteReview authz.Permission = "catalog.delete.review"
 
-var editProposePerms = []authz.Permission{EditWork, EditTaxonomy, EditCharacter, EditRelease, EditPerson}
+var editProposePerms = []authz.Permission{EditWork, EditTaxonomy, EditCharacter, EditRelease, EditPerson, EditWalkthrough}
 
-var editReviewPerms = []authz.Permission{EditWorkReview, EditTaxonomyReview, EditCharacterReview, EditReleaseReview, EditPersonReview}
+var editReviewPerms = []authz.Permission{EditWorkReview, EditTaxonomyReview, EditCharacterReview, EditReleaseReview, EditPersonReview, EditWalkthroughReview}
 
 var editorPerms = append(append([]authz.Permission{}, editProposePerms...), EditTrusted)
 

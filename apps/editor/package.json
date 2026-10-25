@@ -17,6 +17,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.1.2",
     "@kungal/ui-core": "^2.58.0",
     "@kungal/ui-nuxt": "^2.58.0",
     "@kungal/ui-tokens": "^2.58.0",

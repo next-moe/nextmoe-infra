@@ -62,3 +62,13 @@ in API GET /v2/me/news removed the required property `items/items/banner_hash` f
 in API POST /v2/me/news removed the required property `banner_hash` from the response with the `201` status
 in API GET /v2/me/news/{id} removed the required property `banner_hash` from the response with the `200` status
 in API PATCH /v2/me/news/{id} removed the required property `banner_hash` from the response with the `200` status
+
+# 2.67.0 (2026-10-25): walkthroughs can be written on the platform, and such a
+# walkthrough has no source page, so `source_url` is null for it. No row is
+# null when this ships -- every existing walkthrough was imported and keeps its
+# URL -- and the one consumer, the kungal forum, was told before the first
+# native walkthrough exists. Inventing a URL for a page that does not exist
+# would be the worse contract.
+
+in API GET /v2/catalog/walkthroughs the response property `items/items/source_url` became nullable for the status `200`
+in API GET /v2/catalog/walkthroughs/{id} the response property `source_url` became nullable for the status `200`

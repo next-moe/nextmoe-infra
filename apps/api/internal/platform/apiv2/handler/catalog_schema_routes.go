@@ -10,7 +10,7 @@ import (
 )
 
 type getSchemaInput struct {
-	Object string `path:"object" maxLength:"32" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait" doc:"Family this schema describes. Unknown family is 404 NOT_FOUND."`
+	Object string `path:"object" maxLength:"32" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait,walkthrough" doc:"Family this schema describes. Unknown family is 404 NOT_FOUND."`
 }
 
 type getSchemaOutput struct {

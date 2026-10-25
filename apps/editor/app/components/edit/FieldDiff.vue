@@ -132,7 +132,12 @@ watch(
       <slot name="actions" />
     </header>
 
-    <div v-if="isIntros" class="space-y-3">
+    <DiffWalkthrough
+      v-if="field?.diff_hint === 'tree'"
+      :before="before"
+      :after="after"
+    />
+    <div v-else-if="isIntros" class="space-y-3">
       <div v-for="entry in introDiffs" :key="entry.lang" class="space-y-1">
         <p class="text-default-500 flex items-center gap-1.5 text-xs">
           {{ vocabLabel('intro_lang', entry.lang) }}

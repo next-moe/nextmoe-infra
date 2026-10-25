@@ -163,6 +163,16 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
     view: 'work:releases',
     fields: [],
     always: true
+  },
+  {
+    key: 'walkthroughs',
+    guide: 'walkthroughs',
+    label: '攻略',
+    icon: 'lucide:route',
+    group: 'related',
+    view: 'work:walkthroughs',
+    fields: [],
+    always: true
   }
 ]
 
@@ -185,7 +195,8 @@ export const FAMILY_GUIDES: Record<EditFamily, string> = {
   tag: 'tags-and-traits',
   trait: 'tags-and-traits',
   series: 'relations-and-series',
-  engine: 'companies-engines-platforms'
+  engine: 'companies-engines-platforms',
+  walkthrough: 'walkthroughs'
 }
 
 export const sectionsFromGroups = (

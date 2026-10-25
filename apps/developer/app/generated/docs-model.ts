@@ -37425,7 +37425,8 @@ export const docsModel: DocsModel = {
                                 "person",
                                 "role",
                                 "trait",
-                                "release"
+                                "release",
+                                "walkthrough"
                               ],
                               "type": "string"
                             },
@@ -44517,7 +44518,8 @@ export const docsModel: DocsModel = {
                                 "series",
                                 "person",
                                 "credit_name",
-                                "trait"
+                                "trait",
+                                "walkthrough"
                               ],
                               "type": "string"
                             },
@@ -46284,7 +46286,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       },
@@ -53211,7 +53214,8 @@ export const docsModel: DocsModel = {
                                 "series",
                                 "person",
                                 "credit_name",
-                                "trait"
+                                "trait",
+                                "walkthrough"
                               ],
                               "type": "string"
                             }
@@ -54888,7 +54892,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       }
@@ -59683,7 +59688,8 @@ export const docsModel: DocsModel = {
                     "series",
                     "person",
                     "credit_name",
-                    "trait"
+                    "trait",
+                    "walkthrough"
                   ]
                 }
               ],
@@ -59714,7 +59720,8 @@ export const docsModel: DocsModel = {
                           "catalog.series",
                           "catalog.person",
                           "catalog.credit_name",
-                          "catalog.trait"
+                          "catalog.trait",
+                          "catalog.walkthrough"
                         ],
                         "type": "string"
                       },
@@ -59742,12 +59749,13 @@ export const docsModel: DocsModel = {
                             {
                               "name": "diff_hint",
                               "required": true,
-                              "doc": "How a diff of this field should be rendered.",
+                              "doc": "How a diff of this field should be rendered. tree: a nested JSON document, compared structurally.",
                               "enum": [
                                 "inline",
                                 "lines",
                                 "items",
-                                "image"
+                                "image",
+                                "tree"
                               ],
                               "type": "string"
                             },
@@ -59839,7 +59847,8 @@ export const docsModel: DocsModel = {
                                 "date",
                                 "list",
                                 "ref",
-                                "imagehash"
+                                "imagehash",
+                                "document"
                               ],
                               "type": "string"
                             },
@@ -59937,7 +59946,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       }
@@ -78164,7 +78174,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "lang",
                               "required": true,
-                              "doc": "BCP-47 language of every text field in the chart. Translations sit in localized maps beside them.",
+                              "doc": "BCP-47 language of every text field in the chart: ja for an imported walkthrough, ja or zh-Hans for one written on this platform. Translations sit in localized maps beside them; a zh-Hans chart has no zh-Hans entries there.",
                               "format": "bcp47",
                               "type": "string"
                             },
@@ -78194,7 +78204,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "source",
                               "required": true,
-                              "doc": "Open vocabulary sources: the site whose walkthrough page the choice graph was derived from. Must not be used as a discriminant.",
+                              "doc": "Open vocabulary sources: the site whose walkthrough page the choice graph was derived from, or nextmoe for a walkthrough written on this platform. Must not be used as a discriminant.",
                               "type": "string"
                             },
                             {
@@ -78215,7 +78225,8 @@ export const docsModel: DocsModel = {
                             {
                               "name": "source_url",
                               "required": true,
-                              "doc": "The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution.",
+                              "nullable": true,
+                              "doc": "The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution. null for a walkthrough written on this platform (source nextmoe), which has no page.",
                               "format": "uri",
                               "type": "string"
                             },
@@ -80152,7 +80163,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "lang",
                         "required": true,
-                        "doc": "BCP-47 language of every text field in the chart. Translations sit in localized maps beside them.",
+                        "doc": "BCP-47 language of every text field in the chart: ja for an imported walkthrough, ja or zh-Hans for one written on this platform. Translations sit in localized maps beside them; a zh-Hans chart has no zh-Hans entries there.",
                         "format": "bcp47",
                         "type": "string"
                       },
@@ -80182,7 +80193,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "source",
                         "required": true,
-                        "doc": "Open vocabulary sources: the site whose walkthrough page the choice graph was derived from. Must not be used as a discriminant.",
+                        "doc": "Open vocabulary sources: the site whose walkthrough page the choice graph was derived from, or nextmoe for a walkthrough written on this platform. Must not be used as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -80203,7 +80214,8 @@ export const docsModel: DocsModel = {
                       {
                         "name": "source_url",
                         "required": true,
-                        "doc": "The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution.",
+                        "nullable": true,
+                        "doc": "The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution. null for a walkthrough written on this platform (source nextmoe), which has no page.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -155711,13 +155723,14 @@ export const docsModel: DocsModel = {
                       "person",
                       "credit_name",
                       "tag",
-                      "trait"
+                      "trait",
+                      "walkthrough"
                     ],
                     "type": "string"
                   },
                   {
                     "name": "params",
-                    "doc": "Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release takes work_id, person takes credit_name_id of an unattributed credit name).",
+                    "doc": "Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release and walkthrough take work_id, person takes credit_name_id of an unattributed credit name).",
                     "type": "map",
                     "itemsOf": {
                       "type": "object"
@@ -156066,7 +156079,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       },
@@ -175081,7 +175095,8 @@ export const docsModel: DocsModel = {
                     "series",
                     "person",
                     "credit_name",
-                    "trait"
+                    "trait",
+                    "walkthrough"
                   ]
                 },
                 {
@@ -175186,7 +175201,8 @@ export const docsModel: DocsModel = {
                               "catalog.series",
                               "catalog.person",
                               "catalog.credit_name",
-                              "catalog.trait"
+                              "catalog.trait",
+                              "catalog.walkthrough"
                             ],
                             "type": "string"
                           },
@@ -175271,7 +175287,8 @@ export const docsModel: DocsModel = {
                               "series",
                               "person",
                               "credit_name",
-                              "trait"
+                              "trait",
+                              "walkthrough"
                             ],
                             "type": "string"
                           }
@@ -175470,7 +175487,8 @@ export const docsModel: DocsModel = {
                               "series",
                               "person",
                               "credit_name",
-                              "trait"
+                              "trait",
+                              "walkthrough"
                             ],
                             "type": "string"
                           }
@@ -175633,7 +175651,8 @@ export const docsModel: DocsModel = {
                               "catalog.series",
                               "catalog.person",
                               "catalog.credit_name",
-                              "catalog.trait"
+                              "catalog.trait",
+                              "catalog.walkthrough"
                             ],
                             "type": "string"
                           },
@@ -175661,12 +175680,13 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "diff_hint",
                                   "required": true,
-                                  "doc": "How a diff of this field should be rendered.",
+                                  "doc": "How a diff of this field should be rendered. tree: a nested JSON document, compared structurally.",
                                   "enum": [
                                     "inline",
                                     "lines",
                                     "items",
-                                    "image"
+                                    "image",
+                                    "tree"
                                   ],
                                   "type": "string"
                                 },
@@ -175758,7 +175778,8 @@ export const docsModel: DocsModel = {
                                     "date",
                                     "list",
                                     "ref",
-                                    "imagehash"
+                                    "imagehash",
+                                    "document"
                                   ],
                                   "type": "string"
                                 },
@@ -175856,7 +175877,8 @@ export const docsModel: DocsModel = {
                               "series",
                               "person",
                               "credit_name",
-                              "trait"
+                              "trait",
+                              "walkthrough"
                             ],
                             "type": "string"
                           }
@@ -177459,7 +177481,8 @@ export const docsModel: DocsModel = {
                     "series",
                     "person",
                     "credit_name",
-                    "trait"
+                    "trait",
+                    "walkthrough"
                   ]
                 },
                 {
@@ -177561,7 +177584,8 @@ export const docsModel: DocsModel = {
                           "catalog.series",
                           "catalog.person",
                           "catalog.credit_name",
-                          "catalog.trait"
+                          "catalog.trait",
+                          "catalog.walkthrough"
                         ],
                         "type": "string"
                       },
@@ -177646,7 +177670,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       }
@@ -179210,7 +179235,8 @@ export const docsModel: DocsModel = {
                     "series",
                     "person",
                     "credit_name",
-                    "trait"
+                    "trait",
+                    "walkthrough"
                   ]
                 },
                 {
@@ -179417,7 +179443,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       }
@@ -243351,7 +243378,8 @@ export const docsModel: DocsModel = {
                                 "series",
                                 "person",
                                 "credit_name",
-                                "trait"
+                                "trait",
+                                "walkthrough"
                               ],
                               "type": "string"
                             },
@@ -245318,7 +245346,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       },
@@ -247794,7 +247823,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       },
@@ -249718,7 +249748,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       },
@@ -252220,7 +252251,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       },
@@ -315966,7 +315998,8 @@ export const docsModel: DocsModel = {
                                 "series",
                                 "person",
                                 "credit_name",
-                                "trait"
+                                "trait",
+                                "walkthrough"
                               ],
                               "type": "string"
                             },
@@ -317916,7 +317949,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       },
@@ -323612,7 +323646,8 @@ export const docsModel: DocsModel = {
                           "series",
                           "person",
                           "credit_name",
-                          "trait"
+                          "trait",
+                          "walkthrough"
                         ],
                         "type": "string"
                       },

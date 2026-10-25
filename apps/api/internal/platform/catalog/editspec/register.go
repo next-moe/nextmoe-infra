@@ -15,7 +15,7 @@ func RegisterAll(reg *editing.Registry, db *gorm.DB) error {
 	reg.SetPermissionValidator(perm.Known)
 	for _, register := range []func(*editing.Registry, *gorm.DB) error{
 		RegisterWork, RegisterTaxonomy, RegisterCharacter, RegisterRelease,
-		RegisterPerson, RegisterCreditName, RegisterTrait,
+		RegisterPerson, RegisterCreditName, RegisterTrait, RegisterWalkthrough,
 	} {
 		if err := register(reg, db); err != nil {
 			return err

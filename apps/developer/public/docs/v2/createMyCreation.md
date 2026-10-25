@@ -29,8 +29,8 @@ Files a proposal that creates a new entry of one family. It is reviewed like any
 | --- | --- | --- | --- |
 | `confirm_duplicates` | 否 | boolean | Create even when entries with the same normalized name exist. Without it such a request is refused with 409 DUPLICATE_SUSPECTS naming them, and nothing is written. |
 | `note` | 否 | string | Proposer's own summary. Must not be used as a discriminant. |
-| `object` | 是 | string | Family of the new entry. Works are created through POST /v2/me/claims. Tags and traits take a reviewer-only create policy. 取值：company \| character \| release \| engine \| series \| person \| credit_name \| tag \| trait |
-| `params` | 否 | map<string, object> | Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release takes work_id, person takes credit_name_id of an unattributed credit name). |
+| `object` | 是 | string | Family of the new entry. Works are created through POST /v2/me/claims. Tags and traits take a reviewer-only create policy. 取值：company \| character \| release \| engine \| series \| person \| credit_name \| tag \| trait \| walkthrough |
+| `params` | 否 | map<string, object> | Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release and walkthrough take work_id, person takes credit_name_id of an unattributed credit name). |
 | `params.«key»` | 否 | object |  |
 | `patch` | 否 | map<string, object> | Field key to initial value, the same keys and values POST /v2/me/proposals accepts for that family. creation.required_fields must be present. |
 | `patch.«key»` | 否 | object |  |

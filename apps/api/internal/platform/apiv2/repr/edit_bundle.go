@@ -14,7 +14,7 @@ type RefName struct {
 	_           struct{}                 `json:"-" additionalProperties:"true"`
 	Object      string                   `json:"object" enum:"ref_name" doc:"Type discriminant. Always ref_name."`
 	Key         string                   `json:"key" pattern:"^[a-z_]+:[0-9]+$" maxLength:"64" doc:"family:id as requested in keys=, e.g. tag:12."`
-	Family      string                   `json:"family" enum:"work,tag,company,engine,series,character,credit_name,person,role,trait,release" doc:"Family of the entity."`
+	Family      string                   `json:"family" enum:"work,tag,company,engine,series,character,credit_name,person,role,trait,release,walkthrough" doc:"Family of the entity."`
 	ID          string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog id."`
 	DisplayName string                   `json:"display_name" maxLength:"512" doc:"The display_name the family's ids= batch lane answers; for a release, its title, empty when it has none. Must not be used as a discriminant."`
 	NameZh      *string                  `json:"name_zh,omitempty" maxLength:"512" doc:"A Chinese name when one is recorded: a trait's name_zh, otherwise the zh-Hans, zh-Hant or zh entry of localized. Absent if none. Must not be used as a discriminant."`

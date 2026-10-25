@@ -15,8 +15,8 @@ import (
 
 type createCreationInput struct {
 	Body struct {
-		Object            string         `json:"object" enum:"company,character,release,engine,series,person,credit_name,tag,trait" doc:"Family of the new entry. Works are created through POST /v2/me/claims. Tags and traits take a reviewer-only create policy."`
-		Params            map[string]any `json:"params,omitempty" doc:"Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release takes work_id, person takes credit_name_id of an unattributed credit name)."`
+		Object            string         `json:"object" enum:"company,character,release,engine,series,person,credit_name,tag,trait,walkthrough" doc:"Family of the new entry. Works are created through POST /v2/me/claims. Tags and traits take a reviewer-only create policy."`
+		Params            map[string]any `json:"params,omitempty" doc:"Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release and walkthrough take work_id, person takes credit_name_id of an unattributed credit name)."`
 		Patch             map[string]any `json:"patch,omitempty" doc:"Field key to initial value, the same keys and values POST /v2/me/proposals accepts for that family. creation.required_fields must be present."`
 		Note              string         `json:"note,omitempty" maxLength:"2000" doc:"Proposer's own summary. Must not be used as a discriminant."`
 		ConfirmDuplicates bool           `json:"confirm_duplicates,omitempty" doc:"Create even when entries with the same normalized name exist. Without it such a request is refused with 409 DUPLICATE_SUSPECTS naming them, and nothing is written."`
