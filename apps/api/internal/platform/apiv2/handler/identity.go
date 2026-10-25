@@ -144,6 +144,7 @@ var editingPlanePrefixes = []string{
 	"/v2/me/split-preview",
 	"/v2/me/split-requests",
 	"/v2/me/walkthrough-backlog",
+	"/v2/me/walkthrough-drafts",
 	"/v2/moderation/claims",
 	"/v2/moderation/deletion-requests",
 	"/v2/moderation/discussions",

@@ -17,6 +17,7 @@ const emit = defineEmits<{
   discard: []
   shortcuts: []
   rail: []
+  generate: []
 }>()
 
 const issuesOpen = defineModel<boolean>('issuesOpen', { default: false })
@@ -43,6 +44,11 @@ const moreItems = computed<KunDropdownItem[]>(
       ...(props.entityId
         ? [{ key: 'history', label: '修订历史', icon: 'lucide:history' }]
         : []),
+      {
+        key: 'generate',
+        label: '从文字生成草稿',
+        icon: 'lucide:wand-sparkles'
+      },
       {
         key: 'shortcuts',
         label: '快捷键',
@@ -71,6 +77,8 @@ const onMore = async (item: KunDropdownItem) => {
     window.open(`/history/walkthrough/${props.entityId}`, '_blank', 'noopener')
   } else if (item.key === 'shortcuts') {
     emit('shortcuts')
+  } else if (item.key === 'generate') {
+    emit('generate')
   } else if (item.key === 'discard') {
     const ok = await useKunAlert({
       title: props.entityId ? '放弃全部修改' : '清空草稿',

@@ -188,6 +188,7 @@ func registerCatalog(api huma.API, cat *Catalog) {
 	}, getCatalogStats(cat))
 	registerCatalogLists(api, cat)
 	registerCatalogWalkthroughs(api, cat)
+	registerMeWalkthroughDrafts(api, cat)
 	registerCatalogTagExclusion(api, cat)
 	registerCatalogFeeds(api, cat)
 	registerCatalogEditHistory(api, cat)

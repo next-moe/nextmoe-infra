@@ -2228,6 +2228,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/walkthrough-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn a text walkthrough into a draft chart
+         * @description A language model reads the text and returns a choice chart in the shape catalog.walkthrough.chart takes, with the import gate's verdict on it. Nothing is written to the catalog and the text is not stored; the caller edits the draft and files it as a proposal. Each caller has 20 drafts per rolling 24 hours; past it 429 QUOTA_EXCEEDED. 503 when no model is configured. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        post: operations["createMyWalkthroughDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/work-records": {
         parameters: {
             query?: never;
@@ -10420,6 +10440,56 @@ export interface components {
             sections: components["schemas"]["WalkthroughSection"][];
             /** @description Runs of steps from one node to the next, in source order. Empty array, never null. */
             segments: components["schemas"]["WalkthroughSegment"][];
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughDraftBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/WalkthroughDraftBody.json
+             */
+            readonly $schema?: string;
+            /** @description The draft chart, the same value catalog.walkthrough.chart takes. null when verdict is no_chart. */
+            chart: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: double
+             * @description Share of the input's choice lines the chart carries.
+             */
+            coverage: number;
+            /** @description Input lines the chart does not carry, at most 8. Empty array, never null. */
+            missed: string[];
+            /** @description Chart texts that are not in the input. Empty array, never null. */
+            not_verbatim: string[];
+            /**
+             * @description Type discriminant. Always walkthrough_draft.
+             * @enum {string}
+             */
+            object: "walkthrough_draft";
+            /**
+             * Format: int64
+             * @description Drafts the caller has left in the rolling 24-hour window.
+             */
+            remaining: number;
+            /**
+             * @description The import gate's verdict on the draft: review means choices or endings look missing, rejected means some text is not in the input, no_chart means the text holds no choice chart.
+             * @enum {string}
+             */
+            verdict: "ok" | "review" | "rejected" | "no_chart";
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughDraftInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/WalkthroughDraftInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description A walkthrough as plain text, such as choices written one per line under route headings. It is sent to a language model and not stored. Must not be used as a discriminant. */
+            text: string;
         } & {
             [key: string]: unknown;
         };
@@ -25763,6 +25833,105 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMyWalkthroughDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WalkthroughDraftInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalkthroughDraftBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
