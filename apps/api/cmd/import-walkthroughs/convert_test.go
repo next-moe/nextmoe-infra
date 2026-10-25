@@ -169,4 +169,20 @@ func TestTranslateJobProtectsEveryUntranslatedRosterName(t *testing.T) {
 	assert.False(t, keepsNames("思わず来栖の横顔に見とれてしまう。", "不禁看来了栖的侧脸。", job.KeepNames))
 }
 
+func TestNameMaskRoundTripsKeptNames(t *testing.T) {
+	m := newNameMask([]string{"しづる", "春日 しづる", "藍"})
+	masked := m.hide("春日 しづるとしづるの部屋で藍を見る")
+	assert.Equal(t, "{N1}と{N2}の部屋で藍を見る", masked, "the full name is masked before its part; a one-rune name is not")
+	zh, ok := m.restore(masked, "在{N2}的房间里和{N1}一起看藍")
+	assert.True(t, ok)
+	assert.Equal(t, "在しづる的房间里和春日 しづる一起看藍", zh)
+	_, ok = m.restore(masked, "在静流的房间里和{N1}一起看藍")
+	assert.False(t, ok, "a dropped token is a renamed name")
+	_, ok = m.restore(masked, "{N1}{N2}{N3}")
+	assert.False(t, ok, "an invented token is refused")
+	assert.True(t, m.onlyNames("■春日 しづる│2"))
+	assert.False(t, m.onlyNames("しづるEND"))
+	assert.False(t, m.onlyNames("１章"), "a string without a kept name is not a name")
+}
+
 func ptr(s string) *string { return &s }
