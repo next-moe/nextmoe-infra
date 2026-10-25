@@ -78224,6 +78224,58 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "release",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "companies",
+                                  "required": true,
+                                  "doc": "Display names of the companies and groups credited on the release, such as the translation group of a patch. Empty array, never null. Must not be used as a discriminant.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "Catalog release id, a release of this walkthrough's work.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "lang",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Main language of the release. null if unrecorded.",
+                                  "format": "bcp47",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "release_kind",
+                                  "required": true,
+                                  "doc": "Kind of the release; patch includes fan translation patches.",
+                                  "enum": [
+                                    "default",
+                                    "digital",
+                                    "physical",
+                                    "trial",
+                                    "patch"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "title",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "The release's title. null if it has none. Must not be used as a discriminant.",
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "The release this walkthrough follows, such as an official or fan translation whose choice texts differ from the original. null when it follows no particular release."
+                            },
+                            {
                               "name": "save_count",
                               "required": true,
                               "doc": "Save points in the chart.",
@@ -78288,6 +78340,12 @@ export const docsModel: DocsModel = {
                               "required": true,
                               "doc": "Catalog work this walkthrough plays through.",
                               "type": "string"
+                            },
+                            {
+                              "name": "work_route_hints",
+                              "required": true,
+                              "doc": "true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes.",
+                              "type": "boolean"
                             }
                           ]
                         }
@@ -80249,6 +80307,58 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "release",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "companies",
+                            "required": true,
+                            "doc": "Display names of the companies and groups credited on the release, such as the translation group of a patch. Empty array, never null. Must not be used as a discriminant.",
+                            "type": "array",
+                            "itemsOf": {
+                              "type": "string"
+                            }
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "Catalog release id, a release of this walkthrough's work.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "lang",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Main language of the release. null if unrecorded.",
+                            "format": "bcp47",
+                            "type": "string"
+                          },
+                          {
+                            "name": "release_kind",
+                            "required": true,
+                            "doc": "Kind of the release; patch includes fan translation patches.",
+                            "enum": [
+                              "default",
+                              "digital",
+                              "physical",
+                              "trial",
+                              "patch"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "title",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "The release's title. null if it has none. Must not be used as a discriminant.",
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "The release this walkthrough follows, such as an official or fan translation whose choice texts differ from the original. null when it follows no particular release."
+                      },
+                      {
                         "name": "save_count",
                         "required": true,
                         "doc": "Save points in the chart.",
@@ -80313,6 +80423,12 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "doc": "Catalog work this walkthrough plays through.",
                         "type": "string"
+                      },
+                      {
+                        "name": "work_route_hints",
+                        "required": true,
+                        "doc": "true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes.",
+                        "type": "boolean"
                       }
                     ]
                   }
@@ -273299,6 +273415,58 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "release",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "companies",
+                                  "required": true,
+                                  "doc": "Display names of the companies and groups credited on the release, such as the translation group of a patch. Empty array, never null. Must not be used as a discriminant.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "Catalog release id, a release of this walkthrough's work.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "lang",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Main language of the release. null if unrecorded.",
+                                  "format": "bcp47",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "release_kind",
+                                  "required": true,
+                                  "doc": "Kind of the release; patch includes fan translation patches.",
+                                  "enum": [
+                                    "default",
+                                    "digital",
+                                    "physical",
+                                    "trial",
+                                    "patch"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "title",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "The release's title. null if it has none. Must not be used as a discriminant.",
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "The release this walkthrough follows, such as an official or fan translation whose choice texts differ from the original. null when it follows no particular release."
+                            },
+                            {
                               "name": "save_count",
                               "required": true,
                               "doc": "Save points in the chart.",
@@ -273363,6 +273531,12 @@ export const docsModel: DocsModel = {
                               "required": true,
                               "doc": "Catalog work this walkthrough plays through.",
                               "type": "string"
+                            },
+                            {
+                              "name": "work_route_hints",
+                              "required": true,
+                              "doc": "true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes.",
+                              "type": "boolean"
                             }
                           ]
                         }

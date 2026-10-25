@@ -10,7 +10,8 @@ export const WT_FIELD = {
   hidden: 'catalog.walkthrough.hidden',
   lang: 'catalog.walkthrough.lang',
   pins: 'catalog.walkthrough.pins',
-  work: 'catalog.walkthrough.work_id'
+  work: 'catalog.walkthrough.work_id',
+  release: 'catalog.walkthrough.work_release_id'
 } as const
 
 export const WT_KEY_PATTERN = /^[A-Za-z0-9_]{1,32}$/

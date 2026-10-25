@@ -184,6 +184,7 @@ func TestOnlyDeclaredFieldsStampProvenance(t *testing.T) {
 		"catalog.work.olang -> catalog_work.olang",
 		"catalog.work.roster -> catalog_work_character.kind",
 		"catalog.work.roster -> catalog_work_character.spoiler",
+		"catalog.work.route_hints -> catalog_work.has_route_hints",
 		"catalog.work.screenshots_upstream -> catalog_work_screenshot.caption",
 		"catalog.work.screenshots_upstream -> catalog_work_screenshot.sexual",
 		"catalog.work.screenshots_upstream -> catalog_work_screenshot.violence",

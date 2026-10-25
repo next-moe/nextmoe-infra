@@ -38,6 +38,12 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       control: 'switch',
       help: '对已被站点收录的作品生效：打开后这部作品按 NSFW 内容处理，只向开启了 NSFW 显示的用户展示。'
     },
+    'catalog.work.route_hints': {
+      label: '游戏自带路线提示',
+      group: 'basic',
+      control: 'switch',
+      help: '游戏里能打开路线或选项提示（例如 2024 年的 ToHeart 重制版）时打开。攻略页会先提示读者可以使用游戏自带的提示，再让读者选择是否查看攻略。'
+    },
     'catalog.work.titles': {
       label: '标题',
       group: 'titles',

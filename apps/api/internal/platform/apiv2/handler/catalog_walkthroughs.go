@@ -188,7 +188,7 @@ func (c *Catalog) GetWalkthrough(ctx context.Context, id int64, nsfw bool) (repr
 
 func walkthroughFrom(w dto.PublicWalkthrough) repr.Walkthrough {
 	out := repr.Walkthrough{
-		Object: "walkthrough", ID: repr.ID(w.ID), WorkID: repr.ID(w.WorkID), WorkContentLimit: w.WorkContentLimit, Source: w.Source,
+		Object: "walkthrough", ID: repr.ID(w.ID), WorkID: repr.ID(w.WorkID), WorkContentLimit: w.WorkContentLimit, WorkRouteHints: w.WorkRouteHints, Source: w.Source,
 		SourceAuthor: optString(w.SourceAuthor), Lang: w.Lang,
 		Characters:  make([]repr.WalkthroughCharacter, 0, len(w.Characters)),
 		EndingCount: w.EndingCount, SaveCount: w.SaveCount, SegmentCount: w.SegmentCount,
@@ -211,6 +211,11 @@ func walkthroughFrom(w dto.PublicWalkthrough) repr.Walkthrough {
 	}
 	if w.Chart != nil {
 		out.Chart = walkthroughChartFrom(*w.Chart, walkthroughLocalizer(w))
+	}
+	if r := w.Release; r != nil {
+		out.Release = &repr.WalkthroughRelease{
+			ID: repr.ID(r.ID), Title: r.Title, ReleaseKind: r.Kind, Lang: r.Lang, Companies: orEmptyStrings(r.Companies),
+		}
 	}
 	if r := w.ImportReview; r != nil {
 		out.ImportReview = &repr.WalkthroughImportReview{

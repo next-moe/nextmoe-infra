@@ -49,6 +49,12 @@ const source: WalkthroughDocumentSource = {
     return id === undefined || id === null ? null : String(id)
   },
   setWorkId: (id: string) => editor.setValue(WT_FIELD.work, Number(id)),
+  releaseId: () => {
+    const id = editor.draft.value[WT_FIELD.release]
+    return id === undefined || id === null ? null : String(id)
+  },
+  setReleaseId: (id: string | null) =>
+    editor.setValue(WT_FIELD.release, id === null ? null : Number(id)),
   readonly: () => !canPropose(WT_FIELD.chart)
 }
 

@@ -288,3 +288,41 @@ func TestUnhidingACompletedWalkthroughTakesItOffTheBacklog(t *testing.T) {
 		t.Fatalf("unhidden walkthrough = status %d, import_review %s", reloaded.Status, reloaded.ImportReview)
 	}
 }
+
+func TestWalkthroughFollowsOnlyAReleaseOfItsWork(t *testing.T) {
+	e := newWalkthroughEngine(t)
+	work, other := createWork(t, "w"), createWork(t, "other")
+	own, foreign := createReleaseOn(t, work.ID), createReleaseOn(t, other.ID)
+	w := importedWalkthrough(t, work.ID)
+	propose := func(patch map[string]any) error {
+		_, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+			EntityType: editspec.TypeWalkthrough, EntityID: w.ID, Patch: patch, Actor: trustedEditor(),
+		})
+		return err
+	}
+	var valErr *editing.ValidationError
+	if err := propose(map[string]any{editspec.FieldWalkthroughRelease: float64(foreign.ID)}); !errors.As(err, &valErr) {
+		t.Fatalf("another work's release: %v, want a ValidationError", err)
+	}
+	if err := propose(map[string]any{editspec.FieldWalkthroughRelease: float64(own.ID)}); err != nil {
+		t.Fatalf("own release: %v", err)
+	}
+	var reloaded model.CatalogWalkthrough
+	testDB.First(&reloaded, w.ID)
+	if reloaded.ReleaseID == nil || *reloaded.ReleaseID != own.ID {
+		t.Fatalf("release_id = %v", reloaded.ReleaseID)
+	}
+	if err := propose(map[string]any{editspec.FieldWalkthroughWork: float64(other.ID)}); err != nil {
+		t.Fatalf("move: %v", err)
+	}
+	testDB.First(&reloaded, w.ID)
+	if reloaded.ReleaseID != nil {
+		t.Fatalf("a moved walkthrough kept the old work's release %d", *reloaded.ReleaseID)
+	}
+	if err := propose(map[string]any{
+		editspec.FieldWalkthroughWork:    float64(work.ID),
+		editspec.FieldWalkthroughRelease: float64(own.ID),
+	}); err != nil {
+		t.Fatalf("move back with the release in one patch: %v", err)
+	}
+}

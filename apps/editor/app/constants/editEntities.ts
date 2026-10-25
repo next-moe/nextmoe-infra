@@ -568,6 +568,12 @@ export const WALKTHROUGH_EDIT_CONFIG: EditEntityConfig = {
     'catalog.walkthrough.chart': { label: '攻略图', group: 'basic' },
     'catalog.walkthrough.pins': { label: '角色关联', group: 'basic' },
     'catalog.walkthrough.lang': { label: '攻略语言', group: 'basic' },
+    'catalog.walkthrough.work_release_id': {
+      label: '适用版本',
+      group: 'basic',
+      control: 'ref',
+      ref: 'release'
+    },
     'catalog.walkthrough.work_id': {
       label: '所属作品',
       group: 'basic',

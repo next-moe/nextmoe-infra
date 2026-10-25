@@ -27,6 +27,7 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 		Object           string `json:"object"`
 		WorkID           string `json:"work_id"`
 		WorkContentLimit string `json:"work_content_limit"`
+		WorkRouteHints   bool   `json:"work_route_hints"`
 		Source           string `json:"source"`
 		Lang             string `json:"lang"`
 		Characters       []struct {
@@ -62,6 +63,7 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	assert.Equal(t, "walkthrough", w.Object)
 	assert.Equal(t, idstr(fx.Work), w.WorkID)
 	assert.Equal(t, model.DisplayLimitKeySFW, w.WorkContentLimit)
+	assert.False(t, w.WorkRouteHints)
 	assert.Equal(t, "seiya", w.Source)
 	assert.Equal(t, "ja", w.Lang)
 	assert.Equal(t, 1, w.EndingCount)
@@ -81,6 +83,12 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	assert.Empty(t, steps[0].Alternatives[0].Localized, "an untranslated alternative has an empty localized map")
 	assert.Nil(t, steps[1].Text)
 	assert.Equal(t, "sv01", *steps[1].SaveKey)
+
+	require.NoError(t, env.db.Exec(`UPDATE catalog_work SET has_route_hints = true WHERE id = ?`, fx.Work).Error)
+	t.Cleanup(func() { env.db.Exec(`UPDATE catalog_work SET has_route_hints = false WHERE id = ?`, fx.Work) })
+	status, body = get("/v2/catalog/walkthroughs/" + idstr(fx.Walkthrough))
+	require.Equal(t, http.StatusOK, status, string(body))
+	assert.Contains(t, string(body), `"work_route_hints":true`)
 
 	limitOf := map[string]string{}
 	list := func(qs string) []string {

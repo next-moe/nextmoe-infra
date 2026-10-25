@@ -11,10 +11,12 @@ import "gorm.io/gorm"
 // a new column names a release and is in neither list.
 var releaseScopedWorkRows = []struct{ table string }{
 	{"catalog_credit"},
+	{"catalog_walkthrough"},
 }
 
 var releaseKeyedColumns = map[string]string{
 	"catalog_credit.release_id":         "work-owned; moves with its release (releaseScopedWorkRows)",
+	"catalog_walkthrough.release_id":    "work-owned; a walkthrough following the edition that leaves moves with it (releaseScopedWorkRows)",
 	"catalog_release_label.release_id":  "keyed by the release alone; follows it",
 	"catalog_split_request.release_ids": "the split's own record of the releases it moves",
 }

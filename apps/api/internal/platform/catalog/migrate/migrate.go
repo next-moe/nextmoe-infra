@@ -61,6 +61,9 @@ func Run(db *gorm.DB) error {
 		&model.CatalogClaimEvent{},
 
 		// Work graph (step 04): registry work/title/release, then edges.
+		// 2026-10-26: has_route_hints (NOT NULL DEFAULT false, a constant
+		// default, so PG adds it without rewriting the rows; every existing work
+		// takes false) marks a game that shows route hints itself.
 		&model.CatalogWork{},
 		&model.CatalogWorkTitle{},
 		&model.CatalogWorkIntro{}, // bodyless multilingual intro (step 52 media-aggregation pilot)
@@ -752,6 +755,11 @@ func rawSQL(db *gorm.DB) error {
 			`FOREIGN KEY (walkthrough_id) REFERENCES catalog_walkthrough(id) ON DELETE CASCADE`},
 		{"catalog_walkthrough_character", "fk_catalog_walkthrough_character_character",
 			`FOREIGN KEY (character_id) REFERENCES catalog_character(id) ON DELETE CASCADE`},
+		// 2026-10-26: release_id (nullable, every existing row NULL) names the
+		// release a walkthrough follows, such as an official or fan translation.
+		// Losing the release only loses that note, not the walkthrough.
+		{"catalog_walkthrough", "fk_catalog_walkthrough_release",
+			`FOREIGN KEY (release_id) REFERENCES catalog_release(id) ON DELETE SET NULL`},
 	} {
 		exists, err := constraintExists(db, fk.table, fk.name)
 		if err != nil {
