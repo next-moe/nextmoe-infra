@@ -12,6 +12,10 @@
 //	match      entry → catalog work, chart characters → catalog characters
 //	translate  choice/ending strings → zh-Hans, names only from source-provenance aliases
 //	apply      gated charts → catalog_walkthrough (dry unless --apply)
+//
+// saves is separate from the chain: it matches every downloaded save archive's
+// game to a catalog work and writes the JSONL manifest moyu's import-saves
+// uploads from. Nothing is written to either database.
 package main
 
 import (
@@ -33,7 +37,7 @@ import (
 )
 
 func main() {
-	stage := flag.String("stage", "", "extract | regate | match | translate | apply (REQUIRED)")
+	stage := flag.String("stage", "", "extract | regate | match | translate | apply | saves (REQUIRED)")
 	sourceDSN := flag.String("source-dsn", "", "walkthrough_save DSN (REQUIRED)")
 	dsn := flag.String("dsn", "", "catalog DSN (required by match, translate and apply)")
 	apply := flag.Bool("apply", false, "apply stage: write catalog rows (default: dry)")
@@ -44,6 +48,7 @@ func main() {
 	llmBase := flag.String("llm-base", os.Getenv("KUN_AI_UPSTREAM_BASE_URL"), "OpenAI-compatible gateway base URL (…/v1); the token is KUN_AI_UPSTREAM_TOKEN")
 	workers := flag.Int("workers", 6, "concurrent gateway calls")
 	maxTokens := flag.Int("max-tokens", 24000, "max_tokens per call")
+	out := flag.String("out", "", "saves stage: the JSONL upload manifest to write")
 	flag.Parse()
 
 	logger.Init("development")
@@ -92,10 +97,12 @@ func main() {
 		err = runMatch(ctx, src, openCatalog(*dsn), entries)
 	case "apply":
 		err = runApply(ctx, src, openCatalog(*dsn), entries, *apply)
+	case "saves":
+		err = runSaves(ctx, src, openCatalog(*dsn), *out)
 	case "translate":
 		err = runTranslate(ctx, src, openCatalog(*dsn), newLLM(), entries, extractOpts{Workers: *workers, MaxTokens: *maxTokens, Redo: *redo})
 	default:
-		slog.Error("--stage must be extract, match, translate or apply", "value", *stage)
+		slog.Error("--stage must be extract, regate, match, translate, apply or saves", "value", *stage)
 		os.Exit(2)
 	}
 	if err != nil {
