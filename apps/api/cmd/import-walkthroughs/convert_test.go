@@ -138,6 +138,31 @@ func TestPinCharactersStaysInsideTheRoster(t *testing.T) {
 	assert.False(t, pinned, "和奏 is a part of two roster names, so it pins neither")
 }
 
+func TestPinCharactersPrefersTheRosterOverPlaceholders(t *testing.T) {
+	c := &walkthrough.Chart{Characters: []walkthrough.Character{
+		{Key: "c1", Name: "鏡"},
+		{Key: "c2", Name: "澪"},
+		{Key: "c3", Name: "由希"},
+		{Key: "c4", Name: "空"},
+	}}
+	roster := []rosterEntry{
+		{CharacterID: 1, Names: []string{nameKey("敷島 鏡")}},
+		{CharacterID: 2, Names: []string{nameKey("如月 澪")}},
+		{CharacterID: 3, Names: []string{nameKey("如月澪")}, HasImage: true},
+		{CharacterID: 4, Names: []string{nameKey("御園 由希")}},
+		{CharacterID: 5, Names: []string{nameKey("三条由希")}},
+		{CharacterID: 6, Names: []string{nameKey("美空")}},
+		{CharacterID: 7, Names: []string{nameKey("鏡")}, Placeholder: true},
+		{CharacterID: 8, Names: []string{nameKey("由希")}, Placeholder: true},
+	}
+	got := pinCharacters(c, roster)
+	assert.Equal(t, characterPin{CharacterID: 1, Rule: ruleNamePart}, got["c1"], "a real full name beats a placeholder of the same name")
+	assert.Equal(t, characterPin{CharacterID: 3, Rule: ruleNamePart}, got["c2"], "one person entered twice pins the copy with an image")
+	assert.Equal(t, characterPin{CharacterID: 8, Rule: ruleSameName}, got["c3"], "two different people stay ambiguous, so the placeholder keeps it")
+	_, pinned := got["c4"]
+	assert.False(t, pinned, "a one-rune name is not read as the end of a two-rune name")
+}
+
 func TestParseSourceDate(t *testing.T) {
 	assert.Equal(t, "2023-12-07", parseSourceDate("23/12/07").Format("2006-01-02"))
 	assert.Equal(t, "2006-02-26", parseSourceDate("最終更新 ２００６/０２/２６").Format("2006-01-02"))

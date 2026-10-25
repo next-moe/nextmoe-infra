@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/walkthrough"
 	"api/internal/platform/provenance"
@@ -34,7 +35,7 @@ var sourceKey = map[int16]string{
 
 type applyStats struct {
 	Written, Unchanged, Skipped int
-	Pinned, Created             int
+	Pinned, Created, Retired    int
 }
 
 func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, apply bool) error {
@@ -102,8 +103,13 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 			return fmt.Errorf("entry %d: %w", id, err)
 		}
 	}
-	fmt.Printf("written=%d unchanged=%d skipped_unmatched=%d characters_pinned=%d characters_created=%d\n",
-		st.Written, st.Unchanged, st.Skipped, st.Pinned, st.Created)
+	if apply {
+		if st.Retired, err = retireOrphanPlaceholders(cat.WithContext(ctx)); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("written=%d unchanged=%d skipped_unmatched=%d characters_pinned=%d characters_created=%d placeholders_retired=%d\n",
+		st.Written, st.Unchanged, st.Skipped, st.Pinned, st.Created, st.Retired)
 	if !apply {
 		fmt.Println("[dry run] nothing written — re-run with --apply")
 	}
@@ -137,7 +143,8 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 	if w.ID != 0 {
 		var prev walkthrough.Chart
 		if json.Unmarshal(existing.Chart, &prev) == nil && reflect.DeepEqual(prev, c) &&
-			existing.WorkID == w.WorkID && existing.SourceHash == w.SourceHash && existing.TranslateModel == w.TranslateModel {
+			existing.WorkID == w.WorkID && existing.SourceHash == w.SourceHash && existing.TranslateModel == w.TranslateModel &&
+			pinsLinked(pins, links) {
 			st.Unchanged++
 			return nil
 		}
@@ -156,6 +163,9 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 		rule := ""
 		id, linked := links[ch.Key]
 		if p, ok := pins[ch.Key]; ok {
+			if linked && id == p.CharacterID {
+				continue
+			}
 			id, rule = p.CharacterID, p.Rule
 			st.Pinned++
 		} else if !linked {
@@ -180,6 +190,60 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 	}
 	return tx.Where("walkthrough_id = ? AND chart_key NOT IN ?", w.ID, append(keep, "")).
 		Delete(&model.CatalogWalkthroughCharacter{}).Error
+}
+
+func pinsLinked(pins map[string]characterPin, links map[string]int64) bool {
+	for k, p := range pins {
+		if links[k] != p.CharacterID {
+			return false
+		}
+	}
+	return true
+}
+
+// retireOrphanPlaceholders soft-deletes the name-only characters this importer
+// created that a re-match has unlinked from every chart. It retires only a
+// placeholder nobody has touched since: every other table that can hold a
+// character id must have no row for it, and that list is maintained by hand
+// against merge_rehang.go's mergeRefs.
+func retireOrphanPlaceholders(db *gorm.DB) (int, error) {
+	var ids []int64
+	if err := db.Raw(`
+SELECT c.id FROM catalog_character c
+WHERE c.deleted_at IS NULL
+  AND EXISTS (SELECT 1 FROM catalog_work_character wc WHERE wc.character_id = c.id AND wc.matched_by = @wt)
+  AND NOT EXISTS (SELECT 1 FROM catalog_work_character wc WHERE wc.character_id = c.id AND wc.matched_by <> @wt)
+  AND NOT EXISTS (SELECT 1 FROM catalog_walkthrough_character l WHERE l.character_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM catalog_revision r WHERE r.entity_type = @family AND r.entity_id = c.id AND r.note <> @wt)
+  AND NOT EXISTS (SELECT 1 FROM edit_revision r WHERE r.entity_type = @edit AND r.entity_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM edit_proposal p WHERE p.entity_type = @edit AND p.entity_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM edit_suppressed_row x WHERE x.entity_type = @edit AND x.entity_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM catalog_character i WHERE i.instance_of = c.id)
+  AND NOT EXISTS (SELECT 1 FROM catalog_character_intro x WHERE x.character_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM catalog_character_intro_panel_verdict x WHERE x.character_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM catalog_character_trait_link x WHERE x.character_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM catalog_credit x WHERE x.character_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM catalog_entity_relation x WHERE x.entity_type = @family AND (x.a_id = c.id OR x.b_id = c.id))
+  AND NOT EXISTS (SELECT 1 FROM catalog_entity_usage x WHERE x.entity_type = @family AND x.entity_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM catalog_external_ref x WHERE x.entity_type = @family AND x.entity_id = c.id)
+ORDER BY c.id`, map[string]any{"wt": matchedByWalkthrough, "family": model.EntityTypeCharacter, "edit": editspec.TypeCharacter}).
+		Scan(&ids).Error; err != nil || len(ids) == 0 {
+		return 0, err
+	}
+	return len(ids), db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`DELETE FROM catalog_work_character WHERE character_id IN ? AND matched_by = ?`, ids, matchedByWalkthrough).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`UPDATE catalog_character SET deleted_at = now(), updated_at = now() WHERE id IN ?`, ids).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`
+INSERT INTO catalog_revision (entity_type, entity_id, revision, action, snapshot, is_minor, note, created_at)
+SELECT ?, c.id, coalesce((SELECT max(r.revision) FROM catalog_revision r WHERE r.entity_type = ? AND r.entity_id = c.id), 0) + 1,
+  ?, to_jsonb(c), false, ?, now()
+FROM catalog_character c WHERE c.id IN ?`,
+			model.EntityTypeCharacter, model.EntityTypeCharacter, model.RevisionActionDeleted, matchedByWalkthrough, ids).Error
+	})
 }
 
 func createNameOnlyCharacter(tx *gorm.DB, workID int64, source int16, ch walkthrough.Character) (int64, error) {
