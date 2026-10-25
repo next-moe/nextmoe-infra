@@ -17,6 +17,11 @@ Newest change first. Only live resources are ever listed: one its
 publisher disabled or moderation hid is absent here and `404` at its own
 URL, exactly as on the site.
 
+`type` narrows the page to some kinds; `type=save` is a game's save
+data. Starting from a catalog work id, resolve the page first with
+`GET /v2/moyu/patches?refs=catalog:<id>` — the patch id is not the work
+id.
+
 
 - 所属 API：moyu 补丁面（/v2/moyu）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -28,6 +33,7 @@ URL, exactly as on the site.
 | `limit` | query | 否 | integer | 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped. |
 | `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
 | `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
+| `type` | query | 否 | string[] | Comma-separated resource kinds; any of them matches. 取值：manual \| ai \| machine_polishing \| machine \| save \| crack \| fix \| mod \| r18 \| decensor \| image \| other |
 | `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
