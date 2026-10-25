@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
@@ -150,10 +151,13 @@ func (c *Catalog) GetWalkthrough(ctx context.Context, id int64, nsfw bool) (repr
 func walkthroughFrom(w dto.PublicWalkthrough) repr.Walkthrough {
 	out := repr.Walkthrough{
 		Object: "walkthrough", ID: repr.ID(w.ID), WorkID: repr.ID(w.WorkID), WorkContentLimit: w.WorkContentLimit, Source: w.Source,
-		SourceURL: w.SourceURL, SourceAuthor: optString(w.SourceAuthor), Lang: "ja",
+		SourceAuthor: optString(w.SourceAuthor), Lang: w.Lang,
 		Characters:  make([]repr.WalkthroughCharacter, 0, len(w.Characters)),
 		EndingCount: w.EndingCount, SaveCount: w.SaveCount, SegmentCount: w.SegmentCount,
 		UpdatedAt: rfc3339(w.UpdatedAt),
+	}
+	if !strings.HasPrefix(w.SourceURL, catmodel.WalkthroughNativeURLPrefix) {
+		out.SourceURL = &w.SourceURL
 	}
 	if w.SourceUpdatedOn != nil {
 		d := w.SourceUpdatedOn.Format("2006-01-02")
@@ -168,24 +172,30 @@ func walkthroughFrom(w dto.PublicWalkthrough) repr.Walkthrough {
 		out.Characters = append(out.Characters, rc)
 	}
 	if w.Chart != nil {
-		out.Chart = walkthroughChartFrom(*w.Chart)
+		out.Chart = walkthroughChartFrom(*w.Chart, walkthroughLocalizer(w))
 	}
 	return out
 }
 
-func walkthroughLocalized(zh *string) map[string]repr.LocalizedText {
-	out := map[string]repr.LocalizedText{}
-	if zh != nil && *zh != "" {
-		out["zh-Hans"] = repr.LocalizedText{Value: *zh, IsMachine: true}
+// walkthroughLocalizer reads the chart's *_zh strings. An imported chart's
+// are machine translations; a chart written in the editor has people's, and a
+// chart written in Chinese has none to offer.
+func walkthroughLocalizer(w dto.PublicWalkthrough) func(zh *string) map[string]repr.LocalizedText {
+	machine := !strings.HasPrefix(w.SourceURL, catmodel.WalkthroughNativeURLPrefix)
+	return func(zh *string) map[string]repr.LocalizedText {
+		out := map[string]repr.LocalizedText{}
+		if zh != nil && *zh != "" && w.Lang != catmodel.WalkthroughLangZhHans {
+			out["zh-Hans"] = repr.LocalizedText{Value: *zh, IsMachine: machine}
+		}
+		return out
 	}
-	return out
 }
 
 func walkthroughNode(n walkthrough.Node) repr.WalkthroughNode {
 	return repr.WalkthroughNode{NodeType: n.NodeType, Key: n.Key}
 }
 
-func walkthroughChartFrom(c walkthrough.Chart) *repr.WalkthroughChart {
+func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string) map[string]repr.LocalizedText) *repr.WalkthroughChart {
 	out := &repr.WalkthroughChart{
 		Sections: make([]repr.WalkthroughSection, 0, len(c.Sections)),
 		Entries:  make([]repr.WalkthroughEntry, 0, len(c.Entries)),

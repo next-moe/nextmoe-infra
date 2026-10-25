@@ -2606,3 +2606,17 @@ The walkthrough faces gated only on the age axis, `nsfw=` against `content_ratin
 - The two axes stay independent: `content_limit` never opens the age gate. A site that hides adult content passes `nsfw=true&content_limit=sfw` on the list and gates the detail page on `work_content_limit`.
 
 **Migration**: none. **Spec 2.66.0**, additive.
+
+## Editable walkthroughs (spec 2.67.0, 2026-10-25)
+
+Walkthroughs join the editing engine as `catalog.walkthrough`, editable from the editor and creatable from scratch on a work.
+
+- **One document field.** `catalog.walkthrough.chart` is the whole chart, as the new field kind `document` with diff hint `tree`. It is one field and not one field per collection because `Validate` sees a single value: segments point at entries, saves and endings, and endings and sections at characters, so the references can only be checked when the chart is whole. The cost is coarse conflicts, since two edits of one chart on the same base always conflict. The editor merges them three-way on the client.
+- **Strict decode.** Validation decodes into `walkthrough.Chart` with unknown keys refused, fills nil slices (`walkthrough.FillNil`), checks key shape and uniqueness, text bounds and collection caps, then runs `walkthrough.Validate`. It never runs `walkthrough.Normalize`: that rewrites ending types, drops unreached endings and edits step text, which is right for an LLM extraction and wrong for a person's edit.
+- **Pins after the chart.** Fields apply in key order, so `catalog.walkthrough.pins` (`[{chart_key, character_id}]`) applies after the chart. A patch that adds a character and pins it in one go sees the new key. Applying a chart deletes the links of character keys it no longer has. A pin a person sets is stored with `matched_by = 'curated'`, and a link whose character did not change keeps its label.
+- **Policy.** It is the owned policy, as for works and releases: trusted editors and reviewers apply at once and the work's owner may review. The review permission is `edit.catalog.walkthrough.review`. `OwnerSite` and `OwnerUserID` read the parent work.
+- **Birth.** `POST /v2/me/creations` takes `object = walkthrough` with `params.work_id`, and the patch must carry chart and lang. The row is `source_id = nextmoe` with `source_url = 'editor:<uuid>'`; the uuid only keeps `(source_id, source_url)` unique, and the read face reports `source_url = null`. Translations in such a chart are people's, so `localized` says `is_machine: false`. A `zh-Hans` chart has no zh-Hans entries.
+- **Importer guard.** The table gains `field_provenance`. When the head of `chart` is a human source, `apply` leaves the walkthrough alone (`kept_edited`). When only `pins` is human, it writes the chart and drops links whose key is gone, but neither re-pins nor creates characters.
+- **Edit context.** The pins list publishes context rows (`matched_by` per link), so the editor can tell an auto-matched link from a confirmed one.
+
+**Migration**: `go run ./cmd/migrate catalog` against kun_catalog (the `migrate-catalog` job on deploy). It is additive: `catalog_walkthrough.lang text NOT NULL DEFAULT 'ja'` and `field_provenance jsonb NOT NULL DEFAULT '{}'` via AutoMigrate, plus `chk_catalog_walkthrough_lang`. Existing rows take the defaults. **Spec 2.67.0**: `source_url` becomes nullable, `lang` is read from the row, and the family enums gain `walkthrough`.

@@ -17,7 +17,7 @@ var (
 )
 
 func Normalize(c *Chart) {
-	fillNil(c)
+	FillNil(c)
 
 	for i := range c.Entries {
 		c.Entries[i].Label = stripRepeated(entryDecor, c.Entries[i].Label)
@@ -113,7 +113,7 @@ func stripRepeated(re *regexp.Regexp, s string) string {
 	}
 }
 
-func fillNil(c *Chart) {
+func FillNil(c *Chart) {
 	c.Characters = orEmpty(c.Characters)
 	c.Sections = orEmpty(c.Sections)
 	c.Entries = orEmpty(c.Entries)

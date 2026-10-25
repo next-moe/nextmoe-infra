@@ -9,6 +9,7 @@ import (
 
 	catmodel "api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/perm"
+	"api/internal/platform/catalog/walkthrough"
 	"api/internal/platform/editing"
 
 	"github.com/google/uuid"
@@ -134,6 +135,34 @@ func RegisterBirths(reg *editing.Registry, _ *gorm.DB) error {
 					WHERE work_id = ? AND deleted_at IS NULL AND lower(normalize(coalesce(title, ''), NFKC)) = lower(normalize(?, NFKC))
 					ORDER BY id LIMIT ?`, workID, title, maxDuplicateHints).Scan(&hints).Error
 				return hints, err
+			},
+		},
+		TypeWalkthrough: {
+			Params:   []editing.BirthParam{{Key: BirthParamWorkID, Kind: editing.KindRef, Required: true}},
+			Required: []string{FieldWalkthroughChart, FieldWalkthroughLang},
+			Check: func(ctx context.Context, db *gorm.DB, params, _ map[string]any) error {
+				workID, err := birthRef(params, BirthParamWorkID)
+				if err != nil {
+					return err
+				}
+				if err := assertWorkExists(ctx, db, workID); err != nil {
+					if errors.Is(err, editing.ErrEntityNotFound) {
+						return &editing.ValidationError{Key: editing.CreateFieldKey, Reason: fmt.Sprintf("work %d does not exist", workID)}
+					}
+					return err
+				}
+				return nil
+			},
+			Create: func(ctx context.Context, tx *gorm.DB, params, _ map[string]any) (int64, error) {
+				workID, err := birthRef(params, BirthParamWorkID)
+				if err != nil {
+					return 0, err
+				}
+				row := catmodel.CatalogWalkthrough{
+					WorkID: workID, SourceID: catmodel.SourceNextMoe, SourceURL: catmodel.WalkthroughNativeURLPrefix + uuid.NewString(),
+					ChartVersion: walkthrough.ChartVersion, Chart: datatypes.JSON(`{}`),
+				}
+				return insertRow(ctx, tx, &row, &row.ID)
 			},
 		},
 		TypePerson: {

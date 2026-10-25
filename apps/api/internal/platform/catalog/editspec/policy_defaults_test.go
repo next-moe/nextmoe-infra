@@ -14,8 +14,9 @@ func TestOnePlatformPolicyForEveryType(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 	owned := map[string]string{
-		editspec.TypeWork:    string(perm.EditWorkReview),
-		editspec.TypeRelease: string(perm.EditReleaseReview),
+		editspec.TypeWork:        string(perm.EditWorkReview),
+		editspec.TypeRelease:     string(perm.EditReleaseReview),
+		editspec.TypeWalkthrough: string(perm.EditWalkthroughReview),
 	}
 	shared := map[string]string{
 		editspec.TypeCharacter:  string(perm.EditCharacterReview),

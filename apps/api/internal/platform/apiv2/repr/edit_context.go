@@ -3,7 +3,7 @@ package repr
 type EditContext struct {
 	_            struct{}           `json:"-" additionalProperties:"true"`
 	Object       string             `json:"object" enum:"edit_context" doc:"Type discriminant. Always edit_context."`
-	TargetObject string             `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait" doc:"Family of the entity."`
+	TargetObject string             `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait,walkthrough" doc:"Family of the entity."`
 	EntityType   string             `json:"entity_type" maxLength:"64" doc:"Editing-engine type. Must not be used as a discriminant."`
 	EntityID     string             `json:"entity_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog id of the entity."`
 	Fields       []EditContextField `json:"fields" doc:"One entry per registered field, in the schema's order, including every .suppressed companion. Empty array, never null."`

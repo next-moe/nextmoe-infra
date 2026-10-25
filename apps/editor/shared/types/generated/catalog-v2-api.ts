@@ -3910,8 +3910,8 @@ export interface components {
              * @description Family of the new entry. Works are created through POST /v2/me/claims. Tags and traits take a reviewer-only create policy.
              * @enum {string}
              */
-            object: "company" | "character" | "release" | "engine" | "series" | "person" | "credit_name" | "tag" | "trait";
-            /** @description Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release takes work_id, person takes credit_name_id of an unattributed credit name). */
+            object: "company" | "character" | "release" | "engine" | "series" | "person" | "credit_name" | "tag" | "trait" | "walkthrough";
+            /** @description Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release and walkthrough take work_id, person takes credit_name_id of an unattributed credit name). */
             params?: {
                 [key: string]: unknown;
             };
@@ -4623,7 +4623,7 @@ export interface components {
              * @description Editing-engine type this family writes as.
              * @enum {string}
              */
-            entity_type: "catalog.work" | "catalog.label" | "catalog.character" | "catalog.release" | "catalog.tag" | "catalog.engine" | "catalog.series" | "catalog.person" | "catalog.credit_name" | "catalog.trait";
+            entity_type: "catalog.work" | "catalog.label" | "catalog.character" | "catalog.release" | "catalog.tag" | "catalog.engine" | "catalog.series" | "catalog.person" | "catalog.credit_name" | "catalog.trait" | "catalog.walkthrough";
             /** @description One entry per editable field, in the schema's order. Empty array, never null. */
             fields: components["schemas"]["FieldCapability"][];
             /**
@@ -4642,7 +4642,7 @@ export interface components {
              * @description Family these capabilities describe.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
         } & {
             [key: string]: unknown;
         };
@@ -4668,7 +4668,7 @@ export interface components {
              * @description Family of the entity.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
         } & {
             [key: string]: unknown;
         };
@@ -7915,7 +7915,7 @@ export interface components {
              * @description Editing-engine type this family writes as.
              * @enum {string}
              */
-            entity_type: "catalog.work" | "catalog.label" | "catalog.character" | "catalog.release" | "catalog.tag" | "catalog.engine" | "catalog.series" | "catalog.person" | "catalog.credit_name" | "catalog.trait";
+            entity_type: "catalog.work" | "catalog.label" | "catalog.character" | "catalog.release" | "catalog.tag" | "catalog.engine" | "catalog.series" | "catalog.person" | "catalog.credit_name" | "catalog.trait" | "catalog.walkthrough";
             /** @description Editable fields. Empty array, never null. Actor capabilities are not evaluated. */
             fields: components["schemas"]["SchemaField"][];
             /** @description Tokens view=full expands on the detail face. A subset of include. Empty array, never null. */
@@ -7935,7 +7935,7 @@ export interface components {
              * @description Family this schema describes.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
         } & {
             [key: string]: unknown;
         };
@@ -8463,7 +8463,7 @@ export interface components {
              * @description Family of the entity this proposal targets.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
@@ -8855,7 +8855,7 @@ export interface components {
              * @description Family of the entity.
              * @enum {string}
              */
-            family: "work" | "tag" | "company" | "engine" | "series" | "character" | "credit_name" | "person" | "role" | "trait" | "release";
+            family: "work" | "tag" | "company" | "engine" | "series" | "character" | "credit_name" | "person" | "role" | "trait" | "release" | "walkthrough";
             /** @description Catalog id. */
             id: string;
             /** @description family:id as requested in keys=, e.g. tag:12. */
@@ -9031,7 +9031,7 @@ export interface components {
              * @description Family of the entity this revision is on.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
         } & {
             [key: string]: unknown;
         };
@@ -9104,10 +9104,10 @@ export interface components {
             /** @description true when writes of this key are rejected. */
             deprecated: boolean;
             /**
-             * @description How a diff of this field should be rendered.
+             * @description How a diff of this field should be rendered. tree: a nested JSON document, compared structurally.
              * @enum {string}
              */
-            diff_hint: "inline" | "lines" | "items" | "image";
+            diff_hint: "inline" | "lines" | "items" | "image" | "tree";
             /** @description Shape of one element of a list field. Absent on scalar fields and on list fields whose shape is not yet declared. */
             element?: components["schemas"]["SchemaElement"];
             /**
@@ -9119,7 +9119,7 @@ export interface components {
              * @description Control type. Not a domain vocabulary.
              * @enum {string}
              */
-            field_type: "text" | "i18nmap" | "enum" | "int" | "date" | "list" | "ref" | "imagehash";
+            field_type: "text" | "i18nmap" | "enum" | "int" | "date" | "list" | "ref" | "imagehash" | "document";
             /** @description Editing-engine field key. Must not be used as a discriminant. */
             key: string;
             /**
@@ -10310,7 +10310,7 @@ export interface components {
             id: string;
             /**
              * Format: bcp47
-             * @description BCP-47 language of every text field in the chart. Translations sit in localized maps beside them.
+             * @description BCP-47 language of every text field in the chart: ja for an imported walkthrough, ja or zh-Hans for one written on this platform. Translations sit in localized maps beside them; a zh-Hans chart has no zh-Hans entries there.
              */
             lang: string;
             /**
@@ -10328,7 +10328,7 @@ export interface components {
              * @description Segments in the chart.
              */
             segment_count: number;
-            /** @description Open vocabulary sources: the site whose walkthrough page the choice graph was derived from. Must not be used as a discriminant. */
+            /** @description Open vocabulary sources: the site whose walkthrough page the choice graph was derived from, or nextmoe for a walkthrough written on this platform. Must not be used as a discriminant. */
             source: string;
             /** @description Author the source page credits. null if it credits none. Must not be used as a discriminant. */
             source_author: string | null;
@@ -10339,9 +10339,9 @@ export interface components {
             source_updated_on: string | null;
             /**
              * Format: uri
-             * @description The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution.
+             * @description The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution. null for a walkthrough written on this platform (source nextmoe), which has no page.
              */
-            source_url: string;
+            source_url: string | null;
             /**
              * Format: date-time
              * @description Last time this walkthrough row changed.
@@ -14104,7 +14104,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family this schema describes. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
             };
             cookie?: never;
         };
@@ -20044,7 +20044,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family of the entity. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
                 /** @description Catalog id of the entity. */
                 id: string;
             };
@@ -20151,7 +20151,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family these capabilities describe. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
             };
             cookie?: never;
         };
@@ -20253,7 +20253,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family of the entity. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait" | "walkthrough";
                 /** @description Catalog id of the entity. */
                 id: string;
             };

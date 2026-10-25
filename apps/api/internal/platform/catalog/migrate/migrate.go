@@ -213,6 +213,12 @@ func Run(db *gorm.DB) error {
 		// never the page prose. catalog_walkthrough_character pins each chart
 		// character key to a catalog character, matched within the work's
 		// roster or created name-only by the import. No existing row changes.
+		// 2026-10-25: walkthroughs become editable and can be written from scratch,
+		// so the table gains lang (the 4,048 imported rows take the 'ja' default,
+		// which is what the read face had hard-coded) and field_provenance (all
+		// take '{}': no field has been edited yet), and
+		// catalog_walkthrough_character.matched_by gains the 'curated' value for a
+		// pin a person set.
 		&model.CatalogWalkthrough{},
 		&model.CatalogWalkthroughCharacter{},
 
@@ -566,6 +572,8 @@ func rawSQL(db *gorm.DB) error {
 		{"catalog_walkthrough", "chk_catalog_walkthrough_chart_object", `jsonb_typeof(chart) = 'object'`},
 		{"catalog_walkthrough", "chk_catalog_walkthrough_chart_size", `pg_column_size(chart) <= 524288`},
 		{"catalog_walkthrough", "chk_catalog_walkthrough_status", `status IN (0, 1)`},
+		// 2026-10-25: every existing row is 'ja' through the column default.
+		{"catalog_walkthrough", "chk_catalog_walkthrough_lang", `lang IN ('ja', 'zh-Hans')`},
 	} {
 		exists, err := constraintExists(db, cc.table, cc.name)
 		if err != nil {

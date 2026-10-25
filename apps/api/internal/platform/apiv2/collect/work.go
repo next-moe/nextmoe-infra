@@ -488,6 +488,8 @@ func ObjectSpec(object string) (Spec, bool) {
 		return PersonSpec(), true
 	case "trait":
 		return TraitSpec(), true
+	case "walkthrough":
+		return WalkthroughSpec(), true
 	default:
 		return Spec{}, false
 	}

@@ -14,6 +14,7 @@ type PublicWalkthrough struct {
 	SourceURL        string
 	SourceAuthor     string
 	SourceUpdatedOn  *time.Time
+	Lang             string
 	UpdatedAt        time.Time
 	Characters       []PublicWalkthroughCharacter
 	EndingCount      int
