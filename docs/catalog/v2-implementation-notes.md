@@ -2596,3 +2596,13 @@ The verdicts of the previous section now move works between shelves and decide w
 - **Search.** The OpenSearch documents still carry every intro for `search_intro=1` matching; nothing from them is rendered.
 
 **Migration**: `cmd/migrate catalog` (prod `migrate-catalog` job) creates the empty table `catalog_character_intro_safety`. Additive. Run `text-safety -mode titles`, `-mode apply -run`, then `-mode intros` and `-mode char-intros` after the deploy (the `text-safety-nightly` cron runs all of them), then `reindex-catalog` so the search index serves the moved `content_limit`.
+
+## Walkthroughs on the display axis (spec 2.66.0, 2026-10-25)
+
+The walkthrough faces gated only on the age axis, `nsfw=` against `content_rating`, while downstream sites hide adult content on the display axis, the work's `content_limit`. About 93% of galgames are r18 and most of them are sfw, so kungal's sfw readers, who were served `nsfw=false`, saw 31 walkthroughs in the whole catalog, and work 5882 (r18, sfw) showed none. A site could not fix it on its side: the faces neither filtered on `content_limit` nor reported it, and filtering an `nsfw=true` page after the fact empties pages and breaks counts.
+
+- `GET /v2/catalog/walkthroughs` takes `content_limit=sfw|nsfw`, applied to each walkthrough's work with the works list's own predicate (`displayLimitWhere`), so it filters in SQL and the id keyset is unaffected; `include_total` counts after it.
+- Items and the detail carry `work_content_limit`, computed by `shelfLimitKey` from the same row, so it is the value `GET /v2/catalog/works/{id}` reports.
+- The two axes stay independent: `content_limit` never opens the age gate. A site that hides adult content passes `nsfw=true&content_limit=sfw` on the list and gates the detail page on `work_content_limit`.
+
+**Migration**: none. **Spec 2.66.0**, additive.
