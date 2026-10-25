@@ -792,6 +792,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/catalog/walkthroughs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List walkthroughs
+         * @description Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+         */
+        get: operations["listCatalogWalkthroughs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/catalog/walkthroughs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one walkthrough
+         * @description A walkthrough's choice graph: entries, saves and endings as nodes, segments of choices as edges, and the characters each route and ending belongs to. Text fields are in the walkthrough's lang with machine translations in localized. Derived from the page at source_url; its prose is not reproduced. 404 when the work is not visible: r18 needs nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         */
+        get: operations["getCatalogWalkthrough"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/catalog/works": {
         parameters: {
             query?: never;
@@ -6868,6 +6908,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListWalkthrough: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListWalkthrough.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["Walkthrough"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
         ListWork: {
             /**
              * Format: uri
@@ -7256,7 +7331,7 @@ export interface components {
              * @description Kind of row. Closed vocabulary; several catalog tables can share a kind.
              * @enum {string}
              */
-            key: "releases" | "titles" | "intros" | "tags" | "credits" | "characters" | "character_instances" | "companies" | "release_companies" | "relations" | "entity_relations" | "company_relations" | "series" | "covers" | "screenshots" | "platforms" | "engines" | "anchors" | "site_usage" | "source_ratings" | "popularity" | "source_playtime" | "user_ratings" | "user_folders" | "user_states" | "user_playtime" | "cover_votes" | "follows" | "hidden_rows" | "aliases" | "intro_checks" | "traits" | "credit_names" | "persons" | "redirects";
+            key: "releases" | "titles" | "intros" | "tags" | "credits" | "characters" | "character_instances" | "companies" | "release_companies" | "relations" | "entity_relations" | "company_relations" | "series" | "covers" | "screenshots" | "platforms" | "engines" | "anchors" | "site_usage" | "source_ratings" | "popularity" | "source_playtime" | "user_ratings" | "user_folders" | "user_states" | "user_playtime" | "cover_votes" | "follows" | "hidden_rows" | "aliases" | "intro_checks" | "traits" | "credit_names" | "persons" | "redirects" | "walkthroughs";
         } & {
             [key: string]: unknown;
         };
@@ -10212,6 +10287,211 @@ export interface components {
             object: "vocabulary";
             /** @description Every value currently published. Empty array, never null. */
             values: components["schemas"]["Value"][];
+        } & {
+            [key: string]: unknown;
+        };
+        Walkthrough: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/Walkthrough.json
+             */
+            readonly $schema?: string;
+            /** @description Characters the chart routes to, in chart order. Empty array, never null. */
+            characters: components["schemas"]["WalkthroughCharacter"][];
+            /** @description The choice graph. Present on GET /v2/catalog/walkthroughs/{id} only; absent on the collection. */
+            chart?: components["schemas"]["WalkthroughChart"];
+            /**
+             * Format: int64
+             * @description Endings in the chart.
+             */
+            ending_count: number;
+            /** @description Catalog walkthrough id. */
+            id: string;
+            /**
+             * Format: bcp47
+             * @description BCP-47 language of every text field in the chart. Translations sit in localized maps beside them.
+             */
+            lang: string;
+            /**
+             * @description Type discriminant. Always walkthrough.
+             * @enum {string}
+             */
+            object: "walkthrough";
+            /**
+             * Format: int64
+             * @description Save points in the chart.
+             */
+            save_count: number;
+            /**
+             * Format: int64
+             * @description Segments in the chart.
+             */
+            segment_count: number;
+            /** @description Open vocabulary sources: the site whose walkthrough page the choice graph was derived from. Must not be used as a discriminant. */
+            source: string;
+            /** @description Author the source page credits. null if it credits none. Must not be used as a discriminant. */
+            source_author: string | null;
+            /**
+             * Format: date
+             * @description Date the source page says it was last updated. null if it does not say.
+             */
+            source_updated_on: string | null;
+            /**
+             * Format: uri
+             * @description The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution.
+             */
+            source_url: string;
+            /**
+             * Format: date-time
+             * @description Last time this walkthrough row changed.
+             */
+            updated_at: string;
+            /** @description Catalog work this walkthrough plays through. */
+            work_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughAlternative: {
+            /** @description BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description The alternative choice as the source page writes it, in the walkthrough's lang. Must not be used as a discriminant. */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughCharacter: {
+            /** @description Catalog character this name is pinned to. null if the pin is gone. */
+            character_id: string | null;
+            /** @description display_name of the pinned catalog character. null when character_id is. Must not be used as a discriminant. */
+            display_name: string | null;
+            /** @description Chart-local key that sections[].character_keys and endings[].character_keys refer to. */
+            key: string;
+            /** @description BCP-47 keys: the pinned catalog character's preferred names. Empty object if none or unpinned. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description The name as the source page writes it. Must not be used as a discriminant. */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughChart: {
+            /** @description Endings, one per occurrence in the source: repeated names are separate endings. Empty array, never null. */
+            endings: components["schemas"]["WalkthroughEnding"][];
+            /** @description Places a playthrough starts from: the title screen, or a later unlock of it. Empty array, never null. */
+            entries: components["schemas"]["WalkthroughEntry"][];
+            /** @description Save points the chart creates and resumes from. Empty array, never null. */
+            saves: components["schemas"]["WalkthroughSave"][];
+            /** @description Headings of the source page that group segments, usually one per route. Empty array, never null. */
+            sections: components["schemas"]["WalkthroughSection"][];
+            /** @description Runs of steps from one node to the next, in source order. Empty array, never null. */
+            segments: components["schemas"]["WalkthroughSegment"][];
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughEnding: {
+            /** @description characters[].key of the characters whose route this ending concludes. Empty array, never null. */
+            character_keys: string[];
+            /**
+             * @description heroine concludes one character's route, harem several; after is an after-story reached from another ending.
+             * @enum {string}
+             */
+            ending_type: "heroine" | "harem" | "true" | "normal" | "bad" | "after" | "other";
+            /** @description Chart-local key that ending nodes refer to. */
+            key: string;
+            /** @description BCP-47 keys: machine translations of name. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description The ending's name as the source page writes it. Must not be used as a discriminant. */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughEntry: {
+            /** @description Chart-local key that a segment's from node refers to. */
+            key: string;
+            /** @description The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant. */
+            label: string;
+            /** @description endings[].key whose completion unlocks this entry. null if it is open from the start. */
+            unlocked_by_ending_key: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughNode: {
+            /** @description entries[], saves[] or endings[] key for those node types. null for collect and open. */
+            key: string | null;
+            /**
+             * @description collect is a stop after collecting CG or scenes; open is a segment that simply stops.
+             * @enum {string}
+             */
+            node_type: "entry" | "save" | "ending" | "collect" | "open";
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughSave: {
+            /** @description Chart-local key that save steps and save nodes refer to. */
+            key: string;
+            /** @description The save point as the source page labels it. Must not be used as a discriminant. */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughSection: {
+            /** @description characters[].key of the characters this heading is about. Empty array, never null. */
+            character_keys: string[];
+            /** @description Chart-local key that segments[].section_key refers to. */
+            key: string;
+            /** @description BCP-47 keys: machine translations of title. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description The heading as the source page writes it. Must not be used as a discriminant. */
+            title: string;
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughSegment: {
+            /** @description Precondition the source states for this segment, as it writes it. null if none. Must not be used as a discriminant. */
+            condition: string | null;
+            /** @description BCP-47 keys: machine translations of condition. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
+            condition_localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description Where the segment starts: an entry, a save, or the ending an after-story follows. */
+            from_node: components["schemas"]["WalkthroughNode"];
+            /** @description Chart-local segment key. */
+            key: string;
+            /** @description sections[].key this segment is listed under. null if the source lists it under no heading. */
+            section_key: string | null;
+            /** @description Steps in play order. Empty array, never null. */
+            steps: components["schemas"]["WalkthroughStep"][];
+            /** @description Where the segment ends: an ending, a collection stop, or open when it stops without either. */
+            to_node: components["schemas"]["WalkthroughNode"];
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughStep: {
+            /** @description The source marks this step as needed for an achievement only. */
+            achievement: boolean;
+            /** @description Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null. */
+            alternatives: components["schemas"]["WalkthroughAlternative"][];
+            /** @description BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description saves[].key this save step creates. null for choice and action steps. */
+            save_key: string | null;
+            /**
+             * @description choice picks text; action is a non-choice step such as a minigame; save creates save_key here.
+             * @enum {string}
+             */
+            step_type: "choice" | "action" | "save";
+            /** @description The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant. */
+            text: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -14886,6 +15166,234 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Trait"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCatalogWalkthroughs: {
+        parameters: {
+            query?: {
+                /** @description Opaque keyset cursor from a prior next_cursor. Must start with cur_. */
+                cursor?: string;
+                /** @description Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. */
+                limit?: string;
+                /** @description basic (default) or full. Closed vocabulary. */
+                view?: string;
+                /** @description Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. */
+                include?: string;
+                /** @description Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. */
+                fields?: string;
+                /** @description Comma-separated ids, max 100. Batch lane: no pagination. */
+                ids?: string;
+                /** @description Comma-separated source:external_id, max 100. Batch lane: no pagination. */
+                refs?: string;
+                /** @description true to include total. Only true or false. */
+                include_total?: string;
+                /** @description Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. */
+                facets?: string;
+                /** @description Closed per-collection sort key. */
+                sort?: string;
+                /** @description true includes r18. false or absent hides r18. Only true or false. */
+                nsfw?: string;
+                /** @description Catalog work id. Only walkthroughs of this work. */
+                work_id?: string;
+                /** @description Catalog character id. Only walkthroughs whose chart routes to this character. */
+                character_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListWalkthrough"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getCatalogWalkthrough: {
+        parameters: {
+            query?: {
+                /** @description true includes r18. false or absent hides r18. Only true or false. */
+                nsfw?: string;
+                /** @description basic (default) or full. Closed vocabulary. */
+                view?: string;
+                /** @description Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. */
+                include?: string;
+                /** @description Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. */
+                fields?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Decimal catalog id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Walkthrough"];
                 };
             };
             /** @description Not Modified. The representation is unchanged. */

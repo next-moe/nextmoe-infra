@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 195 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 197 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -3455,7 +3455,7 @@ Closed · 12 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：181
+- 端点数：183
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -4573,6 +4573,58 @@ A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/traits/1"
+```
+
+### GET /v2/catalog/walkthroughs
+
+List walkthroughs
+
+Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+| `ids` | query | 否 | string | Comma-separated ids, max 100. Batch lane: no pagination. |
+| `refs` | query | 否 | string | Comma-separated source:external_id, max 100. Batch lane: no pagination. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
+| `sort` | query | 否 | string | Closed per-collection sort key. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `work_id` | query | 否 | string | Catalog work id. Only walkthroughs of this work. |
+| `character_id` | query | 否 | string | Catalog character id. Only walkthroughs whose chart routes to this character. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/walkthroughs"
+```
+
+### GET /v2/catalog/walkthroughs/{id}
+
+Get one walkthrough
+
+A walkthrough's choice graph: entries, saves and endings as nodes, segments of choices as edges, and the characters each route and ending belongs to. Text fields are in the walkthrough's lang with machine translations in localized. Derived from the page at source_url; its prose is not reproduced. 404 when the work is not visible: r18 needs nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Decimal catalog id. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/walkthroughs/1"
 ```
 
 ### GET /v2/catalog/works
@@ -8389,7 +8441,7 @@ curl "https://api.nextmoe.dev/v2/sticker/tags" \
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（63 个）
+## 工具（65 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -8410,6 +8462,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `getCatalogTag` `GET /v2/catalog/tags/{id}`（无需密钥）：按 id 取正典标签——跨源标签词表的一行。
 - `getCatalogTagExclusion` `GET /v2/catalog/tag-exclusion`（无需密钥）：解析一组排除 tag：给 exclude_tag_id / exclude_tag_tree，返回展开后的 tag id 与带有其中任一 tag 的全部作品 id，供站点在自建列表里剔除。
 - `getCatalogTrait` `GET /v2/catalog/traits/{id}`（无需密钥）：按 id 取角色特征词表的一行。
+- `getCatalogWalkthrough` `GET /v2/catalog/walkthroughs/{id}`（无需密钥）：按 id 取一份攻略的选项图：入口、存档点、结局为节点，选项段为边，并标出每条路线与结局所属的角色。文本是原文（ja），localized 里是 zh-Hans 机翻；r18 作品需 nsfw=true。
 - `getCatalogWork` `GET /v2/catalog/works/{id}`（无需密钥）：按 id 取作品注册行，include=credits,relations 并取子块。被合并的 id 返回 404 ENTITY_MERGED 并在 Link rel=canonical 里给继任者；r18 不带 nsfw=true 同样是 404。
 - `getCatalogWorkCharacters` `GET /v2/catalog/works/{id}/characters`（无需密钥）：作品的角色花名册块（单块 cursor 分页，带 roster_role 与配音署名）。此面不设剧透上限——每行自带 spoiler 等级，由调用方分级。
 - `getCatalogWorkCovers` `GET /v2/catalog/works/{id}/covers`（无需密钥）：作品的封面块（单块 cursor 分页，与 include=covers 同一批行）。只要这一块时优先于 getCatalogWork；CDN 渲染不了的行在分页前就被丢掉，所以短页是「块取完了」而不是「被过滤了」。
@@ -8446,6 +8499,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listCatalogSplits` `GET /v2/catalog/splits`（无需密钥）：拆分流:哪部作品把哪些发行拆成了哪部新作品,按变化时间升序。存下游标增量消费,就能把挂在这些发行上的本地数据跟到 new_work_id;撤销的拆分以 state=undone 重新出现在尾部,新作品经 redirects 指回原作品。
 - `listCatalogTags` `GET /v2/catalog/tags`（无需密钥）：浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。
 - `listCatalogTraits` `GET /v2/catalog/traits`（无需密钥）：浏览角色特征词表本身——用来发现 trait id。refs= 对它不解析：特征没有外部锚类型。
+- `listCatalogWalkthroughs` `GET /v2/catalog/walkthroughs`（无需密钥）：列出攻略（不含选项图）：work_id= 取一部作品的攻略，character_id= 取通向某角色的攻略，ids= 批量读。可见性与作品一致，r18 需 nsfw=true。
 - `listCatalogWorks` `GET /v2/catalog/works`（无需密钥）：浏览 / 过滤作品注册表（评级 / 公司 / 标签 / 系列 / 引擎 / 平台 / 发售窗，keyset 分页，ids=/refs= 批量水合）。带 q= 时整条转为检索并按相关度排序——「查询 + 过滤」与「纯过滤」在 v2 是同一条路径。
 - `listNews` `GET /v2/news`（无需密钥）：合作媒体的 Galgame 资讯索引（keyset 分页，无需凭据）。只有标题、摘要与题图，正文永不下发——每条恒带来源与 source_url，读全文要回到媒体自己的站点。
 - `listNewsSources` `GET /v2/news/sources`（无需密钥）：资讯来源注册表：每家媒体的名称、主页、专栏入口，以及该渲染的归属文案。无参数，无需凭据。

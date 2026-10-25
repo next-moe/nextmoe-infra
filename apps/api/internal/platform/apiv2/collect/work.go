@@ -389,6 +389,16 @@ func RoleSpec() Spec {
 	}
 }
 
+func WalkthroughSpec() Spec {
+	return Spec{
+		Sort:    []string{"id"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields: []string{"object", "id", "work_id", "source", "source_url", "source_author", "source_updated_on", "lang",
+			"characters", "ending_count", "save_count", "segment_count", "updated_at", "chart"},
+	}
+}
+
 func WorkSubSpec() Spec {
 	return Spec{
 		Include: []string{},

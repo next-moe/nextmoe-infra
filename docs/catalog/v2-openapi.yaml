@@ -6481,6 +6481,62 @@ components:
         - object
         - items
       type: object
+    ListWalkthrough:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListWalkthrough.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/Walkthrough"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
     ListWork:
       additionalProperties: true
       properties:
@@ -7135,6 +7191,7 @@ components:
             - credit_names
             - persons
             - redirects
+            - walkthroughs
           type: string
           x-vocabulary-closed: true
       required:
@@ -12482,6 +12539,424 @@ components:
         - closed
         - values
       type: object
+    Walkthrough:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/Walkthrough.json
+          format: uri
+          readOnly: true
+          type: string
+        characters:
+          description: Characters the chart routes to, in chart order. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WalkthroughCharacter"
+          type: array
+        chart:
+          $ref: "#/components/schemas/WalkthroughChart"
+          description: The choice graph. Present on GET /v2/catalog/walkthroughs/{id} only; absent on the collection.
+        ending_count:
+          description: Endings in the chart.
+          format: int64
+          minimum: 0
+          type: integer
+        id:
+          description: Catalog walkthrough id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        lang:
+          description: BCP-47 language of every text field in the chart. Translations sit in localized maps beside them.
+          format: bcp47
+          maxLength: 32
+          type: string
+        object:
+          description: Type discriminant. Always walkthrough.
+          enum:
+            - walkthrough
+          type: string
+          x-vocabulary-closed: true
+        save_count:
+          description: Save points in the chart.
+          format: int64
+          minimum: 0
+          type: integer
+        segment_count:
+          description: Segments in the chart.
+          format: int64
+          minimum: 0
+          type: integer
+        source:
+          description: "Open vocabulary sources: the site whose walkthrough page the choice graph was derived from. Must not be used as a discriminant."
+          maxLength: 64
+          type: string
+          x-vocabulary: sources
+          x-vocabulary-closed: false
+        source_author:
+          description: Author the source page credits. null if it credits none. Must not be used as a discriminant.
+          maxLength: 256
+          type:
+            - string
+            - "null"
+        source_updated_on:
+          description: Date the source page says it was last updated. null if it does not say.
+          format: date
+          maxLength: 10
+          type:
+            - string
+            - "null"
+        source_url:
+          description: The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution.
+          format: uri
+          maxLength: 2048
+          type: string
+        updated_at:
+          description: Last time this walkthrough row changed.
+          format: date-time
+          maxLength: 32
+          type: string
+        work_id:
+          description: Catalog work this walkthrough plays through.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - object
+        - id
+        - work_id
+        - source
+        - source_url
+        - source_author
+        - source_updated_on
+        - lang
+        - characters
+        - ending_count
+        - save_count
+        - segment_count
+        - updated_at
+      type: object
+    WalkthroughAlternative:
+      additionalProperties: true
+      properties:
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
+          type: object
+        text:
+          description: The alternative choice as the source page writes it, in the walkthrough's lang. Must not be used as a discriminant.
+          maxLength: 1024
+          type: string
+      required:
+        - text
+        - localized
+      type: object
+    WalkthroughCharacter:
+      additionalProperties: true
+      properties:
+        character_id:
+          description: Catalog character this name is pinned to. null if the pin is gone.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        display_name:
+          description: display_name of the pinned catalog character. null when character_id is. Must not be used as a discriminant.
+          maxLength: 512
+          type:
+            - string
+            - "null"
+        key:
+          description: Chart-local key that sections[].character_keys and endings[].character_keys refer to.
+          maxLength: 32
+          minLength: 1
+          pattern: ^[A-Za-z0-9_]+$
+          type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: the pinned catalog character's preferred names. Empty object if none or unpinned. Must not be used as a discriminant."
+          type: object
+        name:
+          description: The name as the source page writes it. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+      required:
+        - key
+        - name
+        - character_id
+        - display_name
+        - localized
+      type: object
+    WalkthroughChart:
+      additionalProperties: true
+      properties:
+        endings:
+          description: "Endings, one per occurrence in the source: repeated names are separate endings. Empty array, never null."
+          items:
+            $ref: "#/components/schemas/WalkthroughEnding"
+          type: array
+        entries:
+          description: "Places a playthrough starts from: the title screen, or a later unlock of it. Empty array, never null."
+          items:
+            $ref: "#/components/schemas/WalkthroughEntry"
+          type: array
+        saves:
+          description: Save points the chart creates and resumes from. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WalkthroughSave"
+          type: array
+        sections:
+          description: Headings of the source page that group segments, usually one per route. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WalkthroughSection"
+          type: array
+        segments:
+          description: Runs of steps from one node to the next, in source order. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WalkthroughSegment"
+          type: array
+      required:
+        - sections
+        - entries
+        - saves
+        - endings
+        - segments
+      type: object
+    WalkthroughEnding:
+      additionalProperties: true
+      properties:
+        character_keys:
+          description: characters[].key of the characters whose route this ending concludes. Empty array, never null.
+          items:
+            type: string
+          type: array
+        ending_type:
+          description: heroine concludes one character's route, harem several; after is an after-story reached from another ending.
+          enum:
+            - heroine
+            - harem
+            - "true"
+            - normal
+            - bad
+            - after
+            - other
+          type: string
+          x-vocabulary-closed: true
+        key:
+          description: Chart-local key that ending nodes refer to.
+          maxLength: 32
+          minLength: 1
+          pattern: ^[A-Za-z0-9_]+$
+          type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of name. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
+          type: object
+        name:
+          description: The ending's name as the source page writes it. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+      required:
+        - key
+        - name
+        - localized
+        - ending_type
+        - character_keys
+      type: object
+    WalkthroughEntry:
+      additionalProperties: true
+      properties:
+        key:
+          description: Chart-local key that a segment's from node refers to.
+          maxLength: 32
+          minLength: 1
+          pattern: ^[A-Za-z0-9_]+$
+          type: string
+        label:
+          description: The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant.
+          maxLength: 256
+          type: string
+        unlocked_by_ending_key:
+          description: endings[].key whose completion unlocks this entry. null if it is open from the start.
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_]+$
+          type:
+            - string
+            - "null"
+      required:
+        - key
+        - label
+        - unlocked_by_ending_key
+      type: object
+    WalkthroughNode:
+      additionalProperties: true
+      properties:
+        key:
+          description: entries[], saves[] or endings[] key for those node types. null for collect and open.
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_]+$
+          type:
+            - string
+            - "null"
+        node_type:
+          description: collect is a stop after collecting CG or scenes; open is a segment that simply stops.
+          enum:
+            - entry
+            - save
+            - ending
+            - collect
+            - open
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - node_type
+        - key
+      type: object
+    WalkthroughSave:
+      additionalProperties: true
+      properties:
+        key:
+          description: Chart-local key that save steps and save nodes refer to.
+          maxLength: 32
+          minLength: 1
+          pattern: ^[A-Za-z0-9_]+$
+          type: string
+        label:
+          description: The save point as the source page labels it. Must not be used as a discriminant.
+          maxLength: 256
+          type: string
+      required:
+        - key
+        - label
+      type: object
+    WalkthroughSection:
+      additionalProperties: true
+      properties:
+        character_keys:
+          description: characters[].key of the characters this heading is about. Empty array, never null.
+          items:
+            type: string
+          type: array
+        key:
+          description: Chart-local key that segments[].section_key refers to.
+          maxLength: 32
+          minLength: 1
+          pattern: ^[A-Za-z0-9_]+$
+          type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of title. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
+          type: object
+        title:
+          description: The heading as the source page writes it. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+      required:
+        - key
+        - title
+        - localized
+        - character_keys
+      type: object
+    WalkthroughSegment:
+      additionalProperties: true
+      properties:
+        condition:
+          description: Precondition the source states for this segment, as it writes it. null if none. Must not be used as a discriminant.
+          maxLength: 1024
+          type:
+            - string
+            - "null"
+        condition_localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of condition. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
+          type: object
+        from_node:
+          $ref: "#/components/schemas/WalkthroughNode"
+          description: "Where the segment starts: an entry, a save, or the ending an after-story follows."
+        key:
+          description: Chart-local segment key.
+          maxLength: 32
+          minLength: 1
+          pattern: ^[A-Za-z0-9_]+$
+          type: string
+        section_key:
+          description: sections[].key this segment is listed under. null if the source lists it under no heading.
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_]+$
+          type:
+            - string
+            - "null"
+        steps:
+          description: Steps in play order. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WalkthroughStep"
+          type: array
+        to_node:
+          $ref: "#/components/schemas/WalkthroughNode"
+          description: "Where the segment ends: an ending, a collection stop, or open when it stops without either."
+      required:
+        - key
+        - section_key
+        - from_node
+        - condition
+        - condition_localized
+        - steps
+        - to_node
+      type: object
+    WalkthroughStep:
+      additionalProperties: true
+      properties:
+        achievement:
+          description: The source marks this step as needed for an achievement only.
+          type: boolean
+        alternatives:
+          description: Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WalkthroughAlternative"
+          type: array
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
+          type: object
+        save_key:
+          description: saves[].key this save step creates. null for choice and action steps.
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_]+$
+          type:
+            - string
+            - "null"
+        step_type:
+          description: choice picks text; action is a non-choice step such as a minigame; save creates save_key here.
+          enum:
+            - choice
+            - action
+            - save
+          type: string
+          x-vocabulary-closed: true
+        text:
+          description: The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.
+          maxLength: 1024
+          type:
+            - string
+            - "null"
+      required:
+        - step_type
+        - text
+        - localized
+        - alternatives
+        - achievement
+        - save_key
+      type: object
     WatchDiscussionInputBody:
       additionalProperties: true
       properties:
@@ -13310,7 +13785,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.63.0
+  version: 2.64.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18365,6 +18840,284 @@ paths:
         - userToken: []
         - {}
       summary: Get one trait
+      tags:
+        - catalog
+  /v2/catalog/walkthroughs:
+    get:
+      description: Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+      operationId: listCatalogWalkthroughs
+      parameters:
+        - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
+            maxLength: 512
+            type: string
+        - description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+            maxLength: 8
+            type: string
+        - description: basic (default) or full. Closed vocabulary.
+          explode: false
+          in: query
+          name: view
+          schema:
+            description: basic (default) or full. Closed vocabulary.
+            maxLength: 16
+            type: string
+        - description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+          explode: false
+          in: query
+          name: include
+          schema:
+            description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+            maxLength: 1024
+            type: string
+        - description: Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+          explode: false
+          in: query
+          name: fields
+          schema:
+            description: Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+            maxLength: 1024
+            type: string
+        - description: "Comma-separated ids, max 100. Batch lane: no pagination."
+          explode: false
+          in: query
+          name: ids
+          schema:
+            description: "Comma-separated ids, max 100. Batch lane: no pagination."
+            maxLength: 4096
+            type: string
+        - description: "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+          explode: false
+          in: query
+          name: refs
+          schema:
+            description: "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+            maxLength: 4096
+            type: string
+        - description: true to include total. Only true or false.
+          explode: false
+          in: query
+          name: include_total
+          schema:
+            description: true to include total. Only true or false.
+            maxLength: 8
+            type: string
+        - description: Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET.
+          explode: false
+          in: query
+          name: facets
+          schema:
+            description: Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET.
+            maxLength: 512
+            type: string
+        - description: Closed per-collection sort key.
+          explode: false
+          in: query
+          name: sort
+          schema:
+            description: Closed per-collection sort key.
+            maxLength: 32
+            type: string
+        - description: true includes r18. false or absent hides r18. Only true or false.
+          explode: false
+          in: query
+          name: nsfw
+          schema:
+            description: true includes r18. false or absent hides r18. Only true or false.
+            maxLength: 8
+            type: string
+        - description: Catalog work id. Only walkthroughs of this work.
+          explode: false
+          in: query
+          name: work_id
+          schema:
+            description: Catalog work id. Only walkthroughs of this work.
+            maxLength: 20
+            type: string
+        - description: Catalog character id. Only walkthroughs whose chart routes to this character.
+          explode: false
+          in: query
+          name: character_id
+          schema:
+            description: Catalog character id. Only walkthroughs whose chart routes to this character.
+            maxLength: 20
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListWalkthrough"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: List walkthroughs
+      tags:
+        - catalog
+  /v2/catalog/walkthroughs/{id}:
+    get:
+      description: "A walkthrough's choice graph: entries, saves and endings as nodes, segments of choices as edges, and the characters each route and ending belongs to. Text fields are in the walkthrough's lang with machine translations in localized. Derived from the page at source_url; its prose is not reproduced. 404 when the work is not visible: r18 needs nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
+      operationId: getCatalogWalkthrough
+      parameters:
+        - description: Decimal catalog id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Decimal catalog id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+        - description: true includes r18. false or absent hides r18. Only true or false.
+          explode: false
+          in: query
+          name: nsfw
+          schema:
+            description: true includes r18. false or absent hides r18. Only true or false.
+            maxLength: 8
+            type: string
+        - description: basic (default) or full. Closed vocabulary.
+          explode: false
+          in: query
+          name: view
+          schema:
+            description: basic (default) or full. Closed vocabulary.
+            maxLength: 16
+            type: string
+        - description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+          explode: false
+          in: query
+          name: include
+          schema:
+            description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+            maxLength: 1024
+            type: string
+        - description: Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+          explode: false
+          in: query
+          name: fields
+          schema:
+            description: Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+            maxLength: 1024
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Walkthrough"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: Get one walkthrough
       tags:
         - catalog
   /v2/catalog/works:

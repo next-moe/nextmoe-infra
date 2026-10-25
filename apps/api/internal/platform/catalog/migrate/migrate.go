@@ -204,6 +204,15 @@ func Run(db *gorm.DB) error {
 		// claimed any column on this row").
 		&model.CatalogCredit{},
 
+		// 2026-10-24: walkthrough charts (new, empty). One row per crawled
+		// walkthrough page (誠也の部屋 / 愚者の館) holding only the choice graph
+		// the import job derived from it — entries, saves, choices, endings —
+		// never the page prose. catalog_walkthrough_character pins each chart
+		// character key to a catalog character, matched within the work's
+		// roster or created name-only by the import. No existing row changes.
+		&model.CatalogWalkthrough{},
+		&model.CatalogWalkthroughCharacter{},
+
 		// 2026-09-25: how far this service has read the deleted-accounts list
 		// (oauth doc 17). A new table with no rows; the first run starts from
 		// the beginning of the list.
@@ -549,6 +558,11 @@ func rawSQL(db *gorm.DB) error {
 			COALESCE(voice, 1) BETWEEN 1 AND 10 AND COALESCE(replay_value, 1) BETWEEN 1 AND 10`},
 		{"catalog_user_work_rating", "chk_catalog_user_work_rating_recommend", `recommend BETWEEN 1 AND 5`},
 		{"catalog_user_work_rating", "chk_catalog_user_work_rating_spoiler", `spoiler_level IN (0, 1, 2)`},
+		// 2026-10-24, new empty table: the chart is a JSON object, and the largest
+		// extracted chart was far below 512KB.
+		{"catalog_walkthrough", "chk_catalog_walkthrough_chart_object", `jsonb_typeof(chart) = 'object'`},
+		{"catalog_walkthrough", "chk_catalog_walkthrough_chart_size", `pg_column_size(chart) <= 524288`},
+		{"catalog_walkthrough", "chk_catalog_walkthrough_status", `status IN (0, 1)`},
 	} {
 		exists, err := constraintExists(db, cc.table, cc.name)
 		if err != nil {
@@ -708,6 +722,32 @@ func rawSQL(db *gorm.DB) error {
 			    FOREIGN KEY (work_id) REFERENCES catalog_work(id) ON DELETE CASCADE
 		`).Error; err != nil {
 			return fmt.Errorf("add user work state FK: %w", err)
+		}
+	}
+
+	// (7d) 2026-10-24, new empty tables: a walkthrough belongs to its work and
+	// its character pins to both ends. A merge rehangs work_id / character_id
+	// onto the survivor before the loser row is deleted, so CASCADE only fires
+	// on a genuine deletion.
+	for _, fk := range []struct{ table, name, stmt string }{
+		{"catalog_walkthrough", "fk_catalog_walkthrough_work",
+			`FOREIGN KEY (work_id) REFERENCES catalog_work(id) ON DELETE CASCADE`},
+		{"catalog_walkthrough", "fk_catalog_walkthrough_source",
+			`FOREIGN KEY (source_id) REFERENCES catalog_source(id)`},
+		{"catalog_walkthrough_character", "fk_catalog_walkthrough_character_walkthrough",
+			`FOREIGN KEY (walkthrough_id) REFERENCES catalog_walkthrough(id) ON DELETE CASCADE`},
+		{"catalog_walkthrough_character", "fk_catalog_walkthrough_character_character",
+			`FOREIGN KEY (character_id) REFERENCES catalog_character(id) ON DELETE CASCADE`},
+	} {
+		exists, err := constraintExists(db, fk.table, fk.name)
+		if err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		if err := db.Exec(`ALTER TABLE ` + fk.table + ` ADD CONSTRAINT ` + fk.name + ` ` + fk.stmt).Error; err != nil {
+			return fmt.Errorf("add %s: %w", fk.name, err)
 		}
 	}
 

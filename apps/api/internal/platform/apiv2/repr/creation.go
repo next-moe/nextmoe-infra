@@ -53,7 +53,7 @@ type MergeRequestRecord struct {
 
 type MergeMovedCount struct {
 	_     struct{} `json:"-" additionalProperties:"true"`
-	Key   string   `json:"key" enum:"releases,titles,intros,tags,credits,characters,character_instances,companies,release_companies,relations,entity_relations,company_relations,series,covers,screenshots,platforms,engines,anchors,site_usage,source_ratings,popularity,source_playtime,user_ratings,user_folders,user_states,user_playtime,cover_votes,follows,hidden_rows,aliases,intro_checks,traits,credit_names,persons,redirects" doc:"Kind of row. Closed vocabulary; several catalog tables can share a kind."`
+	Key   string   `json:"key" enum:"releases,titles,intros,tags,credits,characters,character_instances,companies,release_companies,relations,entity_relations,company_relations,series,covers,screenshots,platforms,engines,anchors,site_usage,source_ratings,popularity,source_playtime,user_ratings,user_folders,user_states,user_playtime,cover_votes,follows,hidden_rows,aliases,intro_checks,traits,credit_names,persons,redirects,walkthroughs" doc:"Kind of row. Closed vocabulary; several catalog tables can share a kind."`
 	Count int64    `json:"count" minimum:"0" doc:"Rows of that kind."`
 }
 

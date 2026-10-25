@@ -58,7 +58,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.63.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.64.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -185,6 +185,9 @@ func annotateSpec(doc *huma.OpenAPI) {
 			repr.NewsSubmission{}, repr.NewsImage{}, repr.ClaimEventRef{}, repr.ClaimEvent{},
 			repr.StorePurchaseLinks{}, repr.StoreCampaign{},
 			repr.StoreStats{}, repr.StoreStatRow{}, repr.StoreStatTotal{},
+			repr.Walkthrough{}, repr.WalkthroughCharacter{}, repr.WalkthroughChart{}, repr.WalkthroughAlternative{},
+			repr.WalkthroughSection{}, repr.WalkthroughEntry{}, repr.WalkthroughSave{}, repr.WalkthroughEnding{},
+			repr.WalkthroughSegment{}, repr.WalkthroughNode{}, repr.WalkthroughStep{},
 		} {
 			doc.Components.Schemas.Schema(reflect.TypeOf(v), true, "")
 		}

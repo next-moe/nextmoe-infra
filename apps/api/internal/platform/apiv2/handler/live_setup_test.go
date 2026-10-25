@@ -167,6 +167,7 @@ type liveFix struct {
 	ENWork, ENRelease                   int64
 	RedirectOld, RedirectDatedOld       int64
 	Folder, FolderSpare, FolderPublic   int64
+	Walkthrough                         int64
 	AnchorExt                           string
 }
 
@@ -394,7 +395,8 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		catalog_user_folder_item, catalog_user_folder, catalog_user_entity_follow,
 		edit_revision, edit_proposal, edit_proposal_amendment, edit_suppressed_row,
 		edit_discussion_post, edit_discussion_watcher,
-		catalog_work_relation, catalog_work_platform
+		catalog_work_relation, catalog_work_platform,
+		catalog_walkthrough, catalog_walkthrough_character
 		RESTART IDENTITY CASCADE`).Error; err != nil {
 		return liveFix{}, err
 	}
@@ -704,6 +706,26 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 	}
 	if err := db.Create(&model.CatalogCharacterIntro{
 		CharacterID: ch.ID, Lang: "zh-Hans", Intro: "角色简介", SourceID: 2,
+	}).Error; err != nil {
+		return fx, err
+	}
+	wt := &model.CatalogWalkthrough{
+		WorkID: fx.Work, SourceID: model.SourceSeiya, SourceURL: "https://seiya-saiga.com/game/live.html",
+		ChartVersion: 1, SourceHash: "live", ExtractModel: "test",
+		Chart: datatypes.JSON(`{"characters":[{"key":"c1","name":"ライブ","aliases":[]}],"sections":[],` +
+			`"entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[{"key":"sv01","label":"セーブ01"}],` +
+			`"endings":[{"key":"e1","name":"ライブEND","name_zh":"直播END","ending_type":"heroine","characters":["c1"]}],` +
+			`"segments":[{"key":"g1","section":null,"from":{"node_type":"entry","key":"start"},"condition":null,"condition_zh":null,` +
+			`"steps":[{"step_type":"choice","text":"はい","text_zh":"是","alt":["いいえ"],"alt_zh":[null],"achievement":false,"save":null},` +
+			`{"step_type":"save","text":null,"text_zh":null,"alt":[],"alt_zh":[],"achievement":false,"save":"sv01"}],` +
+			`"to":{"node_type":"ending","key":"e1"}}]}`),
+	}
+	if err := db.Create(wt).Error; err != nil {
+		return fx, err
+	}
+	fx.Walkthrough = wt.ID
+	if err := db.Create(&model.CatalogWalkthroughCharacter{
+		WalkthroughID: wt.ID, ChartKey: "c1", CharacterID: ch.ID, MatchedBy: "test",
 	}).Error; err != nil {
 		return fx, err
 	}

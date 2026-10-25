@@ -191,6 +191,8 @@ var movementKeys = map[string]string{
 	"catalog_credit_name":                   "credit_names",
 	"catalog_person":                        "persons",
 	"catalog_redirect":                      "redirects",
+	"catalog_walkthrough":                   "walkthroughs",
+	"catalog_walkthrough_character":         "walkthroughs",
 }
 
 // MovementKey is the editor-facing name of a recorded table.
