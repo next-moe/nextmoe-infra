@@ -15,6 +15,7 @@ const SHOW_ZH_KEY = 'nextmoe-editor-walkthrough-show-zh'
 const COMMON = '__common__'
 
 const doc = useWalkthroughDocument()
+const openGenerate = inject<(() => void) | null>('wt-open-generate', null)
 const chart = doc.chart
 
 const showZh = ref(true)
@@ -199,6 +200,15 @@ watch(
           {{ chip.label }}
         </button>
       </div>
+      <KunButton
+        size="sm"
+        variant="light"
+        :disabled="doc.readonly.value"
+        @click="openGenerate?.()"
+      >
+        <KunIcon name="lucide:wand-sparkles" class="size-4" />
+        从文字生成
+      </KunButton>
       <KunSwitch
         v-if="doc.lang.value === 'ja'"
         v-model="showZh"

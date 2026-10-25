@@ -98,6 +98,10 @@ const rememberGraphWidth = (next: number) => {
 const pane = ref<'start' | 'end'>('start')
 const shortcutsOpen = ref(false)
 const railOpen = ref(false)
+const generateOpen = ref(false)
+provide('wt-open-generate', () => {
+  generateOpen.value = true
+})
 const issuesOpen = ref(false)
 
 const trySubmit = () => {
@@ -155,6 +159,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       @discard="emit('discard')"
       @shortcuts="shortcutsOpen = true"
       @rail="railOpen = true"
+      @generate="generateOpen = true"
     />
 
     <div
@@ -227,5 +232,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     </KunDrawer>
 
     <WalkthroughsEditorShortcuts v-model="shortcutsOpen" />
+    <WalkthroughsEditorGenerateFromText v-model="generateOpen" />
   </div>
 </template>

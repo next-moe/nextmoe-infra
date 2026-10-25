@@ -1,115 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"testing"
 
 	"api/internal/platform/catalog/walkthrough"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
-
-const sampleText = `綾地 寧々
-【START】から開始
-もう１回正直に褒める
-☆(しつこいからもういいか)
-◆セーブ01
-綾地さんに頼む
-寧々END1
-※タイトル画面に【RESTART】が追加
-◆セーブ01から
-このまま中に(このまま外に)
-差分CG回収後終了`
-
-func parseExtracted(t *testing.T, raw string) extracted {
-	t.Helper()
-	var x extracted
-	require.NoError(t, json.Unmarshal([]byte(raw), &x))
-	return x
-}
 
 func TestChartTextKeepsOneMarkerPerLine(t *testing.T) {
 	got := chartText(`<div><script>var a=1</script><p>◆セーブ01</p><table><tr><td>綾地&nbsp;さんに頼む</td></tr></table><br>寧々END1</div>`)
 	assert.Equal(t, "◆セーブ01\n綾地 さんに頼む\n寧々END1", got)
-}
-
-func TestExtractedChartInlinesEndingsOnePerOccurrence(t *testing.T) {
-	x := parseExtracted(t, `{"no_chart":false,
-	 "characters":[{"key":"c1","name":"綾地 寧々","aliases":["寧々"]}],
-	 "sections":[{"key":"s1","title":"綾地 寧々","characters":["寧々"]}],
-	 "entries":[{"key":"start","label":"START","unlocked_by":null},{"key":"restart","label":"RESTART","unlocked_by":"g1"}],
-	 "saves":[{"key":"sv01","label":"セーブ01"}],
-	 "segments":[
-	  {"key":"g1","section":"s1","from":{"node_type":"entry","key":"start"},"condition":null,
-	   "steps":[{"step_type":"choice","text":"もう１回正直に褒める","alt":[],"achievement":false,"save":null},
-	            {"step_type":"save","text":"◆セーブ01","alt":[],"achievement":false,"save":null},
-	            {"step_type":"save","text":null,"alt":[],"achievement":false,"save":null}],
-	   "to":{"node_type":"ending","ending":{"name":"寧々END1","ending_type":"heroine","characters":["c1"]}}},
-	  {"key":"g2","section":"s1","from":{"node_type":"save","key":"セーブ01"},"condition":null,
-	   "steps":[{"step_type":"choice","text":"このまま中に","alt":["このまま外に"],"achievement":false,"save":null}],
-	   "to":{"node_type":"collect","ending":null}},
-	  {"key":"g3","section":"s1","from":{"node_type":"ending","key":"g1"},"condition":null,
-	   "steps":[],"to":{"node_type":"ending","ending":{"name":"END","ending_type":"after","characters":["c1"]}}}]}`)
-	c := x.chart()
-	walkthrough.Normalize(&c)
-
-	require.Len(t, c.Endings, 2)
-	assert.Equal(t, "e1", c.Endings[0].Key)
-	assert.Equal(t, "e1", *c.Entries[1].UnlockedBy, "unlocked_by named the segment; it now names that segment's ending")
-	assert.Equal(t, "e1", *c.Segments[2].From.Key, "an after-story starts from the ending, not the segment")
-	assert.Equal(t, "e2", *c.Segments[2].To.Key)
-	assert.Equal(t, "sv01", *c.Segments[1].From.Key, "a resume written as the save label resolves to its key")
-	require.Len(t, c.Segments[0].Steps, 2, "a save step with neither key nor text is dropped")
-	assert.Equal(t, "sv01", *c.Segments[0].Steps[1].Save)
-	assert.Nil(t, c.Segments[0].Steps[1].Text)
-	assert.Equal(t, []string{"c1"}, c.Sections[0].Characters, "a character written by alias resolves to its key")
-	assert.Empty(t, walkthrough.Validate(c))
-}
-
-func TestRepairCreatesCharactersNamedOnlyInHeadings(t *testing.T) {
-	x := parseExtracted(t, `{"no_chart":false,"characters":[],
-	 "sections":[{"key":"s1","title":"あざみ","characters":["あざみ"]}],
-	 "entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[],
-	 "segments":[{"key":"g1","section":"s1","from":{"node_type":"entry","key":"start"},"condition":null,
-	   "steps":[{"step_type":"choice","text":"はい","alt":[],"achievement":false,"save":null}],
-	   "to":{"node_type":"ending","ending":{"name":"あざみEND","ending_type":"heroine","characters":["あざみ"]}}}]}`)
-	c := x.chart()
-	require.Len(t, c.Characters, 1)
-	assert.Equal(t, "あざみ", c.Characters[0].Name)
-	assert.Equal(t, []string{c.Characters[0].Key}, c.Endings[0].Characters)
-}
-
-func TestGateRefusesTextThatIsNotOnThePage(t *testing.T) {
-	x := parseExtracted(t, `{"no_chart":false,"characters":[{"key":"c1","name":"綾地 寧々","aliases":[]}],
-	 "sections":[],"entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[],
-	 "segments":[{"key":"g1","section":null,"from":{"node_type":"entry","key":"start"},"condition":"※全員クリア後",
-	   "steps":[{"step_type":"choice","text":"綾地さんに頼む","alt":[],"achievement":false,"save":null},
-	            {"step_type":"choice","text":"見殺しにする","alt":[],"achievement":false,"save":null}],
-	   "to":{"node_type":"ending","ending":{"name":"寧々END1","ending_type":"heroine","characters":["c1"]}}}]}`)
-	var m extractMetrics
-	verdict, c := settle(sampleText, x, &m)
-	assert.Equal(t, verdictRejected, verdict)
-	assert.Equal(t, []string{"見殺しにする"}, m.NotVerbatim)
-	assert.Equal(t, []string{"※全員クリア後"}, m.DroppedConditions, "a paraphrased condition is dropped, not fatal")
-	assert.Nil(t, c.Segments[0].Condition)
-}
-
-func TestGateSendsMissingEndingsToReview(t *testing.T) {
-	x := parseExtracted(t, `{"no_chart":false,"characters":[],"sections":[],
-	 "entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[],
-	 "segments":[{"key":"g1","section":null,"from":{"node_type":"entry","key":"start"},"condition":null,
-	   "steps":[{"step_type":"choice","text":"もう１回正直に褒める","alt":["しつこいからもういいか"],"achievement":true,"save":null},
-	            {"step_type":"choice","text":"綾地さんに頼む","alt":[],"achievement":false,"save":null}],
-	   "to":{"node_type":"open","ending":null}},
-	  {"key":"g2","section":null,"from":{"node_type":"entry","key":"start"},"condition":null,
-	   "steps":[{"step_type":"choice","text":"このまま中に","alt":["このまま外に"],"achievement":false,"save":null}],
-	   "to":{"node_type":"collect","ending":null}}]}`)
-	var m extractMetrics
-	verdict, _ := settle(sampleText, x, &m)
-	assert.Equal(t, 1, m.EndMarkers)
-	assert.Equal(t, 0, m.EndingsReached)
-	assert.Equal(t, verdictReview, verdict, "the page has an END marker the chart never reaches")
 }
 
 func TestKeepsNamesRefusesARenamedName(t *testing.T) {
