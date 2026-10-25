@@ -2581,7 +2581,7 @@ A new catalog family, `walkthrough`, carries the choice graph of a visual-novel 
 
 **Migration**: `cmd/migrate catalog` (prod `migrate-catalog` job) creates the empty tables `catalog_walkthrough` and `catalog_walkthrough_character` with their checks and foreign keys, and seeds sources 22 `seiya` and 23 `sagaoz_foolmaker`. Additive; no existing row changes until `import-walkthroughs --stage apply --apply`. **Spec 2.64.0**, additive.
 
-## Text safety on the display axis and the sfw intro face (spec 2.64.0, 2026-10-24)
+## Text safety on the display axis and the sfw intro face (spec 2.65.0, 2026-10-25)
 
 The verdicts of the previous section now move works between shelves and decide which intro an sfw page gets.
 
