@@ -21,7 +21,7 @@ Per field: the value a proposal is written against, who wrote each scalar column
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family of the entity. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
+| `object` | path | 是 | string | Family of the entity. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait \| walkthrough |
 | `id` | path | 是 | string | Catalog id of the entity. |
 
 ```bash

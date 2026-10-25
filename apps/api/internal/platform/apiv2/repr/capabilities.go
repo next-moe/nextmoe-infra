@@ -9,8 +9,8 @@ package repr
 type EditCapabilities struct {
 	_              struct{}          `json:"-" additionalProperties:"true"`
 	Object         string            `json:"object" enum:"edit_capabilities" doc:"Type discriminant. Always edit_capabilities."`
-	TargetObject   string            `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait" doc:"Family these capabilities describe."`
-	EntityType     string            `json:"entity_type" enum:"catalog.work,catalog.label,catalog.character,catalog.release,catalog.tag,catalog.engine,catalog.series,catalog.person,catalog.credit_name,catalog.trait" doc:"Editing-engine type this family writes as."`
+	TargetObject   string            `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait,walkthrough" doc:"Family these capabilities describe."`
+	EntityType     string            `json:"entity_type" enum:"catalog.work,catalog.label,catalog.character,catalog.release,catalog.tag,catalog.engine,catalog.series,catalog.person,catalog.credit_name,catalog.trait,catalog.walkthrough" doc:"Editing-engine type this family writes as."`
 	EntityID       *string           `json:"entity_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entity these capabilities were evaluated against. null when the answer is type-level, which cannot express the owner channel."`
 	QuotaTier      string            `json:"quota_tier" enum:"user,editor,reviewer" doc:"Quota tier of the bearer: reviewer holds a review permission on some edit family, editor holds catalog.edit.trusted without one, user is everyone else. GET /v2/me/edit-quota has the counters."`
 	QuotaExhausted bool              `json:"quota_exhausted" doc:"true when the daily proposal limit or the open-proposal cap of the bearer's tier is used up; every can_propose and would_automerge below is then false."`

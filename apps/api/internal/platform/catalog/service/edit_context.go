@@ -298,6 +298,15 @@ var contextRowSources = map[string]contextRowSource{
 	},
 	editspec.FieldTagParents:   parentRows("catalog_tag_parent", "tag_id", catmodel.TagParentOriginCurated),
 	editspec.FieldTraitParents: parentRows("catalog_character_trait_parent", "trait_id", catmodel.TraitParentOriginCurated),
+	editspec.FieldWalkthroughPins: {
+		from: "catalog_walkthrough_character l JOIN catalog_walkthrough wt ON wt.id = l.walkthrough_id", owner: "l.walkthrough_id",
+		sourceKey: fmt.Sprintf(`CASE WHEN %s THEN '%s' ELSE (SELECT s.key FROM catalog_source s WHERE s.id = wt.source_id) END`,
+			curatedMatch("l.matched_by"), provenance.SourceCurated),
+		human:    curatedMatch("l.matched_by"),
+		identity: "('pin:' || l.chart_key)",
+		value:    `json_build_object('chart_key', l.chart_key, 'character_id', l.character_id, 'matched_by', l.matched_by)`,
+		order:    "l.chart_key",
+	},
 }
 
 func parentRows(table, childCol string, curatedOrigin int16) contextRowSource {

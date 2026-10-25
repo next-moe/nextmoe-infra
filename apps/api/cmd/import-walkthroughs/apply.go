@@ -36,6 +36,7 @@ var sourceKey = map[int16]string{
 type applyStats struct {
 	Written, Unchanged, Skipped int
 	Pinned, Created, Retired    int
+	Edited                      int
 }
 
 func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, apply bool) error {
@@ -108,8 +109,8 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 			return err
 		}
 	}
-	fmt.Printf("written=%d unchanged=%d skipped_unmatched=%d characters_pinned=%d characters_created=%d placeholders_retired=%d\n",
-		st.Written, st.Unchanged, st.Skipped, st.Pinned, st.Created, st.Retired)
+	fmt.Printf("written=%d unchanged=%d kept_edited=%d skipped_unmatched=%d characters_pinned=%d characters_created=%d placeholders_retired=%d\n",
+		st.Written, st.Unchanged, st.Edited, st.Skipped, st.Pinned, st.Created, st.Retired)
 	if !apply {
 		fmt.Println("[dry run] nothing written — re-run with --apply")
 	}
@@ -118,10 +119,19 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 
 func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Chart, pins map[string]characterPin, st *applyStats) error {
 	var existing model.CatalogWalkthrough
+	curatedPins := false
 	err := tx.Where("source_id = ? AND source_url = ?", w.SourceID, w.SourceURL).Take(&existing).Error
 	switch {
 	case err == nil:
 		w.ID = existing.ID
+		if provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "chart")) {
+			st.Edited++
+			return nil
+		}
+		curatedPins = provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "pins"))
+		if provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "work_id")) {
+			w.WorkID = existing.WorkID
+		}
 	case err != gorm.ErrRecordNotFound:
 		return err
 	}
@@ -144,7 +154,7 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 		var prev walkthrough.Chart
 		if json.Unmarshal(existing.Chart, &prev) == nil && reflect.DeepEqual(prev, c) &&
 			existing.WorkID == w.WorkID && existing.SourceHash == w.SourceHash && existing.TranslateModel == w.TranslateModel &&
-			pinsLinked(pins, links) {
+			(curatedPins || pinsLinked(pins, links)) {
 			st.Unchanged++
 			return nil
 		}
@@ -156,6 +166,14 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 		return err
 	}
 	st.Written++
+	if curatedPins {
+		keys := []string{""}
+		for _, ch := range c.Characters {
+			keys = append(keys, ch.Key)
+		}
+		return tx.Where("walkthrough_id = ? AND chart_key NOT IN ?", w.ID, keys).
+			Delete(&model.CatalogWalkthroughCharacter{}).Error
+	}
 
 	var keep []string
 	for _, ch := range c.Characters {

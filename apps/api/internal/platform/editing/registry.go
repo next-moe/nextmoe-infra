@@ -22,6 +22,7 @@ const (
 	KindList      FieldKind = "list"
 	KindRef       FieldKind = "ref"
 	KindImageHash FieldKind = "imagehash"
+	KindDocument  FieldKind = "document"
 )
 
 const (
@@ -29,6 +30,7 @@ const (
 	DiffHintLines  = "lines"
 	DiffHintItems  = "items"
 	DiffHintImage  = "image"
+	DiffHintTree   = "tree"
 )
 
 const (
