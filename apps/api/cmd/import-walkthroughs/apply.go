@@ -36,7 +36,7 @@ var sourceKey = map[int16]string{
 type applyStats struct {
 	Written, Unchanged, Skipped int
 	Pinned, Created, Retired    int
-	Edited                      int
+	Edited, HiddenForReview     int
 }
 
 func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, apply bool) error {
@@ -92,6 +92,14 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 			ExtractModel:    meta[id].Model,
 			TranslateModel:  zh[id].model,
 		}
+		if review := meta[id].Review; review != nil {
+			raw, err := json.Marshal(review)
+			if err != nil {
+				return err
+			}
+			w.Status, w.ImportReview = model.WalkthroughStatusHidden, datatypes.JSON(raw)
+			st.HiddenForReview++
+		}
 		if !apply {
 			st.Written++
 			st.Pinned += len(pins[id])
@@ -109,8 +117,8 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 			return err
 		}
 	}
-	fmt.Printf("written=%d unchanged=%d kept_edited=%d skipped_unmatched=%d characters_pinned=%d characters_created=%d placeholders_retired=%d\n",
-		st.Written, st.Unchanged, st.Edited, st.Skipped, st.Pinned, st.Created, st.Retired)
+	fmt.Printf("written=%d unchanged=%d kept_edited=%d hidden_for_review=%d skipped_unmatched=%d characters_pinned=%d characters_created=%d placeholders_retired=%d\n",
+		st.Written, st.Unchanged, st.Edited, st.HiddenForReview, st.Skipped, st.Pinned, st.Created, st.Retired)
 	if !apply {
 		fmt.Println("[dry run] nothing written — re-run with --apply")
 	}
@@ -154,12 +162,12 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 		var prev walkthrough.Chart
 		if json.Unmarshal(existing.Chart, &prev) == nil && reflect.DeepEqual(prev, c) &&
 			existing.WorkID == w.WorkID && existing.SourceHash == w.SourceHash && existing.TranslateModel == w.TranslateModel &&
-			(curatedPins || pinsLinked(pins, links)) {
+			sameReview(existing.ImportReview, w.ImportReview) && (curatedPins || pinsLinked(pins, links)) {
 			st.Unchanged++
 			return nil
 		}
 		if err := tx.Model(&existing).Select("work_id", "source_author", "source_updated_on", "chart_version",
-			"chart", "source_hash", "extract_model", "translate_model", "updated_at").Updates(&w).Error; err != nil {
+			"chart", "source_hash", "extract_model", "translate_model", "import_review", "updated_at").Updates(&w).Error; err != nil {
 			return err
 		}
 	} else if err := tx.Create(&w).Error; err != nil {
@@ -208,6 +216,24 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 	}
 	return tx.Where("walkthrough_id = ? AND chart_key NOT IN ?", w.ID, append(keep, "")).
 		Delete(&model.CatalogWalkthroughCharacter{}).Error
+}
+
+func sameReview(a, b datatypes.JSON) bool {
+	var x, y *model.WalkthroughImportReview
+	if len(a) > 0 && string(a) != "null" && json.Unmarshal(a, &x) != nil {
+		return false
+	}
+	if len(b) > 0 && string(b) != "null" && json.Unmarshal(b, &y) != nil {
+		return false
+	}
+	return reflect.DeepEqual(x, y)
+}
+
+func orEmptyStrings(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 func pinsLinked(pins map[string]characterPin, links map[string]int64) bool {
@@ -399,6 +425,7 @@ func loadWorkMatches(ctx context.Context, src *gorm.DB, ids []int64) (map[int64]
 type extractionMeta struct {
 	Model     string
 	InputHash string
+	Review    *model.WalkthroughImportReview
 }
 
 func loadExtractionMeta(ctx context.Context, src *gorm.DB, ids []int64) (map[int64]extractionMeta, error) {
@@ -406,14 +433,26 @@ func loadExtractionMeta(ctx context.Context, src *gorm.DB, ids []int64) (map[int
 		EntryID   int64
 		Model     string
 		InputHash string
+		Verdict   string
+		Metrics   string
 	}
-	if err := src.WithContext(ctx).Table("wt_stage.extraction").Select("entry_id, model, input_hash").
+	if err := src.WithContext(ctx).Table("wt_stage.extraction").Select("entry_id, model, input_hash, verdict, coalesce(metrics::text, '{}') AS metrics").
 		Where("prompt_version = ? AND entry_id IN ?", extractPromptVersion, ids).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make(map[int64]extractionMeta, len(rows))
 	for _, r := range rows {
-		out[r.EntryID] = extractionMeta{Model: r.Model, InputHash: r.InputHash}
+		meta := extractionMeta{Model: r.Model, InputHash: r.InputHash}
+		if r.Verdict == verdictReview {
+			var m extractMetrics
+			if err := json.Unmarshal([]byte(r.Metrics), &m); err != nil {
+				return nil, fmt.Errorf("entry %d metrics: %w", r.EntryID, err)
+			}
+			meta.Review = &model.WalkthroughImportReview{
+				Missed: orEmptyStrings(m.Missed), EndMarkers: m.EndMarkers, EndingsReached: m.EndingsReached, Coverage: m.Coverage,
+			}
+		}
+		out[r.EntryID] = meta
 	}
 	return out, nil
 }

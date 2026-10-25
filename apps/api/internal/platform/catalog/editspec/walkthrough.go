@@ -336,11 +336,18 @@ func applyWalkthroughHidden(ctx context.Context, tx *gorm.DB, entityID int64, va
 	if err != nil {
 		return fmt.Errorf("editspec: hidden: %w", err)
 	}
-	status := catmodel.WalkthroughStatusLive
 	if hidden.(bool) {
-		status = catmodel.WalkthroughStatusHidden
+		return applyWalkthroughColumn("status", func(any) (any, error) { return catmodel.WalkthroughStatusHidden, nil })(ctx, tx, entityID, value)
 	}
-	return applyWalkthroughColumn("status", func(any) (any, error) { return status, nil })(ctx, tx, entityID, value)
+	res := tx.WithContext(ctx).Model(&catmodel.CatalogWalkthrough{}).Where("id = ?", entityID).
+		Updates(map[string]any{"status": catmodel.WalkthroughStatusLive, "import_review": nil, "updated_at": gorm.Expr("now()")})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return editing.ErrEntityNotFound
+	}
+	return nil
 }
 
 func applyWalkthroughColumn(column string, conv func(any) (any, error)) editing.ApplyFunc {

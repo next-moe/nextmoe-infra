@@ -44,6 +44,16 @@ func registerCatalogWalkthroughs(api huma.API, cat *Catalog) {
 		SkipValidateParams: true,
 	}, listCatalogWalkthroughs(cat))
 	huma.Register(api, huma.Operation{
+		OperationID:        "listMyWalkthroughBacklog",
+		Method:             http.MethodGet,
+		Path:               "/v2/me/walkthrough-backlog",
+		Summary:            "Walkthroughs waiting to be completed",
+		Description:        "Walkthroughs the import kept hidden because their chart was incomplete, sorted by id, each with import_review saying what is missing. A walkthrough leaves the backlog when an edit unhides it. work_id= keeps one work's; ids= is a batch lane and does not paginate. No age gate applies. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+		Tags:               []string{"me"},
+		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
+		SkipValidateParams: true,
+	}, listMyWalkthroughBacklog(cat))
+	huma.Register(api, huma.Operation{
 		OperationID:        "getCatalogWalkthrough",
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/walkthroughs/{id}",
@@ -80,6 +90,34 @@ func listCatalogWalkthroughs(cat *Catalog) func(context.Context, *listWalkthroug
 			return nil, withIdent(ctx, perr)
 		} else if id > 0 {
 			f.CharacterID = &id
+		}
+		page, lerr := cat.ListWalkthroughs(ctx, q, f)
+		if lerr != nil {
+			return nil, catalogErr(ctx, lerr)
+		}
+		return &listWalkthroughsOutput{Body: page}, nil
+	}
+}
+
+type listBacklogInput struct {
+	CollectionInput
+	WorkID string `query:"work_id" maxLength:"20" doc:"Catalog work id. Only this work's walkthroughs."`
+}
+
+func listMyWalkthroughBacklog(cat *Catalog) func(context.Context, *listBacklogInput) (*listWalkthroughsOutput, error) {
+	return func(ctx context.Context, in *listBacklogInput) (*listWalkthroughsOutput, error) {
+		if in == nil {
+			in = &listBacklogInput{}
+		}
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.WalkthroughSpec())
+		if err != nil {
+			return nil, err
+		}
+		f := catsvc.WalkthroughsListFilter{Backlog: true}
+		if id, perr := optionalID(in.WorkID, "work_id"); perr != nil {
+			return nil, withIdent(ctx, perr)
+		} else if id > 0 {
+			f.WorkID = &id
 		}
 		page, lerr := cat.ListWalkthroughs(ctx, q, f)
 		if lerr != nil {
@@ -173,6 +211,11 @@ func walkthroughFrom(w dto.PublicWalkthrough) repr.Walkthrough {
 	}
 	if w.Chart != nil {
 		out.Chart = walkthroughChartFrom(*w.Chart, walkthroughLocalizer(w))
+	}
+	if r := w.ImportReview; r != nil {
+		out.ImportReview = &repr.WalkthroughImportReview{
+			Missed: orEmptyStrings(r.Missed), EndMarkers: r.EndMarkers, EndingsReached: r.EndingsReached, Coverage: r.Coverage,
+		}
 	}
 	return out
 }

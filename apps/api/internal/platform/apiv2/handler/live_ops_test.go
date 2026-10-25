@@ -59,6 +59,7 @@ var liveReadPaths = []string{
 	"/v2/me/deletion-preview",
 	"/v2/me/split-requests",
 	"/v2/me/split-preview",
+	"/v2/me/walkthrough-backlog",
 	"/v2/catalog/splits",
 	"/v2/me/edit-context/{object}/{id}",
 	"/v2/me/edit-bundle/{object}/{id}",

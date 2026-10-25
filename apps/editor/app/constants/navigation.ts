@@ -38,7 +38,8 @@ export const EDITOR_NAV: EditorNavGroup[] = [
       { label: '标签', icon: 'lucide:tags', to: '/tags' },
       { label: '特质', icon: 'lucide:sparkles', to: '/traits' },
       { label: '系列', icon: 'lucide:library', to: '/series' },
-      { label: '引擎', icon: 'lucide:cpu', to: '/engines' }
+      { label: '引擎', icon: 'lucide:cpu', to: '/engines' },
+      { label: '待补全攻略', icon: 'lucide:route', to: '/walkthroughs' }
     ]
   },
   {

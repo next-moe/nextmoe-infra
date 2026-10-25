@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 183 个端点",
+    "d": "/v2 · 184 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1924,6 +1924,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "PATCH /v2/me/split-requests/{id}",
     "b": "patchMySplitRequest /v2/me/split-requests/{id} patch Withdraw a split request Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 撤回令牌持有者提交的、仍待审的请求。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/listMyWalkthroughBacklog",
+    "t": "待补全的攻略",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/walkthrough-backlog",
+    "b": "listMyWalkthroughBacklog /v2/me/walkthrough-backlog get Walkthroughs waiting to be completed Walkthroughs the import kept hidden because their chart was incomplete, sorted by id, each with import_review saying what is missing. A walkthrough leaves the backlog when an edit unhides it. work_id= keeps one work's; ids= is a batch lane and does not paginate. No age gate applies. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 导入时因攻略图不完整而隐藏的攻略,按 id 排序,每条带 import_review 说明缺了什么。编辑取消隐藏后,攻略离开待补全列表。work_id= 只看一部作品;ids= 是批量通道,不分页。不受年龄分级限制。需要绑定到 catalog 站点的用户访问令牌,且令牌带 catalog:edit 权限范围。 cursor limit view include fields ids refs include_total facets sort nsfw work_id"
   },
   {
     "r": "/docs/v2/listMyWorkRecords",

@@ -1,22 +1,31 @@
 package repr
 
 type Walkthrough struct {
-	_                struct{}               `json:"-" additionalProperties:"true"`
-	Object           string                 `json:"object" enum:"walkthrough" doc:"Type discriminant. Always walkthrough."`
-	ID               string                 `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog walkthrough id."`
-	WorkID           string                 `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work this walkthrough plays through."`
-	WorkContentLimit string                 `json:"work_content_limit" enum:"sfw,nsfw" doc:"content_limit of the work, the display axis GET /v2/catalog/works/{id} reports and the content_limit filter selects on. Independent of nsfw, which gates only on content_rating: most r18 games are sfw here. A reader who has not opted into adult content should be shown this walkthrough only when it is sfw."`
-	Source           string                 `json:"source" maxLength:"64" doc:"Open vocabulary sources: the site whose walkthrough page the choice graph was derived from, or nextmoe for a walkthrough written on this platform. Must not be used as a discriminant."`
-	SourceURL        *string                `json:"source_url" format:"uri" maxLength:"2048" doc:"The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution. null for a walkthrough written on this platform (source nextmoe), which has no page."`
-	SourceAuthor     *string                `json:"source_author" maxLength:"256" doc:"Author the source page credits. null if it credits none. Must not be used as a discriminant."`
-	SourceUpdatedOn  *string                `json:"source_updated_on" format:"date" maxLength:"10" doc:"Date the source page says it was last updated. null if it does not say."`
-	Lang             string                 `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47 language of every text field in the chart: ja for an imported walkthrough, ja or zh-Hans for one written on this platform. Translations sit in localized maps beside them; a zh-Hans chart has no zh-Hans entries there."`
-	Characters       []WalkthroughCharacter `json:"characters" doc:"Characters the chart routes to, in chart order. Empty array, never null."`
-	EndingCount      int                    `json:"ending_count" minimum:"0" doc:"Endings in the chart."`
-	SaveCount        int                    `json:"save_count" minimum:"0" doc:"Save points in the chart."`
-	SegmentCount     int                    `json:"segment_count" minimum:"0" doc:"Segments in the chart."`
-	UpdatedAt        string                 `json:"updated_at" format:"date-time" maxLength:"32" doc:"Last time this walkthrough row changed."`
-	Chart            *WalkthroughChart      `json:"chart,omitempty" doc:"The choice graph. Present on GET /v2/catalog/walkthroughs/{id} only; absent on the collection."`
+	_                struct{}                 `json:"-" additionalProperties:"true"`
+	Object           string                   `json:"object" enum:"walkthrough" doc:"Type discriminant. Always walkthrough."`
+	ID               string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog walkthrough id."`
+	WorkID           string                   `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work this walkthrough plays through."`
+	WorkContentLimit string                   `json:"work_content_limit" enum:"sfw,nsfw" doc:"content_limit of the work, the display axis GET /v2/catalog/works/{id} reports and the content_limit filter selects on. Independent of nsfw, which gates only on content_rating: most r18 games are sfw here. A reader who has not opted into adult content should be shown this walkthrough only when it is sfw."`
+	Source           string                   `json:"source" maxLength:"64" doc:"Open vocabulary sources: the site whose walkthrough page the choice graph was derived from, or nextmoe for a walkthrough written on this platform. Must not be used as a discriminant."`
+	SourceURL        *string                  `json:"source_url" format:"uri" maxLength:"2048" doc:"The original walkthrough page. Only its choice graph is carried here, never its prose; link to it for attribution. null for a walkthrough written on this platform (source nextmoe), which has no page."`
+	SourceAuthor     *string                  `json:"source_author" maxLength:"256" doc:"Author the source page credits. null if it credits none. Must not be used as a discriminant."`
+	SourceUpdatedOn  *string                  `json:"source_updated_on" format:"date" maxLength:"10" doc:"Date the source page says it was last updated. null if it does not say."`
+	Lang             string                   `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47 language of every text field in the chart: ja for an imported walkthrough, ja or zh-Hans for one written on this platform. Translations sit in localized maps beside them; a zh-Hans chart has no zh-Hans entries there."`
+	Characters       []WalkthroughCharacter   `json:"characters" doc:"Characters the chart routes to, in chart order. Empty array, never null."`
+	EndingCount      int                      `json:"ending_count" minimum:"0" doc:"Endings in the chart."`
+	SaveCount        int                      `json:"save_count" minimum:"0" doc:"Save points in the chart."`
+	SegmentCount     int                      `json:"segment_count" minimum:"0" doc:"Segments in the chart."`
+	UpdatedAt        string                   `json:"updated_at" format:"date-time" maxLength:"32" doc:"Last time this walkthrough row changed."`
+	Chart            *WalkthroughChart        `json:"chart,omitempty" doc:"The choice graph. Present on GET /v2/catalog/walkthroughs/{id} only; absent on the collection."`
+	ImportReview     *WalkthroughImportReview `json:"import_review,omitempty" doc:"What the import found missing from this chart. Present on GET /v2/me/walkthrough-backlog only."`
+}
+
+type WalkthroughImportReview struct {
+	_              struct{} `json:"-" additionalProperties:"true"`
+	Missed         []string `json:"missed" doc:"Choice texts on the source page that the chart does not carry, as the page writes them. Empty array, never null."`
+	EndMarkers     int      `json:"end_markers" minimum:"0" doc:"Endings the source page marks."`
+	EndingsReached int      `json:"endings_reached" minimum:"0" doc:"Segments of the chart that end at an ending. Fewer than end_markers means routes are missing."`
+	Coverage       float64  `json:"coverage" minimum:"0" maximum:"1" doc:"Share of the page's choice lines the chart carries."`
 }
 
 type WalkthroughCharacter struct {

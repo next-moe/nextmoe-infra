@@ -219,6 +219,9 @@ func Run(db *gorm.DB) error {
 		// take '{}': no field has been edited yet), and
 		// catalog_walkthrough_character.matched_by gains the 'curated' value for a
 		// pin a person set.
+		// 2026-10-26: import_review (nullable, every existing row NULL) records
+		// what the gate found missing from a chart the import kept hidden for an
+		// editor to complete.
 		&model.CatalogWalkthrough{},
 		&model.CatalogWalkthroughCharacter{},
 

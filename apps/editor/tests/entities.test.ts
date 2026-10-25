@@ -168,7 +168,6 @@ describe('entity edit configs', () => {
   })
 
   it('agree with the entity metadata, the history families and the sidebar', () => {
-    const reachedThroughTheirWork = new Set(['walkthrough'])
     const navTargets = new Set(
       EDITOR_NAV.flatMap((group) => group.items).map((item) => item.to)
     )
@@ -176,9 +175,7 @@ describe('entity edit configs', () => {
       expect(isEditFamily(family)).toBe(true)
       expect(EDIT_CONFIGS[meta.family].family).toBe(family)
       expect(ENTITY_FAMILY[family]?.path, family).toBe(meta.path)
-      if (!reachedThroughTheirWork.has(family)) {
-        expect(navTargets.has(meta.path), family).toBe(true)
-      }
+      expect(navTargets.has(meta.path), family).toBe(true)
     }
   })
 })
