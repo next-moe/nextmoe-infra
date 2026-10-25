@@ -2195,7 +2195,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/moyu",
     "t": "moyu 补丁面",
     "s": "端点参考",
-    "d": "/v2/moyu · 5 个端点",
+    "d": "/v2/moyu · 6 个端点",
     "b": "moyu /v2/moyu moyu 补丁 moyu 补丁面"
   },
   {
@@ -2217,7 +2217,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "单个补丁页上的资源",
     "s": "端点 · 补丁页",
     "d": "GET /v2/moyu/patches/{id}/resources",
-    "b": "listPatchResources /v2/moyu/patches/{id}/resources get The resources on one patch page Newest change first. Only live resources are ever listed: one its\npublisher disabled or moderation hid is absent here and `404` at its own\nURL, exactly as on the site.\n Newest change first. Only live resources are ever listed: one its\npublisher disabled or moderation hid is absent here and `404` at its own\nURL, exactly as on the site.\n id limit cursor include_total include"
+    "b": "listPatchResources /v2/moyu/patches/{id}/resources get The resources on one patch page Newest change first. Only live resources are ever listed: one its\npublisher disabled or moderation hid is absent here and `404` at its own\nURL, exactly as on the site.\n\n`type` narrows the page to some kinds; `type=save` is a game's save\ndata. Starting from a catalog work id, resolve the page first with\n`GET /v2/moyu/patches?refs=catalog:<id>` — the patch id is not the work\nid.\n Newest change first. Only live resources are ever listed: one its\npublisher disabled or moderation hid is absent here and `404` at its own\nURL, exactly as on the site.\n\n`type` narrows the page to some kinds; `type=save` is a game's save\ndata. Starting from a catalog work id, resolve the page first with\n`GET /v2/moyu/patches?refs=catalog:<id>` — the patch id is not the work\nid.\n id limit cursor include_total type include"
   },
   {
     "r": "/docs/moyu/getResource",
@@ -2232,6 +2232,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 资源",
     "d": "GET /v2/moyu/resources/{id}/file",
     "b": "getResourceFile /v2/moyu/resources/{id}/file get The file behind a hosted resource The download link and archive password `Resource` withholds. Needs the\noperator-granted `moyu:files` scope. Only a resource whose `storage` is\n`s3` has a file here; a link its publisher hosts elsewhere is\n`NOT_FOUND`, as is a hosted file no longer stored.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Ask again rather than keeping a\n`download_url`.\n The download link and archive password `Resource` withholds. Needs the\noperator-granted `moyu:files` scope. Only a resource whose `storage` is\n`s3` has a file here; a link its publisher hosts elsewhere is\n`NOT_FOUND`, as is a hosted file no longer stored.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Ask again rather than keeping a\n`download_url`.\n moyu:files id"
+  },
+  {
+    "r": "/docs/moyu/listResourceChanges",
+    "t": "资源变更流",
+    "s": "端点 · 变更流",
+    "d": "GET /v2/moyu/changes",
+    "b": "listResourceChanges /v2/moyu/changes get Resource change feed What happened to each resource, oldest first, so a mirror can follow\nmoyu instead of re-reading every page. The log starts on 2026-10-14\nwith no backfill: take one full scan through the collections first,\nthen follow this from an empty cursor. Replaying a page is safe.\n\n`next_cursor` is always set. Keep it and ask again; a page shorter\nthan `limit` means you are caught up. Entries appear once every\ntransaction that started before them has finished, so a long write\ncan delay the feed for its duration but never makes it skip one.\n\n`kind` says which way to react:\n- `created`, `file_replaced`, `updated`, `restored`: read the\n  resource again (`GET /v2/moyu/resources/{id}`).\n- `hidden`, `deleted`: it is no longer public. `hidden` may come back\n  as `restored`.\n- `normalized`: the file was swapped for the passwordless zip letmoe's\n  forge built from it. The content is the same; the size and password\n  changed, and `/file` now answers `normalized: true`.\n\nCounter changes (downloads, likes) are not events, and nor are edits\nmade while a resource is not public.\n\nNever cached: `Cache-Control: no-store`.\n What happened to each resource, oldest first, so a mirror can follow\nmoyu instead of re-reading every page. The log starts on 2026-10-14\nwith no backfill: take one full scan through the collections first,\nthen follow this from an empty cursor. Replaying a page is safe.\n\n`next_cursor` is always set. Keep it and ask again; a page shorter\nthan `limit` means you are caught up. Entries appear once every\ntransaction that started before them has finished, so a long write\ncan delay the feed for its duration but never makes it skip one.\n\n`kind` says which way to react:\n- `created`, `file_replaced`, `updated`, `restored`: read the\n  resource again (`GET /v2/moyu/resources/{id}`).\n- `hidden`, `deleted`: it is no longer public. `hidden` may come back\n  as `restored`.\n- `normalized`: the file was swapped for the passwordless zip letmoe's\n  forge built from it. The content is the same; the size and password\n  changed, and `/file` now answers `normalized: true`.\n\nCounter changes (downloads, likes) are not events, and nor are edits\nmade while a resource is not public.\n\nNever cached: `Cache-Control: no-store`.\n limit cursor"
   },
   {
     "r": "/docs/sticker",

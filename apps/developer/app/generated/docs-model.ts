@@ -345664,6 +345664,8 @@ export const docsModel: DocsModel = {
         "不带下载直链、提取码与解压密码，这是契约里写死的取舍而不是遗漏：在 moyu 上取链接是一次单独的、按资源限速的请求，就是为了不能被批量抓走。每行都给 web_url，把读者送过去。",
         "唯一例外是 /v2/moyu/resources/{id}/file：对持有 moyu:files 的密钥给出托管资源的下载链接与解压密码。这个 scope 由运营发放、不能自助勾选，其余密钥一律 403 SCOPE_REQUIRED；只有 storage 为 s3 的资源有文件，答案一律 no-store，别缓存 download_url。",
         "也不带游戏名、封面、标签与角色：那些归 catalog。每行都带 catalog_work_id，拿它去 /v2/catalog/works/{id} 解析——同一把密钥就能读。patch.id、vndb_id 与 catalog_work_id 是三个互不相等的 id 空间。",
+        "/v2/moyu/patches/{id}/resources 可以用 type= 按资源类型筛选，type=save 就是这部游戏的存档。手上只有 catalog 作品 id 时，先用 /v2/moyu/patches?refs=catalog:<id> 拿到补丁页 id，再查它的资源。",
+        "/v2/moyu/changes 是资源变更流：资源发布、换文件、改信息、隐藏、恢复、删除各记一行，按不透明 cursor 往后读。给在自己那边保留 moyu 资源副本的站点用，先全量扫一遍面，再跟这条流增量同步。",
         "/v2/moyu/patches 上的 refs= 是批量反查：一次最多 100 个 vndb:<id> 或 catalog:<id> 锚，没命中的原样回在 missing[] 里。这是「我手上这 100 部作品哪些有补丁」的一次性问法，此时 cursor 与 sort 会被拒。",
         "错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和补丁站写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。",
         "只能服务端调用。网关对包括 OPTIONS 在内的每个方法都验密钥，而预检不带认证头，所以浏览器直连必然 401——nmk_ 密钥本来也不该出现在浏览器里。"
@@ -347445,7 +347447,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/moyu/patches/{id}/resources",
               "summary": "The resources on one patch page",
-              "description": "Newest change first. Only live resources are ever listed: one its\npublisher disabled or moderation hid is absent here and `404` at its own\nURL, exactly as on the site.\n",
+              "description": "Newest change first. Only live resources are ever listed: one its\npublisher disabled or moderation hid is absent here and `404` at its own\nURL, exactly as on the site.\n\n`type` narrows the page to some kinds; `type=save` is a game's save\ndata. Starting from a catalog work id, resolve the page first with\n`GET /v2/moyu/patches?refs=catalog:<id>` — the patch id is not the work\nid.\n",
               "scope": "",
               "params": [
                 {
@@ -347475,6 +347477,27 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "boolean",
                   "doc": "Count the whole collection. Absent by default because it costs a count."
+                },
+                {
+                  "name": "type",
+                  "in": "query",
+                  "required": false,
+                  "type": "string[]",
+                  "doc": "Comma-separated resource kinds; any of them matches.",
+                  "enum": [
+                    "manual",
+                    "ai",
+                    "machine_polishing",
+                    "machine",
+                    "save",
+                    "crack",
+                    "fix",
+                    "mod",
+                    "r18",
+                    "decensor",
+                    "image",
+                    "other"
+                  ]
                 },
                 {
                   "name": "include",
@@ -348914,7 +348937,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "blake3",
                         "required": true,
-                        "doc": "BLAKE3 of the file, or empty when moyu has none. No file uploaded\nafter 2026-06-04 has one, and a hash that belonged to a file the\nresource has since replaced is not reported. Hash the download\nyourself when you need one.\n",
+                        "doc": "BLAKE3 of the file, or empty when moyu has none. A normalized file\nalways has one; otherwise no file uploaded after 2026-06-04 does,\nand a hash that belonged to a file the resource has since replaced\nis not reported. Hash the download yourself when you need one.\n",
                         "type": "string"
                       },
                       {
@@ -348926,9 +348949,15 @@ export const docsModel: DocsModel = {
                       {
                         "name": "updated_at",
                         "required": true,
-                        "doc": "When the resource was last edited, its file or anything else.",
+                        "doc": "When the resource was last edited, its file or anything else.\nNormalizing the file does not move it.\n",
                         "format": "date-time",
                         "type": "string"
+                      },
+                      {
+                        "name": "normalized",
+                        "required": true,
+                        "doc": "The file itself is the passwordless zip letmoe's forge built from\nthe author's archive, and `repack` is null. Every hosted file\nbecomes one, minutes after it is uploaded or replaced.\n",
+                        "type": "boolean"
                       },
                       {
                         "name": "repack",
@@ -349521,6 +349550,475 @@ export const docsModel: DocsModel = {
                 }
               ],
               "curl": "curl \"https://api.nextmoe.dev/v2/moyu/resources/7007/file\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+            }
+          ]
+        },
+        {
+          "key": "changes",
+          "label": "变更流",
+          "operations": [
+            {
+              "id": "listResourceChanges",
+              "method": "get",
+              "path": "/v2/moyu/changes",
+              "summary": "Resource change feed",
+              "description": "What happened to each resource, oldest first, so a mirror can follow\nmoyu instead of re-reading every page. The log starts on 2026-10-14\nwith no backfill: take one full scan through the collections first,\nthen follow this from an empty cursor. Replaying a page is safe.\n\n`next_cursor` is always set. Keep it and ask again; a page shorter\nthan `limit` means you are caught up. Entries appear once every\ntransaction that started before them has finished, so a long write\ncan delay the feed for its duration but never makes it skip one.\n\n`kind` says which way to react:\n- `created`, `file_replaced`, `updated`, `restored`: read the\n  resource again (`GET /v2/moyu/resources/{id}`).\n- `hidden`, `deleted`: it is no longer public. `hidden` may come back\n  as `restored`.\n- `normalized`: the file was swapped for the passwordless zip letmoe's\n  forge built from it. The content is the same; the size and password\n  changed, and `/file` now answers `normalized: true`.\n\nCounter changes (downloads, likes) are not events, and nor are edits\nmade while a resource is not public.\n\nNever cached: `Cache-Control: no-store`.\n",
+              "scope": "",
+              "params": [
+                {
+                  "name": "limit",
+                  "in": "query",
+                  "required": false,
+                  "type": "integer",
+                  "doc": "1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped."
+                },
+                {
+                  "name": "cursor",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection."
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "A page of the feed.",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "object",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "items",
+                        "required": true,
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "object",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "seq",
+                              "required": true,
+                              "doc": "Unique per entry, for deduplicating a replayed page. It is not the\nfeed's order; the cursor is.\n",
+                              "type": "string"
+                            },
+                            {
+                              "name": "resource_id",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "catalog_work_id",
+                              "required": true,
+                              "doc": "The page the resource was on when it changed. A moved resource reports `updated` with its new page.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "storage",
+                              "required": true,
+                              "doc": "Only `s3` resources have a file on moyu.",
+                              "enum": [
+                                "s3",
+                                "user"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "kind",
+                              "required": true,
+                              "enum": [
+                                "created",
+                                "file_replaced",
+                                "updated",
+                                "hidden",
+                                "restored",
+                                "deleted",
+                                "normalized"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "changed_at",
+                              "required": true,
+                              "format": "date-time",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "next_cursor",
+                        "required": true,
+                        "doc": "Where to resume. Always set.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "total",
+                        "required": true,
+                        "nullable": true,
+                        "type": "object"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "400",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "The key's rate limit or quota is spent. Written by the gateway as a\nproblem document from the same registry: `code` is `RATE_LIMITED` or\n`QUOTA_EXCEEDED`. `Retry-After` says when to come back.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "A dependency is unavailable. The request may be retried.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/moyu/changes\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
             }
           ]
         }
