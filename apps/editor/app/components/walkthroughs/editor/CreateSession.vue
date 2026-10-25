@@ -6,7 +6,11 @@ import type {
 import type { WtChart, WtLang, WtPin } from '#shared/types/walkthrough'
 import type { WalkthroughDocumentSource } from '~/composables/useWalkthroughDocument'
 import { WT_FIELD } from '~/constants/walkthrough'
-import { emptyChart, normalizeChart, validateChart } from '~/utils/walkthrough/doc'
+import {
+  emptyChart,
+  normalizeChart,
+  validateChart
+} from '~/utils/walkthrough/doc'
 import { newIdempotencyKey, problemMessage } from '~/utils/review/problem'
 
 interface StoredCreation {
@@ -47,6 +51,8 @@ const source: WalkthroughDocumentSource = {
   setPins: (next) => {
     pins.value = next
   },
+  workId: () => workId,
+  setWorkId: null,
   readonly: () => false
 }
 
@@ -74,27 +80,31 @@ onMounted(() => {
 })
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
-watch([chart, lang, pins], () => {
-  if (!ready.value) return
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    try {
-      if (isDirty.value) {
-        const stored: StoredCreation = {
-          savedAt: new Date().toISOString(),
-          chart: chart.value,
-          lang: lang.value,
-          pins: pins.value
+watch(
+  [chart, lang, pins],
+  () => {
+    if (!ready.value) return
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      try {
+        if (isDirty.value) {
+          const stored: StoredCreation = {
+            savedAt: new Date().toISOString(),
+            chart: chart.value,
+            lang: lang.value,
+            pins: pins.value
+          }
+          localStorage.setItem(storageKey, JSON.stringify(stored))
+        } else {
+          localStorage.removeItem(storageKey)
         }
-        localStorage.setItem(storageKey, JSON.stringify(stored))
-      } else {
-        localStorage.removeItem(storageKey)
+      } catch {
+        return
       }
-    } catch {
-      return
-    }
-  }, SAVE_DELAY_MS)
-}, { deep: true })
+    }, SAVE_DELAY_MS)
+  },
+  { deep: true }
+)
 
 const discardRestored = () => {
   chart.value = emptyChart()
@@ -112,7 +122,9 @@ const { data: capabilities } = useLazyAsyncData('walkthrough-create-caps', () =>
     () => null
   )
 )
-const canCreate = computed(() => capabilities.value?.creation?.can_create ?? true)
+const canCreate = computed(
+  () => capabilities.value?.creation?.can_create ?? true
+)
 const willAutomerge = computed(
   () => capabilities.value?.creation?.would_automerge ?? false
 )
@@ -171,7 +183,9 @@ const submit = async () => {
     allowLeave()
     if (proposal.state === 'merged' && proposal.entity_id !== '0') {
       useKunMessage('攻略已发布，可以继续完善', 'success')
-      await navigateTo(`/walkthroughs/${proposal.entity_id}/edit`, { replace: true })
+      await navigateTo(`/walkthroughs/${proposal.entity_id}/edit`, {
+        replace: true
+      })
       return
     }
     useKunMessage('攻略已提交，审核通过后就会出现在作品页上', 'success')
@@ -188,7 +202,9 @@ useHead({ title: '新建攻略 · 未萌编辑台' })
 </script>
 
 <template>
-  <div class="bg-background text-foreground flex h-dvh flex-col overflow-hidden">
+  <div
+    class="bg-background text-foreground flex h-dvh flex-col overflow-hidden"
+  >
     <WalkthroughsEditorWorkbench
       v-if="ready"
       :key="restoredAt ?? 'blank'"
@@ -210,7 +226,12 @@ useHead({ title: '新建攻略 · 未萌编辑台' })
           title="已恢复上次没有提交的草稿"
           :description="`保存于 ${restoredAt.slice(0, 16).replace('T', ' ')}`"
         >
-          <KunButton size="sm" variant="light" class-name="mt-1" @click="discardRestored">
+          <KunButton
+            size="sm"
+            variant="light"
+            class-name="mt-1"
+            @click="discardRestored"
+          >
             丢弃草稿，从空白开始
           </KunButton>
         </KunInfo>
@@ -236,7 +257,11 @@ useHead({ title: '新建攻略 · 未萌编辑台' })
           :rows="3"
         />
         <div class="flex justify-end gap-2">
-          <KunButton variant="light" :disabled="submitting" @click="submitOpen = false">
+          <KunButton
+            variant="light"
+            :disabled="submitting"
+            @click="submitOpen = false"
+          >
             取消
           </KunButton>
           <KunButton color="primary" :loading="submitting" @click="submit">

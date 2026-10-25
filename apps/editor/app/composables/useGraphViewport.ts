@@ -132,7 +132,11 @@ export const useGraphViewport = (
     const x = event.clientX - (box?.left ?? 0)
     const y = event.clientY - (box?.top ?? 0)
     const strength = Math.min(Math.abs(event.deltaY) / 100, 2)
-    zoomAt(event.deltaY < 0 ? 1 + 0.12 * strength : 1 / (1 + 0.12 * strength), x, y)
+    zoomAt(
+      event.deltaY < 0 ? 1 + 0.12 * strength : 1 / (1 + 0.12 * strength),
+      x,
+      y
+    )
   }
 
   watch(

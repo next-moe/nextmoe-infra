@@ -34,27 +34,39 @@ watch(issuesOpen, (requested) => {
   issuesOpen.value = false
 })
 
-const moreItems = computed<KunDropdownItem[]>(() => [
-  ...(props.workId
-    ? [{ key: 'work', label: '打开所属作品', icon: 'lucide:gamepad-2' }]
-    : []),
-  ...(props.entityId
-    ? [{ key: 'history', label: '修订历史', icon: 'lucide:history' }]
-    : []),
-  { key: 'shortcuts', label: '快捷键', icon: 'lucide:keyboard', shortcut: '?' },
-  { type: 'separator' as const },
-  {
-    key: 'discard',
-    label: props.entityId ? '放弃全部修改' : '清空草稿',
-    icon: 'lucide:trash-2',
-    color: 'danger' as const,
-    disabled: !props.changeCount
-  }
-] as KunDropdownItem[])
+const moreItems = computed<KunDropdownItem[]>(
+  () =>
+    [
+      ...(props.workId
+        ? [{ key: 'work', label: '打开所属作品', icon: 'lucide:gamepad-2' }]
+        : []),
+      ...(props.entityId
+        ? [{ key: 'history', label: '修订历史', icon: 'lucide:history' }]
+        : []),
+      {
+        key: 'shortcuts',
+        label: '快捷键',
+        icon: 'lucide:keyboard',
+        shortcut: '?'
+      },
+      { type: 'separator' as const },
+      {
+        key: 'discard',
+        label: props.entityId ? '放弃全部修改' : '清空草稿',
+        icon: 'lucide:trash-2',
+        color: 'danger' as const,
+        disabled: !props.changeCount
+      }
+    ] as KunDropdownItem[]
+)
 
 const onMore = async (item: KunDropdownItem) => {
   if (item.key === 'work' && props.workId) {
-    window.open(`/works/${props.workId}/edit?section=walkthroughs`, '_blank', 'noopener')
+    window.open(
+      `/works/${props.workId}/edit?section=walkthroughs`,
+      '_blank',
+      'noopener'
+    )
   } else if (item.key === 'history' && props.entityId) {
     window.open(`/history/walkthrough/${props.entityId}`, '_blank', 'noopener')
   } else if (item.key === 'shortcuts') {
@@ -91,13 +103,22 @@ const jump = (issue: WtIssue) => {
     >
       <KunIcon name="lucide:panel-left" class="size-5" />
     </KunButton>
-    <NuxtLink to="/" class="hidden shrink-0 items-center sm:flex" aria-label="未萌编辑台">
+    <NuxtLink
+      to="/"
+      class="hidden shrink-0 items-center sm:flex"
+      aria-label="未萌编辑台"
+    >
       <img src="/favicon.webp" alt="" class="size-7 rounded-lg" />
     </NuxtLink>
-    <KunIcon name="lucide:chevron-right" class="text-default-300 hidden size-4 shrink-0 sm:block" />
+    <KunIcon
+      name="lucide:chevron-right"
+      class="text-default-300 hidden size-4 shrink-0 sm:block"
+    />
 
     <div class="flex min-w-0 flex-1 items-center gap-2">
-      <span class="text-default-500 hidden shrink-0 items-center gap-1 text-sm md:inline-flex">
+      <span
+        class="text-default-500 hidden shrink-0 items-center gap-1 text-sm md:inline-flex"
+      >
         <KunIcon name="lucide:route" class="size-4" />
         {{ props.entityId ? '编辑攻略' : '新建攻略' }}
       </span>
@@ -179,14 +200,19 @@ const jump = (issue: WtIssue) => {
             :color="issueCount ? 'warning' : 'success'"
           >
             <KunIcon
-              :name="issueCount ? 'lucide:triangle-alert' : 'lucide:circle-check'"
+              :name="
+                issueCount ? 'lucide:triangle-alert' : 'lucide:circle-check'
+              "
               class="size-4"
             />
             <span class="tabular-nums">{{ issueCount || '无问题' }}</span>
           </KunButton>
         </template>
         <div class="max-h-[60vh] overflow-y-auto p-1">
-          <p v-if="!issueCount" class="text-default-500 px-3 py-4 text-center text-sm">
+          <p
+            v-if="!issueCount"
+            class="text-default-500 px-3 py-4 text-center text-sm"
+          >
             攻略图没有发现问题。
           </p>
           <button
@@ -196,7 +222,10 @@ const jump = (issue: WtIssue) => {
             class="hover:bg-default-100 flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm"
             @click="jump(issue)"
           >
-            <KunIcon name="lucide:circle-alert" class="text-warning-500 mt-0.5 size-4 shrink-0" />
+            <KunIcon
+              name="lucide:circle-alert"
+              class="text-warning-500 mt-0.5 size-4 shrink-0"
+            />
             <span class="flex-1">{{ issue.message }}</span>
             <KunIcon
               v-if="issue.target"
@@ -217,7 +246,9 @@ const jump = (issue: WtIssue) => {
       >
         <KunIcon name="lucide:file-diff" class="size-4" />
         <span class="hidden sm:inline">查看更改</span>
-        <span v-if="props.changeCount" class="tabular-nums">{{ props.changeCount }}</span>
+        <span v-if="props.changeCount" class="tabular-nums">{{
+          props.changeCount
+        }}</span>
       </KunButton>
 
       <KunTooltip
@@ -237,7 +268,12 @@ const jump = (issue: WtIssue) => {
 
       <KunDropdown :items="moreItems" position="bottom-end" @select="onMore">
         <template #trigger>
-          <KunButton variant="light" size="sm" is-icon-only aria-label="更多操作">
+          <KunButton
+            variant="light"
+            size="sm"
+            is-icon-only
+            aria-label="更多操作"
+          >
             <KunIcon name="lucide:ellipsis" class="size-4" />
           </KunButton>
         </template>

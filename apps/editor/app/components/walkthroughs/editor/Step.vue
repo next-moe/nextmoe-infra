@@ -4,7 +4,12 @@ import type { KunDropdownItem } from '@kungal/ui-vue'
 import type { WtStep, WtStepType } from '#shared/types/walkthrough'
 import { WT_STEP_META } from '~/constants/walkthrough'
 import { blankStep, keysOf, nextKey } from '~/utils/walkthrough/doc'
-import { composing, focusSibling, focusStep, isMod } from '~/utils/walkthrough/focus'
+import {
+  composing,
+  focusSibling,
+  focusStep,
+  isMod
+} from '~/utils/walkthrough/focus'
 import { useStepDrag } from '~/utils/walkthrough/drag'
 
 const props = defineProps<{
@@ -24,7 +29,11 @@ const issues = computed(() =>
 )
 const active = computed(() => {
   const s = doc.selection.value
-  return s?.kind === 'segment' && s.key === props.segmentKey && s.step === props.index
+  return (
+    s?.kind === 'segment' &&
+    s.key === props.segmentKey &&
+    s.step === props.index
+  )
 })
 const dropLine = computed(() => {
   const over = drag.stepOver.value
@@ -37,7 +46,9 @@ const dropLine = computed(() => {
 
 const updateStep = (mutate: (st: WtStep) => void, coalesce?: string) =>
   doc.edit((d) => {
-    const st = d.segments.find((s) => s.key === props.segmentKey)?.steps[props.index]
+    const st = d.segments.find((s) => s.key === props.segmentKey)?.steps[
+      props.index
+    ]
     if (st) mutate(st)
   }, coalesce)
 
@@ -53,7 +64,9 @@ const insertAfter = (stepType: WtStepType = 'choice') => {
 }
 
 const remove = (focus: 'previous' | 'next' = 'previous') => {
-  const count = doc.chart.value.segments.find((s) => s.key === props.segmentKey)?.steps.length ?? 0
+  const count =
+    doc.chart.value.segments.find((s) => s.key === props.segmentKey)?.steps
+      .length ?? 0
   withSegment((steps) => steps.splice(props.index, 1))
   if (focus === 'previous' && props.index > 0) {
     focusStep(props.segmentKey, props.index - 1, 'end')
@@ -63,7 +76,9 @@ const remove = (focus: 'previous' | 'next' = 'previous') => {
 }
 
 const move = (delta: number) => {
-  const steps = doc.chart.value.segments.find((s) => s.key === props.segmentKey)?.steps ?? []
+  const steps =
+    doc.chart.value.segments.find((s) => s.key === props.segmentKey)?.steps ??
+    []
   const to = props.index + delta
   if (to < 0 || to >= steps.length) return
   withSegment((list) => {
@@ -74,11 +89,14 @@ const move = (delta: number) => {
 }
 
 const duplicate = () => {
-  withSegment((steps) => steps.splice(props.index + 1, 0, structuredClone(toRaw(props.step))))
+  withSegment((steps) =>
+    steps.splice(props.index + 1, 0, structuredClone(toRaw(props.step)))
+  )
   focusStep(props.segmentKey, props.index + 1)
 }
 
-const toggleAchievement = () => updateStep((st) => (st.achievement = !st.achievement))
+const toggleAchievement = () =>
+  updateStep((st) => (st.achievement = !st.achievement))
 
 const onKeydown = (event: KeyboardEvent, field: 'text' | 'zh') => {
   if (composing(event)) return
@@ -99,7 +117,10 @@ const onKeydown = (event: KeyboardEvent, field: 'text' | 'zh') => {
   } else if (isMod(event) && event.key === 'Backspace') {
     event.preventDefault()
     remove('previous')
-  } else if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+  } else if (
+    event.altKey &&
+    (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+  ) {
     event.preventDefault()
     move(event.key === 'ArrowUp' ? -1 : 1)
   } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
@@ -131,7 +152,9 @@ const typeItems = computed<KunDropdownItem[]>(() =>
 const setType = (item: KunDropdownItem) => {
   const type = item.key as WtStepType
   doc.edit((d) => {
-    const st = d.segments.find((s) => s.key === props.segmentKey)?.steps[props.index]
+    const st = d.segments.find((s) => s.key === props.segmentKey)?.steps[
+      props.index
+    ]
     if (!st) return
     if (type === 'save') {
       let save = d.saves[0]?.key ?? null
@@ -148,7 +171,10 @@ const setType = (item: KunDropdownItem) => {
 }
 
 const saveOptions = computed(() => [
-  ...doc.chart.value.saves.map((s) => ({ value: s.key, label: s.label || s.key })),
+  ...doc.chart.value.saves.map((s) => ({
+    value: s.key,
+    label: s.label || s.key
+  })),
   { value: '__new__', label: '＋ 新存档…' }
 ])
 
@@ -157,7 +183,9 @@ const setSave = (value: string) => {
     const key = nextKey('v', keysOf(doc.chart.value.saves))
     doc.edit((d) => {
       d.saves.push({ key, label: `存档 ${d.saves.length + 1}` })
-      const st = d.segments.find((s) => s.key === props.segmentKey)?.steps[props.index]
+      const st = d.segments.find((s) => s.key === props.segmentKey)?.steps[
+        props.index
+      ]
       if (st) st.save = key
     })
     doc.select({ kind: 'save', key }, true)
@@ -207,7 +235,9 @@ const inputClass =
       <KunIcon name="lucide:grip-vertical" class="size-3.5" />
     </span>
 
-    <span class="text-default-400 mt-2 w-5 shrink-0 text-right text-xs tabular-nums">
+    <span
+      class="text-default-400 mt-2 w-5 shrink-0 text-right text-xs tabular-nums"
+    >
       {{ props.index + 1 }}
     </span>
 
@@ -234,7 +264,10 @@ const inputClass =
       </template>
     </KunDropdown>
 
-    <div v-if="props.step.step_type === 'save'" class="flex min-w-0 flex-1 items-center gap-2 py-1">
+    <div
+      v-if="props.step.step_type === 'save'"
+      class="flex min-w-0 flex-1 items-center gap-2 py-1"
+    >
       <span class="text-default-500 text-sm">在这里建立存档</span>
       <KunSelect
         :model-value="props.step.save ?? ''"
@@ -259,7 +292,12 @@ const inputClass =
         :is-invalid="issues.length > 0"
         :data-wt-step-input="`${props.segmentKey}:${props.index}`"
         :class-name="cn(inputClass, 'text-[15px]')"
-        @update:model-value="updateStep((st) => (st.text = String($event)), `text:${props.segmentKey}:${props.index}`)"
+        @update:model-value="
+          updateStep(
+            (st) => (st.text = String($event)),
+            `text:${props.segmentKey}:${props.index}`
+          )
+        "
         @keydown="onKeydown($event, 'text')"
         @focus="onFocus"
         @blur="doc.breakCoalescing"
@@ -272,7 +310,12 @@ const inputClass =
         :disabled="doc.readonly.value"
         :data-wt-step-input="`${props.segmentKey}:${props.index}:zh`"
         :class-name="cn(inputClass, 'text-default-500 text-[13px]')"
-        @update:model-value="updateStep((st) => (st.text_zh = String($event) || null), `zh:${props.segmentKey}:${props.index}`)"
+        @update:model-value="
+          updateStep(
+            (st) => (st.text_zh = String($event) || null),
+            `zh:${props.segmentKey}:${props.index}`
+          )
+        "
         @keydown="onKeydown($event, 'zh')"
         @focus="onFocus"
         @blur="doc.breakCoalescing"
@@ -306,12 +349,15 @@ const inputClass =
               'flex size-7 items-center justify-center rounded-md transition-colors',
               props.step.achievement
                 ? 'text-warning-500'
-                : 'text-default-300 opacity-0 group-hover/step:opacity-100 hover:text-default-500'
+                : 'text-default-300 hover:text-default-500 opacity-0 group-hover/step:opacity-100'
             )
           "
           @click="toggleAchievement"
         >
-          <KunIcon name="lucide:star" :class="cn('size-4', props.step.achievement && 'fill-current')" />
+          <KunIcon
+            name="lucide:star"
+            :class="cn('size-4', props.step.achievement && 'fill-current')"
+          />
         </button>
       </KunTooltip>
       <WalkthroughsEditorStepAlts

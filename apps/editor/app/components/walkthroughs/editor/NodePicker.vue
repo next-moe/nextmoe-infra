@@ -2,7 +2,13 @@
 import { cn } from '@kungal/ui-core'
 import type { WtNode, WtNodeType } from '#shared/types/walkthrough'
 import { WT_ENDING_LABEL, WT_NODE_LABEL, wtTone } from '~/constants/walkthrough'
-import { characterTones, keysOf, nextKey, nodeLabel, sameNode } from '~/utils/walkthrough/doc'
+import {
+  characterTones,
+  keysOf,
+  nextKey,
+  nodeLabel,
+  sameNode
+} from '~/utils/walkthrough/doc'
 
 const props = defineProps<{
   modelValue: WtNode
@@ -45,24 +51,35 @@ const missing = computed(
 )
 
 const matches = (text: string) =>
-  !query.value.trim() || text.toLowerCase().includes(query.value.trim().toLowerCase())
+  !query.value.trim() ||
+  text.toLowerCase().includes(query.value.trim().toLowerCase())
 
 const groups = computed(() => {
-  const g: { type: WtNodeType; title: string; items: { node: WtNode; label: string; hint?: string }[] }[] = []
+  const g: {
+    type: WtNodeType
+    title: string
+    items: { node: WtNode; label: string; hint?: string }[]
+  }[] = []
   if (props.side === 'from') {
     g.push({
       type: 'entry',
       title: '入口',
       items: chart.value.entries
         .filter((e) => matches(e.label))
-        .map((e) => ({ node: { node_type: 'entry', key: e.key }, label: e.label || e.key }))
+        .map((e) => ({
+          node: { node_type: 'entry', key: e.key },
+          label: e.label || e.key
+        }))
     })
     g.push({
       type: 'save',
       title: '存档',
       items: chart.value.saves
         .filter((s) => matches(s.label))
-        .map((s) => ({ node: { node_type: 'save', key: s.key }, label: s.label || s.key }))
+        .map((s) => ({
+          node: { node_type: 'save', key: s.key },
+          label: s.label || s.key
+        }))
     })
   }
   g.push({
@@ -88,11 +105,17 @@ const pick = (node: WtNode) => {
 const create = (type: 'entry' | 'save' | 'ending') => {
   const name = query.value.trim()
   const prefix = { entry: 'e', save: 'v', ending: 'n' }[type]
-  const pool = { entry: chart.value.entries, save: chart.value.saves, ending: chart.value.endings }[type]
+  const pool = {
+    entry: chart.value.entries,
+    save: chart.value.saves,
+    ending: chart.value.endings
+  }[type]
   const key = nextKey(prefix, keysOf(pool))
   doc.edit((d) => {
-    if (type === 'entry') d.entries.push({ key, label: name || 'START', unlocked_by: null })
-    else if (type === 'save') d.saves.push({ key, label: name || `存档 ${d.saves.length + 1}` })
+    if (type === 'entry')
+      d.entries.push({ key, label: name || 'START', unlocked_by: null })
+    else if (type === 'save')
+      d.saves.push({ key, label: name || `存档 ${d.saves.length + 1}` })
     else
       d.endings.push({
         key,
@@ -106,12 +129,19 @@ const create = (type: 'entry' | 'save' | 'ending') => {
 }
 
 const tone = computed(() =>
-  props.modelValue.node_type === 'ending' ? endingTone(props.modelValue.key) : null
+  props.modelValue.node_type === 'ending'
+    ? endingTone(props.modelValue.key)
+    : null
 )
 </script>
 
 <template>
-  <KunPopover ref="popover" position="bottom-start" :aria-label="props.side === 'from' ? '选择起点' : '选择终点'" inner-class="w-80">
+  <KunPopover
+    ref="popover"
+    position="bottom-start"
+    :aria-label="props.side === 'from' ? '选择起点' : '选择终点'"
+    inner-class="w-80"
+  >
     <template #trigger>
       <button
         type="button"
@@ -128,9 +158,15 @@ const tone = computed(() =>
           )
         "
       >
-        <KunIcon :name="NODE_ICON[props.modelValue.node_type]" class="text-default-500 size-3.5 shrink-0" />
+        <KunIcon
+          :name="NODE_ICON[props.modelValue.node_type]"
+          class="text-default-500 size-3.5 shrink-0"
+        />
         <span class="truncate">{{ missing ? '请选择' : label }}</span>
-        <KunIcon name="lucide:chevrons-up-down" class="text-default-400 size-3 shrink-0" />
+        <KunIcon
+          name="lucide:chevrons-up-down"
+          class="text-default-400 size-3 shrink-0"
+        />
       </button>
     </template>
 
@@ -143,7 +179,9 @@ const tone = computed(() =>
       />
       <div class="max-h-80 space-y-2 overflow-y-auto">
         <div v-for="group in groups" :key="group.type">
-          <p class="text-default-400 px-2 pt-1 pb-0.5 text-xs">{{ group.title }}</p>
+          <p class="text-default-400 px-2 pt-1 pb-0.5 text-xs">
+            {{ group.title }}
+          </p>
           <button
             v-for="item in group.items"
             :key="item.node.key ?? group.type"
@@ -151,14 +189,21 @@ const tone = computed(() =>
             :class="
               cn(
                 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm',
-                sameNode(item.node, props.modelValue) ? 'bg-primary-50 text-primary-700' : 'hover:bg-default-100'
+                sameNode(item.node, props.modelValue)
+                  ? 'bg-primary-50 text-primary-700'
+                  : 'hover:bg-default-100'
               )
             "
             @click="pick(item.node)"
           >
-            <KunIcon :name="NODE_ICON[group.type]" class="text-default-400 size-3.5 shrink-0" />
+            <KunIcon
+              :name="NODE_ICON[group.type]"
+              class="text-default-400 size-3.5 shrink-0"
+            />
             <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
-            <span v-if="item.hint" class="text-default-400 shrink-0 text-xs">{{ item.hint }}</span>
+            <span v-if="item.hint" class="text-default-400 shrink-0 text-xs">{{
+              item.hint
+            }}</span>
           </button>
           <button
             type="button"
@@ -166,25 +211,31 @@ const tone = computed(() =>
             @click="create(group.type as 'entry' | 'save' | 'ending')"
           >
             <KunIcon name="lucide:plus" class="size-3.5 shrink-0" />
-            新建{{ WT_NODE_LABEL[group.type] }}{{ query.trim() ? `「${query.trim()}」` : '' }}
+            新建{{ WT_NODE_LABEL[group.type]
+            }}{{ query.trim() ? `「${query.trim()}」` : '' }}
           </button>
         </div>
 
         <div v-if="props.side === 'to'">
           <p class="text-default-400 px-2 pt-1 pb-0.5 text-xs">其他</p>
           <button
-            v-for="type in (['collect', 'open'] as const)"
+            v-for="type in ['collect', 'open'] as const"
             :key="type"
             type="button"
             :class="
               cn(
                 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm',
-                props.modelValue.node_type === type ? 'bg-primary-50 text-primary-700' : 'hover:bg-default-100'
+                props.modelValue.node_type === type
+                  ? 'bg-primary-50 text-primary-700'
+                  : 'hover:bg-default-100'
               )
             "
             @click="pick({ node_type: type, key: null })"
           >
-            <KunIcon :name="NODE_ICON[type]" class="text-default-400 size-3.5 shrink-0" />
+            <KunIcon
+              :name="NODE_ICON[type]"
+              class="text-default-400 size-3.5 shrink-0"
+            />
             {{ WT_NODE_LABEL[type] }}
           </button>
         </div>

@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import type { WtEnding, WtEndingType } from '#shared/types/walkthrough'
-import { WT_ENDING_LABEL, WT_ENDING_TYPES, wtTone } from '~/constants/walkthrough'
-import { characterTones, keysOf, nextKey, referencesOf, removeEnding } from '~/utils/walkthrough/doc'
+import {
+  WT_ENDING_LABEL,
+  WT_ENDING_TYPES,
+  wtTone
+} from '~/constants/walkthrough'
+import {
+  characterTones,
+  keysOf,
+  nextKey,
+  referencesOf,
+  removeEnding
+} from '~/utils/walkthrough/doc'
 
 const doc = useWalkthroughDocument()
 const chart = doc.chart
@@ -20,11 +30,19 @@ const update = (key: string, patch: Partial<WtEnding>, coalesce?: string) =>
 const add = async () => {
   const key = nextKey('n', keysOf(chart.value.endings))
   doc.edit((d) =>
-    d.endings.push({ key, name: '', name_zh: null, ending_type: 'heroine', characters: [] })
+    d.endings.push({
+      key,
+      name: '',
+      name_zh: null,
+      ending_type: 'heroine',
+      characters: []
+    })
   )
   doc.expanded.value = `ending:${key}`
   await nextTick()
-  document.querySelector<HTMLInputElement>(`[data-wt-ending-name="${key}"]`)?.focus()
+  document
+    .querySelector<HTMLInputElement>(`[data-wt-ending-name="${key}"]`)
+    ?.focus()
 }
 
 const remove = async (e: WtEnding) => {
@@ -53,7 +71,12 @@ const toggle = (key: string) => {
 }
 
 const subtitle = (e: WtEnding) =>
-  [WT_ENDING_LABEL[e.ending_type], e.characters.map((k) => chart.value.characters.find((c) => c.key === k)?.name || k).join('、')]
+  [
+    WT_ENDING_LABEL[e.ending_type],
+    e.characters
+      .map((k) => chart.value.characters.find((c) => c.key === k)?.name || k)
+      .join('、')
+  ]
     .filter(Boolean)
     .join(' · ')
 </script>
@@ -61,8 +84,17 @@ const subtitle = (e: WtEnding) =>
 <template>
   <section class="space-y-1">
     <div class="flex items-center justify-between px-2">
-      <h3 class="text-default-500 text-xs font-medium">结局 · {{ chart.endings.length }}</h3>
-      <KunButton v-if="!doc.readonly.value" size="sm" variant="light" is-icon-only aria-label="添加结局" @click="add">
+      <h3 class="text-default-500 text-xs font-medium">
+        结局 · {{ chart.endings.length }}
+      </h3>
+      <KunButton
+        v-if="!doc.readonly.value"
+        size="sm"
+        variant="light"
+        is-icon-only
+        aria-label="添加结局"
+        @click="add"
+      >
         <KunIcon name="lucide:plus" class="size-4" />
       </KunButton>
     </div>
@@ -72,7 +104,10 @@ const subtitle = (e: WtEnding) =>
       :key="e.key"
       :title="e.name || '未命名结局'"
       :subtitle="subtitle(e)"
-      :dot="wtTone(e.characters[0] ? (tones.get(e.characters[0]) ?? null) : null).dot"
+      :dot="
+        wtTone(e.characters[0] ? (tones.get(e.characters[0]) ?? null) : null)
+          .dot
+      "
       :issues="doc.issuesOf({ kind: 'ending', key: e.key })"
       :expanded="doc.expanded.value === `ending:${e.key}`"
       @toggle="toggle(e.key)"
@@ -84,7 +119,9 @@ const subtitle = (e: WtEnding) =>
         label="结局名"
         :data-wt-ending-name="e.key"
         :disabled="doc.readonly.value"
-        @update:model-value="update(e.key, { name: String($event) }, `ending:${e.key}`)"
+        @update:model-value="
+          update(e.key, { name: String($event) }, `ending:${e.key}`)
+        "
         @blur="doc.breakCoalescing"
       />
       <KunInput
@@ -94,7 +131,13 @@ const subtitle = (e: WtEnding) =>
         label="中文名"
         placeholder="可选"
         :disabled="doc.readonly.value"
-        @update:model-value="update(e.key, { name_zh: String($event) || null }, `ending-zh:${e.key}`)"
+        @update:model-value="
+          update(
+            e.key,
+            { name_zh: String($event) || null },
+            `ending-zh:${e.key}`
+          )
+        "
         @blur="doc.breakCoalescing"
       />
       <KunSelect
@@ -103,7 +146,9 @@ const subtitle = (e: WtEnding) =>
         size="sm"
         label="类型"
         :disabled="doc.readonly.value"
-        @update:model-value="update(e.key, { ending_type: $event as WtEndingType })"
+        @update:model-value="
+          update(e.key, { ending_type: $event as WtEndingType })
+        "
       />
       <KunSelect
         :model-value="e.characters"
@@ -113,7 +158,9 @@ const subtitle = (e: WtEnding) =>
         placeholder="后宫结局可以选多个"
         multiple
         :disabled="doc.readonly.value || !characterOptions.length"
-        @update:model-value="update(e.key, { characters: ($event as string[]) ?? [] })"
+        @update:model-value="
+          update(e.key, { characters: ($event as string[]) ?? [] })
+        "
       />
     </WalkthroughsEditorRailItem>
   </section>

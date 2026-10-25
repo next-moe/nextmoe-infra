@@ -35,15 +35,22 @@ watch(showZh, (next) => {
 const translating = computed(() => doc.lang.value === 'ja' && showZh.value)
 
 const tones = computed(() => characterTones(chart.value))
-const routeOf = (segment: WtSegment) => segmentCharacterKey(chart.value, segment)
+const routeOf = (segment: WtSegment) =>
+  segmentCharacterKey(chart.value, segment)
 
 const filterChips = computed(() => {
   const used = new Set(chart.value.segments.map((s) => routeOf(s) ?? COMMON))
   return [
     ...chart.value.characters
       .filter((c) => used.has(c.key))
-      .map((c) => ({ key: c.key, label: c.name || c.key, tone: tones.value.get(c.key) ?? null })),
-    ...(used.has(COMMON) ? [{ key: COMMON, label: '共通 / 其他', tone: null }] : [])
+      .map((c) => ({
+        key: c.key,
+        label: c.name || c.key,
+        tone: tones.value.get(c.key) ?? null
+      })),
+    ...(used.has(COMMON)
+      ? [{ key: COMMON, label: '共通 / 其他', tone: null }]
+      : [])
   ]
 })
 
@@ -64,14 +71,17 @@ const rows = computed(() => {
       index,
       tone: routeKey ? (tones.value.get(routeKey) ?? null) : null,
       sectionStart:
-        segment.section !== previous && segment.section !== null ? segment.section : null
+        segment.section !== previous && segment.section !== null
+          ? segment.section
+          : null
     })
     previous = segment.section
   })
   return out
 })
 
-const sectionOf = (key: string) => chart.value.sections.find((s) => s.key === key)
+const sectionOf = (key: string) =>
+  chart.value.sections.find((s) => s.key === key)
 
 const defaultFrom = (): WtNode => {
   const lastSave = [...chart.value.segments]
@@ -80,7 +90,9 @@ const defaultFrom = (): WtNode => {
     .find((st) => st.step_type === 'save' && st.save)
   if (lastSave?.save) return { node_type: 'save', key: lastSave.save }
   const entry = chart.value.entries[0]
-  return entry ? { node_type: 'entry', key: entry.key } : { node_type: 'entry', key: null }
+  return entry
+    ? { node_type: 'entry', key: entry.key }
+    : { node_type: 'entry', key: null }
 }
 
 const addSegment = (afterIndex: number | null = null) => {
@@ -93,7 +105,11 @@ const addSegment = (afterIndex: number | null = null) => {
     const segment: WtSegment = {
       key,
       section: after?.section ?? null,
-      from: after ? (after.to.node_type === 'ending' ? { ...after.to } : defaultFrom()) : defaultFrom(),
+      from: after
+        ? after.to.node_type === 'ending'
+          ? { ...after.to }
+          : defaultFrom()
+        : defaultFrom(),
       condition: null,
       condition_zh: null,
       steps: [blankStep('choice')],
@@ -102,7 +118,11 @@ const addSegment = (afterIndex: number | null = null) => {
     if (segment.from.node_type === 'entry' && !segment.from.key) {
       segment.from = { node_type: 'entry', key: d.entries[0]!.key }
     }
-    d.segments.splice(afterIndex === null ? d.segments.length : afterIndex + 1, 0, segment)
+    d.segments.splice(
+      afterIndex === null ? d.segments.length : afterIndex + 1,
+      0,
+      segment
+    )
   })
   doc.select({ kind: 'segment', key })
   focusStep(key, 0)
@@ -123,7 +143,10 @@ watch(
         doc.routeFilter.value = null
       }
       await nextTick()
-      if (target.step !== undefined && (await focusStep(target.key, target.step))) {
+      if (
+        target.step !== undefined &&
+        (await focusStep(target.key, target.step))
+      ) {
         return
       }
       scroller.value
@@ -166,7 +189,10 @@ watch(
                 : 'bg-default-100 text-default-600 hover:bg-default-200'
             )
           "
-          @click="doc.routeFilter.value = doc.routeFilter.value === chip.key ? null : chip.key"
+          @click="
+            doc.routeFilter.value =
+              doc.routeFilter.value === chip.key ? null : chip.key
+          "
         >
           <span :class="cn('size-2 rounded-full', wtTone(chip.tone).dot)" />
           {{ chip.label }}

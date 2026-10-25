@@ -69,7 +69,10 @@ export const nextKey = (prefix: string, taken: Iterable<string>) => {
 
 export const keysOf = (items: { key: string }[]) => items.map((i) => i.key)
 
-export const blankStep = (stepType: WtStepType, save: string | null = null): WtStep => ({
+export const blankStep = (
+  stepType: WtStepType,
+  save: string | null = null
+): WtStep => ({
   step_type: stepType,
   text: stepType === 'save' ? null : '',
   text_zh: null,
@@ -164,16 +167,22 @@ export const referencesOf = (
     refs.entries = chart.entries.filter((e) => e.unlocked_by === key).length
   }
   if (kind === 'character') {
-    refs.sections = chart.sections.filter((s) => s.characters.includes(key)).length
-    refs.endings = chart.endings.filter((e) => e.characters.includes(key)).length
+    refs.sections = chart.sections.filter((s) =>
+      s.characters.includes(key)
+    ).length
+    refs.endings = chart.endings.filter((e) =>
+      e.characters.includes(key)
+    ).length
   }
   return refs
 }
 
 export const removeCharacter = (d: WtChart, key: string) => {
   d.characters = d.characters.filter((c) => c.key !== key)
-  for (const s of d.sections) s.characters = s.characters.filter((k) => k !== key)
-  for (const e of d.endings) e.characters = e.characters.filter((k) => k !== key)
+  for (const s of d.sections)
+    s.characters = s.characters.filter((k) => k !== key)
+  for (const e of d.endings)
+    e.characters = e.characters.filter((k) => k !== key)
 }
 
 export const removeSection = (d: WtChart, key: string) => {
@@ -228,7 +237,10 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
     const seen = new Set<string>()
     for (const item of items) {
       if (!WT_KEY_PATTERN.test(item.key)) {
-        push({ kind, key: item.key }, `${label}的编号「${item.key}」只能由字母、数字、下划线组成`)
+        push(
+          { kind, key: item.key },
+          `${label}的编号「${item.key}」只能由字母、数字、下划线组成`
+        )
       } else if (seen.has(item.key)) {
         push({ kind, key: item.key }, `${label}编号「${item.key}」重复了`)
       }
@@ -238,21 +250,25 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
 
   const has = (items: { key: string }[], key: string | null) =>
     key !== null && items.some((i) => i.key === key)
-  const tooLong = (s: string | null, max: number) => s !== null && runes(s) > max
+  const tooLong = (s: string | null, max: number) =>
+    s !== null && runes(s) > max
   const blank = (s: string | null) => !s || !s.trim()
 
   for (const c of chart.characters) {
     const t = { kind: 'character' as const, key: c.key }
     if (blank(c.name)) push(t, '角色还没有名字')
-    if (tooLong(c.name, WT_LIMITS.nameRunes)) push(t, `角色名最多 ${WT_LIMITS.nameRunes} 字`)
-    if (c.aliases.length > WT_LIMITS.aliases) push(t, `别名最多 ${WT_LIMITS.aliases} 个`)
+    if (tooLong(c.name, WT_LIMITS.nameRunes))
+      push(t, `角色名最多 ${WT_LIMITS.nameRunes} 字`)
+    if (c.aliases.length > WT_LIMITS.aliases)
+      push(t, `别名最多 ${WT_LIMITS.aliases} 个`)
     if (c.aliases.some(blank)) push(t, `角色「${c.name}」有空白的别名`)
   }
   for (const s of chart.sections) {
     const t = { kind: 'section' as const, key: s.key }
     if (blank(s.title)) push(t, '分节还没有标题')
     for (const k of s.characters) {
-      if (!has(chart.characters, k)) push(t, `分节「${s.title}」指向了不存在的角色`)
+      if (!has(chart.characters, k))
+        push(t, `分节「${s.title}」指向了不存在的角色`)
     }
   }
   for (const e of chart.entries) {
@@ -271,7 +287,8 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
     if (blank(e.name)) push(t, '结局还没有名称')
     if (!types.has(e.ending_type)) push(t, `结局「${e.name}」的类型无效`)
     for (const k of e.characters) {
-      if (!has(chart.characters, k)) push(t, `结局「${e.name}」指向了不存在的角色`)
+      if (!has(chart.characters, k))
+        push(t, `结局「${e.name}」指向了不存在的角色`)
     }
   }
 
@@ -280,33 +297,54 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
   }
   let steps = 0
   for (const s of chart.segments) {
-    const t = (step?: number) => ({ kind: 'segment' as const, key: s.key, step })
-    if (s.section !== null && !has(chart.sections, s.section)) push(t(), '路线段所属的分节不存在')
+    const t = (step?: number) => ({
+      kind: 'segment' as const,
+      key: s.key,
+      step
+    })
+    if (s.section !== null && !has(chart.sections, s.section))
+      push(t(), '路线段所属的分节不存在')
     const from = s.from
-    if (from.node_type === 'entry' && !has(chart.entries, from.key)) push(t(), '起点入口不存在')
-    else if (from.node_type === 'save' && !has(chart.saves, from.key)) push(t(), '起点存档不存在')
-    else if (from.node_type === 'ending' && !has(chart.endings, from.key)) push(t(), '起点结局不存在')
-    else if (!['entry', 'save', 'ending'].includes(from.node_type)) push(t(), '起点只能是入口、存档或结局')
+    if (from.node_type === 'entry' && !has(chart.entries, from.key))
+      push(t(), '起点入口不存在')
+    else if (from.node_type === 'save' && !has(chart.saves, from.key))
+      push(t(), '起点存档不存在')
+    else if (from.node_type === 'ending' && !has(chart.endings, from.key))
+      push(t(), '起点结局不存在')
+    else if (!['entry', 'save', 'ending'].includes(from.node_type))
+      push(t(), '起点只能是入口、存档或结局')
     const to = s.to
-    if (to.node_type === 'ending' && !has(chart.endings, to.key)) push(t(), '终点结局不存在')
-    else if (!['ending', 'collect', 'open'].includes(to.node_type)) push(t(), '终点只能是结局、回收或未完待续')
-    if (tooLong(s.condition, WT_LIMITS.conditionRunes)) push(t(), '前提条件太长了')
+    if (to.node_type === 'ending' && !has(chart.endings, to.key))
+      push(t(), '终点结局不存在')
+    else if (!['ending', 'collect', 'open'].includes(to.node_type))
+      push(t(), '终点只能是结局、回收或未完待续')
+    if (tooLong(s.condition, WT_LIMITS.conditionRunes))
+      push(t(), '前提条件太长了')
     steps += s.steps.length
     s.steps.forEach((st, i) => {
       if (st.step_type === 'save') {
         if (!has(chart.saves, st.save)) push(t(i), '存档步骤没有选择存档')
         return
       }
-      if (blank(st.text)) push(t(i), st.step_type === 'choice' ? '选项还没有填写' : '操作还没有填写')
-      if (tooLong(st.text, WT_LIMITS.textRunes)) push(t(i), `步骤文本最多 ${WT_LIMITS.textRunes} 字`)
-      if (st.alt.length > WT_LIMITS.alts) push(t(i), `其他写法最多 ${WT_LIMITS.alts} 个`)
+      if (blank(st.text))
+        push(
+          t(i),
+          st.step_type === 'choice' ? '选项还没有填写' : '操作还没有填写'
+        )
+      if (tooLong(st.text, WT_LIMITS.textRunes))
+        push(t(i), `步骤文本最多 ${WT_LIMITS.textRunes} 字`)
+      if (st.alt.length > WT_LIMITS.alts)
+        push(t(i), `其他写法最多 ${WT_LIMITS.alts} 个`)
       if (st.alt.some(blank)) push(t(i), '有空白的其他写法')
-      if (st.alt_zh.length !== st.alt.length) push(t(i), '其他写法与译文数量不一致')
+      if (st.alt_zh.length !== st.alt.length)
+        push(t(i), '其他写法与译文数量不一致')
     })
   }
   if (steps > WT_LIMITS.steps) push(null, `步骤总数最多 ${WT_LIMITS.steps} 个`)
-  if (chart.characters.length > WT_LIMITS.characters) push(null, `角色最多 ${WT_LIMITS.characters} 个`)
-  if (chart.segments.length > WT_LIMITS.segments) push(null, `路线段最多 ${WT_LIMITS.segments} 条`)
+  if (chart.characters.length > WT_LIMITS.characters)
+    push(null, `角色最多 ${WT_LIMITS.characters} 个`)
+  if (chart.segments.length > WT_LIMITS.segments)
+    push(null, `路线段最多 ${WT_LIMITS.segments} 条`)
   return issues
 }
 

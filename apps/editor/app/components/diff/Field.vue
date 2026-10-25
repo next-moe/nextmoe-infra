@@ -137,7 +137,12 @@ const imageOf = (item: unknown) => {
 
 <template>
   <div class="text-sm">
-    <div v-if="!isList && textual" class="grid gap-3 md:grid-cols-2">
+    <DiffWalkthrough
+      v-if="props.field.diff_hint === 'tree'"
+      :before="props.before"
+      :after="props.after"
+    />
+    <div v-else-if="!isList && textual" class="grid gap-3 md:grid-cols-2">
       <div class="border-default-200 rounded-md border p-3">
         <p class="text-default-400 mb-1 text-xs">{{ props.beforeLabel }}</p>
         <DiffText :segments="textSegments" side="before" />

@@ -36,13 +36,15 @@ const source: WalkthroughDocumentSource = {
   setHidden: (hidden: boolean) => editor.setValue(WT_FIELD.hidden, hidden),
   pins: () => value<WtPin[]>(WT_FIELD.pins, []),
   setPins: (pins: WtPin[]) => editor.setValue(WT_FIELD.pins, pins),
+  workId: () => {
+    const id = editor.draft.value[WT_FIELD.work]
+    return id === undefined || id === null ? null : String(id)
+  },
+  setWorkId: (id: string) => editor.setValue(WT_FIELD.work, Number(id)),
   readonly: () => !canPropose(WT_FIELD.chart)
 }
 
-const workId = computed(() => {
-  const id = editor.draft.value[WT_FIELD.work]
-  return id === undefined || id === null ? null : String(id)
-})
+const workId = computed(() => source.workId())
 
 const changesOpen = ref(false)
 const submitOpen = ref(false)
@@ -63,8 +65,7 @@ const prefillFromProposal = async (proposalId: string) => {
     { query: { include: 'patch' } }
   ).catch(() => null)
   const patch = (proposal?.effective_patch ?? proposal?.patch) as
-    | Record<string, unknown>
-    | undefined
+    Record<string, unknown> | undefined
   if (
     proposal &&
     proposal.target_object === 'walkthrough' &&
@@ -98,7 +99,9 @@ useHead({ title: `编辑攻略 #${entityId} · 未萌编辑台` })
 </script>
 
 <template>
-  <div class="bg-background text-foreground flex h-dvh flex-col overflow-hidden">
+  <div
+    class="bg-background text-foreground flex h-dvh flex-col overflow-hidden"
+  >
     <div v-if="editor.loading.value" class="flex flex-1 flex-col">
       <div class="border-default-200 bg-content1 h-12 shrink-0 border-b" />
       <div class="flex min-h-0 flex-1 gap-4 p-4">

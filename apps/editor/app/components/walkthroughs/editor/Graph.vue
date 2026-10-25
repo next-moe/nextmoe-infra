@@ -2,7 +2,12 @@
 import { cn } from '@kungal/ui-core'
 import type { WtNodeType } from '#shared/types/walkthrough'
 import { WT_ENDING_LABEL, wtTone } from '~/constants/walkthrough'
-import { layoutChart, type WtGraphEdge, type WtGraphLayout, type WtGraphNode } from '~/utils/walkthrough/graph'
+import {
+  layoutChart,
+  type WtGraphEdge,
+  type WtGraphLayout,
+  type WtGraphNode
+} from '~/utils/walkthrough/graph'
 
 const LAYOUT_DELAY_MS = 120
 
@@ -19,7 +24,10 @@ watch(doc.chart, (chart) => {
 onBeforeUnmount(() => timer && clearTimeout(timer))
 
 const viewport = ref<HTMLElement | null>(null)
-const size = computed(() => ({ width: layout.value.width, height: layout.value.height }))
+const size = computed(() => ({
+  width: layout.value.width,
+  height: layout.value.height
+}))
 const view = useGraphViewport(viewport, size)
 
 const selectedSegment = computed(() =>
@@ -30,13 +38,21 @@ const selectedStep = computed(() =>
 )
 const selectedNode = computed(() => {
   const s = doc.selection.value
-  return s && s.kind !== 'segment' && s.kind !== 'character' && s.kind !== 'section' ? `${s.kind}:${s.key}` : null
+  return s &&
+    s.kind !== 'segment' &&
+    s.kind !== 'character' &&
+    s.kind !== 'section'
+    ? `${s.kind}:${s.key}`
+    : null
 })
 
 const routeKeyOfSegment = (key: string) => {
   const seg = doc.chart.value.segments.find((s) => s.key === key)
   if (!seg) return null
-  const ending = seg.to.node_type === 'ending' ? doc.chart.value.endings.find((e) => e.key === seg.to.key) : null
+  const ending =
+    seg.to.node_type === 'ending'
+      ? doc.chart.value.endings.find((e) => e.key === seg.to.key)
+      : null
   return ending?.characters[0] ?? null
 }
 
@@ -54,13 +70,22 @@ const edgeActive = (edge: WtGraphEdge) => {
 }
 
 const selectedEnds = computed(() => {
-  const seg = doc.chart.value.segments.find((s) => s.key === selectedSegment.value)
-  return seg ? new Set([`${seg.from.node_type}:${seg.from.key}`, `${seg.to.node_type}:${seg.to.key}`]) : new Set<string>()
+  const seg = doc.chart.value.segments.find(
+    (s) => s.key === selectedSegment.value
+  )
+  return seg
+    ? new Set([
+        `${seg.from.node_type}:${seg.from.key}`,
+        `${seg.to.node_type}:${seg.to.key}`
+      ])
+    : new Set<string>()
 })
 
 const nodeActive = (node: WtGraphNode) =>
   node.id === selectedNode.value ||
-  (node.segmentKey !== null ? node.segmentKey === selectedSegment.value : selectedEnds.value.has(node.id))
+  (node.segmentKey !== null
+    ? node.segmentKey === selectedSegment.value
+    : selectedEnds.value.has(node.id))
 
 const NODE_ICON: Record<WtNodeType, string> = {
   entry: 'lucide:flag',
@@ -72,7 +97,10 @@ const NODE_ICON: Record<WtNodeType, string> = {
 
 const endingType = (node: WtGraphNode) =>
   node.kind === 'ending'
-    ? WT_ENDING_LABEL[doc.chart.value.endings.find((e) => e.key === node.key)?.ending_type ?? 'other']
+    ? WT_ENDING_LABEL[
+        doc.chart.value.endings.find((e) => e.key === node.key)?.ending_type ??
+          'other'
+      ]
     : ''
 
 const clickNode = (node: WtGraphNode) => {
@@ -81,15 +109,26 @@ const clickNode = (node: WtGraphNode) => {
     doc.select({ kind: 'segment', key: node.segmentKey }, true)
   } else if (node.key) {
     const seg =
-      doc.chart.value.segments.find((s) => s.from.node_type === node.kind && s.from.key === node.key) ??
-      doc.chart.value.segments.find((s) => s.to.node_type === node.kind && s.to.key === node.key)
+      doc.chart.value.segments.find(
+        (s) => s.from.node_type === node.kind && s.from.key === node.key
+      ) ??
+      doc.chart.value.segments.find(
+        (s) => s.to.node_type === node.kind && s.to.key === node.key
+      )
     if (seg) doc.select({ kind: 'segment', key: seg.key }, true)
   }
 }
 
 const clickEdge = (edge: WtGraphEdge) => {
   if (view.wasDrag() || !edge.segmentKey) return
-  doc.select({ kind: 'segment', key: edge.segmentKey, step: edge.stepStart < edge.stepEnd ? edge.stepStart : undefined }, true)
+  doc.select(
+    {
+      kind: 'segment',
+      key: edge.segmentKey,
+      step: edge.stepStart < edge.stepEnd ? edge.stepStart : undefined
+    },
+    true
+  )
 }
 
 const clickBackground = () => {
@@ -108,7 +147,12 @@ const hovered = ref<WtGraphEdge | null>(null)
   <div class="bg-background relative flex h-full min-h-0 flex-col">
     <div
       ref="viewport"
-      :class="cn('relative min-h-0 flex-1 touch-none overflow-hidden select-none', view.isPanning.value ? 'cursor-grabbing' : 'cursor-grab')"
+      :class="
+        cn(
+          'relative min-h-0 flex-1 touch-none overflow-hidden select-none',
+          view.isPanning.value ? 'cursor-grabbing' : 'cursor-grab'
+        )
+      "
       @pointerdown="view.onPointerDown"
       @pointermove="view.onPointerMove"
       @pointerup="view.onPointerUp"
@@ -116,9 +160,17 @@ const hovered = ref<WtGraphEdge | null>(null)
       @wheel="view.onWheel"
       @click.self="clickBackground"
     >
-      <svg class="text-default-200 pointer-events-none absolute inset-0 size-full" aria-hidden="true">
+      <svg
+        class="text-default-200 pointer-events-none absolute inset-0 size-full"
+        aria-hidden="true"
+      >
         <defs>
-          <pattern id="wt-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+          <pattern
+            id="wt-grid"
+            width="24"
+            height="24"
+            patternUnits="userSpaceOnUse"
+          >
             <circle cx="1" cy="1" r="1" class="fill-current" />
           </pattern>
         </defs>
@@ -126,18 +178,39 @@ const hovered = ref<WtGraphEdge | null>(null)
       </svg>
 
       <div
-        :class="cn('absolute top-0 left-0 origin-top-left', view.animate.value && 'transition-transform duration-200 ease-out')"
-        :style="{ transform: view.transform.value, width: `${layout.width}px`, height: `${layout.height}px` }"
+        :class="
+          cn(
+            'absolute top-0 left-0 origin-top-left',
+            view.animate.value && 'transition-transform duration-200 ease-out'
+          )
+        "
+        :style="{
+          transform: view.transform.value,
+          width: `${layout.width}px`,
+          height: `${layout.height}px`
+        }"
         @click.self="clickBackground"
       >
-        <svg :width="layout.width" :height="layout.height" class="absolute inset-0 overflow-visible">
-          <g v-for="edge in layout.edges" :key="edge.id" :class="cn('transition-opacity', dimmed(edge) && 'opacity-20')">
+        <svg
+          :width="layout.width"
+          :height="layout.height"
+          class="absolute inset-0 overflow-visible"
+        >
+          <g
+            v-for="edge in layout.edges"
+            :key="edge.id"
+            :class="cn('transition-opacity', dimmed(edge) && 'opacity-20')"
+          >
             <path
               :d="edge.path"
               fill="none"
               :class="
                 cn(
-                  edgeActive(edge) ? 'stroke-primary-500' : edge.segmentKey ? wtTone(edge.tone).stroke : 'stroke-default-300',
+                  edgeActive(edge)
+                    ? 'stroke-primary-500'
+                    : edge.segmentKey
+                      ? wtTone(edge.tone).stroke
+                      : 'stroke-default-300',
                   !edge.segmentKey && '[stroke-dasharray:4_4]'
                 )
               "
@@ -157,13 +230,26 @@ const hovered = ref<WtGraphEdge | null>(null)
             <polygon
               points="-8,-4.5 0,0 -8,4.5"
               :transform="`translate(${edge.head.x} ${edge.head.y}) rotate(${edge.head.angle})`"
-              :class="edgeActive(edge) ? 'fill-primary-500' : edge.segmentKey ? wtTone(edge.tone).fill : 'fill-default-300'"
+              :class="
+                edgeActive(edge)
+                  ? 'fill-primary-500'
+                  : edge.segmentKey
+                    ? wtTone(edge.tone).fill
+                    : 'fill-default-300'
+              "
             />
             <text
               v-if="edge.stepCount"
               :x="edge.labelX"
               :y="edge.labelY"
-              :class="cn('pointer-events-none text-[11px] tabular-nums', edgeActive(edge) ? 'fill-primary-600 font-semibold' : 'fill-default-400')"
+              :class="
+                cn(
+                  'pointer-events-none text-[11px] tabular-nums',
+                  edgeActive(edge)
+                    ? 'fill-primary-600 font-semibold'
+                    : 'fill-default-400'
+                )
+              "
             >
               {{ edge.stepCount }}
             </text>
@@ -177,7 +263,7 @@ const hovered = ref<WtGraphEdge | null>(null)
           tabindex="-1"
           :class="
             cn(
-              'absolute flex items-center gap-1.5 overflow-hidden rounded-lg border px-2 text-left text-xs shadow-kun-sm transition-[box-shadow,border-color]',
+              'shadow-kun-sm absolute flex items-center gap-1.5 overflow-hidden rounded-lg border px-2 text-left text-xs transition-[box-shadow,border-color]',
               node.kind === 'ending'
                 ? cn('bg-content1 border-2', wtTone(node.tone).border)
                 : node.kind === 'save'
@@ -197,10 +283,16 @@ const hovered = ref<WtGraphEdge | null>(null)
           :title="node.label"
           @click.stop="clickNode(node)"
         >
-          <KunIcon :name="NODE_ICON[node.kind]" class="size-3.5 shrink-0 opacity-70" />
+          <KunIcon
+            :name="NODE_ICON[node.kind]"
+            class="size-3.5 shrink-0 opacity-70"
+          />
           <span class="min-w-0 flex-1">
             <span class="block truncate">{{ node.label }}</span>
-            <span v-if="node.kind === 'ending'" class="text-default-400 block truncate text-[10px]">
+            <span
+              v-if="node.kind === 'ending'"
+              class="text-default-400 block truncate text-[10px]"
+            >
               {{ endingType(node) }}
             </span>
           </span>
@@ -209,9 +301,12 @@ const hovered = ref<WtGraphEdge | null>(null)
 
       <div
         v-if="hovered && hovered.firstText"
-        class="bg-content1 border-default-200 text-default-600 pointer-events-none absolute bottom-14 left-1/2 max-w-[80%] -translate-x-1/2 truncate rounded-lg border px-3 py-1.5 text-xs shadow-kun-md"
+        class="bg-content1 border-default-200 text-default-600 shadow-kun-md pointer-events-none absolute bottom-14 left-1/2 max-w-[80%] -translate-x-1/2 truncate rounded-lg border px-3 py-1.5 text-xs"
       >
-        {{ hovered.firstText }}<template v-if="hovered.stepCount > 1"> …共 {{ hovered.stepCount }} 步</template>
+        {{ hovered.firstText
+        }}<template v-if="hovered.stepCount > 1">
+          …共 {{ hovered.stepCount }} 步</template
+        >
       </div>
 
       <div
@@ -222,20 +317,42 @@ const hovered = ref<WtGraphEdge | null>(null)
       </div>
     </div>
 
-    <div class="bg-content1 border-default-200 absolute right-3 bottom-3 flex items-center gap-0.5 rounded-lg border p-0.5 shadow-kun-sm">
+    <div
+      class="bg-content1 border-default-200 shadow-kun-sm absolute right-3 bottom-3 flex items-center gap-0.5 rounded-lg border p-0.5"
+    >
       <KunTooltip text="缩小" position="top">
-        <KunButton variant="light" size="sm" is-icon-only aria-label="缩小" @click="view.zoomBy(1 / 1.25)">
+        <KunButton
+          variant="light"
+          size="sm"
+          is-icon-only
+          aria-label="缩小"
+          @click="view.zoomBy(1 / 1.25)"
+        >
           <KunIcon name="lucide:minus" class="size-4" />
         </KunButton>
       </KunTooltip>
-      <span class="text-default-500 w-11 text-center text-xs tabular-nums">{{ Math.round(view.scale.value * 100) }}%</span>
+      <span class="text-default-500 w-11 text-center text-xs tabular-nums"
+        >{{ Math.round(view.scale.value * 100) }}%</span
+      >
       <KunTooltip text="放大" position="top">
-        <KunButton variant="light" size="sm" is-icon-only aria-label="放大" @click="view.zoomBy(1.25)">
+        <KunButton
+          variant="light"
+          size="sm"
+          is-icon-only
+          aria-label="放大"
+          @click="view.zoomBy(1.25)"
+        >
           <KunIcon name="lucide:plus" class="size-4" />
         </KunButton>
       </KunTooltip>
       <KunTooltip text="适应窗口" position="top">
-        <KunButton variant="light" size="sm" is-icon-only aria-label="适应窗口" @click="view.fit()">
+        <KunButton
+          variant="light"
+          size="sm"
+          is-icon-only
+          aria-label="适应窗口"
+          @click="view.fit()"
+        >
           <KunIcon name="lucide:scan" class="size-4" />
         </KunButton>
       </KunTooltip>

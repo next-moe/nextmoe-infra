@@ -112,7 +112,10 @@ export const layoutChart = (chart: WtChart): WtGraphLayout => {
     }
     segment.steps.forEach((step, i) => {
       if (step.step_type === 'save' && step.save) {
-        close(addNode({ node_type: 'save', key: step.save }, segment.key, tone), i)
+        close(
+          addNode({ node_type: 'save', key: step.save }, segment.key, tone),
+          i
+        )
       }
     })
     const ending =

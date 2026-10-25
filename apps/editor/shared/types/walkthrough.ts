@@ -1,13 +1,7 @@
 export type WtNodeType = 'entry' | 'save' | 'ending' | 'collect' | 'open'
 export type WtStepType = 'choice' | 'action' | 'save'
 export type WtEndingType =
-  | 'heroine'
-  | 'harem'
-  | 'true'
-  | 'normal'
-  | 'bad'
-  | 'after'
-  | 'other'
+  'heroine' | 'harem' | 'true' | 'normal' | 'bad' | 'after' | 'other'
 export type WtLang = 'ja' | 'zh-Hans'
 
 export interface WtCharacter {

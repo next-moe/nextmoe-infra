@@ -20,10 +20,14 @@ export interface WalkthroughDocumentSource {
   setHidden: (hidden: boolean) => void
   pins: () => WtPin[]
   setPins: (pins: WtPin[]) => void
+  workId: () => string | null
+  setWorkId: ((id: string) => void) | null
   readonly: () => boolean
 }
 
-export const createWalkthroughDocument = (source: WalkthroughDocumentSource) => {
+export const createWalkthroughDocument = (
+  source: WalkthroughDocumentSource
+) => {
   const chart = shallowRef<WtChart>(normalizeChart(source.chart()))
   const past = shallowRef<WtChart[]>([])
   const future = shallowRef<WtChart[]>([])
@@ -150,14 +154,17 @@ export const createWalkthroughDocument = (source: WalkthroughDocumentSource) => 
     select,
     setPin,
     setLang: source.setLang,
-    setHidden: source.setHidden
+    setHidden: source.setHidden,
+    workId: computed(() => source.workId()),
+    setWorkId: source.setWorkId
   }
 }
 
 export type WalkthroughDocument = ReturnType<typeof createWalkthroughDocument>
 
-const DOCUMENT_KEY: InjectionKey<WalkthroughDocument> =
-  Symbol('walkthrough-document')
+const DOCUMENT_KEY: InjectionKey<WalkthroughDocument> = Symbol(
+  'walkthrough-document'
+)
 
 export const provideWalkthroughDocument = (doc: WalkthroughDocument) =>
   provide(DOCUMENT_KEY, doc)

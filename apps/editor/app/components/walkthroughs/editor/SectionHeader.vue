@@ -15,7 +15,9 @@ const update = (patch: Partial<WtSection>, coalesce?: string) =>
     if (s) Object.assign(s, patch)
   }, coalesce)
 
-const issues = computed(() => doc.issuesOf({ kind: 'section', key: props.section.key }))
+const issues = computed(() =>
+  doc.issuesOf({ kind: 'section', key: props.section.key })
+)
 </script>
 
 <template>
@@ -31,7 +33,9 @@ const issues = computed(() => doc.issuesOf({ kind: 'section', key: props.section
       :disabled="doc.readonly.value"
       :is-invalid="issues.length > 0"
       class-name="w-auto min-w-48 border-transparent bg-transparent shadow-none text-base font-semibold hover:border-default-200 focus:border-default-300"
-      @update:model-value="update({ title: String($event) }, `section:${props.section.key}`)"
+      @update:model-value="
+        update({ title: String($event) }, `section:${props.section.key}`)
+      "
       @blur="doc.breakCoalescing"
     />
     <KunInput
@@ -41,14 +45,24 @@ const issues = computed(() => doc.issuesOf({ kind: 'section', key: props.section
       placeholder="中文标题（可选）"
       :disabled="doc.readonly.value"
       class-name="w-auto min-w-40 border-transparent bg-transparent shadow-none text-default-500 hover:border-default-200 focus:border-default-300"
-      @update:model-value="update({ title_zh: String($event) || null }, `section-zh:${props.section.key}`)"
+      @update:model-value="
+        update(
+          { title_zh: String($event) || null },
+          `section-zh:${props.section.key}`
+        )
+      "
       @blur="doc.breakCoalescing"
     />
     <div class="flex flex-wrap items-center gap-1">
       <span
         v-for="key in props.section.characters"
         :key="key"
-        :class="cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]', wtTone(tones.get(key) ?? null).chip)"
+        :class="
+          cn(
+            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]',
+            wtTone(tones.get(key) ?? null).chip
+          )
+        "
       >
         {{ doc.chart.value.characters.find((c) => c.key === key)?.name || key }}
       </span>

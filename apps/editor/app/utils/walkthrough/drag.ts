@@ -59,7 +59,11 @@ export const useStepDrag = () => {
       if (!step) return
       let at = to.index
       if (source === target && from.index < to.index) at--
-      target.steps.splice(Math.max(0, Math.min(at, target.steps.length)), 0, step)
+      target.steps.splice(
+        Math.max(0, Math.min(at, target.steps.length)),
+        0,
+        step
+      )
     })
 
   const dropOnStep = (event: DragEvent, segment: string, index: number) => {
@@ -68,7 +72,10 @@ export const useStepDrag = () => {
     event.preventDefault()
     event.stopPropagation()
     const at = index + (lowerHalf(event) ? 1 : 0)
-    if (!(current.segment === segment && (at === current.index || at === current.index + 1))) {
+    if (!(
+      current.segment === segment &&
+      (at === current.index || at === current.index + 1)
+    )) {
       moveStep(current, { segment, index: at })
     }
     end()
@@ -77,7 +84,8 @@ export const useStepDrag = () => {
   const overSegment = (event: DragEvent, segment: string) => {
     if (!dragging.value) return
     event.preventDefault()
-    if (dragging.value.kind === 'segment' && dragging.value.segment === segment) return
+    if (dragging.value.kind === 'segment' && dragging.value.segment === segment)
+      return
     segmentOver.value = segment
     stepOver.value = null
   }

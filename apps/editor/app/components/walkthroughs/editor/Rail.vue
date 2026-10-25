@@ -14,7 +14,9 @@ const doc = useWalkthroughDocument()
 
 const hasTranslations = () =>
   doc.chart.value.segments.some(
-    (s) => s.condition_zh || s.steps.some((st) => st.text_zh || st.alt_zh.some(Boolean))
+    (s) =>
+      s.condition_zh ||
+      s.steps.some((st) => st.text_zh || st.alt_zh.some(Boolean))
   ) ||
   doc.chart.value.endings.some((e) => e.name_zh) ||
   doc.chart.value.sections.some((s) => s.title_zh)
@@ -66,6 +68,18 @@ watch(
               : '直接用中文写选项，不需要译文。'
           }}
         </p>
+        <div v-if="doc.setWorkId" class="space-y-1">
+          <p class="text-default-700 text-sm font-medium">所属作品</p>
+          <EditRefPicker
+            :model-value="doc.workId.value"
+            family="work"
+            aria-label="所属作品"
+            placeholder="搜索作品名或输入 ID"
+            :disabled="doc.readonly.value"
+            @update:model-value="$event && doc.setWorkId?.($event)"
+          />
+          <p class="text-default-400 px-1 text-xs">挂错作品时在这里改。</p>
+        </div>
         <KunSwitch
           v-if="props.hideable && !doc.readonly.value"
           :model-value="doc.hidden.value"
@@ -75,7 +89,10 @@ watch(
         />
       </section>
 
-      <WalkthroughsEditorRailCharacters :roster="props.roster" :roster-loaded="props.rosterLoaded" />
+      <WalkthroughsEditorRailCharacters
+        :roster="props.roster"
+        :roster-loaded="props.rosterLoaded"
+      />
       <WalkthroughsEditorRailEndings />
       <WalkthroughsEditorRailLabels kind="save" />
       <WalkthroughsEditorRailLabels kind="entry" />

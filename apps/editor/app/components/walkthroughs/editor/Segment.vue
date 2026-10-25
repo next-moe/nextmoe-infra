@@ -24,7 +24,9 @@ const selected = computed(
     doc.selection.value?.kind === 'segment' &&
     doc.selection.value.key === props.segment.key
 )
-const issues = computed(() => doc.issuesOf({ kind: 'segment', key: props.segment.key }))
+const issues = computed(() =>
+  doc.issuesOf({ kind: 'segment', key: props.segment.key })
+)
 const conditionOpen = ref(Boolean(props.segment.condition))
 
 const update = (mutate: (s: WtSegment) => void, coalesce?: string) =>
@@ -54,7 +56,10 @@ const addStep = (stepType: WtStepType) => {
 
 const sectionOptions = computed(() => [
   { value: '', label: '不分节' },
-  ...doc.chart.value.sections.map((s) => ({ value: s.key, label: s.title || s.key }))
+  ...doc.chart.value.sections.map((s) => ({
+    value: s.key,
+    label: s.title || s.key
+  }))
 ])
 
 const setSection = async (value: string) => {
@@ -71,20 +76,33 @@ const newSection = () => {
   })
 }
 
-const menu = computed<KunDropdownItem[]>(() => [
-  { key: 'up', label: '上移', icon: 'lucide:arrow-up', disabled: props.index === 0 },
-  {
-    key: 'down',
-    label: '下移',
-    icon: 'lucide:arrow-down',
-    disabled: props.index === doc.chart.value.segments.length - 1
-  },
-  { key: 'after', label: '在后面添加路线段', icon: 'lucide:list-plus' },
-  { key: 'duplicate', label: '复制路线段', icon: 'lucide:copy' },
-  { key: 'section', label: '新建分节并放入', icon: 'lucide:bookmark-plus' },
-  { type: 'separator' },
-  { key: 'delete', label: '删除路线段', icon: 'lucide:trash-2', color: 'danger' }
-] as KunDropdownItem[])
+const menu = computed<KunDropdownItem[]>(
+  () =>
+    [
+      {
+        key: 'up',
+        label: '上移',
+        icon: 'lucide:arrow-up',
+        disabled: props.index === 0
+      },
+      {
+        key: 'down',
+        label: '下移',
+        icon: 'lucide:arrow-down',
+        disabled: props.index === doc.chart.value.segments.length - 1
+      },
+      { key: 'after', label: '在后面添加路线段', icon: 'lucide:list-plus' },
+      { key: 'duplicate', label: '复制路线段', icon: 'lucide:copy' },
+      { key: 'section', label: '新建分节并放入', icon: 'lucide:bookmark-plus' },
+      { type: 'separator' },
+      {
+        key: 'delete',
+        label: '删除路线段',
+        icon: 'lucide:trash-2',
+        color: 'danger'
+      }
+    ] as KunDropdownItem[]
+)
 
 const move = (delta: number) =>
   doc.edit((d) => {
@@ -129,14 +147,22 @@ const onHeaderDragStart = (event: DragEvent) =>
         'bg-content1 relative rounded-xl border transition-[box-shadow,border-color] [contain-intrinsic-size:auto_180px] [content-visibility:auto]',
         selected ? 'border-primary-300 shadow-kun-md' : 'border-default-200',
         issues.length && !selected && 'border-warning-300',
-        drag.segmentOver.value === props.segment.key && 'ring-primary-300 ring-2'
+        drag.segmentOver.value === props.segment.key &&
+          'ring-primary-300 ring-2'
       )
     "
     @click.self="doc.select({ kind: 'segment', key: props.segment.key })"
     @dragover="drag.overSegment($event, props.segment.key)"
     @drop="drag.dropOnSegment($event, props.segment.key)"
   >
-    <span :class="cn('absolute inset-y-3 left-0 w-1 rounded-r-full', wtTone(props.tone).bar)" />
+    <span
+      :class="
+        cn(
+          'absolute inset-y-3 left-0 w-1 rounded-r-full',
+          wtTone(props.tone).bar
+        )
+      "
+    />
 
     <header
       class="flex flex-wrap items-center gap-2 px-3 pt-2.5 pb-2 pl-4"
@@ -157,7 +183,10 @@ const onHeaderDragStart = (event: DragEvent) =>
         side="from"
         @update:model-value="setFrom"
       />
-      <KunIcon name="lucide:arrow-right" class="text-default-300 size-4 shrink-0" />
+      <KunIcon
+        name="lucide:arrow-right"
+        class="text-default-300 size-4 shrink-0"
+      />
       <WalkthroughsEditorNodePicker
         :model-value="props.segment.to"
         side="to"
@@ -197,7 +226,13 @@ const onHeaderDragStart = (event: DragEvent) =>
 
       <KunDropdown :items="menu" position="bottom-end" @select="onMenu">
         <template #trigger>
-          <KunButton variant="light" size="sm" is-icon-only aria-label="路线段操作" :disabled="doc.readonly.value">
+          <KunButton
+            variant="light"
+            size="sm"
+            is-icon-only
+            aria-label="路线段操作"
+            :disabled="doc.readonly.value"
+          >
             <KunIcon name="lucide:ellipsis" class="size-4" />
           </KunButton>
         </template>
@@ -210,7 +245,12 @@ const onHeaderDragStart = (event: DragEvent) =>
         size="sm"
         placeholder="走这段路的前提，例如「通关寧々线后」"
         :disabled="doc.readonly.value"
-        @update:model-value="update((s) => (s.condition = String($event) || null), `cond:${props.segment.key}`)"
+        @update:model-value="
+          update(
+            (s) => (s.condition = String($event) || null),
+            `cond:${props.segment.key}`
+          )
+        "
         @blur="doc.breakCoalescing"
       />
       <KunInput
@@ -219,7 +259,12 @@ const onHeaderDragStart = (event: DragEvent) =>
         size="sm"
         placeholder="前提的中文译文"
         :disabled="doc.readonly.value"
-        @update:model-value="update((s) => (s.condition_zh = String($event) || null), `cond-zh:${props.segment.key}`)"
+        @update:model-value="
+          update(
+            (s) => (s.condition_zh = String($event) || null),
+            `cond-zh:${props.segment.key}`
+          )
+        "
         @blur="doc.breakCoalescing"
       />
     </div>
@@ -235,14 +280,24 @@ const onHeaderDragStart = (event: DragEvent) =>
       />
     </ol>
 
-    <ul v-if="issues.length" class="text-warning-700 space-y-0.5 px-4 pb-2 text-xs">
-      <li v-for="message in issues" :key="message" class="flex items-center gap-1">
+    <ul
+      v-if="issues.length"
+      class="text-warning-700 space-y-0.5 px-4 pb-2 text-xs"
+    >
+      <li
+        v-for="message in issues"
+        :key="message"
+        class="flex items-center gap-1"
+      >
         <KunIcon name="lucide:circle-alert" class="size-3.5 shrink-0" />
         {{ message }}
       </li>
     </ul>
 
-    <footer v-if="!doc.readonly.value" class="text-default-400 flex items-center gap-1 px-3 pb-2.5 pl-4 text-xs">
+    <footer
+      v-if="!doc.readonly.value"
+      class="text-default-400 flex items-center gap-1 px-3 pb-2.5 pl-4 text-xs"
+    >
       <button
         type="button"
         tabindex="-1"

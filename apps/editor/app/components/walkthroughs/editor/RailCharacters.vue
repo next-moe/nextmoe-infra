@@ -3,7 +3,12 @@ import { cn } from '@kungal/ui-core'
 import type { CatalogWorkCharacter } from '#shared/types/catalog'
 import type { WtCharacter } from '#shared/types/walkthrough'
 import { wtTone } from '~/constants/walkthrough'
-import { keysOf, nextKey, referencesOf, removeCharacter } from '~/utils/walkthrough/doc'
+import {
+  keysOf,
+  nextKey,
+  referencesOf,
+  removeCharacter
+} from '~/utils/walkthrough/doc'
 
 const props = defineProps<{
   roster: CatalogWorkCharacter[]
@@ -50,7 +55,9 @@ const add = async () => {
   doc.edit((d) => d.characters.push({ key, name: '', aliases: [] }))
   doc.expanded.value = `character:${key}`
   await nextTick()
-  document.querySelector<HTMLInputElement>(`[data-wt-character-name="${key}"]`)?.focus()
+  document
+    .querySelector<HTMLInputElement>(`[data-wt-character-name="${key}"]`)
+    ?.focus()
 }
 
 const remove = async (c: WtCharacter) => {
@@ -83,8 +90,17 @@ const filterRoute = (key: string) => {
 <template>
   <section class="space-y-1">
     <div class="flex items-center justify-between px-2">
-      <h3 class="text-default-500 text-xs font-medium">角色 · {{ chart.characters.length }}</h3>
-      <KunButton v-if="!doc.readonly.value" size="sm" variant="light" is-icon-only aria-label="添加角色" @click="add">
+      <h3 class="text-default-500 text-xs font-medium">
+        角色 · {{ chart.characters.length }}
+      </h3>
+      <KunButton
+        v-if="!doc.readonly.value"
+        size="sm"
+        variant="light"
+        is-icon-only
+        aria-label="添加角色"
+        @click="add"
+      >
         <KunIcon name="lucide:plus" class="size-4" />
       </KunButton>
     </div>
@@ -96,7 +112,10 @@ const filterRoute = (key: string) => {
       v-for="(c, i) in chart.characters"
       :key="c.key"
       :title="c.name || '未命名角色'"
-      :subtitle="pinned(c.key)?.display_name ?? (pinOf(c.key) ? `角色 #${pinOf(c.key)}` : '未关联角色库')"
+      :subtitle="
+        pinned(c.key)?.display_name ??
+        (pinOf(c.key) ? `角色 #${pinOf(c.key)}` : '未关联角色库')
+      "
       :dot="wtTone(i).dot"
       :issues="doc.issuesOf({ kind: 'character', key: c.key })"
       :expanded="doc.expanded.value === `character:${c.key}`"
@@ -120,11 +139,15 @@ const filterRoute = (key: string) => {
         <button
           type="button"
           tabindex="-1"
-          :title="doc.routeFilter.value === c.key ? '显示全部路线' : '只看这条路线'"
+          :title="
+            doc.routeFilter.value === c.key ? '显示全部路线' : '只看这条路线'
+          "
           :class="
             cn(
               'flex size-6 shrink-0 items-center justify-center rounded',
-              doc.routeFilter.value === c.key ? 'text-primary-600' : 'text-default-300 hover:text-default-600'
+              doc.routeFilter.value === c.key
+                ? 'text-primary-600'
+                : 'text-default-300 hover:text-default-600'
             )
           "
           @click.stop="filterRoute(c.key)"
@@ -140,7 +163,9 @@ const filterRoute = (key: string) => {
         placeholder="攻略页上的写法"
         :data-wt-character-name="c.key"
         :disabled="doc.readonly.value"
-        @update:model-value="update(c.key, { name: String($event) }, `char:${c.key}`)"
+        @update:model-value="
+          update(c.key, { name: String($event) }, `char:${c.key}`)
+        "
         @blur="doc.breakCoalescing"
       />
       <KunTagInput
@@ -157,7 +182,9 @@ const filterRoute = (key: string) => {
         :options="options"
         size="sm"
         label="关联角色库"
-        :placeholder="props.rosterLoaded ? '从作品的角色表里选择' : '正在载入角色表…'"
+        :placeholder="
+          props.rosterLoaded ? '从作品的角色表里选择' : '正在载入角色表…'
+        "
         searchable
         clearable
         :disabled="doc.readonly.value || !props.rosterLoaded"
@@ -173,7 +200,9 @@ const filterRoute = (key: string) => {
           />
           <span v-else class="bg-default-100 size-6 shrink-0 rounded-full" />
           <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
-          <span class="text-default-400 shrink-0 text-xs">{{ ROLE_LABEL[option.role] }}</span>
+          <span class="text-default-400 shrink-0 text-xs">{{
+            ROLE_LABEL[option.role]
+          }}</span>
         </template>
       </KunSelect>
     </WalkthroughsEditorRailItem>

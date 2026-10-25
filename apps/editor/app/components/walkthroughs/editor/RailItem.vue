@@ -11,7 +11,14 @@ const props = withDefaults(
     expanded?: boolean
     selected?: boolean
   }>(),
-  { subtitle: '', icon: '', dot: '', issues: () => [], expanded: false, selected: false }
+  {
+    subtitle: '',
+    icon: '',
+    dot: '',
+    issues: () => [],
+    expanded: false,
+    selected: false
+  }
 )
 
 const emit = defineEmits<{ toggle: []; remove: [] }>()
@@ -23,7 +30,11 @@ const doc = useWalkthroughDocument()
     :class="
       cn(
         'group/rail rounded-lg transition-colors',
-        props.expanded ? 'bg-default-50 ring-default-200 ring-1' : props.selected ? 'bg-primary-50' : 'hover:bg-default-50'
+        props.expanded
+          ? 'bg-default-50 ring-default-200 ring-1'
+          : props.selected
+            ? 'bg-primary-50'
+            : 'hover:bg-default-50'
       )
     "
   >
@@ -34,13 +45,28 @@ const doc = useWalkthroughDocument()
         :aria-expanded="props.expanded"
         @click="emit('toggle')"
       >
-        <span v-if="props.dot" :class="cn('size-2.5 shrink-0 rounded-full', props.dot)" />
-        <KunIcon v-else-if="props.icon" :name="props.icon" class="text-default-400 size-4 shrink-0" />
+        <span
+          v-if="props.dot"
+          :class="cn('size-2.5 shrink-0 rounded-full', props.dot)"
+        />
+        <KunIcon
+          v-else-if="props.icon"
+          :name="props.icon"
+          class="text-default-400 size-4 shrink-0"
+        />
         <span class="min-w-0 flex-1">
           <span class="block truncate text-sm">{{ props.title }}</span>
-          <span v-if="props.subtitle" class="text-default-400 block truncate text-xs">{{ props.subtitle }}</span>
+          <span
+            v-if="props.subtitle"
+            class="text-default-400 block truncate text-xs"
+            >{{ props.subtitle }}</span
+          >
         </span>
-        <KunIcon v-if="props.issues.length" name="lucide:circle-alert" class="text-warning-500 size-4 shrink-0" />
+        <KunIcon
+          v-if="props.issues.length"
+          name="lucide:circle-alert"
+          class="text-warning-500 size-4 shrink-0"
+        />
       </button>
       <slot name="trailing" />
       <button
@@ -55,7 +81,13 @@ const doc = useWalkthroughDocument()
       </button>
     </div>
     <div v-if="props.expanded" class="space-y-2 px-2 pb-2.5">
-      <p v-for="message in props.issues" :key="message" class="text-warning-700 text-xs">{{ message }}</p>
+      <p
+        v-for="message in props.issues"
+        :key="message"
+        class="text-warning-700 text-xs"
+      >
+        {{ message }}
+      </p>
       <slot />
     </div>
   </div>

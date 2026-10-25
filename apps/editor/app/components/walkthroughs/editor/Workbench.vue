@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import type {
-  CatalogWork,
-  CatalogWorkCharacter
-} from '#shared/types/catalog'
+import type { CatalogWork, CatalogWorkCharacter } from '#shared/types/catalog'
 import type { WalkthroughDocumentSource } from '~/composables/useWalkthroughDocument'
 import { isMod, isTyping } from '~/utils/walkthrough/focus'
 
@@ -35,9 +32,9 @@ const loadWork = async (id: string | null) => {
   if (!id) return
   rosterLoaded.value = false
   const [summary, characters] = await Promise.all([
-    api<CatalogWork>(`/v2/catalog/works/${id}`, { query: { nsfw: true } }).catch(
-      () => null
-    ),
+    api<CatalogWork>(`/v2/catalog/works/${id}`, {
+      query: { nsfw: true }
+    }).catch(() => null),
     api<{ items: CatalogWorkCharacter[] }>(
       `/v2/catalog/works/${id}/characters`,
       { query: { nsfw: true, limit: 200 } }
