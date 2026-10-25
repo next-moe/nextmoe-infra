@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode"
 	"unicode/utf8"
 
 	"api/internal/platform/catalog/model"
@@ -30,6 +32,7 @@ type translateJob struct {
 	Strings   []string
 	Glossary  []glossaryTerm
 	KeepNames []string
+	Earlier   map[string]string
 }
 
 func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sourceEntry, o extractOpts) error {
@@ -53,6 +56,10 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 	if err != nil {
 		return err
 	}
+	earlier, err := earlierTranslations(ctx, src)
+	if err != nil {
+		return err
+	}
 	var jobs []translateJob
 	for _, id := range keysOf(charts) {
 		if _, matched := pins[id]; !matched {
@@ -62,13 +69,14 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 		if len(job.Strings) == 0 || !o.Redo && done[id] == translateHash(job) {
 			continue
 		}
+		job.Earlier = earlier[id]
 		jobs = append(jobs, job)
 	}
 	fmt.Printf("\n=== import-walkthroughs translate model=%s prompt=%s charts=%d todo=%d ===\n",
 		l.model, translatePromptVersion, len(charts), len(jobs))
 
 	schema := mustSchema(translateSchemaJSON)
-	var finished, failed, refusedNames atomic.Int64
+	var finished, failed, refused, reused, asked atomic.Int64
 	sem := make(chan struct{}, max(o.Workers, 1))
 	var wg sync.WaitGroup
 	for _, job := range jobs {
@@ -80,8 +88,10 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 		go func(job translateJob) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			out, refused, err := translateOne(ctx, l, schema, job, o.MaxTokens)
-			refusedNames.Add(int64(refused))
+			out, st, err := translateOne(ctx, l, schema, job, o.MaxTokens)
+			refused.Add(int64(st.refused))
+			reused.Add(int64(st.reused))
+			asked.Add(int64(st.asked))
 			errText := ""
 			if err != nil {
 				failed.Add(1)
@@ -92,12 +102,13 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 				slog.Error("store translation", "entry", job.EntryID, "err", err)
 			}
 			if n := finished.Add(1); n%25 == 0 || n == int64(len(jobs)) {
-				slog.Info("progress", "done", n, "of", len(jobs), "failed", failed.Load(), "refused_name_strings", refusedNames.Load())
+				slog.Info("progress", "done", n, "of", len(jobs), "failed", failed.Load(), "reused", reused.Load(), "asked", asked.Load(), "refused", refused.Load())
 			}
 		}(job)
 	}
 	wg.Wait()
-	fmt.Printf("translated=%d failed=%d refused_name_strings=%d\n", finished.Load()-failed.Load(), failed.Load(), refusedNames.Load())
+	fmt.Printf("translated=%d failed=%d reused_strings=%d asked_strings=%d refused_strings=%d\n",
+		finished.Load()-failed.Load(), failed.Load(), reused.Load(), asked.Load(), refused.Load())
 	return ctx.Err()
 }
 
@@ -267,15 +278,62 @@ func settledTranslations(ctx context.Context, src *gorm.DB) (map[int64]string, e
 	return out, err
 }
 
-func translateOne(ctx context.Context, l *llm, schema map[string]any, job translateJob, maxTokens int) (map[string]string, int, error) {
+func earlierTranslations(ctx context.Context, src *gorm.DB) (map[int64]map[string]string, error) {
+	var rows []struct {
+		EntryID int64
+		Strings string
+	}
+	if err := src.WithContext(ctx).Table("wt_stage.translation").
+		Select("entry_id, strings::text AS strings").
+		Where("prompt_version <> ? AND error = '' AND strings IS NOT NULL", translatePromptVersion).
+		Order("created_at").Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[int64]map[string]string, len(rows))
+	for _, r := range rows {
+		m := map[string]string{}
+		if err := json.Unmarshal([]byte(r.Strings), &m); err != nil {
+			return nil, fmt.Errorf("entry %d translation: %w", r.EntryID, err)
+		}
+		if out[r.EntryID] == nil {
+			out[r.EntryID] = m
+			continue
+		}
+		maps.Copy(out[r.EntryID], m)
+	}
+	return out, nil
+}
+
+type translateStats struct {
+	reused, asked, refused int
+}
+
+func translateOne(ctx context.Context, l *llm, schema map[string]any, job translateJob, maxTokens int) (map[string]string, translateStats, error) {
 	out := map[string]string{}
-	refused := 0
+	var st translateStats
+	mask := newNameMask(job.KeepNames)
+	var todo []string
+	for _, ja := range job.Strings {
+		switch zh, ok := job.Earlier[ja]; {
+		case ok && keepsNames(ja, zh, job.KeepNames):
+			out[ja] = zh
+			st.reused++
+		case mask.onlyNames(ja):
+			out[ja] = ja
+		default:
+			todo = append(todo, ja)
+		}
+	}
 	var run func(chunk []string) error
 	run = func(chunk []string) error {
+		masked := make([]string, len(chunk))
+		for i, ja := range chunk {
+			masked[i] = mask.hide(ja)
+		}
 		in, err := json.Marshal(struct {
 			Glossary []glossaryTerm `json:"glossary"`
 			Strings  []string       `json:"strings"`
-		}{job.Glossary, chunk})
+		}{job.Glossary, masked})
 		if err != nil {
 			return err
 		}
@@ -287,7 +345,8 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 		}
 		if len(got.T) != len(chunk) {
 			if len(chunk) == 1 {
-				refused++
+				st.asked++
+				st.refused++
 				return nil
 			}
 			half := len(chunk) / 2
@@ -296,22 +355,65 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 			}
 			return run(chunk[half:])
 		}
+		st.asked += len(chunk)
 		for i, ja := range chunk {
-			zh := strings.TrimSpace(got.T[i])
-			if zh == "" || !keepsNames(ja, zh, job.KeepNames) {
-				refused++
+			zh, ok := mask.restore(masked[i], strings.TrimSpace(got.T[i]))
+			if !ok || zh == "" || !keepsNames(ja, zh, job.KeepNames) {
+				st.refused++
 				continue
 			}
 			out[ja] = zh
 		}
 		return nil
 	}
-	for start := 0; start < len(job.Strings); start += translateChunk {
-		if err := run(job.Strings[start:min(start+translateChunk, len(job.Strings))]); err != nil {
-			return out, refused, err
+	for start := 0; start < len(todo); start += translateChunk {
+		if err := run(todo[start:min(start+translateChunk, len(todo))]); err != nil {
+			return out, st, err
 		}
 	}
-	return out, refused, nil
+	return out, st, nil
+}
+
+var placeholderRe = regexp.MustCompile(`\{N[0-9]+\}`)
+
+// nameMask swaps every kept name of two or more runes for a {N<i>} token
+// before a string reaches the model and swaps it back after: asked to keep
+// the names verbatim, glm-5.2 still transliterated them, and the keepsNames
+// guard dropped 40.9k of the 287k strings on 2026-10-25. A one-rune name
+// stays unmasked, because 愛 or 藍 is as often a word as a name.
+type nameMask struct {
+	hider, shower *strings.Replacer
+}
+
+func newNameMask(names []string) nameMask {
+	long := slices.DeleteFunc(slices.Clone(names), func(n string) bool { return utf8.RuneCountInString(n) < 2 })
+	slices.SortStableFunc(long, func(a, b string) int { return utf8.RuneCountInString(b) - utf8.RuneCountInString(a) })
+	var hide, show []string
+	for i, n := range long {
+		tok := fmt.Sprintf("{N%d}", i+1)
+		hide = append(hide, n, tok)
+		show = append(show, tok, n)
+	}
+	return nameMask{hider: strings.NewReplacer(hide...), shower: strings.NewReplacer(show...)}
+}
+
+func (m nameMask) hide(s string) string {
+	return m.hider.Replace(s)
+}
+
+func (m nameMask) onlyNames(s string) bool {
+	h := m.hide(s)
+	return h != s && !strings.ContainsFunc(placeholderRe.ReplaceAllString(h, ""), unicode.IsLetter)
+}
+
+func (m nameMask) restore(masked, zh string) (string, bool) {
+	want, got := placeholderRe.FindAllString(masked, -1), placeholderRe.FindAllString(zh, -1)
+	slices.Sort(want)
+	slices.Sort(got)
+	if !slices.Equal(want, got) {
+		return "", false
+	}
+	return m.shower.Replace(zh), true
 }
 
 func keepsNames(ja, zh string, names []string) bool {
