@@ -349,36 +349,42 @@ WHERE wl.work_id IN ?`, model.EntityTypeLabel, sourceOfficialSite), works, works
 type rosterEntry struct {
 	CharacterID int64
 	Names       []string
+	Placeholder bool
+	HasImage    bool
 }
 
 func loadRoster(ctx context.Context, cat *gorm.DB, workID int64) ([]rosterEntry, error) {
 	var rows []struct {
 		CharacterID int64
+		DisplayName string
+		Placeholder bool
+		HasImage    bool
 		Name        string
 	}
 	if err := cat.WithContext(ctx).Raw(`
-SELECT wc.character_id, n.name
-FROM catalog_work_character wc
-JOIN catalog_character c ON c.id = wc.character_id AND c.deleted_at IS NULL
+SELECT c.id AS character_id, c.display_name, c.image_hash IS NOT NULL AS has_image,
+  NOT EXISTS (SELECT 1 FROM catalog_work_character o WHERE o.character_id = c.id AND o.matched_by <> ?) AS placeholder,
+  n.name
+FROM catalog_character c
 JOIN LATERAL (
   SELECT c.display_name AS name
   UNION ALL SELECT a.name FROM catalog_character_alias a WHERE a.character_id = c.id
 ) n ON true
-WHERE wc.work_id = ? AND `+editspec.NotSuppressedRosterSQL("wc")+`
-ORDER BY wc.character_id`, workID).Scan(&rows).Error; err != nil {
+WHERE c.deleted_at IS NULL AND c.id IN (
+  SELECT wc.character_id FROM catalog_work_character wc WHERE wc.work_id = ? AND `+editspec.NotSuppressedRosterSQL("wc")+`)
+ORDER BY c.id`, matchedByWalkthrough, workID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	var out []rosterEntry
 	for _, r := range rows {
-		k := nameKey(r.Name)
-		if k == "" {
-			continue
-		}
 		if len(out) == 0 || out[len(out)-1].CharacterID != r.CharacterID {
-			out = append(out, rosterEntry{CharacterID: r.CharacterID})
+			out = append(out, rosterEntry{CharacterID: r.CharacterID, Placeholder: r.Placeholder, HasImage: r.HasImage})
+			if k := nameKey(r.DisplayName); k != "" {
+				out[len(out)-1].Names = []string{k}
+			}
 		}
 		last := &out[len(out)-1]
-		if !slices.Contains(last.Names, k) {
+		if k := nameKey(r.Name); k != "" && !slices.Contains(last.Names, k) {
 			last.Names = append(last.Names, k)
 		}
 	}
@@ -391,57 +397,77 @@ func pinCharacters(c *walkthrough.Chart, roster []rosterEntry) map[string]charac
 		return out
 	}
 	taken := map[int64]bool{}
-	unique := func(pred func(rosterEntry) bool) (int64, bool) {
-		var hit []int64
-		for _, r := range roster {
-			if !taken[r.CharacterID] && pred(r) {
-				hit = append(hit, r.CharacterID)
+	sameName := func(k, n string) bool { return n == k }
+	tiers := []struct {
+		placeholder bool
+		rule        string
+		match       func(k, n string) bool
+	}{
+		{false, ruleSameName, sameName},
+		{false, ruleNamePart, namePart},
+		{true, ruleSameName, sameName},
+		{true, ruleNamePart, namePart},
+	}
+	for _, tier := range tiers {
+		for _, ch := range c.Characters {
+			if _, done := out[ch.Key]; done {
+				continue
 			}
-		}
-		return firstIfOne(hit)
-	}
-	names := func(ch walkthrough.Character) []string {
-		var ks []string
-		for _, n := range append([]string{ch.Name}, ch.Aliases...) {
-			if k := nameKey(n); k != "" {
-				ks = append(ks, k)
+			var ks []string
+			for _, n := range append([]string{ch.Name}, ch.Aliases...) {
+				if k := nameKey(n); k != "" {
+					ks = append(ks, k)
+				}
 			}
-		}
-		return ks
-	}
-	for _, ch := range c.Characters {
-		ks := names(ch)
-		if id, ok := unique(func(r rosterEntry) bool {
-			return slices.ContainsFunc(ks, func(k string) bool { return slices.Contains(r.Names, k) })
-		}); ok {
-			out[ch.Key] = characterPin{CharacterID: id, Rule: ruleSameName}
-			taken[id] = true
-		}
-	}
-	for _, ch := range c.Characters {
-		if _, done := out[ch.Key]; done {
-			continue
-		}
-		ks := names(ch)
-		if id, ok := unique(func(r rosterEntry) bool {
-			return slices.ContainsFunc(ks, func(k string) bool {
-				return utf8.RuneCountInString(k) >= 2 && slices.ContainsFunc(r.Names, func(n string) bool {
-					return n != k && (strings.HasPrefix(n, k) || strings.HasSuffix(n, k))
-				})
-			})
-		}); ok {
-			out[ch.Key] = characterPin{CharacterID: id, Rule: ruleNamePart}
-			taken[id] = true
+			var hit []rosterEntry
+			for _, r := range roster {
+				if r.Placeholder == tier.placeholder && !taken[r.CharacterID] &&
+					slices.ContainsFunc(ks, func(k string) bool {
+						return slices.ContainsFunc(r.Names, func(n string) bool { return tier.match(k, n) })
+					}) {
+					hit = append(hit, r)
+				}
+			}
+			if id, ok := onePerson(hit); ok {
+				out[ch.Key] = characterPin{CharacterID: id, Rule: tier.rule}
+				taken[id] = true
+			}
 		}
 	}
 	return out
 }
 
-func firstIfOne(ids []int64) (int64, bool) {
-	if len(ids) != 1 {
+// A one-rune given name is matched only as the end of a full name of three or
+// more runes: the two-rune floor left 鏡 unmatched beside 敷島 鏡 and the first
+// import created ~820 name-only duplicates of real characters, while a looser
+// rule would read 空 as the end of 美空.
+func namePart(k, n string) bool {
+	if n == k {
+		return false
+	}
+	if utf8.RuneCountInString(k) == 1 {
+		return utf8.RuneCountInString(n) >= 3 && strings.HasSuffix(n, k)
+	}
+	return strings.HasPrefix(n, k) || strings.HasSuffix(n, k)
+}
+
+// onePerson treats hits that share a display name as one person entered more
+// than once (如月 澪 is on one roster three times) and pins the copy with an
+// image, so a duplicated roster no longer reads as ambiguous.
+func onePerson(hits []rosterEntry) (int64, bool) {
+	if len(hits) == 0 || len(hits[0].Names) == 0 {
 		return 0, false
 	}
-	return ids[0], true
+	best := hits[0]
+	for _, h := range hits[1:] {
+		if len(h.Names) == 0 || h.Names[0] != hits[0].Names[0] {
+			return 0, false
+		}
+		if h.HasImage && !best.HasImage {
+			best = h
+		}
+	}
+	return best.CharacterID, true
 }
 
 func storeMatch(ctx context.Context, src *gorm.DB, r matchResult) error {
