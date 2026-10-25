@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 181 个端点",
+    "d": "/v2 · 183 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1217,6 +1217,20 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/traits/{id}",
     "b": "getCatalogTrait /v2/catalog/traits/{id} get Get one trait A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 一条角色特征词表行。未带 nsfw=true 时，性相关族特征返回 404 NOT_FOUND。include=aliases,description,intros（以及 view=full）加入对应块。include=character_count 是夜间索引上 GET /v2/catalog/characters?trait_id=<本 id>&page=1 在本请求 nsfw 下给出的总数；引擎失败为 503。这是显式请求：view=full 不会带上它。is_sexual 报告性相关族标志。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw view include fields"
+  },
+  {
+    "r": "/docs/v2/listCatalogWalkthroughs",
+    "t": "列出攻略",
+    "s": "端点 · 目录",
+    "d": "GET /v2/catalog/walkthroughs",
+    "b": "listCatalogWalkthroughs /v2/catalog/walkthroughs get List walkthroughs Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate. 按 id 排序、keyset 分页的攻略。work_id= 只保留一部作品的攻略;character_id= 只保留选项图通向该角色的攻略。一份攻略在其作品于同一 nsfw 门下对 GET /v2/catalog/works/{id} 可见时才会列出。条目不带 chart;GET /v2/catalog/walkthroughs/{id} 才带。允许匿名调用,按 IP 地址限流;应用密钥或带 catalog:read 的用户访问令牌拥有各自更高的限额。ids= 是批量通道,不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw work_id character_id"
+  },
+  {
+    "r": "/docs/v2/getCatalogWalkthrough",
+    "t": "获取一份攻略",
+    "s": "端点 · 目录",
+    "d": "GET /v2/catalog/walkthroughs/{id}",
+    "b": "getCatalogWalkthrough /v2/catalog/walkthroughs/{id} get Get one walkthrough A walkthrough's choice graph: entries, saves and endings as nodes, segments of choices as edges, and the characters each route and ending belongs to. Text fields are in the walkthrough's lang with machine translations in localized. Derived from the page at source_url; its prose is not reproduced. 404 when the work is not visible: r18 needs nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 一份攻略的选项图:入口、存档、结局为节点,选项段为边,并标出每条路线与每个结局所属的角色。文本字段使用攻略的 lang,机器翻译在 localized 里。依据 source_url 上的页面得出,不转载其正文。作品不可见时为 404:r18 需要 nsfw=true。允许匿名调用,按 IP 地址限流;应用密钥或带 catalog:read 的用户访问令牌拥有各自更高的限额。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/listCatalogWorks",

@@ -253,6 +253,20 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "getCatalogWalkthrough",
+    "method": "GET",
+    "path": "/v2/catalog/walkthroughs/{id}",
+    "summary": "Get one walkthrough",
+    "needs_key": false,
+    "params": [
+      "id",
+      "nsfw",
+      "view",
+      "include",
+      "fields"
+    ]
+  },
+  {
     "name": "getCatalogWork",
     "method": "GET",
     "path": "/v2/catalog/works/{id}",
@@ -844,6 +858,28 @@ export const mcpTools = [
       "parent_id",
       "group_id",
       "root"
+    ]
+  },
+  {
+    "name": "listCatalogWalkthroughs",
+    "method": "GET",
+    "path": "/v2/catalog/walkthroughs",
+    "summary": "List walkthroughs",
+    "needs_key": false,
+    "params": [
+      "cursor",
+      "limit",
+      "view",
+      "include",
+      "fields",
+      "ids",
+      "refs",
+      "include_total",
+      "facets",
+      "sort",
+      "nsfw",
+      "work_id",
+      "character_id"
     ]
   },
   {

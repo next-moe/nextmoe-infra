@@ -13,6 +13,8 @@ const (
 	SourceNextMoe       int16 = 19
 	SourceHowLongToBeat int16 = 20
 	SourceCensored      int16 = 21
+	SourceSeiya         int16 = 22
+	SourceSagaozFool    int16 = 23
 )
 
 // IdentityVetoExemptSourceIDs are the sources whose exact ids must never veto a

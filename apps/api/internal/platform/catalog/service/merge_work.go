@@ -18,6 +18,7 @@ func workRehangStmts(reg *editing.Registry, p mergePlan) []mergeStmt {
 	stmts = append(stmts, workRelationStmts(p)...)
 	stmts = append(stmts, workTitleStmts(p)...)
 	stmts = append(stmts, mergeStmt{`UPDATE catalog_release SET work_id = ? WHERE work_id = ?`, []any{p.dst, p.src}, false})
+	stmts = append(stmts, mergeStmt{`UPDATE catalog_walkthrough SET work_id = ?, updated_at = now() WHERE work_id = ?`, []any{p.dst, p.src}, false})
 	stmts = append(stmts, workCreditStmts(p)...)
 	stmts = append(stmts, suppressedRowStmts(p, editspec.TypeWork)...)
 	stmts = append(stmts, identityFollowStmts(reg, editspec.TagWork, p.src, p.dst)...)
@@ -59,6 +60,7 @@ var absorbKept = map[string]string{
 	"catalog_user_work_state":               "user data moves",
 	"edit_suppressed_row":                   "editorial state moves",
 	"catalog_character_intro_panel_verdict": "a cache; dropped",
+	"catalog_walkthrough":                   "each chart is its own source page's, not a copy of the base work's; it moves",
 }
 
 var importedRows = "t.work_id = ? AND NOT " + humanLaneSQL("t.source_id")
