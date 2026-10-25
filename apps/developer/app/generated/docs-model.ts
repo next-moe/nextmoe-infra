@@ -78248,6 +78248,7 @@ export const docsModel: DocsModel = {
                                   "required": true,
                                   "nullable": true,
                                   "doc": "Main language of the release. null if unrecorded.",
+                                  "format": "bcp47",
                                   "type": "string"
                                 },
                                 {
@@ -80330,6 +80331,7 @@ export const docsModel: DocsModel = {
                             "required": true,
                             "nullable": true,
                             "doc": "Main language of the release. null if unrecorded.",
+                            "format": "bcp47",
                             "type": "string"
                           },
                           {
@@ -273437,6 +273439,7 @@ export const docsModel: DocsModel = {
                                   "required": true,
                                   "nullable": true,
                                   "doc": "Main language of the release. null if unrecorded.",
+                                  "format": "bcp47",
                                   "type": "string"
                                 },
                                 {

@@ -116,6 +116,6 @@ type WalkthroughRelease struct {
 	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog release id, a release of this walkthrough's work."`
 	Title       *string  `json:"title" maxLength:"512" doc:"The release's title. null if it has none. Must not be used as a discriminant."`
 	ReleaseKind string   `json:"release_kind" enum:"default,digital,physical,trial,patch" doc:"Kind of the release; patch includes fan translation patches."`
-	Lang        *string  `json:"lang" maxLength:"32" doc:"Main language of the release. null if unrecorded."`
+	Lang        *string  `json:"lang" maxLength:"32" format:"bcp47" doc:"Main language of the release. null if unrecorded."`
 	Companies   []string `json:"companies" doc:"Display names of the companies and groups credited on the release, such as the translation group of a patch. Empty array, never null. Must not be used as a discriminant."`
 }

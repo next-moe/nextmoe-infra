@@ -12899,6 +12899,7 @@ components:
           type: string
         lang:
           description: Main language of the release. null if unrecorded.
+          format: bcp47
           maxLength: 32
           type:
             - string

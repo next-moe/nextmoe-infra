@@ -10489,7 +10489,10 @@ export interface components {
             companies: string[];
             /** @description Catalog release id, a release of this walkthrough's work. */
             id: string;
-            /** @description Main language of the release. null if unrecorded. */
+            /**
+             * Format: bcp47
+             * @description Main language of the release. null if unrecorded.
+             */
             lang: string | null;
             /**
              * @description Kind of the release; patch includes fan translation patches.
