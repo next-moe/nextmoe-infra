@@ -44,6 +44,7 @@ type walkthroughRow struct {
 	DisplayNSFW         bool
 	CoverArtAllExplicit bool
 	TitleNSFW           *bool
+	HasRouteHints       bool
 	ImportReview        *string
 }
 
@@ -51,7 +52,7 @@ const walkthroughColumns = `wt.id, wt.work_id, src.key AS source, wt.source_url,
 	jsonb_array_length(wt.chart->'endings') AS ending_count, jsonb_array_length(wt.chart->'saves') AS save_count,
 	jsonb_array_length(wt.chart->'segments') AS segment_count, (wt.chart->'characters')::text AS characters,
 	w.site, w.product_work_id, w.content_rating, w.display_nsfw, w.cover_art_all_explicit, w.title_nsfw,
-	wt.import_review::text AS import_review`
+	w.has_route_hints, wt.import_review::text AS import_review`
 
 const walkthroughFrom = ` FROM catalog_walkthrough wt
 	JOIN catalog_work w ON w.id = wt.work_id
@@ -191,7 +192,8 @@ func (s *PublicService) walkthroughItems(ctx context.Context, rows []walkthrough
 				DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW,
 			}, r.ContentRating),
 			EndingCount: r.EndingCount, SaveCount: r.SaveCount, SegmentCount: r.SegmentCount,
-			Characters: make([]dto.PublicWalkthroughCharacter, 0, len(chars)),
+			WorkRouteHints: r.HasRouteHints,
+			Characters:     make([]dto.PublicWalkthroughCharacter, 0, len(chars)),
 		}
 		if r.ImportReview != nil {
 			var review model.WalkthroughImportReview

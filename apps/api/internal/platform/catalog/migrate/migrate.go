@@ -61,6 +61,9 @@ func Run(db *gorm.DB) error {
 		&model.CatalogClaimEvent{},
 
 		// Work graph (step 04): registry work/title/release, then edges.
+		// 2026-10-26: has_route_hints (NOT NULL DEFAULT false, a constant
+		// default, so PG adds it without rewriting the rows; every existing work
+		// takes false) marks a game that shows route hints itself.
 		&model.CatalogWork{},
 		&model.CatalogWorkTitle{},
 		&model.CatalogWorkIntro{}, // bodyless multilingual intro (step 52 media-aggregation pilot)

@@ -23,6 +23,7 @@ const (
 	FieldWorkTitlesSuppr   = FieldWorkTitles + editing.SuppressedFieldSuffix
 	FieldWorkIntros        = "catalog.work.intros"
 	FieldWorkDisplayNSFW   = "catalog.work.display_nsfw"
+	FieldWorkRouteHints    = "catalog.work.route_hints"
 	FieldWorkTagIDs        = "catalog.work.tag_ids"
 	FieldWorkTagIDsSuppr   = FieldWorkTagIDs + editing.SuppressedFieldSuffix
 	FieldWorkLabels        = "catalog.work.labels"
@@ -61,7 +62,7 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 		LoadSnapshot: func(ctx context.Context, entityID int64) (map[string]any, error) {
 			var w catmodel.CatalogWork
 			err := db.WithContext(ctx).
-				Select("id", "display_name", "olang", "content_rating", "display_nsfw").
+				Select("id", "display_name", "olang", "content_rating", "display_nsfw", "has_route_hints").
 				First(&w, entityID).Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, editing.ErrEntityNotFound
@@ -74,6 +75,7 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 				FieldWorkOLang:         w.OLang,
 				FieldWorkContentRating: int64(w.ContentRating),
 				FieldWorkDisplayNSFW:   w.DisplayNSFW,
+				FieldWorkRouteHints:    w.HasRouteHints,
 			}
 			for key, load := range map[string]func(context.Context, *gorm.DB, int64) ([]any, error){
 				FieldWorkTitles:              loadTitles,
@@ -264,6 +266,12 @@ func workFieldSpecs() []editing.FieldSpec {
 			Validate:   validateBool,
 			Apply:      applyWorkColumn("display_nsfw", asBool),
 			Provenance: workProvenance("display_nsfw"),
+		},
+		{
+			Key: FieldWorkRouteHints, Kind: editing.KindEnum, DiffHint: editing.DiffHintInline,
+			Validate:   validateBool,
+			Apply:      applyWorkColumn("has_route_hints", asBool),
+			Provenance: workProvenance("has_route_hints"),
 		},
 		tags,
 		workTagSuppressionSpec(tags),

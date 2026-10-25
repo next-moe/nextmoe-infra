@@ -19,6 +19,7 @@ type CatalogWork struct {
 	ContentRating int16   `gorm:"not null" json:"content_rating"`
 	Status        int16   `gorm:"not null;index:idx_catalog_work_medium_status,priority:2" json:"status"`
 	DisplayNSFW   bool    `gorm:"column:display_nsfw;not null" json:"display_nsfw"`
+	HasRouteHints bool    `gorm:"column:has_route_hints;not null;default:false" json:"has_route_hints"`
 	// CoverArtAllExplicit is derived from catalog_work_cover by a trigger and
 	// is read-only here for the same reason the *_norm columns are: a Save()
 	// carrying a stale struct would silently overwrite the database's own

@@ -78288,6 +78288,12 @@ export const docsModel: DocsModel = {
                               "required": true,
                               "doc": "Catalog work this walkthrough plays through.",
                               "type": "string"
+                            },
+                            {
+                              "name": "work_route_hints",
+                              "required": true,
+                              "doc": "true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes.",
+                              "type": "boolean"
                             }
                           ]
                         }
@@ -80313,6 +80319,12 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "doc": "Catalog work this walkthrough plays through.",
                         "type": "string"
+                      },
+                      {
+                        "name": "work_route_hints",
+                        "required": true,
+                        "doc": "true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes.",
+                        "type": "boolean"
                       }
                     ]
                   }
@@ -273363,6 +273375,12 @@ export const docsModel: DocsModel = {
                               "required": true,
                               "doc": "Catalog work this walkthrough plays through.",
                               "type": "string"
+                            },
+                            {
+                              "name": "work_route_hints",
+                              "required": true,
+                              "doc": "true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes.",
+                              "type": "boolean"
                             }
                           ]
                         }

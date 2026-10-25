@@ -38,9 +38,13 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
     icon: 'lucide:settings-2',
     group: 'profile',
     view: 'work:basic',
-    fields: ['display_name', 'olang', 'content_rating', 'display_nsfw'].map(
-      work
-    )
+    fields: [
+      'display_name',
+      'olang',
+      'content_rating',
+      'display_nsfw',
+      'route_hints'
+    ].map(work)
   },
   {
     key: 'titles',

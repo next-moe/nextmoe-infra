@@ -394,7 +394,7 @@ func WalkthroughSpec() Spec {
 		Sort:    []string{"id"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields: []string{"object", "id", "work_id", "work_content_limit", "source", "source_url", "source_author", "source_updated_on", "lang",
+		Fields: []string{"object", "id", "work_id", "work_content_limit", "work_route_hints", "source", "source_url", "source_author", "source_updated_on", "lang",
 			"characters", "ending_count", "save_count", "segment_count", "updated_at", "chart"},
 	}
 }

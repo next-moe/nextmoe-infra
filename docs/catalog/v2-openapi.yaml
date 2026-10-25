@@ -12647,11 +12647,15 @@ components:
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        work_route_hints:
+          description: true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes.
+          type: boolean
       required:
         - object
         - id
         - work_id
         - work_content_limit
+        - work_route_hints
         - source
         - source_url
         - source_author
@@ -13839,7 +13843,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.68.0
+  version: 2.69.0
   x-stability: stable
 openapi: 3.1.0
 paths:

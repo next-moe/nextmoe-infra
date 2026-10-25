@@ -11,6 +11,7 @@ type PublicWalkthrough struct {
 	ID               int64
 	WorkID           int64
 	WorkContentLimit string
+	WorkRouteHints   bool
 	Source           string
 	SourceURL        string
 	SourceAuthor     string

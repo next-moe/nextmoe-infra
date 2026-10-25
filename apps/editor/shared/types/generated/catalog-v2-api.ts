@@ -10376,6 +10376,8 @@ export interface components {
             work_content_limit: "sfw" | "nsfw";
             /** @description Catalog work this walkthrough plays through. */
             work_id: string;
+            /** @description true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes. */
+            work_route_hints: boolean;
         } & {
             [key: string]: unknown;
         };

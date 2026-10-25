@@ -2633,3 +2633,9 @@ The extraction gate sent 331 charts to `review`: they are structurally valid and
 - The editor lists the backlog at `/walkthroughs` and in the work's 攻略 section. An imported-incomplete walkthrough's editor shows the missed choices; one is struck through once the chart carries its text.
 
 **Migration**: `go run ./cmd/migrate catalog` against kun_catalog (the `migrate-catalog` job). It adds `catalog_walkthrough.import_review jsonb NULL`; every existing row is NULL. **Spec 2.68.0**, additive: one new operation and the optional `import_review` member.
+
+## Route hints (spec 2.69.0, 2026-10-26)
+
+Some games show their own route or choice hints, such as the 2024 ToHeart remake, and a player may prefer those to a walkthrough that spoils every route (kungal topic 4548, floor 1). The flag belongs to the game, so it is a work field: `catalog.work.route_hints`, stored in `catalog_work.has_route_hints` and edited in the work's 基础 section. Walkthrough items and the detail carry it as `work_route_hints`, so a site can show the notice before the routes without a second read. It is not part of the claims mint lane, because it is learned by playing a game rather than listing it.
+
+**Migration**: `go run ./cmd/migrate catalog` (the `migrate-catalog` job) adds `catalog_work.has_route_hints boolean NOT NULL DEFAULT false`. The default is a constant, so PG adds the column without rewriting the rows, and every work takes false. **Spec 2.69.0**, additive.
