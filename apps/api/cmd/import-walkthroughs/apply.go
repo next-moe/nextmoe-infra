@@ -1,6 +1,7 @@
 package main
 
 import (
+	"api/internal/platform/catalog/walkthrough/extract"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -437,14 +438,14 @@ func loadExtractionMeta(ctx context.Context, src *gorm.DB, ids []int64) (map[int
 		Metrics   string
 	}
 	if err := src.WithContext(ctx).Table("wt_stage.extraction").Select("entry_id, model, input_hash, verdict, coalesce(metrics::text, '{}') AS metrics").
-		Where("prompt_version = ? AND entry_id IN ?", extractPromptVersion, ids).Scan(&rows).Error; err != nil {
+		Where("prompt_version = ? AND entry_id IN ?", extract.PromptVersion, ids).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make(map[int64]extractionMeta, len(rows))
 	for _, r := range rows {
 		meta := extractionMeta{Model: r.Model, InputHash: r.InputHash}
-		if r.Verdict == verdictReview {
-			var m extractMetrics
+		if r.Verdict == extract.VerdictReview {
+			var m extract.Metrics
 			if err := json.Unmarshal([]byte(r.Metrics), &m); err != nil {
 				return nil, fmt.Errorf("entry %d metrics: %w", r.EntryID, err)
 			}

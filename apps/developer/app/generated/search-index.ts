@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 184 个端点",
+    "d": "/v2 · 185 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1931,6 +1931,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "GET /v2/me/walkthrough-backlog",
     "b": "listMyWalkthroughBacklog /v2/me/walkthrough-backlog get Walkthroughs waiting to be completed Walkthroughs the import kept hidden because their chart was incomplete, sorted by id, each with import_review saying what is missing. A walkthrough leaves the backlog when an edit unhides it. work_id= keeps one work's; ids= is a batch lane and does not paginate. No age gate applies. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 导入时因攻略图不完整而隐藏的攻略,按 id 排序,每条带 import_review 说明缺了什么。编辑取消隐藏后,攻略离开待补全列表。work_id= 只看一部作品;ids= 是批量通道,不分页。不受年龄分级限制。需要绑定到 catalog 站点的用户访问令牌,且令牌带 catalog:edit 权限范围。 cursor limit view include fields ids refs include_total facets sort nsfw work_id"
+  },
+  {
+    "r": "/docs/v2/createMyWalkthroughDraft",
+    "t": "把文字攻略整理成攻略图草稿",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/walkthrough-drafts",
+    "b": "createMyWalkthroughDraft /v2/me/walkthrough-drafts post Turn a text walkthrough into a draft chart A language model reads the text and returns a choice chart in the shape catalog.walkthrough.chart takes, with the import gate's verdict on it. Nothing is written to the catalog and the text is not stored; the caller edits the draft and files it as a proposal. Each caller has 20 drafts per rolling 24 hours; past it 429 QUOTA_EXCEEDED. 503 when no model is configured. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 由语言模型阅读文字并返回一张选项图,形状与 catalog.walkthrough.chart 的取值相同,并附上导入闸门对它的判定。不写入资料库,也不保存原文;调用方修改草稿后以提案提交。每个调用者在滚动 24 小时内可生成 20 次,超出返回 429 QUOTA_EXCEEDED。未配置模型时返回 503。需要绑定到 catalog 站点的用户访问令牌,且令牌带 catalog:edit 权限范围。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/listMyWorkRecords",

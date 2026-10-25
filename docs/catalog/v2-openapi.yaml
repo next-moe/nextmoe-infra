@@ -12762,6 +12762,83 @@ components:
         - endings
         - segments
       type: object
+    WalkthroughDraftBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/WalkthroughDraftBody.json
+          format: uri
+          readOnly: true
+          type: string
+        chart:
+          additionalProperties: {}
+          description: The draft chart, the same value catalog.walkthrough.chart takes. null when verdict is no_chart.
+          type: object
+        coverage:
+          description: Share of the input's choice lines the chart carries.
+          format: double
+          maximum: 1
+          minimum: 0
+          type: number
+        missed:
+          description: Input lines the chart does not carry, at most 8. Empty array, never null.
+          items:
+            type: string
+          type: array
+        not_verbatim:
+          description: Chart texts that are not in the input. Empty array, never null.
+          items:
+            type: string
+          type: array
+        object:
+          description: Type discriminant. Always walkthrough_draft.
+          enum:
+            - walkthrough_draft
+          type: string
+          x-vocabulary-closed: true
+        remaining:
+          description: Drafts the caller has left in the rolling 24-hour window.
+          format: int64
+          minimum: 0
+          type: integer
+        verdict:
+          description: "The import gate's verdict on the draft: review means choices or endings look missing, rejected means some text is not in the input, no_chart means the text holds no choice chart."
+          enum:
+            - ok
+            - review
+            - rejected
+            - no_chart
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - verdict
+        - chart
+        - coverage
+        - missed
+        - not_verbatim
+        - remaining
+      type: object
+    WalkthroughDraftInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/WalkthroughDraftInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        text:
+          description: A walkthrough as plain text, such as choices written one per line under route headings. It is sent to a language model and not stored. Must not be used as a discriminant.
+          maxLength: 60000
+          minLength: 1
+          type: string
+      required:
+        - text
+      type: object
     WalkthroughEnding:
       additionalProperties: true
       properties:
@@ -13893,7 +13970,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.70.0
+  version: 2.71.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -28932,6 +29009,85 @@ paths:
       security:
         - userToken: []
       summary: Walkthroughs waiting to be completed
+      tags:
+        - me
+  /v2/me/walkthrough-drafts:
+    post:
+      description: A language model reads the text and returns a choice chart in the shape catalog.walkthrough.chart takes, with the import gate's verdict on it. Nothing is written to the catalog and the text is not stored; the caller edits the draft and files it as a proposal. Each caller has 20 drafts per rolling 24 hours; past it 429 QUOTA_EXCEEDED. 503 when no model is configured. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      operationId: createMyWalkthroughDraft
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalkthroughDraftInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalkthroughDraftBody"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Turn a text walkthrough into a draft chart
       tags:
         - me
   /v2/me/work-records:

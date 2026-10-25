@@ -15,6 +15,7 @@ type AccountPurged struct {
 	Folders, FolderItems, Playtimes, WorkStates, Ratings, CoverVotes, EntityFollows, TagBlocks, Privacy int64
 	DiscussionPosts, DiscussionWatches                                                                  int64
 	MergeCopies                                                                                         int64
+	WalkthroughDrafts                                                                                   int64
 }
 
 // Every kun_catalog table that names a user is purged here, except the edit
@@ -70,6 +71,11 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 			return res.Error
 		}
 		out.DiscussionWatches = res.RowsAffected
+		res = tx.Where("user_id = ?", uid).Delete(&model.CatalogWalkthroughDraftLog{})
+		if res.Error != nil {
+			return res.Error
+		}
+		out.WalkthroughDrafts = res.RowsAffected
 		// A merge keeps copies of the rows it drops (catalog_merge_archive) and
 		// of the rows it moves (catalog_merge_movement) so it can be undone;
 		// an undo after the account is erased would bring them back.
@@ -93,6 +99,7 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 			"work_states", out.WorkStates, "ratings", out.Ratings, "cover_votes", out.CoverVotes, "entity_follows", out.EntityFollows,
 			"tag_blocks", out.TagBlocks, "privacy", out.Privacy,
 			"discussion_posts", out.DiscussionPosts, "discussion_watches", out.DiscussionWatches,
+			"walkthrough_drafts", out.WalkthroughDrafts,
 			"merge_copies", out.MergeCopies)
 	}
 	return out, nil

@@ -1,4 +1,4 @@
-package main
+package extract
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 // enumerated "ＢＡＤ ＥＮＤ" before writing any segment and never stopped
 // (entry 10990, 24000 tokens, keys up to e834). An ending inline in the segment
 // that reaches it is one per occurrence by construction.
-type extracted struct {
+type Extracted struct {
 	NoChart    bool                    `json:"no_chart"`
 	Characters []walkthrough.Character `json:"characters"`
 	Sections   []walkthrough.Section   `json:"sections"`
@@ -40,7 +40,7 @@ type extractedSegment struct {
 	} `json:"to"`
 }
 
-func (x extracted) chart() walkthrough.Chart {
+func (x Extracted) Chart() walkthrough.Chart {
 	c := walkthrough.Chart{
 		Characters: x.Characters,
 		Sections:   x.Sections,

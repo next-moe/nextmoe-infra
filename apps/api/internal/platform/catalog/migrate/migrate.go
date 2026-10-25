@@ -227,6 +227,10 @@ func Run(db *gorm.DB) error {
 		// editor to complete.
 		&model.CatalogWalkthrough{},
 		&model.CatalogWalkthroughCharacter{},
+		// 2026-10-26, new empty table: one row per draft an editor asked the
+		// model for, holding who and how long, never the pasted text, so the
+		// per-user daily cap can be counted.
+		&model.CatalogWalkthroughDraftLog{},
 
 		// 2026-09-25: how far this service has read the deleted-accounts list
 		// (oauth doc 17). A new table with no rows; the first run starts from

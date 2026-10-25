@@ -26,6 +26,7 @@ import (
 	"api/internal/platform/catalog/repository"
 	catalogSearch "api/internal/platform/catalog/search"
 	"api/internal/platform/catalog/service"
+	"api/internal/platform/catalog/walkthroughdraft"
 	"api/internal/platform/devapi"
 	"api/internal/platform/editing"
 	newsHandler "api/internal/platform/news/handler"
@@ -252,6 +253,10 @@ func setupPublicCatalog(
 	usageRec := devapi.NewUsageRecorder(repo, store)
 
 	publicSvc := service.NewPublicService(catalogDB.DB(), readSvc, resolveSvc, cfg.ImageService.CDNBase)
+	draftModel := os.Getenv("KUN_AI_UPSTREAM_MODEL")
+	if draftModel == "" {
+		draftModel = config.DefaultAIUpstreamModel
+	}
 	var imgCli *imageclient.Client
 	if cfg.ImageClient.ClientID != "" && cfg.ImageClient.ClientSecret != "" {
 		imgCli = imageclient.New(imageclient.Config{
@@ -397,35 +402,36 @@ func setupPublicCatalog(
 		},
 		LookupSite: bindingOfClient,
 		Catalog: &v2handler.Catalog{
-			Public:         publicSvc,
-			Resolve:        resolveSvc,
-			StatsSvc:       statsSvc,
-			News:           newsSvc,
-			NewsWrite:      newsWriteSvc,
-			Searcher:       searcher,
-			EditTypes:      editRegistry,
-			Playtime:       playtimeSvc,
-			WorkStates:     workStateSvc,
-			Ratings:        service.NewUserRatingService(catalogDB.DB()),
-			WorkRecords:    service.NewUserWorkRecordService(catalogDB.DB()),
-			CompanyFollows: companyFollowSvc,
-			TagBlocks:      service.NewUserTagBlockService(catalogDB.DB()),
-			Folders:        folderSvc,
-			CoverVotes:     coverVoteSvc,
-			Claims:         claimSvc,
-			Engine:         editEngine,
-			EditHistory:    service.NewEditHistoryService(catalogDB.DB()),
-			EditContext:    service.NewEditContextService(catalogDB.DB()),
-			Merges:         service.NewMergeService(catalogDB.DB(), resolveSvc),
-			Deletions:      service.NewDeletionService(catalogDB.DB(), resolveSvc),
-			Splits:         service.NewSplitService(catalogDB.DB(), resolveSvc, service.NewMergeService(catalogDB.DB(), resolveSvc)),
-			UsersOf:        usersOf(application.DB.DB(), cfg.ImageService.CDNBase),
-			Uploads:        v2handler.EditImageUpload(editUpload),
-			NewsImages:     newsImages,
-			Counters:       v2Store,
-			Store:          storeSvc,
-			Prices:         priceSvc,
-			RatingTrust:    ratingTrust,
+			WalkthroughDrafts: walkthroughdraft.NewService(catalogDB.DB(), cfg.AIUpstream.BaseURL, draftModel),
+			Public:            publicSvc,
+			Resolve:           resolveSvc,
+			StatsSvc:          statsSvc,
+			News:              newsSvc,
+			NewsWrite:         newsWriteSvc,
+			Searcher:          searcher,
+			EditTypes:         editRegistry,
+			Playtime:          playtimeSvc,
+			WorkStates:        workStateSvc,
+			Ratings:           service.NewUserRatingService(catalogDB.DB()),
+			WorkRecords:       service.NewUserWorkRecordService(catalogDB.DB()),
+			CompanyFollows:    companyFollowSvc,
+			TagBlocks:         service.NewUserTagBlockService(catalogDB.DB()),
+			Folders:           folderSvc,
+			CoverVotes:        coverVoteSvc,
+			Claims:            claimSvc,
+			Engine:            editEngine,
+			EditHistory:       service.NewEditHistoryService(catalogDB.DB()),
+			EditContext:       service.NewEditContextService(catalogDB.DB()),
+			Merges:            service.NewMergeService(catalogDB.DB(), resolveSvc),
+			Deletions:         service.NewDeletionService(catalogDB.DB(), resolveSvc),
+			Splits:            service.NewSplitService(catalogDB.DB(), resolveSvc, service.NewMergeService(catalogDB.DB(), resolveSvc)),
+			UsersOf:           usersOf(application.DB.DB(), cfg.ImageService.CDNBase),
+			Uploads:           v2handler.EditImageUpload(editUpload),
+			NewsImages:        newsImages,
+			Counters:          v2Store,
+			Store:             storeSvc,
+			Prices:            priceSvc,
+			RatingTrust:       ratingTrust,
 			Discussions: discussion.New(catalogDB.DB(),
 				discussion.ProposalKind(), discussion.MergeRequestKind(), discussion.DeletionRequestKind(), discussion.SplitRequestKind()),
 			DiscussionTrust: ratingTrust,

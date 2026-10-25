@@ -2649,3 +2649,15 @@ A walkthrough can name the release it follows: an official translation or a fan 
 - The read face embeds `release` with its title, kind, lang and credited company names, so the forum can say 「适用于 某汉化组 汉化补丁」 without another call.
 
 **Migration**: `go run ./cmd/migrate catalog` adds `catalog_walkthrough.release_id bigint NULL` (every row NULL), its index, and `fk_catalog_walkthrough_release`. **Spec 2.70.0**, additive.
+
+## Walkthrough drafts from text (spec 2.71.0, 2026-10-26)
+
+An editor can paste a text walkthrough and get a draft chart to edit (kungal topic 4548, Q6).
+
+- **Shared code.** The extraction prompt, schema, conversion (`Extracted.Chart`) and gate (`Settle` / `Gate`, verdicts and metrics) moved from `cmd/import-walkthroughs` to `internal/platform/catalog/walkthrough/extract`. The import and the online face use one implementation, so a draft is held to the same verbatim rule as an import.
+- **Service.** `walkthroughdraft.Service` calls the model once, retrying once on an unparsable reply. A `length` finish is an error rather than a truncated chart. It lives in its own package because `llmsuggest` imports `service`.
+- **Cap.** 20 drafts per user per rolling 24 hours, counted in `catalog_walkthrough_draft_log` under a per-user advisory lock. A row is written before the model is called, so failures count too. The table keeps who and how long, never the text, and account purge deletes it.
+- **Model.** The catalog container gets `KUN_AI_UPSTREAM_BASE_URL` / `TOKEN` / `MODEL` from the same Dokploy variables as the ai service, so there is no new secret. When the base URL is empty, the face answers 503.
+- **Editor.** 「从文字生成」 in the outline toolbar opens a paste box with a copyright notice and shows the verdict, coverage and missed lines. Loading the draft replaces the chart (undoable) and switches lang to `ja` when the draft contains kana.
+
+**Migration**: `go run ./cmd/migrate catalog` creates the empty `catalog_walkthrough_draft_log` table. **Deploy**: `docker-compose.prod.yml` passes the AI upstream variables to `catalog`. **Spec 2.71.0**, additive: one new operation.

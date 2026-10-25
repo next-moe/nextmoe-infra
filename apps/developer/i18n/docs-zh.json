@@ -1642,5 +1642,15 @@
   "Catalog release id, a release of this walkthrough's work.": "资料库发行 id,属于这份攻略所在作品的发行。",
   "Main language of the release. null if unrecorded.": "该发行的主要语言。未记录时为 null。",
   "Kind of the release; patch includes fan translation patches.": "发行类型;patch 包括民间汉化补丁。",
-  "The release's title. null if it has none. Must not be used as a discriminant.": "该发行的标题。没有时为 null。不得用作判别字段。"
+  "The release's title. null if it has none. Must not be used as a discriminant.": "该发行的标题。没有时为 null。不得用作判别字段。",
+  "Turn a text walkthrough into a draft chart": "把文字攻略整理成攻略图草稿",
+  "A language model reads the text and returns a choice chart in the shape catalog.walkthrough.chart takes, with the import gate's verdict on it. Nothing is written to the catalog and the text is not stored; the caller edits the draft and files it as a proposal. Each caller has 20 drafts per rolling 24 hours; past it 429 QUOTA_EXCEEDED. 503 when no model is configured. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.": "由语言模型阅读文字并返回一张选项图,形状与 catalog.walkthrough.chart 的取值相同,并附上导入闸门对它的判定。不写入资料库,也不保存原文;调用方修改草稿后以提案提交。每个调用者在滚动 24 小时内可生成 20 次,超出返回 429 QUOTA_EXCEEDED。未配置模型时返回 503。需要绑定到 catalog 站点的用户访问令牌,且令牌带 catalog:edit 权限范围。",
+  "A walkthrough as plain text, such as choices written one per line under route headings. It is sent to a language model and not stored. Must not be used as a discriminant.": "纯文本形式的攻略,例如在路线标题下每行写一个选项。它会被发送给语言模型,不会被保存。不得用作判别字段。",
+  "The draft chart, the same value catalog.walkthrough.chart takes. null when verdict is no_chart.": "草稿攻略图,与 catalog.walkthrough.chart 的取值相同。verdict 为 no_chart 时为 null。",
+  "Share of the input's choice lines the chart carries.": "图收录了输入中选项行的比例。",
+  "Input lines the chart does not carry, at most 8. Empty array, never null.": "图里没有收录的输入行,最多 8 条。空数组,不会为 null。",
+  "Chart texts that are not in the input. Empty array, never null.": "图中不在输入里的文字。空数组,不会为 null。",
+  "Type discriminant. Always walkthrough_draft.": "类型判别字段。恒为 walkthrough_draft。",
+  "Drafts the caller has left in the rolling 24-hour window.": "调用者在滚动 24 小时内还能生成的次数。",
+  "The import gate's verdict on the draft: review means choices or endings look missing, rejected means some text is not in the input, no_chart means the text holds no choice chart.": "导入闸门对草稿的判定:review 表示看起来缺了选项或结局,rejected 表示有文字不在输入里,no_chart 表示文字里没有选项图。"
 }

@@ -12,6 +12,7 @@ import (
 	"api/internal/platform/apiv2/repr"
 	catsearch "api/internal/platform/catalog/search"
 	catsvc "api/internal/platform/catalog/service"
+	"api/internal/platform/catalog/walkthroughdraft"
 	"api/internal/platform/editing"
 	newsdto "api/internal/platform/news/dto"
 	newssvc "api/internal/platform/news/service"
@@ -20,37 +21,38 @@ import (
 )
 
 type Catalog struct {
-	Public          *catsvc.PublicService
-	Resolve         *catsvc.ResolveService
-	StatsSvc        *catsvc.StatsService
-	News            *newssvc.PublicService
-	NewsWrite       *newssvc.SubmissionService
-	Searcher        *catsearch.Indexer
-	EditTypes       *editing.Registry
-	Playtime        *catsvc.UserPlaytimeService
-	WorkStates      *catsvc.UserWorkStateService
-	Ratings         *catsvc.UserRatingService
-	WorkRecords     *catsvc.UserWorkRecordService
-	CompanyFollows  *catsvc.UserEntityFollowService
-	TagBlocks       *catsvc.UserTagBlockService
-	Folders         *catsvc.UserFolderService
-	CoverVotes      *catsvc.CoverVoteService
-	Claims          *catsvc.ClaimLifecycleService
-	Engine          *editing.Engine
-	EditHistory     *catsvc.EditHistoryService
-	EditContext     *catsvc.EditContextService
-	Merges          *catsvc.MergeService
-	Deletions       *catsvc.DeletionService
-	Splits          *catsvc.SplitService
-	UsersOf         UsersOf
-	Uploads         EditImageUpload
-	NewsImages      NewsImageStore
-	Counters        protocol.Store
-	Store           *storesvc.Service
-	Prices          *price.Service
-	RatingTrust     RatingTrust
-	Discussions     *discussion.Service
-	DiscussionTrust RatingTrust
+	Public            *catsvc.PublicService
+	Resolve           *catsvc.ResolveService
+	StatsSvc          *catsvc.StatsService
+	News              *newssvc.PublicService
+	NewsWrite         *newssvc.SubmissionService
+	Searcher          *catsearch.Indexer
+	EditTypes         *editing.Registry
+	Playtime          *catsvc.UserPlaytimeService
+	WorkStates        *catsvc.UserWorkStateService
+	Ratings           *catsvc.UserRatingService
+	WorkRecords       *catsvc.UserWorkRecordService
+	CompanyFollows    *catsvc.UserEntityFollowService
+	TagBlocks         *catsvc.UserTagBlockService
+	Folders           *catsvc.UserFolderService
+	CoverVotes        *catsvc.CoverVoteService
+	Claims            *catsvc.ClaimLifecycleService
+	Engine            *editing.Engine
+	EditHistory       *catsvc.EditHistoryService
+	EditContext       *catsvc.EditContextService
+	Merges            *catsvc.MergeService
+	Deletions         *catsvc.DeletionService
+	Splits            *catsvc.SplitService
+	UsersOf           UsersOf
+	Uploads           EditImageUpload
+	NewsImages        NewsImageStore
+	Counters          protocol.Store
+	Store             *storesvc.Service
+	Prices            *price.Service
+	RatingTrust       RatingTrust
+	Discussions       *discussion.Service
+	DiscussionTrust   RatingTrust
+	WalkthroughDrafts *walkthroughdraft.Service
 	// oauth_clients lives in the infra database, which no catalog service can
 	// reach, so the moderation fence takes its client -> site resolver here.
 	SiteOfAppClient func(ctx context.Context, clientID string) (string, error)
