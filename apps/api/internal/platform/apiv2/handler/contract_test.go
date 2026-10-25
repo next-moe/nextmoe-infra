@@ -462,6 +462,7 @@ func TestCatalogCollectionsAnswerWithoutACredential(t *testing.T) {
 		"/v2/catalog/tags",
 		"/v2/catalog/series",
 		"/v2/catalog/engines",
+		"/v2/catalog/walkthroughs",
 		"/v2/catalog/releases",
 		"/v2/catalog/changes",
 		"/v2/catalog/redirects",

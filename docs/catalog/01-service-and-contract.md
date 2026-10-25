@@ -641,3 +641,13 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
 迁移:`go run ./cmd/migrate catalog`(部署时的 `migrate-catalog` 任务)对 `kun_catalog` 新增 `catalog_work_cover.merged_in`、`catalog_work_screenshot.merged_in`(`boolean NOT NULL DEFAULT false`)与表 `catalog_merge_archive`(含 `idx_catalog_merge_archive_proposal`)。纯加法;本次之前的合并搬进来的封面无从识别,保持 `false`。
 
 **幸存者的认领不能是隐藏的(2026-10-13)**。目标作品的认领是 hidden、来源不是(无认领、live、draft、pending、declined 都算)时,提案(`ProposeMerge` / `ProposeAbsorb`)、批准、执行三处都拒绝(`ErrHiddenSurvivor`,admin 面 409):合并结果会从所有读面消失,站点也没法把自己的数据折进打不开的页面。10-12 有七次论坛折叠因此每 30 分钟重试一次,八个来源里只有两个有认领,幸存者都是 07-31 `w1-resite backfill` 才隐藏的。两边都是 hidden 时照常合并。`cmd/work-dedup -mode approve` / `-mode execute` 遇到这种提案不报错,保留原状态并计入 `hidden_survivor_held`。判重普查把「一边 hidden 认领、另一边无认领」的作品对放进人审桶 `hidden-claim`(两边都有认领时仍是 `both-kungal`),LLM 队列对同样的作品对记 `kept_apart_hidden_claim` 并搁置:隐藏可能是封禁,也可能是过时的回填,只能由人判断——先解除隐藏,或者把隐藏的一方并入另一方。
+
+## 10. 攻略(walkthrough;2026-10-24,spec 2.64.0)
+
+攻略是挂在作品上的**选项图**,不是正文。来源是一次性抓取的两个攻略站(誠也の部屋 `seiya`、愚者の館 `sagaoz_foolmaker`),只保留结构——入口、存档点、游戏内选项原文、结局及其所属角色;站长写的说明、心得、后记一律不入库、不对外发,`source_url` / `source_author` 用于署名与回链。
+
+- **读面**:`GET /v2/catalog/walkthroughs`(`work_id=` / `character_id=` 过滤,`ids=` 批量,按 id keyset 分页,条目不含 `chart`);`GET /v2/catalog/walkthroughs/{id}`(含 `chart`)。可见性与 `GET /v2/catalog/works/{work_id}` 完全一致:r18 作品的攻略需要 `nsfw=true`。
+- **图的读法**:`segments[]` 是边,从 `from_node`(入口 / 存档 / AFTER 所接的结局)经 `steps[]` 走到 `to_node`(结局 / `collect` 收集终止 / `open`);段内的 `save` 步骤表示在此处建立该存档,画图时按存档步骤把一段切成多条边。`sections[]` 是原页面的分节标题(通常一条路线一节),`character_keys` 指向 `characters[]`。同名结局按出现次数各算一个。
+- **文本与翻译**:文本字段是原文(`lang` = `ja`),旁边的 `localized` 是 zh-Hans 机翻(`is_machine: true`)。人名只按作品花名册里**来源数据**(`provenance = 0`)的 zh-Hans 别名翻译;没有可靠译名的人名保持原文,译文改动了这类人名的整条译文作废,只显示原文。玩家多数玩日文原版,消费端应以原文为主、译文为辅。
+- **角色**:`characters[].character_id` 是 catalog 角色 id——在该作品花名册内按姓名/别名匹配到的既有角色,或导入时新建的只有名字的角色(会出现在该作品的 `characters` 子资源里,`roster_role` 为 `unknown`)。
+- **导入**:`go run ./cmd/import-walkthroughs --stage extract|regate|match|translate|apply`(详见实现笔记)。手动运行,不随部署执行;`apply` 默认 dry-run。

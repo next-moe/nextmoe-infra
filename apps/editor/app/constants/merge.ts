@@ -199,7 +199,8 @@ export const MERGE_MOVED_LABELS = {
   traits: '特质',
   credit_names: '署名名',
   persons: '人物',
-  redirects: '旧重定向'
+  redirects: '旧重定向',
+  walkthroughs: '攻略'
 } as const satisfies Record<MergeMovedKey, string>
 
 export const movedLabel = (key: string) =>

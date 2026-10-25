@@ -74,6 +74,8 @@ var mergeRefs = []mergeRef{
 	rehangRef("catalog_user_playtime", "work_id", model.EntityTypeWork),
 	rehangRef("catalog_user_work_rating", "work_id", model.EntityTypeWork),
 	rehangRef("catalog_user_work_state", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_walkthrough", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_walkthrough_character", "character_id", model.EntityTypeCharacter),
 	rehangRef("catalog_work_character", "character_id", model.EntityTypeCharacter),
 	rehangRef("catalog_work_character", "work_id", model.EntityTypeWork),
 	rehangRef("catalog_work_cover", "work_id", model.EntityTypeWork),
@@ -279,6 +281,7 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 				[]any{dst, src, dst}, false},
 			archiveDelete(p, "catalog_character_trait_link", "t.character_id = ?", src),
 			mergeStmt{`UPDATE catalog_character SET instance_of = ? WHERE instance_of = ?`, []any{dst, src}, false},
+			mergeStmt{`UPDATE catalog_walkthrough_character SET character_id = ? WHERE character_id = ?`, []any{dst, src}, false},
 		)
 		stmts = append(stmts, suppressedRowStmts(p, editspec.TypeCharacter)...)
 		stmts = append(stmts, mergeStmt{editspec.PurgeSuppressedCharacterTraitsSQL, []any{dst}, false})
