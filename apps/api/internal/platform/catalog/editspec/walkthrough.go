@@ -27,6 +27,7 @@ const (
 	FieldWalkthroughHidden = "catalog.walkthrough.hidden"
 	FieldWalkthroughLang   = "catalog.walkthrough.lang"
 	FieldWalkthroughPins   = "catalog.walkthrough.pins"
+	FieldWalkthroughWork   = "catalog.walkthrough.work_id"
 )
 
 const (
@@ -116,7 +117,30 @@ func walkthroughFieldSpecs() []editing.FieldSpec {
 			Apply:      applyWalkthroughPins,
 			Provenance: walkthroughProvenance("pins"),
 		},
+		{
+			Key: FieldWalkthroughWork, Kind: editing.KindRef, DiffHint: editing.DiffHintInline,
+			Validate: func(v any) error {
+				_, err := parseRefID(v, false)
+				return err
+			},
+			Apply:      applyWalkthroughWork,
+			Provenance: walkthroughProvenance("work_id"),
+		},
 	}
+}
+
+func applyWalkthroughWork(ctx context.Context, tx *gorm.DB, entityID int64, value any) error {
+	id, err := parseRefID(value, false)
+	if err != nil {
+		return fmt.Errorf("editspec: work_id: %w", err)
+	}
+	if err := assertWorkExists(ctx, tx, *id); err != nil {
+		if errors.Is(err, editing.ErrEntityNotFound) {
+			return &editing.ValidationError{Key: FieldWalkthroughWork, Reason: fmt.Sprintf("work %d does not exist", *id)}
+		}
+		return err
+	}
+	return applyWalkthroughColumn("work_id", func(any) (any, error) { return *id, nil })(ctx, tx, entityID, value)
 }
 
 func walkthroughProvenance(column string) []editing.ProvenanceTarget {
@@ -436,7 +460,7 @@ func applyWalkthroughPins(ctx context.Context, tx *gorm.DB, entityID int64, valu
 func loadWalkthroughSnapshot(db *gorm.DB) func(context.Context, int64) (map[string]any, error) {
 	return func(ctx context.Context, entityID int64) (map[string]any, error) {
 		var w catmodel.CatalogWalkthrough
-		if err := firstEntity(ctx, db, &w, entityID, "id", "chart", "status", "lang"); err != nil {
+		if err := firstEntity(ctx, db, &w, entityID, "id", "work_id", "chart", "status", "lang"); err != nil {
 			return nil, err
 		}
 		var c walkthrough.Chart
@@ -461,6 +485,7 @@ func loadWalkthroughSnapshot(db *gorm.DB) func(context.Context, int64) (map[stri
 			FieldWalkthroughHidden: w.Status == catmodel.WalkthroughStatusHidden,
 			FieldWalkthroughLang:   w.Lang,
 			FieldWalkthroughPins:   pins,
+			FieldWalkthroughWork:   w.WorkID,
 		}, nil
 	}
 }

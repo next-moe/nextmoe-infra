@@ -198,6 +198,20 @@ func TestWalkthroughChartEditDropsLinksOfRemovedCharactersAndPinsAreCurated(t *t
 	if reloaded.Status != model.WalkthroughStatusHidden {
 		t.Fatalf("status = %d", reloaded.Status)
 	}
+
+	other := createWork(t, "the right work")
+	_, rev, err = e.CreateProposal(testCtx, editing.CreateProposalInput{
+		EntityType: editspec.TypeWalkthrough, EntityID: w.ID,
+		Patch: map[string]any{editspec.FieldWalkthroughWork: float64(other.ID)},
+		Actor: trustedEditor(),
+	})
+	if err != nil || rev == nil {
+		t.Fatalf("move: %v", err)
+	}
+	testDB.First(&reloaded, w.ID)
+	if reloaded.WorkID != other.ID || !provenance.IsHuman(provenance.FirstSource(reloaded.FieldProvenance, "work_id")) {
+		t.Fatalf("moved walkthrough = work %d, provenance %s", reloaded.WorkID, reloaded.FieldProvenance)
+	}
 }
 
 func TestWalkthroughEditFromAnUntrustedEditorQueues(t *testing.T) {
@@ -236,6 +250,7 @@ func TestWalkthroughRefusesBrokenCharts(t *testing.T) {
 		})},
 		"pin of a key the chart lacks": {editspec.FieldWalkthroughPins: []any{map[string]any{"chart_key": "c9", "character_id": float64(1)}}},
 		"bad lang":                     {editspec.FieldWalkthroughLang: "en"},
+		"missing work":                 {editspec.FieldWalkthroughWork: float64(999999)},
 	}
 	for name, patch := range cases {
 		t.Run(name, func(t *testing.T) {

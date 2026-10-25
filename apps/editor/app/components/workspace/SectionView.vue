@@ -15,6 +15,7 @@ import WorkEngines from './sections/work/Engines.vue'
 import WorkSeries from './sections/work/Series.vue'
 import WorkRelations from './sections/work/Relations.vue'
 import WorkReleases from './sections/work/Releases.vue'
+import WorkWalkthroughs from './sections/work/Walkthroughs.vue'
 import GenericSection from './GenericSection.vue'
 
 const VIEWS: Record<string, Component> = {
@@ -31,7 +32,8 @@ const VIEWS: Record<string, Component> = {
   'work:engines': WorkEngines,
   'work:series': WorkSeries,
   'work:relations': WorkRelations,
-  'work:releases': WorkReleases
+  'work:releases': WorkReleases,
+  'work:walkthroughs': WorkWalkthroughs
 }
 
 const props = defineProps<{ section: WorkspaceSectionDef }>()

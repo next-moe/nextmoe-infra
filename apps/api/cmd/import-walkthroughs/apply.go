@@ -129,6 +129,9 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 			return nil
 		}
 		curatedPins = provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "pins"))
+		if provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "work_id")) {
+			w.WorkID = existing.WorkID
+		}
 	case err != gorm.ErrRecordNotFound:
 		return err
 	}
