@@ -212,6 +212,11 @@ func walkthroughFrom(w dto.PublicWalkthrough) repr.Walkthrough {
 	if w.Chart != nil {
 		out.Chart = walkthroughChartFrom(*w.Chart, walkthroughLocalizer(w))
 	}
+	if r := w.Release; r != nil {
+		out.Release = &repr.WalkthroughRelease{
+			ID: repr.ID(r.ID), Title: r.Title, ReleaseKind: r.Kind, Lang: r.Lang, Companies: orEmptyStrings(r.Companies),
+		}
+	}
 	if r := w.ImportReview; r != nil {
 		out.ImportReview = &repr.WalkthroughImportReview{
 			Missed: orEmptyStrings(r.Missed), EndMarkers: r.EndMarkers, EndingsReached: r.EndingsReached, Coverage: r.Coverage,

@@ -10340,6 +10340,8 @@ export interface components {
              * @enum {string}
              */
             object: "walkthrough";
+            /** @description The release this walkthrough follows, such as an official or fan translation whose choice texts differ from the original. null when it follows no particular release. */
+            release: components["schemas"]["WalkthroughRelease"] | null;
             /**
              * Format: int64
              * @description Save points in the chart.
@@ -10479,6 +10481,23 @@ export interface components {
              * @enum {string}
              */
             node_type: "entry" | "save" | "ending" | "collect" | "open";
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughRelease: {
+            /** @description Display names of the companies and groups credited on the release, such as the translation group of a patch. Empty array, never null. Must not be used as a discriminant. */
+            companies: string[];
+            /** @description Catalog release id, a release of this walkthrough's work. */
+            id: string;
+            /** @description Main language of the release. null if unrecorded. */
+            lang: string | null;
+            /**
+             * @description Kind of the release; patch includes fan translation patches.
+             * @enum {string}
+             */
+            release_kind: "default" | "digital" | "physical" | "trial" | "patch";
+            /** @description The release's title. null if it has none. Must not be used as a discriminant. */
+            title: string | null;
         } & {
             [key: string]: unknown;
         };

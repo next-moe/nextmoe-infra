@@ -12593,6 +12593,11 @@ components:
             - walkthrough
           type: string
           x-vocabulary-closed: true
+        release:
+          anyOf:
+            - $ref: "#/components/schemas/WalkthroughRelease"
+            - type: "null"
+          description: The release this walkthrough follows, such as an official or fan translation whose choice texts differ from the original. null when it follows no particular release.
         save_count:
           description: Save points in the chart.
           format: int64
@@ -12661,6 +12666,7 @@ components:
         - source_author
         - source_updated_on
         - lang
+        - release
         - characters
         - ending_count
         - save_count
@@ -12876,6 +12882,49 @@ components:
       required:
         - node_type
         - key
+      type: object
+    WalkthroughRelease:
+      additionalProperties: true
+      properties:
+        companies:
+          description: Display names of the companies and groups credited on the release, such as the translation group of a patch. Empty array, never null. Must not be used as a discriminant.
+          items:
+            type: string
+          type: array
+        id:
+          description: Catalog release id, a release of this walkthrough's work.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        lang:
+          description: Main language of the release. null if unrecorded.
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        release_kind:
+          description: Kind of the release; patch includes fan translation patches.
+          enum:
+            - default
+            - digital
+            - physical
+            - trial
+            - patch
+          type: string
+          x-vocabulary-closed: true
+        title:
+          description: The release's title. null if it has none. Must not be used as a discriminant.
+          maxLength: 512
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - title
+        - release_kind
+        - lang
+        - companies
       type: object
     WalkthroughSave:
       additionalProperties: true
@@ -13843,7 +13892,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.69.0
+  version: 2.70.0
   x-stability: stable
 openapi: 3.1.0
 paths:

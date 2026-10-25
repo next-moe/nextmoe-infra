@@ -1,16 +1,30 @@
 <script setup lang="ts">
-import type { CatalogWorkCharacter } from '#shared/types/catalog'
+import type {
+  CatalogRelease,
+  CatalogWorkCharacter
+} from '#shared/types/catalog'
+import { RELEASE_KIND_LABELS } from '~/constants/related'
 import type { WtLang } from '#shared/types/walkthrough'
 import { WT_LANGS } from '~/constants/walkthrough'
 import { stripTranslations } from '~/utils/walkthrough/doc'
 
 const props = defineProps<{
   roster: CatalogWorkCharacter[]
+  releases: CatalogRelease[]
   rosterLoaded: boolean
   hideable: boolean
 }>()
 
 const doc = useWalkthroughDocument()
+
+const releaseOptions = computed(() =>
+  props.releases.map((r) => ({
+    value: r.id,
+    label: [r.title, RELEASE_KIND_LABELS[r.release_kind], r.lang]
+      .filter(Boolean)
+      .join(' · ')
+  }))
+)
 
 const hasTranslations = () =>
   doc.chart.value.segments.some(
@@ -68,6 +82,17 @@ watch(
               : '直接用中文写选项，不需要译文。'
           }}
         </p>
+        <KunSelect
+          :model-value="doc.releaseId.value"
+          :options="releaseOptions"
+          size="sm"
+          label="适用版本"
+          placeholder="不限定版本"
+          clearable
+          :disabled="doc.readonly.value || !releaseOptions.length"
+          description="选项文字跟着某个版本走时选它，例如官方中文版或某个汉化补丁；汉化组会作为署名显示。"
+          @update:model-value="doc.setReleaseId($event ? String($event) : null)"
+        />
         <div v-if="doc.setWorkId" class="space-y-1">
           <p class="text-default-700 text-sm font-medium">所属作品</p>
           <EditRefPicker

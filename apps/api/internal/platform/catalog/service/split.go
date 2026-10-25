@@ -207,13 +207,14 @@ func (s *SplitService) Withdraw(ctx context.Context, id int64) error {
 // SplitExecution records every row a split created or changed, so undo can
 // put each back exactly.
 type SplitExecution struct {
-	Releases   []int64           `json:"releases"`
-	Tombstones []int64           `json:"tombstones"`
-	Titles     []int64           `json:"titles"`
-	Credits    []int64           `json:"credits"`
-	Refs       []json.RawMessage `json:"refs"`
-	Rejections []model.SplitRef  `json:"rejections"`
-	Candidate  json.RawMessage   `json:"candidate,omitempty"`
+	Releases     []int64           `json:"releases"`
+	Tombstones   []int64           `json:"tombstones"`
+	Titles       []int64           `json:"titles"`
+	Credits      []int64           `json:"credits"`
+	Walkthroughs []int64           `json:"walkthroughs,omitempty"`
+	Refs         []json.RawMessage `json:"refs"`
+	Rejections   []model.SplitRef  `json:"rejections"`
+	Candidate    json.RawMessage   `json:"candidate,omitempty"`
 }
 
 // Execute creates the new work and moves the chosen releases to it. closed
@@ -325,8 +326,11 @@ func runSplit(ctx context.Context, tx *gorm.DB, r *model.CatalogSplitRequest, in
 			nw.ID, orig.ID, in.ReleaseIDs).Scan(&ids).Error; err != nil {
 			return nil, 0, fmt.Errorf("%s: %w", rr.table, err)
 		}
-		if rr.table == "catalog_credit" {
+		switch rr.table {
+		case "catalog_credit":
 			exec.Credits = ids
+		case "catalog_walkthrough":
+			exec.Walkthroughs = ids
 		}
 	}
 
@@ -524,6 +528,11 @@ func unsplitRows(tx *gorm.DB, r *model.CatalogSplitRequest, exec *SplitExecution
 			                AND d.role_id = c.role_id AND COALESCE(d.character_id, 0) = COALESCE(c.character_id, 0))`,
 			orig, exec.Credits, nw, orig).Error; err != nil {
 			return fmt.Errorf("return credits: %w", err)
+		}
+	}
+	if len(exec.Walkthroughs) > 0 {
+		if err := tx.Exec(`UPDATE catalog_walkthrough SET work_id = ? WHERE id IN ? AND work_id = ?`, orig, exec.Walkthroughs, nw).Error; err != nil {
+			return fmt.Errorf("return walkthroughs: %w", err)
 		}
 	}
 	if len(exec.Titles) > 0 {

@@ -12,6 +12,7 @@ type Walkthrough struct {
 	SourceAuthor     *string                  `json:"source_author" maxLength:"256" doc:"Author the source page credits. null if it credits none. Must not be used as a discriminant."`
 	SourceUpdatedOn  *string                  `json:"source_updated_on" format:"date" maxLength:"10" doc:"Date the source page says it was last updated. null if it does not say."`
 	Lang             string                   `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47 language of every text field in the chart: ja for an imported walkthrough, ja or zh-Hans for one written on this platform. Translations sit in localized maps beside them; a zh-Hans chart has no zh-Hans entries there."`
+	Release          *WalkthroughRelease      `json:"release" doc:"The release this walkthrough follows, such as an official or fan translation whose choice texts differ from the original. null when it follows no particular release."`
 	Characters       []WalkthroughCharacter   `json:"characters" doc:"Characters the chart routes to, in chart order. Empty array, never null."`
 	EndingCount      int                      `json:"ending_count" minimum:"0" doc:"Endings in the chart."`
 	SaveCount        int                      `json:"save_count" minimum:"0" doc:"Save points in the chart."`
@@ -108,4 +109,13 @@ type WalkthroughStep struct {
 	Alternatives []WalkthroughAlternative `json:"alternatives" doc:"Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null."`
 	Achievement  bool                     `json:"achievement" doc:"The source marks this step as needed for an achievement only."`
 	SaveKey      *string                  `json:"save_key" pattern:"^[A-Za-z0-9_]+$" maxLength:"32" doc:"saves[].key this save step creates. null for choice and action steps."`
+}
+
+type WalkthroughRelease struct {
+	_           struct{} `json:"-" additionalProperties:"true"`
+	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog release id, a release of this walkthrough's work."`
+	Title       *string  `json:"title" maxLength:"512" doc:"The release's title. null if it has none. Must not be used as a discriminant."`
+	ReleaseKind string   `json:"release_kind" enum:"default,digital,physical,trial,patch" doc:"Kind of the release; patch includes fan translation patches."`
+	Lang        *string  `json:"lang" maxLength:"32" doc:"Main language of the release. null if unrecorded."`
+	Companies   []string `json:"companies" doc:"Display names of the companies and groups credited on the release, such as the translation group of a patch. Empty array, never null. Must not be used as a discriminant."`
 }

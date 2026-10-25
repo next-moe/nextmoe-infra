@@ -2639,3 +2639,13 @@ The extraction gate sent 331 charts to `review`: they are structurally valid and
 Some games show their own route or choice hints, such as the 2024 ToHeart remake, and a player may prefer those to a walkthrough that spoils every route (kungal topic 4548, floor 1). The flag belongs to the game, so it is a work field: `catalog.work.route_hints`, stored in `catalog_work.has_route_hints` and edited in the work's 基础 section. Walkthrough items and the detail carry it as `work_route_hints`, so a site can show the notice before the routes without a second read. It is not part of the claims mint lane, because it is learned by playing a game rather than listing it.
 
 **Migration**: `go run ./cmd/migrate catalog` (the `migrate-catalog` job) adds `catalog_work.has_route_hints boolean NOT NULL DEFAULT false`. The default is a constant, so PG adds the column without rewriting the rows, and every work takes false. **Spec 2.69.0**, additive.
+
+## Walkthrough release (spec 2.70.0, 2026-10-26)
+
+A walkthrough can name the release it follows: an official translation or a fan patch changes the choice texts, and the translator is credited on the release already (catalog_release_label). So translation credit needs no field of its own (kungal topic 4548, Q5).
+
+- `catalog.walkthrough.work_release_id` (nullable ref, column `release_id`, FK `ON DELETE SET NULL`). Apply checks that the release belongs to the walkthrough's current work. The key sorts after `work_id`, so a patch that moves the walkthrough and names the new work's release is checked against the new work. Applying `work_id` clears a release of the old work.
+- Split: `catalog_walkthrough` is in `releaseScopedWorkRows`, so a walkthrough that follows a split-off edition moves with it. `SplitExecution.walkthroughs` records the moved ids, and undo moves them back.
+- The read face embeds `release` with its title, kind, lang and credited company names, so the forum can say 「适用于 某汉化组 汉化补丁」 without another call.
+
+**Migration**: `go run ./cmd/migrate catalog` adds `catalog_walkthrough.release_id bigint NULL` (every row NULL), its index, and `fk_catalog_walkthrough_release`. **Spec 2.70.0**, additive.

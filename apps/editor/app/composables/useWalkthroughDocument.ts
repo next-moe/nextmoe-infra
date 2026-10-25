@@ -26,6 +26,8 @@ export interface WalkthroughDocumentSource {
   setPins: (pins: WtPin[]) => void
   workId: () => string | null
   setWorkId: ((id: string) => void) | null
+  releaseId: () => string | null
+  setReleaseId: (id: string | null) => void
   readonly: () => boolean
 }
 
@@ -162,7 +164,9 @@ export const createWalkthroughDocument = (
     setLang: source.setLang,
     setHidden: source.setHidden,
     workId: computed(() => source.workId()),
-    setWorkId: source.setWorkId
+    setWorkId: source.setWorkId,
+    releaseId: computed(() => source.releaseId()),
+    setReleaseId: source.setReleaseId
   }
 }
 

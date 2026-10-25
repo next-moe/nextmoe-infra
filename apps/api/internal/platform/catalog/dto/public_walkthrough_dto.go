@@ -24,6 +24,15 @@ type PublicWalkthrough struct {
 	SegmentCount     int
 	Chart            *walkthrough.Chart
 	ImportReview     *model.WalkthroughImportReview
+	Release          *PublicWalkthroughRelease
+}
+
+type PublicWalkthroughRelease struct {
+	ID        int64
+	Title     *string
+	Kind      string
+	Lang      *string
+	Companies []string
 }
 
 type PublicWalkthroughCharacter struct {
