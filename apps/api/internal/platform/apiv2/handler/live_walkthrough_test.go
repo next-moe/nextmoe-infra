@@ -24,11 +24,12 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	status, body := get("/v2/catalog/walkthroughs/" + idstr(fx.Walkthrough))
 	require.Equal(t, http.StatusOK, status, string(body))
 	var w struct {
-		Object     string `json:"object"`
-		WorkID     string `json:"work_id"`
-		Source     string `json:"source"`
-		Lang       string `json:"lang"`
-		Characters []struct {
+		Object           string `json:"object"`
+		WorkID           string `json:"work_id"`
+		WorkContentLimit string `json:"work_content_limit"`
+		Source           string `json:"source"`
+		Lang             string `json:"lang"`
+		Characters       []struct {
 			Key         string  `json:"key"`
 			CharacterID *string `json:"character_id"`
 		} `json:"characters"`
@@ -60,6 +61,7 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &w))
 	assert.Equal(t, "walkthrough", w.Object)
 	assert.Equal(t, idstr(fx.Work), w.WorkID)
+	assert.Equal(t, model.DisplayLimitKeySFW, w.WorkContentLimit)
 	assert.Equal(t, "seiya", w.Source)
 	assert.Equal(t, "ja", w.Lang)
 	assert.Equal(t, 1, w.EndingCount)
@@ -80,14 +82,16 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	assert.Nil(t, steps[1].Text)
 	assert.Equal(t, "sv01", *steps[1].SaveKey)
 
+	limitOf := map[string]string{}
 	list := func(qs string) []string {
 		t.Helper()
 		status, body := get("/v2/catalog/walkthroughs?" + qs)
 		require.Equal(t, http.StatusOK, status, string(body))
 		var page struct {
 			Items []struct {
-				ID    string          `json:"id"`
-				Chart json.RawMessage `json:"chart"`
+				ID               string          `json:"id"`
+				WorkContentLimit string          `json:"work_content_limit"`
+				Chart            json.RawMessage `json:"chart"`
 			} `json:"items"`
 		}
 		require.NoError(t, json.Unmarshal(body, &page))
@@ -95,6 +99,7 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 		for _, it := range page.Items {
 			assert.Nil(t, it.Chart, "the collection carries no chart")
 			ids = append(ids, it.ID)
+			limitOf[it.ID] = it.WorkContentLimit
 		}
 		return ids
 	}
@@ -120,4 +125,19 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status)
 	assert.Empty(t, list("work_id="+idstr(r18.ID)))
 	assert.Equal(t, []string{idstr(hidden.ID)}, list("work_id="+idstr(r18.ID)+"&nsfw=true"))
+	assert.Equal(t, model.DisplayLimitKeyNSFW, limitOf[idstr(hidden.ID)], "an unjudged unclaimed r18 work falls back to its rating")
+	assert.Empty(t, list("work_id="+idstr(r18.ID)+"&nsfw=true&content_limit=sfw"))
+	assert.Equal(t, []string{idstr(hidden.ID)}, list("work_id="+idstr(r18.ID)+"&nsfw=true&content_limit=nsfw"))
+
+	require.NoError(t, env.db.Exec(`UPDATE catalog_work SET title_nsfw = false WHERE id = ?`, r18.ID).Error)
+	assert.Equal(t, []string{idstr(hidden.ID)}, list("work_id="+idstr(r18.ID)+"&nsfw=true&content_limit=sfw"),
+		"an r18 work on the sfw shelf passes content_limit=sfw: the display axis is not the age axis")
+	assert.Equal(t, model.DisplayLimitKeySFW, limitOf[idstr(hidden.ID)])
+	assert.Empty(t, list("work_id="+idstr(r18.ID)+"&content_limit=sfw"), "content_limit does not open the age gate")
+	status, body = get("/v2/catalog/walkthroughs/" + idstr(hidden.ID) + "?nsfw=true")
+	require.Equal(t, http.StatusOK, status, string(body))
+	assert.Contains(t, string(body), `"work_content_limit":"sfw"`)
+
+	status, body = get("/v2/catalog/walkthroughs?content_limit=adult")
+	assert.Equal(t, http.StatusBadRequest, status, string(body))
 }

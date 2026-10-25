@@ -801,7 +801,7 @@ export interface paths {
         };
         /**
          * List walkthroughs
-         * @description Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+         * @description Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. nsfw= gates only on the age axis content_rating; content_limit= gates on the display axis, the work's content_limit, which every item carries as work_content_limit. The two are independent and most r18 games are sfw, so a site that hides adult content from a reader passes nsfw=true&content_limit=sfw, not nsfw=false. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
          */
         get: operations["listCatalogWalkthroughs"];
         put?: never;
@@ -821,7 +821,7 @@ export interface paths {
         };
         /**
          * Get one walkthrough
-         * @description A walkthrough's choice graph: entries, saves and endings as nodes, segments of choices as edges, and the characters each route and ending belongs to. Text fields are in the walkthrough's lang with machine translations in localized. Derived from the page at source_url; its prose is not reproduced. 404 when the work is not visible: r18 needs nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         * @description A walkthrough's choice graph: entries, saves and endings as nodes, segments of choices as edges, and the characters each route and ending belongs to. Text fields are in the walkthrough's lang with machine translations in localized. Derived from the page at source_url; its prose is not reproduced. 404 when the work is not visible: r18 needs nsfw=true. work_content_limit carries the work's display axis, so a site can gate the page for a reader who hides adult content instead of answering 404. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
          */
         get: operations["getCatalogWalkthrough"];
         put?: never;
@@ -10347,6 +10347,11 @@ export interface components {
              * @description Last time this walkthrough row changed.
              */
             updated_at: string;
+            /**
+             * @description content_limit of the work, the display axis GET /v2/catalog/works/{id} reports and the content_limit filter selects on. Independent of nsfw, which gates only on content_rating: most r18 games are sfw here. A reader who has not opted into adult content should be shown this walkthrough only when it is sfw.
+             * @enum {string}
+             */
+            work_content_limit: "sfw" | "nsfw";
             /** @description Catalog work this walkthrough plays through. */
             work_id: string;
         } & {
@@ -15278,6 +15283,8 @@ export interface operations {
                 work_id?: string;
                 /** @description Catalog character id. Only walkthroughs whose chart routes to this character. */
                 character_id?: string;
+                /** @description Comma-separated closed editorial axis: sfw, nsfw, applied to each walkthrough's work exactly as on /v2/catalog/works. Absent applies no gate. */
+                content_limit?: string;
             };
             header?: never;
             path?: never;
