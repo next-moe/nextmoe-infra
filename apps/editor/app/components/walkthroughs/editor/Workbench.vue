@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import type { CatalogWork, CatalogWorkCharacter } from '#shared/types/catalog'
+import type {
+  CatalogRelease,
+  CatalogWork,
+  CatalogWorkCharacter
+} from '#shared/types/catalog'
 import type { WalkthroughDocumentSource } from '~/composables/useWalkthroughDocument'
 import { isMod, isTyping } from '~/utils/walkthrough/focus'
 
@@ -26,6 +30,7 @@ provideWalkthroughDocument(doc)
 
 const work = ref<CatalogWork | null>(null)
 const roster = ref<CatalogWorkCharacter[]>([])
+const releases = ref<CatalogRelease[]>([])
 const rosterLoaded = ref(false)
 
 const loadRoster = async (id: string) => {
@@ -51,14 +56,18 @@ const loadRoster = async (id: string) => {
 const loadWork = async (id: string | null) => {
   if (!id) return
   rosterLoaded.value = false
-  const [summary, characters] = await Promise.all([
+  const [summary, characters, editions] = await Promise.all([
     api<CatalogWork>(`/v2/catalog/works/${id}`, {
       query: { nsfw: true }
     }).catch(() => null),
-    loadRoster(id)
+    loadRoster(id),
+    api<{ items: CatalogRelease[] }>(`/v2/catalog/works/${id}/releases`, {
+      query: { nsfw: true, limit: 100 }
+    }).catch(() => null)
   ])
   work.value = summary
   roster.value = characters
+  releases.value = editions?.items ?? []
   rosterLoaded.value = true
 }
 watch(() => props.workId, loadWork, { immediate: true })
@@ -174,6 +183,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       >
         <WalkthroughsEditorRail
           :roster="roster"
+          :releases="releases"
           :roster-loaded="rosterLoaded"
           :hideable="props.entityId !== null"
         />
@@ -210,6 +220,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     >
       <WalkthroughsEditorRail
         :roster="roster"
+        :releases="releases"
         :roster-loaded="rosterLoaded"
         :hideable="props.entityId !== null"
       />

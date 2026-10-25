@@ -28,6 +28,9 @@ const (
 	FieldWalkthroughLang   = "catalog.walkthrough.lang"
 	FieldWalkthroughPins   = "catalog.walkthrough.pins"
 	FieldWalkthroughWork   = "catalog.walkthrough.work_id"
+	// Applied after work_id (fields apply in key order), so a patch that moves
+	// a walkthrough and names the new work's release checks against the new work.
+	FieldWalkthroughRelease = "catalog.walkthrough.work_release_id"
 )
 
 const (
@@ -126,7 +129,35 @@ func walkthroughFieldSpecs() []editing.FieldSpec {
 			Apply:      applyWalkthroughWork,
 			Provenance: walkthroughProvenance("work_id"),
 		},
+		{
+			Key: FieldWalkthroughRelease, Kind: editing.KindRef, DiffHint: editing.DiffHintInline,
+			Value: &editing.ValueSpec{Nullable: true},
+			Validate: func(v any) error {
+				_, err := parseRefID(v, true)
+				return err
+			},
+			Apply:      applyWalkthroughRelease,
+			Provenance: walkthroughProvenance("release_id"),
+		},
 	}
+}
+
+func applyWalkthroughRelease(ctx context.Context, tx *gorm.DB, entityID int64, value any) error {
+	id, err := parseRefID(value, true)
+	if err != nil {
+		return fmt.Errorf("editspec: release_id: %w", err)
+	}
+	if id != nil {
+		var n int64
+		if err := tx.WithContext(ctx).Raw(`SELECT count(*) FROM catalog_release r JOIN catalog_walkthrough w ON w.work_id = r.work_id
+			WHERE r.id = ? AND w.id = ? AND r.deleted_at IS NULL`, *id, entityID).Scan(&n).Error; err != nil {
+			return err
+		}
+		if n == 0 {
+			return &editing.ValidationError{Key: FieldWalkthroughRelease, Reason: fmt.Sprintf("release %d is not a release of this walkthrough's work", *id)}
+		}
+	}
+	return applyWalkthroughColumn("release_id", func(any) (any, error) { return id, nil })(ctx, tx, entityID, value)
 }
 
 func applyWalkthroughWork(ctx context.Context, tx *gorm.DB, entityID int64, value any) error {
@@ -140,7 +171,11 @@ func applyWalkthroughWork(ctx context.Context, tx *gorm.DB, entityID int64, valu
 		}
 		return err
 	}
-	return applyWalkthroughColumn("work_id", func(any) (any, error) { return *id, nil })(ctx, tx, entityID, value)
+	if err := applyWalkthroughColumn("work_id", func(any) (any, error) { return *id, nil })(ctx, tx, entityID, value); err != nil {
+		return err
+	}
+	return tx.WithContext(ctx).Exec(`UPDATE catalog_walkthrough w SET release_id = NULL WHERE w.id = ? AND w.release_id IS NOT NULL
+		AND NOT EXISTS (SELECT 1 FROM catalog_release r WHERE r.id = w.release_id AND r.work_id = w.work_id)`, entityID).Error
 }
 
 func walkthroughProvenance(column string) []editing.ProvenanceTarget {
@@ -467,7 +502,7 @@ func applyWalkthroughPins(ctx context.Context, tx *gorm.DB, entityID int64, valu
 func loadWalkthroughSnapshot(db *gorm.DB) func(context.Context, int64) (map[string]any, error) {
 	return func(ctx context.Context, entityID int64) (map[string]any, error) {
 		var w catmodel.CatalogWalkthrough
-		if err := firstEntity(ctx, db, &w, entityID, "id", "work_id", "chart", "status", "lang"); err != nil {
+		if err := firstEntity(ctx, db, &w, entityID, "id", "work_id", "release_id", "chart", "status", "lang"); err != nil {
 			return nil, err
 		}
 		var c walkthrough.Chart
@@ -488,11 +523,12 @@ func loadWalkthroughSnapshot(db *gorm.DB) func(context.Context, int64) (map[stri
 			pins = append(pins, map[string]any{"chart_key": l.ChartKey, "character_id": l.CharacterID})
 		}
 		return map[string]any{
-			FieldWalkthroughChart:  chart,
-			FieldWalkthroughHidden: w.Status == catmodel.WalkthroughStatusHidden,
-			FieldWalkthroughLang:   w.Lang,
-			FieldWalkthroughPins:   pins,
-			FieldWalkthroughWork:   w.WorkID,
+			FieldWalkthroughChart:   chart,
+			FieldWalkthroughHidden:  w.Status == catmodel.WalkthroughStatusHidden,
+			FieldWalkthroughLang:    w.Lang,
+			FieldWalkthroughPins:    pins,
+			FieldWalkthroughWork:    w.WorkID,
+			FieldWalkthroughRelease: nullableInt64(w.ReleaseID),
 		}, nil
 	}
 }

@@ -28,9 +28,10 @@ func TestSubmissionFieldsMatchTheMatrix(t *testing.T) {
 	// no way to hand out catalog_credit_name ids, and crediting is an edit made
 	// after the work exists, as are the roster, relations, platforms, series
 	// placements and tag spoilers: each describes a work against rows the
-	// submission form does not show.
+	// submission form does not show. Route hints are learned by playing the
+	// game, not when listing it.
 	want := []string{
-		FieldWorkTitlesSuppr, FieldWorkTagIDsSuppr, FieldWorkCovers, FieldWorkScreenshots,
+		FieldWorkTitlesSuppr, FieldWorkRouteHints, FieldWorkTagIDsSuppr, FieldWorkCovers, FieldWorkScreenshots,
 		FieldWorkCredits, FieldWorkCreditsSuppr,
 		FieldWorkRoster, FieldWorkRosterSuppr,
 		FieldWorkRelations, FieldWorkPlatforms, FieldWorkSeriesMembers, FieldWorkTagSpoilers,

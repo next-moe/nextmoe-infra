@@ -34,6 +34,7 @@ const blank = emptyChart()
 const chart = shallowRef<WtChart>(blank)
 const lang = ref<WtLang>('zh-Hans')
 const pins = ref<WtPin[]>([])
+const releaseId = ref<string | null>(null)
 const restoredAt = ref<string | null>(null)
 
 const source: WalkthroughDocumentSource = {
@@ -53,6 +54,10 @@ const source: WalkthroughDocumentSource = {
   },
   workId: () => workId,
   setWorkId: null,
+  releaseId: () => releaseId.value,
+  setReleaseId: (next) => {
+    releaseId.value = next
+  },
   readonly: () => false
 }
 
@@ -168,7 +173,10 @@ const submit = async () => {
         patch: {
           [WT_FIELD.chart]: chart.value,
           [WT_FIELD.lang]: lang.value,
-          ...(pins.value.length ? { [WT_FIELD.pins]: pins.value } : {})
+          ...(pins.value.length ? { [WT_FIELD.pins]: pins.value } : {}),
+          ...(releaseId.value
+            ? { [WT_FIELD.release]: Number(releaseId.value) }
+            : {})
         },
         note: note.value.trim()
       }

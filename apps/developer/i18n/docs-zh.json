@@ -1635,5 +1635,12 @@
   "Choice texts on the source page that the chart does not carry, as the page writes them. Empty array, never null.": "原页面上有、图里没有收录的选项原文。空数组,不会为 null。",
   "Walkthroughs waiting to be completed": "待补全的攻略",
   "Walkthroughs the import kept hidden because their chart was incomplete, sorted by id, each with import_review saying what is missing. A walkthrough leaves the backlog when an edit unhides it. work_id= keeps one work's; ids= is a batch lane and does not paginate. No age gate applies. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.": "导入时因攻略图不完整而隐藏的攻略,按 id 排序,每条带 import_review 说明缺了什么。编辑取消隐藏后,攻略离开待补全列表。work_id= 只看一部作品;ids= 是批量通道,不分页。不受年龄分级限制。需要绑定到 catalog 站点的用户访问令牌,且令牌带 catalog:edit 权限范围。",
-  "Catalog work id. Only this work's walkthroughs.": "资料库作品 id。只看这部作品的攻略。"
+  "Catalog work id. Only this work's walkthroughs.": "资料库作品 id。只看这部作品的攻略。",
+  "true when the game shows route hints itself. A reader may prefer them to this walkthrough, so a site should say so before showing the routes.": "游戏本身带有路线提示时为 true。读者可能更愿意用游戏自带的提示,所以站点应在展示路线前先说明这一点。",
+  "The release this walkthrough follows, such as an official or fan translation whose choice texts differ from the original. null when it follows no particular release.": "这份攻略对应的发行版本,例如选项文字和原版不同的官方或民间翻译版。不限定版本时为 null。",
+  "Display names of the companies and groups credited on the release, such as the translation group of a patch. Empty array, never null. Must not be used as a discriminant.": "该发行署名的厂商与团体的显示名,例如补丁的汉化组。空数组,不会为 null。不得用作判别字段。",
+  "Catalog release id, a release of this walkthrough's work.": "资料库发行 id,属于这份攻略所在作品的发行。",
+  "Main language of the release. null if unrecorded.": "该发行的主要语言。未记录时为 null。",
+  "Kind of the release; patch includes fan translation patches.": "发行类型;patch 包括民间汉化补丁。",
+  "The release's title. null if it has none. Must not be used as a discriminant.": "该发行的标题。没有时为 null。不得用作判别字段。"
 }

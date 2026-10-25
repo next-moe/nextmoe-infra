@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -44,6 +45,8 @@ type walkthroughRow struct {
 	DisplayNSFW         bool
 	CoverArtAllExplicit bool
 	TitleNSFW           *bool
+	HasRouteHints       bool
+	ReleaseID           *int64
 	ImportReview        *string
 }
 
@@ -51,7 +54,7 @@ const walkthroughColumns = `wt.id, wt.work_id, src.key AS source, wt.source_url,
 	jsonb_array_length(wt.chart->'endings') AS ending_count, jsonb_array_length(wt.chart->'saves') AS save_count,
 	jsonb_array_length(wt.chart->'segments') AS segment_count, (wt.chart->'characters')::text AS characters,
 	w.site, w.product_work_id, w.content_rating, w.display_nsfw, w.cover_art_all_explicit, w.title_nsfw,
-	wt.import_review::text AS import_review`
+	w.has_route_hints, wt.release_id, wt.import_review::text AS import_review`
 
 const walkthroughFrom = ` FROM catalog_walkthrough wt
 	JOIN catalog_work w ON w.id = wt.work_id
@@ -178,6 +181,10 @@ func (s *PublicService) walkthroughItems(ctx context.Context, rows []walkthrough
 	if err != nil {
 		return nil, err
 	}
+	releases, err := s.walkthroughReleases(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]dto.PublicWalkthrough, 0, len(rows))
 	for _, r := range rows {
 		var chars []walkthrough.Character
@@ -191,7 +198,11 @@ func (s *PublicService) walkthroughItems(ctx context.Context, rows []walkthrough
 				DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW,
 			}, r.ContentRating),
 			EndingCount: r.EndingCount, SaveCount: r.SaveCount, SegmentCount: r.SegmentCount,
-			Characters: make([]dto.PublicWalkthroughCharacter, 0, len(chars)),
+			WorkRouteHints: r.HasRouteHints,
+			Characters:     make([]dto.PublicWalkthroughCharacter, 0, len(chars)),
+		}
+		if r.ReleaseID != nil {
+			item.Release = releases[*r.ReleaseID]
 		}
 		if r.ImportReview != nil {
 			var review model.WalkthroughImportReview
@@ -210,6 +221,42 @@ func (s *PublicService) walkthroughItems(ctx context.Context, rows []walkthrough
 			item.Characters = append(item.Characters, pc)
 		}
 		out = append(out, item)
+	}
+	return out, nil
+}
+
+func (s *PublicService) walkthroughReleases(ctx context.Context, rows []walkthroughRow) (map[int64]*dto.PublicWalkthroughRelease, error) {
+	var ids []int64
+	for _, r := range rows {
+		if r.ReleaseID != nil {
+			ids = append(ids, *r.ReleaseID)
+		}
+	}
+	out := map[int64]*dto.PublicWalkthroughRelease{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var releases []model.CatalogRelease
+	if err := s.db.WithContext(ctx).Select("id", "kind", "title", "lang").
+		Where("id IN ?", ids).Find(&releases).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range releases {
+		out[r.ID] = &dto.PublicWalkthroughRelease{ID: r.ID, Title: r.Title, Kind: releaseKindKey(r.Kind), Lang: r.Lang, Companies: []string{}}
+	}
+	var labels []struct {
+		ReleaseID   int64
+		DisplayName string
+	}
+	if err := s.db.WithContext(ctx).Raw(`SELECT rl.release_id, l.display_name FROM catalog_release_label rl
+		JOIN catalog_label l ON l.id = rl.label_id AND l.deleted_at IS NULL
+		WHERE rl.release_id IN ? ORDER BY rl.release_id, rl.kind, l.display_name`, ids).Scan(&labels).Error; err != nil {
+		return nil, err
+	}
+	for _, l := range labels {
+		if r := out[l.ReleaseID]; r != nil && !slices.Contains(r.Companies, l.DisplayName) {
+			r.Companies = append(r.Companies, l.DisplayName)
+		}
 	}
 	return out, nil
 }
