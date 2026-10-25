@@ -276,8 +276,8 @@ func TestUnhidingACompletedWalkthroughTakesItOffTheBacklog(t *testing.T) {
 	}
 	_, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWalkthrough, EntityID: w.ID,
-		Patch:      map[string]any{editspec.FieldWalkthroughHidden: false},
-		Actor:      trustedEditor(),
+		Patch: map[string]any{editspec.FieldWalkthroughHidden: false},
+		Actor: trustedEditor(),
 	})
 	if err != nil || rev == nil {
 		t.Fatalf("unhide: %v", err)
