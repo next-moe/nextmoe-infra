@@ -59,7 +59,7 @@ const DESCRIPTIONS = {
   getCatalogWalkthrough:
     '按 id 取一份攻略的选项图：入口、存档点、结局为节点，选项段为边，并标出每条路线与结局所属的角色。文本是原文（ja），localized 里是 zh-Hans 机翻；r18 作品需 nsfw=true。',
   listCatalogWalkthroughs:
-    '列出攻略（不含选项图）：work_id= 取一部作品的攻略，character_id= 取通向某角色的攻略，ids= 批量读。可见性与作品一致，r18 需 nsfw=true。',
+    '列出攻略（不含选项图）：work_id= 取一部作品的攻略，character_id= 取通向某角色的攻略，ids= 批量读。可见性与作品一致，r18 需 nsfw=true；content_limit= 按作品展示轴过滤（与 nsfw 独立，面向 sfw 读者传 nsfw=true&content_limit=sfw），条目带 work_content_limit。',
   listCatalogEngines:
     '浏览引擎词表本身——用来发现 engine id 再喂给 listCatalogWorks 的 engine_id=。',
   getCatalogRole: '按 id 取署名职务注册表的一行。未知 id 为 404。',

@@ -7,18 +7,19 @@ import (
 )
 
 type PublicWalkthrough struct {
-	ID              int64
-	WorkID          int64
-	Source          string
-	SourceURL       string
-	SourceAuthor    string
-	SourceUpdatedOn *time.Time
-	UpdatedAt       time.Time
-	Characters      []PublicWalkthroughCharacter
-	EndingCount     int
-	SaveCount       int
-	SegmentCount    int
-	Chart           *walkthrough.Chart
+	ID               int64
+	WorkID           int64
+	WorkContentLimit string
+	Source           string
+	SourceURL        string
+	SourceAuthor     string
+	SourceUpdatedOn  *time.Time
+	UpdatedAt        time.Time
+	Characters       []PublicWalkthroughCharacter
+	EndingCount      int
+	SaveCount        int
+	SegmentCount     int
+	Chart            *walkthrough.Chart
 }
 
 type PublicWalkthroughCharacter struct {

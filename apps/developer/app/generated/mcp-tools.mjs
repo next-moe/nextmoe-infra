@@ -879,7 +879,8 @@ export const mcpTools = [
       "sort",
       "nsfw",
       "work_id",
-      "character_id"
+      "character_id",
+      "content_limit"
     ]
   },
   {

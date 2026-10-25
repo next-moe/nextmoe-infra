@@ -654,6 +654,7 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
 攻略是挂在作品上的**选项图**,不是正文。来源是一次性抓取的两个攻略站(誠也の部屋 `seiya`、愚者の館 `sagaoz_foolmaker`),只保留结构——入口、存档点、游戏内选项原文、结局及其所属角色;站长写的说明、心得、后记一律不入库、不对外发,`source_url` / `source_author` 用于署名与回链。
 
 - **读面**:`GET /v2/catalog/walkthroughs`(`work_id=` / `character_id=` 过滤,`ids=` 批量,按 id keyset 分页,条目不含 `chart`);`GET /v2/catalog/walkthroughs/{id}`(含 `chart`)。可见性与 `GET /v2/catalog/works/{work_id}` 完全一致:r18 作品的攻略需要 `nsfw=true`。
+- **两条轴(spec 2.66.0)**:`nsfw=` 只管年龄轴 `content_rating`;展示轴是所属作品的 `content_limit`,列表用 `content_limit=sfw|nsfw` 过滤(语义同 `/v2/catalog/works`,在 SQL 里过滤,keyset 分页不会被筛空),列表项与详情都带 `work_content_limit`。两者互相独立,约九成 galgame 是 r18 而多数 `content_limit=sfw`,所以对不看成人内容的读者应传 `nsfw=true&content_limit=sfw`,而不是 `nsfw=false`;详情页按 `work_content_limit` 自行加闸门。
 - **图的读法**:`segments[]` 是边,从 `from_node`(入口 / 存档 / AFTER 所接的结局)经 `steps[]` 走到 `to_node`(结局 / `collect` 收集终止 / `open`);段内的 `save` 步骤表示在此处建立该存档,画图时按存档步骤把一段切成多条边。`sections[]` 是原页面的分节标题(通常一条路线一节),`character_keys` 指向 `characters[]`。同名结局按出现次数各算一个。
 - **文本与翻译**:文本字段是原文(`lang` = `ja`),旁边的 `localized` 是 zh-Hans 机翻(`is_machine: true`)。人名只按作品花名册里**来源数据**(`provenance = 0`)的 zh-Hans 别名翻译;没有可靠译名的人名保持原文,译文改动了这类人名的整条译文作废,只显示原文。玩家多数玩日文原版,消费端应以原文为主、译文为辅。
 - **角色**:`characters[].character_id` 是 catalog 角色 id——在该作品花名册内按姓名/别名匹配到的既有角色,或导入时新建的只有名字的角色(会出现在该作品的 `characters` 子资源里,`roster_role` 为 `unknown`)。

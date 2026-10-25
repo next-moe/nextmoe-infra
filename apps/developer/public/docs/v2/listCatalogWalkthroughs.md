@@ -13,7 +13,7 @@
 
 List walkthroughs
 
-Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. nsfw= gates only on the age axis content_rating; content_limit= gates on the display axis, the work's content_limit, which every item carries as work_content_limit. The two are independent and most r18 games are sfw, so a site that hides adult content from a reader passes nsfw=true&content_limit=sfw, not nsfw=false. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -34,6 +34,7 @@ Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthrou
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `work_id` | query | 否 | string | Catalog work id. Only walkthroughs of this work. |
 | `character_id` | query | 否 | string | Catalog character id. Only walkthroughs whose chart routes to this character. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, applied to each walkthrough's work exactly as on /v2/catalog/works. Absent applies no gate. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/walkthroughs"

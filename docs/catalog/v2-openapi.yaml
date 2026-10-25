@@ -12618,6 +12618,13 @@ components:
           format: date-time
           maxLength: 32
           type: string
+        work_content_limit:
+          description: "content_limit of the work, the display axis GET /v2/catalog/works/{id} reports and the content_limit filter selects on. Independent of nsfw, which gates only on content_rating: most r18 games are sfw here. A reader who has not opted into adult content should be shown this walkthrough only when it is sfw."
+          enum:
+            - sfw
+            - nsfw
+          type: string
+          x-vocabulary-closed: true
         work_id:
           description: Catalog work this walkthrough plays through.
           maxLength: 20
@@ -12628,6 +12635,7 @@ components:
         - object
         - id
         - work_id
+        - work_content_limit
         - source
         - source_url
         - source_author
@@ -13785,7 +13793,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.65.0
+  version: 2.66.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18844,7 +18852,7 @@ paths:
         - catalog
   /v2/catalog/walkthroughs:
     get:
-      description: Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+      description: Keyset-paginated walkthroughs, sorted by id. work_id= keeps one work's walkthroughs; character_id= keeps those whose chart routes to that character. A walkthrough is listed exactly when its work is visible under the same nsfw gate as GET /v2/catalog/works/{id}. nsfw= gates only on the age axis content_rating; content_limit= gates on the display axis, the work's content_limit, which every item carries as work_content_limit. The two are independent and most r18 games are sfw, so a site that hides adult content from a reader passes nsfw=true&content_limit=sfw, not nsfw=false. Items carry no chart; GET /v2/catalog/walkthroughs/{id} does. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
       operationId: listCatalogWalkthroughs
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -18951,6 +18959,16 @@ paths:
             description: Catalog character id. Only walkthroughs whose chart routes to this character.
             maxLength: 20
             type: string
+        - description: "Comma-separated closed editorial axis: sfw, nsfw, applied to each walkthrough's work exactly as on /v2/catalog/works. Absent applies no gate."
+          explode: false
+          in: query
+          name: content_limit
+          schema:
+            description: "Comma-separated closed editorial axis: sfw, nsfw, applied to each walkthrough's work exactly as on /v2/catalog/works. Absent applies no gate."
+            examples:
+              - sfw
+            maxLength: 32
+            type: string
       responses:
         "200":
           content:
@@ -19011,7 +19029,7 @@ paths:
         - catalog
   /v2/catalog/walkthroughs/{id}:
     get:
-      description: "A walkthrough's choice graph: entries, saves and endings as nodes, segments of choices as edges, and the characters each route and ending belongs to. Text fields are in the walkthrough's lang with machine translations in localized. Derived from the page at source_url; its prose is not reproduced. 404 when the work is not visible: r18 needs nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
+      description: "A walkthrough's choice graph: entries, saves and endings as nodes, segments of choices as edges, and the characters each route and ending belongs to. Text fields are in the walkthrough's lang with machine translations in localized. Derived from the page at source_url; its prose is not reproduced. 404 when the work is not visible: r18 needs nsfw=true. work_content_limit carries the work's display axis, so a site can gate the page for a reader who hides adult content instead of answering 404. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
       operationId: getCatalogWalkthrough
       parameters:
         - description: Decimal catalog id.

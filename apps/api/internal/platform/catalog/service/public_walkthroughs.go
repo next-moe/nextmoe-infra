@@ -15,31 +15,39 @@ import (
 const laneWalkthroughs = "walkthroughs"
 
 type WalkthroughsListFilter struct {
-	NSFW        bool
-	IDs         []int64
-	WorkID      *int64
-	CharacterID *int64
-	WithTotal   bool
+	NSFW          bool
+	DisplayLimits []string
+	IDs           []int64
+	WorkID        *int64
+	CharacterID   *int64
+	WithTotal     bool
 }
 
 type walkthroughRow struct {
-	ID              int64
-	WorkID          int64
-	Source          string
-	SourceURL       string
-	SourceAuthor    string
-	SourceUpdatedOn *time.Time
-	UpdatedAt       time.Time
-	EndingCount     int
-	SaveCount       int
-	SegmentCount    int
-	Characters      string
-	Chart           string
+	ID                  int64
+	WorkID              int64
+	Source              string
+	SourceURL           string
+	SourceAuthor        string
+	SourceUpdatedOn     *time.Time
+	UpdatedAt           time.Time
+	EndingCount         int
+	SaveCount           int
+	SegmentCount        int
+	Characters          string
+	Chart               string
+	Site                *string
+	ProductWorkID       *int64
+	ContentRating       int16
+	DisplayNSFW         bool
+	CoverArtAllExplicit bool
+	TitleNSFW           *bool
 }
 
 const walkthroughColumns = `wt.id, wt.work_id, src.key AS source, wt.source_url, wt.source_author, wt.source_updated_on, wt.updated_at,
 	jsonb_array_length(wt.chart->'endings') AS ending_count, jsonb_array_length(wt.chart->'saves') AS save_count,
-	jsonb_array_length(wt.chart->'segments') AS segment_count, (wt.chart->'characters')::text AS characters`
+	jsonb_array_length(wt.chart->'segments') AS segment_count, (wt.chart->'characters')::text AS characters,
+	w.site, w.product_work_id, w.content_rating, w.display_nsfw, w.cover_art_all_explicit, w.title_nsfw`
 
 const walkthroughFrom = ` FROM catalog_walkthrough wt
 	JOIN catalog_work w ON w.id = wt.work_id
@@ -57,6 +65,10 @@ func (s *PublicService) WalkthroughsList(ctx context.Context, f WalkthroughsList
 	}
 	limit = clampBrowseLimit(limit)
 	where, args := walkthroughVisible(f.NSFW)
+	if pred, pargs := displayLimitWhere(f.DisplayLimits); pred != "" {
+		where = append(where, pred)
+		args = append(args, pargs...)
+	}
 	if len(f.IDs) > 0 {
 		where = append(where, "wt.id IN ?")
 		args = append(args, f.IDs)
@@ -166,6 +178,9 @@ func (s *PublicService) walkthroughItems(ctx context.Context, rows []walkthrough
 		item := dto.PublicWalkthrough{
 			ID: r.ID, WorkID: r.WorkID, Source: r.Source, SourceURL: r.SourceURL, SourceAuthor: r.SourceAuthor,
 			SourceUpdatedOn: r.SourceUpdatedOn, UpdatedAt: r.UpdatedAt,
+			WorkContentLimit: shelfLimitKey(r.Site, r.ProductWorkID, shelfFacts{
+				DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW,
+			}, r.ContentRating),
 			EndingCount: r.EndingCount, SaveCount: r.SaveCount, SegmentCount: r.SegmentCount,
 			Characters: make([]dto.PublicWalkthroughCharacter, 0, len(chars)),
 		}
