@@ -21,11 +21,15 @@ const refreshing = ref(false)
 const query = ref('')
 
 const load = async () => {
-  const page = await api<{ items: CatalogWalkthrough[] }>(
-    '/v2/catalog/walkthroughs',
-    { query: { work_id: entityId.value, nsfw: true, limit: 100 } }
-  ).catch(() => null)
-  items.value = page?.items ?? []
+  const [page, backlog] = await Promise.all([
+    api<{ items: CatalogWalkthrough[] }>('/v2/catalog/walkthroughs', {
+      query: { work_id: entityId.value, nsfw: true, limit: 100 }
+    }).catch(() => null),
+    api<{ items: CatalogWalkthrough[] }>('/v2/me/walkthrough-backlog', {
+      query: { work_id: entityId.value, limit: 100 }
+    }).catch(() => null)
+  ])
+  items.value = [...(page?.items ?? []), ...(backlog?.items ?? [])]
   loaded.value = true
 }
 
@@ -131,7 +135,15 @@ onMounted(load)
         :selected="selected?.id === item.id"
         icon="lucide:route"
         @select="select(item)"
-      />
+      >
+        <template v-if="item.import_review" #trailing>
+          <span
+            class="bg-warning-100 text-warning-700 rounded px-1.5 text-[11px] leading-5"
+          >
+            待补全
+          </span>
+        </template>
+      </WorkspaceRelatedRow>
     </template>
 
     <template #detail>

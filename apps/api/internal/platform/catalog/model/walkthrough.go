@@ -18,6 +18,15 @@ const (
 
 const WalkthroughMatchedByCurated = "curated"
 
+// WalkthroughImportReview is what the import's gate found missing from a chart
+// it imported anyway, hidden, for an editor to complete.
+type WalkthroughImportReview struct {
+	Missed         []string `json:"missed"`
+	EndMarkers     int      `json:"end_markers"`
+	EndingsReached int      `json:"endings_reached"`
+	Coverage       float64  `json:"coverage"`
+}
+
 // A walkthrough written in the editor has no page to link to; its source_url
 // holds this prefix and a uuid only to keep (source_id, source_url) unique.
 const WalkthroughNativeURLPrefix = "editor:"
@@ -37,6 +46,7 @@ type CatalogWalkthrough struct {
 	TranslateModel  string         `gorm:"not null;default:''" json:"translate_model"`
 	Lang            string         `gorm:"not null;default:'ja'" json:"lang"`
 	FieldProvenance datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'" json:"field_provenance"`
+	ImportReview    datatypes.JSON `gorm:"type:jsonb" json:"import_review"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 }

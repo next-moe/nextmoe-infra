@@ -149,10 +149,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     />
 
     <div
-      v-if="$slots.notices"
       class="border-default-200 bg-content1 space-y-2 border-b px-4 py-3 empty:hidden md:px-6"
     >
       <slot name="notices" />
+      <WalkthroughsEditorImportReview
+        v-if="props.entityId"
+        :entity-id="props.entityId"
+      />
     </div>
 
     <KunInfo

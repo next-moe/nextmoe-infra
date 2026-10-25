@@ -1628,5 +1628,12 @@
   "Unique per entry, for deduplicating a replayed page. It is not the\nfeed's order; the cursor is.": "每条记录唯一，用于对重复读到的页去重。它不是变更流的顺序，顺序由 cursor 决定。",
   "The page the resource was on when it changed. A moved resource reports `updated` with its new page.": "资源发生变化时所在的补丁页。被移到别的页的资源会报告 `updated`，并带上新的页。",
   "Only `s3` resources have a file on moyu.": "只有 `s3` 资源在 moyu 上有文件。",
-  "Where to resume. Always set.": "从哪里继续读。总会给出。"
+  "Where to resume. Always set.": "从哪里继续读。总会给出。",
+  "Share of the page's choice lines the chart carries.": "攻略图收录了原页面选项行的比例。",
+  "Endings the source page marks.": "原页面标注的结局数。",
+  "Segments of the chart that end at an ending. Fewer than end_markers means routes are missing.": "图中走到结局的路线段数。少于 end_markers 说明缺了路线。",
+  "Choice texts on the source page that the chart does not carry, as the page writes them. Empty array, never null.": "原页面上有、图里没有收录的选项原文。空数组,不会为 null。",
+  "Walkthroughs waiting to be completed": "待补全的攻略",
+  "Walkthroughs the import kept hidden because their chart was incomplete, sorted by id, each with import_review saying what is missing. A walkthrough leaves the backlog when an edit unhides it. work_id= keeps one work's; ids= is a batch lane and does not paginate. No age gate applies. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.": "导入时因攻略图不完整而隐藏的攻略,按 id 排序,每条带 import_review 说明缺了什么。编辑取消隐藏后,攻略离开待补全列表。work_id= 只看一部作品;ids= 是批量通道,不分页。不受年龄分级限制。需要绑定到 catalog 站点的用户访问令牌,且令牌带 catalog:edit 权限范围。",
+  "Catalog work id. Only this work's walkthroughs.": "资料库作品 id。只看这部作品的攻略。"
 }

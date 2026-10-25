@@ -264,3 +264,27 @@ func TestWalkthroughRefusesBrokenCharts(t *testing.T) {
 		})
 	}
 }
+
+func TestUnhidingACompletedWalkthroughTakesItOffTheBacklog(t *testing.T) {
+	e := newWalkthroughEngine(t)
+	work := createWork(t, "w")
+	w := importedWalkthrough(t, work.ID)
+	if err := testDB.Model(w).Updates(map[string]any{
+		"status": model.WalkthroughStatusHidden, "import_review": `{"missed":["x"],"end_markers":2,"endings_reached":1,"coverage":0.5}`,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	_, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+		EntityType: editspec.TypeWalkthrough, EntityID: w.ID,
+		Patch: map[string]any{editspec.FieldWalkthroughHidden: false},
+		Actor: trustedEditor(),
+	})
+	if err != nil || rev == nil {
+		t.Fatalf("unhide: %v", err)
+	}
+	var reloaded model.CatalogWalkthrough
+	testDB.First(&reloaded, w.ID)
+	if reloaded.Status != model.WalkthroughStatusLive || len(reloaded.ImportReview) != 0 {
+		t.Fatalf("unhidden walkthrough = status %d, import_review %s", reloaded.Status, reloaded.ImportReview)
+	}
+}
