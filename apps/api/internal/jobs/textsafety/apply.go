@@ -12,10 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	safeTitleConfidence = 0.8
-	applyBatch          = 1000
-)
+const applyBatch = 1000
 
 type ApplyOpts struct {
 	Run   bool
@@ -51,19 +48,11 @@ type shelfRow struct {
 
 func (r shelfRow) claimed() bool { return r.Site != nil && *r.Site != "" && r.ProductWorkID != nil }
 
-// nsfw is the display axis once title_nsfw is read: the age rating decides only
-// an unclaimed work whose titles were never judged.
 func (r shelfRow) nsfw() bool {
-	switch {
-	case r.CoverArtAllExplicit:
-		return true
-	case r.claimed():
-		return r.DisplayNSFW
-	case r.TitleNSFW != nil:
-		return *r.TitleNSFW
-	default:
-		return r.ContentRating == model.ContentRatingR18
-	}
+	return model.WorkShelf{
+		Site: r.Site, ProductWorkID: r.ProductWorkID, DisplayNSFW: r.DisplayNSFW, ContentRating: r.ContentRating,
+		CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW,
+	}.NSFW()
 }
 
 type workChange struct {
@@ -117,7 +106,7 @@ func planApply(ctx context.Context, db *gorm.DB) (*applyPlan, error) {
 			continue
 		}
 		p.stats.Judged++
-		want := !(v.Verdict == model.TitleSafetySafe && v.Confidence >= safeTitleConfidence)
+		want := !(v.Verdict == model.TitleSafetySafe && v.Confidence >= model.SafeTitleConfidence)
 		after := before
 		after.TitleNSFW = &want
 		c := workChange{before: before, titles: t, verdict: v}
@@ -247,7 +236,9 @@ func prune(ctx context.Context, db *gorm.DB) (int64, int64, error) {
 	for _, t := range titles {
 		live = append(live, t.Hash)
 	}
-	tr := db.WithContext(ctx).Exec(`DELETE FROM catalog_work_title_safety WHERE title_hash <> ALL(?::text[])`, "{"+strings.Join(live, ",")+"}")
+	tr := db.WithContext(ctx).Exec(`DELETE FROM catalog_work_title_safety s WHERE s.title_hash <> ALL(?::text[])
+		AND NOT EXISTS (SELECT 1 FROM catalog_release r WHERE r.deleted_at IS NULL AND md5(btrim(r.title)) = s.title_hash)`,
+		"{"+strings.Join(live, ",")+"}")
 	if tr.Error != nil {
 		return 0, 0, fmt.Errorf("prune title verdicts: %w", tr.Error)
 	}
@@ -256,5 +247,10 @@ func prune(ctx context.Context, db *gorm.DB) (int64, int64, error) {
 	if ir.Error != nil {
 		return 0, 0, fmt.Errorf("prune intro verdicts: %w", ir.Error)
 	}
-	return tr.RowsAffected, ir.RowsAffected, nil
+	cr := db.WithContext(ctx).Exec(`DELETE FROM catalog_character_intro_safety s
+		WHERE NOT EXISTS (SELECT 1 FROM catalog_character_intro i WHERE md5(i.intro) = s.intro_hash)`)
+	if cr.Error != nil {
+		return 0, 0, fmt.Errorf("prune character intro verdicts: %w", cr.Error)
+	}
+	return tr.RowsAffected, ir.RowsAffected + cr.RowsAffected, nil
 }

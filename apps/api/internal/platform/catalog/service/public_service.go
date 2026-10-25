@@ -388,6 +388,11 @@ func (s *PublicService) publicRelations(rels []WorkRelationRow, nsfw bool, limit
 
 func (s *PublicService) attachWorkFacets(ctx context.Context, rec *dto.PublicCatalogWork, detail *WorkDetail, nsfw, displayNSFW bool, spoilers int16, sel PublicFields) error {
 	rec.Releases = s.publicWorkReleases(detail.Releases)
+	if !(nsfw && displayNSFW) {
+		if err := s.hideUnsafeReleaseTitles(ctx, rec.Releases); err != nil {
+			return err
+		}
+	}
 	rec.Popularity = make([]dto.PublicPopularity, 0, len(detail.Popularity))
 	for _, p := range detail.Popularity {
 		rec.Popularity = append(rec.Popularity, dto.PublicPopularity{
@@ -406,7 +411,10 @@ func (s *PublicService) attachWorkFacets(ctx context.Context, rec *dto.PublicCat
 	for _, p := range detail.Platforms {
 		rec.Platforms = append(rec.Platforms, dto.PublicPlatform{Platform: p.Platform, Source: s.sourceKey(p.SourceID)})
 	}
-	rec.Intros = s.workIntros(detail.Intros)
+	rec.Intros = s.workIntros(detail.SFWIntros)
+	if nsfw && displayNSFW {
+		rec.Intros = s.workIntros(detail.Intros)
+	}
 	imgMeta := s.workMediaMetaFor(ctx, detail.Covers, detail.Screenshots, rosterImageHashes(detail.Characters)...)
 	covers, err := s.publicCovers(ctx, detail.Covers, imgMeta)
 	if err != nil {
@@ -698,7 +706,7 @@ func (s *PublicService) Character(ctx context.Context, id int64, withWorks, nsfw
 	if ch.Links, err = s.entityLinks(ctx, model.EntityTypeCharacter, id); err != nil {
 		return dto.PublicCharacter{}, false, err
 	}
-	if ch.Intros, err = s.characterIntros(ctx, id); err != nil {
+	if ch.Intros, err = s.characterIntros(ctx, id, nsfw); err != nil {
 		return dto.PublicCharacter{}, false, err
 	}
 	var art struct {
@@ -946,6 +954,7 @@ type workBriefRow struct {
 	ClaimState          *int16 `gorm:"column:claim_state"`
 	DisplayNSFW         bool   `gorm:"column:display_nsfw"`
 	CoverArtAllExplicit bool   `gorm:"column:cover_art_all_explicit"`
+	TitleNSFW           *bool  `gorm:"column:title_nsfw"`
 }
 
 func (s *PublicService) loadWorkBriefs(ctx context.Context, ids []int64, nsfw bool) (map[int64]*dto.PublicWorkBrief, error) {
@@ -955,7 +964,7 @@ func (s *PublicService) loadWorkBriefs(ctx context.Context, ids []int64, nsfw bo
 	var rows []workBriefRow
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT w.id, w.medium_id, w.display_name, w.content_rating, w.status, w.site, w.product_work_id, w.claim_state,
-		       w.display_nsfw, w.cover_art_all_explicit
+		       w.display_nsfw, w.cover_art_all_explicit, w.title_nsfw
 		FROM catalog_work w
 		WHERE w.id IN ? AND w.deleted_at IS NULL AND w.status = ?`, ids, model.WorkStatusLive).Scan(&rows).Error; err != nil {
 		return nil, err
@@ -966,7 +975,7 @@ func (s *PublicService) loadWorkBriefs(ctx context.Context, ids []int64, nsfw bo
 		if !nsfw && isR18(r.ContentRating) {
 			continue
 		}
-		f := shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit}
+		f := shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW}
 		out[r.ID] = &dto.PublicWorkBrief{
 			ID: r.ID, Medium: s.mediumKey(r.MediumID), DisplayName: r.DisplayName,
 			ContentRating: contentRatingKey(r.ContentRating),
@@ -1024,10 +1033,11 @@ func (s *PublicService) workShelvesFor(ctx context.Context, ids []int64) (map[in
 		ContentRating       int16  `gorm:"column:content_rating"`
 		DisplayNSFW         bool   `gorm:"column:display_nsfw"`
 		CoverArtAllExplicit bool   `gorm:"column:cover_art_all_explicit"`
+		TitleNSFW           *bool  `gorm:"column:title_nsfw"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT w.id, w.site, w.product_work_id, w.claim_state, w.content_rating, w.display_nsfw,
-		       w.cover_art_all_explicit
+		       w.cover_art_all_explicit, w.title_nsfw
 		FROM catalog_work w
 		WHERE w.id IN ? AND w.deleted_at IS NULL`,
 		ids).Scan(&rows).Error; err != nil {
@@ -1035,7 +1045,7 @@ func (s *PublicService) workShelvesFor(ctx context.Context, ids []int64) (map[in
 	}
 	out := make(map[int64]workShelf, len(rows))
 	for _, r := range rows {
-		f := shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit}
+		f := shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW}
 		out[r.ID] = workShelf{
 			claim: claimedBy(r.Site, r.ProductWorkID, r.ClaimState, f, r.ContentRating),
 			limit: shelfLimitKey(r.Site, r.ProductWorkID, f, r.ContentRating),
@@ -1311,30 +1321,15 @@ func traitLocalized(nameZh string, provenance int16) map[string]dto.PublicLocali
 // extraction outranks translated rows; source rows still win via provenance.
 const sourceDerived = 18
 
-func (s *PublicService) characterIntros(ctx context.Context, characterID int64) ([]dto.PublicIntro, error) {
-	var rows []struct {
-		Lang       string
-		Intro      string
-		SourceID   int16 `gorm:"column:source_id"`
-		Provenance int16 `gorm:"column:provenance"`
-	}
-	if err := s.db.WithContext(ctx).Raw(`SELECT lang, intro, source_id, provenance
-		FROM catalog_character_intro WHERE character_id = ? AND `+editspec.NotSuppressedCharacterIntroSQL("catalog_character_intro")+`
-		ORDER BY lang, provenance, `+editspec.HumanLaneFirstSQL("source_id", "provenance")+
-		`, (provenance = 1 AND source_id = ?) DESC, source_id`,
-		characterID, sourceDerived).Scan(&rows).Error; err != nil {
+func (s *PublicService) characterIntros(ctx context.Context, characterID int64, nsfw bool) ([]dto.PublicIntro, error) {
+	byID, err := s.characterIntrosBatch(ctx, []int64{characterID}, nsfw)
+	if err != nil {
 		return nil, err
 	}
-	out := make([]dto.PublicIntro, 0, len(rows))
-	seen := map[string]bool{}
-	for _, r := range rows {
-		if seen[r.Lang] {
-			continue
-		}
-		seen[r.Lang] = true
-		out = append(out, dto.PublicIntro{Lang: r.Lang, Intro: r.Intro, Source: s.sourceKey(r.SourceID), Machine: r.Provenance == 1})
+	if out := byID[characterID]; out != nil {
+		return out, nil
 	}
-	return out, nil
+	return []dto.PublicIntro{}, nil
 }
 
 func (s *PublicService) nameAliases(ctx context.Context, nameID int64) ([]dto.PublicAlias, map[string]dto.PublicLocalizedName, error) {

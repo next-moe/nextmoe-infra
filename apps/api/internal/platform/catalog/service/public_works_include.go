@@ -99,7 +99,11 @@ func (s *PublicService) attachWorkListBlocks(
 			return err
 		}
 		for i, r := range rows {
-			items[i].Intros = s.workIntros(intros[r.ID])
+			face := intros[r.ID].sfw
+			if nsfw && effectiveDisplayNSFW(r.Site, r.ProductWorkID, displayNSFW[r.ID], r.ContentRating) {
+				face = intros[r.ID].all
+			}
+			items[i].Intros = s.workIntros(face)
 		}
 	}
 	if inc.Labels {

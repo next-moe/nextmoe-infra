@@ -1,6 +1,7 @@
 package textsafety
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -57,4 +58,32 @@ func TestPackRespectsBudgets(t *testing.T) {
 func TestHashesMatchPostgresMD5(t *testing.T) {
 	// select md5('星空' || E'\n' || 'Katawa Shoujo')
 	assert.Equal(t, "fe6fa209729fbc53c2529f9ffa303bba", titleSetHash([]string{"星空", "Katawa Shoujo"}))
+}
+
+func TestShardSplitsWithoutOverlap(t *testing.T) {
+	var in []IntroInput
+	for i := range 200 {
+		in = append(in, IntroInput{Hash: md5Hex(fmt.Sprint(i))})
+	}
+	a, err := Shard(in, "0/2")
+	require.NoError(t, err)
+	b, err := Shard(in, "1/2")
+	require.NoError(t, err)
+	assert.Equal(t, len(in), len(a)+len(b))
+	seen := map[string]bool{}
+	for _, x := range append(a, b...) {
+		assert.False(t, seen[x.Hash])
+		seen[x.Hash] = true
+	}
+	_, err = Shard(in, "2/2")
+	assert.Error(t, err)
+
+	big, err := Shard(in, "0-3/5")
+	require.NoError(t, err)
+	small, err := Shard(in, "4/5")
+	require.NoError(t, err)
+	assert.Equal(t, len(in), len(big)+len(small))
+	assert.Greater(t, len(big), 2*len(small))
+	_, err = Shard(in, "3-1/5")
+	assert.Error(t, err)
 }

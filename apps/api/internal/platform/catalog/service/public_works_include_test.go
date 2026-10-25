@@ -41,10 +41,31 @@ func addWorkTitleP(t *testing.T, workID int64, lang, title string, kind, provena
 
 func addWorkIntro(t *testing.T, workID int64, lang, intro string, sourceID, provenance int16) {
 	t.Helper()
+	addUnjudgedWorkIntro(t, workID, lang, intro, sourceID, provenance)
+	markIntroSafety(t, intro, model.IntroSFWOriginal, "")
+}
+
+func addUnjudgedWorkIntro(t *testing.T, workID int64, lang, intro string, sourceID, provenance int16) {
+	t.Helper()
 	if err := testDB.Create(&model.CatalogWorkIntro{
 		WorkID: workID, Lang: lang, Intro: intro, SourceID: sourceID, Provenance: provenance,
 	}).Error; err != nil {
 		t.Fatalf("create work intro %s: %v", lang, err)
+	}
+}
+
+func markIntroSafety(t *testing.T, intro string, mode int16, sfwIntro string) {
+	t.Helper()
+	verdict := model.IntroSafetySafe
+	if mode != model.IntroSFWOriginal {
+		verdict = model.IntroSafetyExplicit
+	}
+	if err := testDB.Exec(`INSERT INTO catalog_work_intro_safety
+		(intro_hash, verdict, confidence, sfw_mode, sfw_intro, model, prompt_version, updated_at)
+		VALUES (md5(?), ?, 0.99, ?, ?, 'test', 'test', now())
+		ON CONFLICT (intro_hash) DO UPDATE SET verdict = EXCLUDED.verdict, sfw_mode = EXCLUDED.sfw_mode,
+			sfw_intro = EXCLUDED.sfw_intro`, intro, verdict, mode, sfwIntro).Error; err != nil {
+		t.Fatalf("mark intro safety: %v", err)
 	}
 }
 

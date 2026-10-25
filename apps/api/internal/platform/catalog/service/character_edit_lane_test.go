@@ -156,10 +156,10 @@ func TestHumanIntroWinsTheLangFold(t *testing.T) {
 		{WorkID: w.ID, Lang: "ja", Intro: "人手の紹介", SourceID: curatedSourceID, Provenance: model.IntroProvenanceSource},
 	}).Error)
 
-	intros := map[int64][]WorkIntroRow{}
+	intros := map[int64]introFaces{}
 	require.NoError(t, read.nativeWorkIntros(ctx, []int64{w.ID}, intros))
-	require.Len(t, intros[w.ID], 1)
-	assert.Equal(t, "人手の紹介", intros[w.ID][0].Intro)
+	require.Len(t, intros[w.ID].all, 1)
+	assert.Equal(t, "人手の紹介", intros[w.ID].all[0].Intro)
 
 	ch := createCharacter(t, "キャラ")
 	require.NoError(t, testDB.Create(&[]model.CatalogCharacterIntro{
@@ -199,11 +199,11 @@ func TestCuratedMachineTranslationDoesNotBeatAnUpstreamOriginal(t *testing.T) {
 		{WorkID: w.ID, Lang: "zh-Hans", Intro: "curated 車道の機械翻訳", SourceID: curatedSourceID, Provenance: model.IntroProvenanceMachine},
 	}).Error)
 
-	intros := map[int64][]WorkIntroRow{}
+	intros := map[int64]introFaces{}
 	require.NoError(t, read.nativeWorkIntros(ctx, []int64{w.ID}, intros))
-	require.Len(t, intros[w.ID], 1)
-	assert.Equal(t, "上流の原文", intros[w.ID][0].Intro)
-	assert.False(t, intros[w.ID][0].Machine)
+	require.Len(t, intros[w.ID].all, 1)
+	assert.Equal(t, "上流の原文", intros[w.ID].all[0].Intro)
+	assert.False(t, intros[w.ID].all[0].Machine)
 
 	ch := createCharacter(t, "キャラ")
 	require.NoError(t, testDB.Create(&[]model.CatalogCharacterIntro{
@@ -244,11 +244,11 @@ func TestCuratedMachineTranslationDoesNotBeatAnUpstreamMachineTranslation(t *tes
 		{WorkID: w.ID, Lang: "zh-Hans", Intro: "curated 車道の機械翻訳", SourceID: curatedSourceID, Provenance: model.IntroProvenanceMachine},
 	}).Error)
 
-	intros := map[int64][]WorkIntroRow{}
+	intros := map[int64]introFaces{}
 	require.NoError(t, read.nativeWorkIntros(ctx, []int64{w.ID}, intros))
-	require.Len(t, intros[w.ID], 1)
-	assert.Equal(t, "上流の機械翻訳", intros[w.ID][0].Intro)
-	assert.EqualValues(t, bangumiSourceID, intros[w.ID][0].SourceID)
+	require.Len(t, intros[w.ID].all, 1)
+	assert.Equal(t, "上流の機械翻訳", intros[w.ID].all[0].Intro)
+	assert.EqualValues(t, bangumiSourceID, intros[w.ID].all[0].SourceID)
 
 	ch := createCharacter(t, "キャラ")
 	require.NoError(t, testDB.Create(&[]model.CatalogCharacterIntro{

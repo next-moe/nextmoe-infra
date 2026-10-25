@@ -455,7 +455,7 @@ func (s *PublicService) attachCharacterListBlocks(ctx context.Context, rows []En
 		}
 	}
 	if inc.Intros {
-		intros, err := s.characterIntrosBatch(ctx, ids)
+		intros, err := s.characterIntrosBatch(ctx, ids, nsfw)
 		if err != nil {
 			return err
 		}
@@ -534,20 +534,45 @@ func (s *PublicService) characterAttributesBatch(ctx context.Context, ids []int6
 	return out, nil
 }
 
-func (s *PublicService) characterIntrosBatch(ctx context.Context, ids []int64) (map[int64][]dto.PublicIntro, error) {
+// characterIntrosBatch gives a character the original intros only when the
+// caller allows nsfw material and every live work the character appears in is
+// on the nsfw shelf; any sfw appearance makes its page an sfw page, so it gets
+// the judged face, where text no verdict cleared is skipped.
+func (s *PublicService) characterIntrosBatch(ctx context.Context, ids []int64, nsfw bool) (map[int64][]dto.PublicIntro, error) {
 	var rows []struct {
 		CharacterID int64  `gorm:"column:character_id"`
 		Lang        string `gorm:"column:lang"`
 		Intro       string `gorm:"column:intro"`
 		SourceID    int16  `gorm:"column:source_id"`
 		Provenance  int16  `gorm:"column:provenance"`
+		SFWMode     *int16 `gorm:"column:sfw_mode"`
+		SFWIntro    string `gorm:"column:sfw_intro"`
 	}
-	if err := s.db.WithContext(ctx).Raw(`SELECT character_id, lang, intro, source_id, provenance
-		FROM catalog_character_intro WHERE character_id IN ? AND `+editspec.NotSuppressedCharacterIntroSQL("catalog_character_intro")+`
-		ORDER BY character_id, lang, provenance, `+editspec.HumanLaneFirstSQL("source_id", "provenance")+
-		`, (provenance = 1 AND source_id = ?) DESC, source_id`,
+	if err := s.db.WithContext(ctx).Raw(`SELECT ci.character_id, ci.lang, ci.intro, ci.source_id, ci.provenance,
+			s.sfw_mode, coalesce(s.sfw_intro, '') AS sfw_intro
+		FROM catalog_character_intro ci
+		LEFT JOIN catalog_character_intro_safety s ON s.intro_hash = md5(ci.intro)
+		WHERE ci.character_id IN ? AND `+editspec.NotSuppressedCharacterIntroSQL("ci")+`
+		ORDER BY ci.character_id, ci.lang, ci.provenance, `+editspec.HumanLaneFirstSQL("ci.source_id", "ci.provenance")+
+		`, (ci.provenance = 1 AND ci.source_id = ?) DESC, ci.source_id`,
 		ids, sourceDerived).Scan(&rows).Error; err != nil {
 		return nil, err
+	}
+	adult := map[int64]bool{}
+	if nsfw {
+		var flags []struct {
+			ID    int64 `gorm:"column:id"`
+			Adult bool  `gorm:"column:adult"`
+		}
+		if err := s.db.WithContext(ctx).Raw(`SELECT c.id, NOT EXISTS (
+				SELECT 1 FROM catalog_work_character wc JOIN catalog_work w ON w.id = wc.work_id
+				WHERE wc.character_id = c.id AND w.deleted_at IS NULL AND w.status = ? AND NOT `+DisplayLimitNSFWSQL+`) AS adult
+			FROM catalog_character c WHERE c.id IN ?`, model.WorkStatusLive, model.ContentRatingR18, ids).Scan(&flags).Error; err != nil {
+			return nil, err
+		}
+		for _, f := range flags {
+			adult[f.ID] = f.Adult
+		}
 	}
 	out := make(map[int64][]dto.PublicIntro, len(ids))
 	seen := map[[2]any]bool{}
@@ -556,10 +581,20 @@ func (s *PublicService) characterIntrosBatch(ctx context.Context, ids []int64) (
 		if seen[key] {
 			continue
 		}
+		in := dto.PublicIntro{Lang: r.Lang, Intro: r.Intro, Source: s.sourceKey(r.SourceID), Machine: r.Provenance == 1}
+		if !adult[r.CharacterID] {
+			if r.SFWMode == nil || *r.SFWMode == model.IntroSFWDropped {
+				continue
+			}
+			switch *r.SFWMode {
+			case model.IntroSFWRedacted:
+				in.Intro = r.SFWIntro
+			case model.IntroSFWRewritten:
+				in.Intro, in.Machine = r.SFWIntro, true
+			}
+		}
 		seen[key] = true
-		out[r.CharacterID] = append(out[r.CharacterID], dto.PublicIntro{
-			Lang: r.Lang, Intro: r.Intro, Source: s.sourceKey(r.SourceID), Machine: r.Provenance == 1,
-		})
+		out[r.CharacterID] = append(out[r.CharacterID], in)
 	}
 	return out, nil
 }

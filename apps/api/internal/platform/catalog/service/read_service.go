@@ -96,6 +96,7 @@ type WorkDetail struct {
 	Refs           []RefDetail
 	Characters     []WorkCharacterRow
 	Intros         []WorkIntroRow
+	SFWIntros      []WorkIntroRow
 	Covers         []WorkCoverRow
 	Screenshots    []WorkScreenshotRow
 	Ratings        []WorkRatingRow
@@ -327,7 +328,7 @@ func (s *ReadService) loadWorkDetail(ctx context.Context, workID int64, opts wor
 		if err != nil {
 			return nil, err
 		}
-		detail.Intros = intros[work.ID]
+		detail.Intros, detail.SFWIntros = intros[work.ID].all, intros[work.ID].sfw
 	}
 
 	if want("covers", "cover_slots") {
@@ -496,8 +497,12 @@ func engineNames(ctx context.Context, db *gorm.DB, ids []int64) (map[int64]strin
 	return out, nil
 }
 
-func (s *ReadService) loadWorkIntros(ctx context.Context, subjects []claimSubject) (map[int64][]WorkIntroRow, error) {
-	out := make(map[int64][]WorkIntroRow, len(subjects))
+// The sfw face skips a text no verdict has cleared, so the language falls back
+// to its next source rather than to the unjudged original.
+type introFaces struct{ all, sfw []WorkIntroRow }
+
+func (s *ReadService) loadWorkIntros(ctx context.Context, subjects []claimSubject) (map[int64]introFaces, error) {
+	out := make(map[int64]introFaces, len(subjects))
 	if len(subjects) == 0 {
 		return out, nil
 	}
@@ -508,7 +513,7 @@ func (s *ReadService) loadWorkIntros(ctx context.Context, subjects []claimSubjec
 	return out, s.nativeWorkIntros(ctx, workIDs, out)
 }
 
-func (s *ReadService) nativeWorkIntros(ctx context.Context, workIDs []int64, out map[int64][]WorkIntroRow) error {
+func (s *ReadService) nativeWorkIntros(ctx context.Context, workIDs []int64, out map[int64]introFaces) error {
 	db := s.db.WithContext(ctx)
 	var rows []struct {
 		WorkID     int64  `gorm:"column:work_id"`
@@ -516,29 +521,47 @@ func (s *ReadService) nativeWorkIntros(ctx context.Context, workIDs []int64, out
 		Intro      string `gorm:"column:intro"`
 		SourceID   int16  `gorm:"column:source_id"`
 		Provenance int16  `gorm:"column:provenance"`
+		SFWMode    *int16 `gorm:"column:sfw_mode"`
+		SFWIntro   string `gorm:"column:sfw_intro"`
 	}
-	if err := db.Raw(`SELECT work_id, lang, intro, source_id, provenance FROM catalog_work_intro
-		WHERE work_id IN ? AND `+editspec.NotSuppressedWorkIntroSQL("catalog_work_intro")+` ORDER BY work_id, lang, `+
-		editspec.IntroFoldOrderSQL("source_id", "provenance"), workIDs).Scan(&rows).Error; err != nil {
+	if err := db.Raw(`SELECT i.work_id, i.lang, i.intro, i.source_id, i.provenance, s.sfw_mode, coalesce(s.sfw_intro, '') AS sfw_intro
+		FROM catalog_work_intro i
+		LEFT JOIN catalog_work_intro_safety s ON s.intro_hash = md5(i.intro)
+		WHERE i.work_id IN ? AND `+editspec.NotSuppressedWorkIntroSQL("i")+` ORDER BY i.work_id, i.lang, `+
+		editspec.IntroFoldOrderSQL("i.source_id", "i.provenance"), workIDs).Scan(&rows).Error; err != nil {
 		return err
 	}
-	seen := make(map[int64]map[string]bool)
-	for _, r := range rows {
-		langs := seen[r.WorkID]
-		if langs == nil {
-			langs = map[string]bool{}
-			seen[r.WorkID] = langs
-		}
-		if langs[r.Lang] {
-			continue
-		}
-		langs[r.Lang] = true
-		out[r.WorkID] = append(out[r.WorkID], WorkIntroRow{
-			Lang: r.Lang, Intro: r.Intro, SourceID: r.SourceID, Machine: r.Provenance == 1,
-		})
+	type key struct {
+		work int64
+		lang string
 	}
-	for id := range seen {
-		sortIntros(out[id])
+	seenAll, seenSFW := map[key]bool{}, map[key]bool{}
+	for _, r := range rows {
+		k := key{r.WorkID, r.Lang}
+		f := out[r.WorkID]
+		if !seenAll[k] {
+			seenAll[k] = true
+			f.all = append(f.all, WorkIntroRow{Lang: r.Lang, Intro: r.Intro, SourceID: r.SourceID, Machine: r.Provenance == 1})
+		}
+		if !seenSFW[k] && r.SFWMode != nil {
+			row := WorkIntroRow{Lang: r.Lang, Intro: r.Intro, SourceID: r.SourceID, Machine: r.Provenance == 1}
+			switch *r.SFWMode {
+			case model.IntroSFWRedacted:
+				row.Intro = r.SFWIntro
+			case model.IntroSFWRewritten:
+				row.Intro, row.Machine = r.SFWIntro, true
+			}
+			if *r.SFWMode != model.IntroSFWDropped {
+				seenSFW[k] = true
+				f.sfw = append(f.sfw, row)
+			}
+		}
+		out[r.WorkID] = f
+	}
+	for id, f := range out {
+		sortIntros(f.all)
+		sortIntros(f.sfw)
+		out[id] = f
 	}
 	return nil
 }
