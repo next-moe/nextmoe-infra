@@ -3,6 +3,7 @@ package dto
 import (
 	"time"
 
+	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/walkthrough"
 )
 
@@ -21,6 +22,7 @@ type PublicWalkthrough struct {
 	SaveCount        int
 	SegmentCount     int
 	Chart            *walkthrough.Chart
+	ImportReview     *model.WalkthroughImportReview
 }
 
 type PublicWalkthroughCharacter struct {

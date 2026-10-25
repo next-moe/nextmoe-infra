@@ -140,4 +140,32 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 
 	status, body = get("/v2/catalog/walkthroughs?content_limit=adult")
 	assert.Equal(t, http.StatusBadRequest, status, string(body))
+
+	incomplete := &model.CatalogWalkthrough{WorkID: r18.ID, SourceID: model.SourceSeiya, SourceURL: "https://seiya-saiga.com/game/half.html",
+		ChartVersion: 1, SourceHash: "half", ExtractModel: "test", Status: model.WalkthroughStatusHidden,
+		Chart:        datatypes.JSON(`{"characters":[],"sections":[],"entries":[],"saves":[],"endings":[],"segments":[]}`),
+		ImportReview: datatypes.JSON(`{"missed":["○楽園幻想"],"end_markers":6,"endings_reached":5,"coverage":0.83}`)}
+	require.NoError(t, env.db.Create(incomplete).Error)
+	t.Cleanup(func() { env.db.Delete(&model.CatalogWalkthrough{}, incomplete.ID) })
+	assert.NotContains(t, list("work_id="+idstr(r18.ID)+"&nsfw=true"), idstr(incomplete.ID), "a backlog walkthrough is hidden from the public faces")
+
+	status, _, body = liveDo(t, env, http.MethodGet, "/v2/me/walkthrough-backlog?work_id="+idstr(r18.ID), liveUserToken, "")
+	require.Equal(t, http.StatusOK, status, string(body))
+	var backlog struct {
+		Items []struct {
+			ID           string `json:"id"`
+			ImportReview *struct {
+				Missed         []string `json:"missed"`
+				EndingsReached int      `json:"endings_reached"`
+			} `json:"import_review"`
+		} `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(body, &backlog))
+	require.Len(t, backlog.Items, 1, "the r18 work's backlog needs no nsfw=true")
+	assert.Equal(t, idstr(incomplete.ID), backlog.Items[0].ID)
+	require.NotNil(t, backlog.Items[0].ImportReview)
+	assert.Equal(t, []string{"○楽園幻想"}, backlog.Items[0].ImportReview.Missed)
+
+	status, _, _ = liveDo(t, env, http.MethodGet, "/v2/me/walkthrough-backlog", liveAppKey, "")
+	assert.Contains(t, []int{http.StatusUnauthorized, http.StatusForbidden}, status, "the backlog is an editing face")
 }

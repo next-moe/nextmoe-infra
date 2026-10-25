@@ -21,6 +21,7 @@ type WalkthroughsListFilter struct {
 	WorkID        *int64
 	CharacterID   *int64
 	WithTotal     bool
+	Backlog       bool
 }
 
 type walkthroughRow struct {
@@ -43,12 +44,14 @@ type walkthroughRow struct {
 	DisplayNSFW         bool
 	CoverArtAllExplicit bool
 	TitleNSFW           *bool
+	ImportReview        *string
 }
 
 const walkthroughColumns = `wt.id, wt.work_id, src.key AS source, wt.source_url, wt.source_author, wt.source_updated_on, wt.lang, wt.updated_at,
 	jsonb_array_length(wt.chart->'endings') AS ending_count, jsonb_array_length(wt.chart->'saves') AS save_count,
 	jsonb_array_length(wt.chart->'segments') AS segment_count, (wt.chart->'characters')::text AS characters,
-	w.site, w.product_work_id, w.content_rating, w.display_nsfw, w.cover_art_all_explicit, w.title_nsfw`
+	w.site, w.product_work_id, w.content_rating, w.display_nsfw, w.cover_art_all_explicit, w.title_nsfw,
+	wt.import_review::text AS import_review`
 
 const walkthroughFrom = ` FROM catalog_walkthrough wt
 	JOIN catalog_work w ON w.id = wt.work_id
@@ -66,6 +69,11 @@ func (s *PublicService) WalkthroughsList(ctx context.Context, f WalkthroughsList
 	}
 	limit = clampBrowseLimit(limit)
 	where, args := walkthroughVisible(f.NSFW)
+	if f.Backlog {
+		where, args = worksListPopulation(true)
+		where = append(where, "wt.status = ?", "wt.import_review IS NOT NULL")
+		args = append(args, model.WalkthroughStatusHidden)
+	}
 	if pred, pargs := displayLimitWhere(f.DisplayLimits); pred != "" {
 		where = append(where, pred)
 		args = append(args, pargs...)
@@ -184,6 +192,13 @@ func (s *PublicService) walkthroughItems(ctx context.Context, rows []walkthrough
 			}, r.ContentRating),
 			EndingCount: r.EndingCount, SaveCount: r.SaveCount, SegmentCount: r.SegmentCount,
 			Characters: make([]dto.PublicWalkthroughCharacter, 0, len(chars)),
+		}
+		if r.ImportReview != nil {
+			var review model.WalkthroughImportReview
+			if err := json.Unmarshal([]byte(*r.ImportReview), &review); err != nil {
+				return nil, fmt.Errorf("walkthrough %d import_review: %w", r.ID, err)
+			}
+			item.ImportReview = &review
 		}
 		for _, ch := range chars {
 			pc := dto.PublicWalkthroughCharacter{Key: ch.Key, Name: ch.Name, Localized: map[string]dto.PublicLocalizedName{}}

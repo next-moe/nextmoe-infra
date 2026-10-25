@@ -2621,3 +2621,15 @@ Walkthroughs join the editing engine as `catalog.walkthrough`, editable from the
 - **Edit context.** The pins list publishes context rows (`matched_by` per link), so the editor can tell an auto-matched link from a confirmed one.
 
 **Migration**: `go run ./cmd/migrate catalog` against kun_catalog (the `migrate-catalog` job on deploy). It is additive: `catalog_walkthrough.lang text NOT NULL DEFAULT 'ja'` and `field_provenance jsonb NOT NULL DEFAULT '{}'` via AutoMigrate, plus `chk_catalog_walkthrough_lang`. Existing rows take the defaults. **Spec 2.67.0**: `source_url` becomes nullable, `lang` is read from the row, and the family enums gain `walkthrough`.
+
+## Walkthrough backlog (spec 2.68.0, 2026-10-26)
+
+The extraction gate sent 331 charts to `review`: they are structurally valid and every text in them is verbatim, but they miss choices (coverage under 0.9) or reach fewer endings than the page marks. Until now they were dropped like rejected ones, so a work such as 穢翼のユースティア had no walkthrough although both sites cover it. They are now imported hidden, so an editor can finish them instead of starting from nothing.
+
+- `gatedCharts` takes verdicts `ok` and `review`, so match, translate and apply all carry review charts. `rejected` (a non-verbatim text or a `Validate` problem) stays out.
+- `apply` creates a review chart with `status = hidden` and fills `catalog_walkthrough.import_review` from the extraction metrics: `missed` choice texts, `end_markers`, `endings_reached`, `coverage`. It never changes the status of an existing row; that stays with people.
+- `GET /v2/me/walkthrough-backlog` is `WalkthroughsList` with `Backlog`: hidden and `import_review IS NOT NULL`, with no age gate. It lives on the editing plane (`catalog:edit`), and items carry `import_review`.
+- Unhiding through `catalog.walkthrough.hidden` clears `import_review`, so a walkthrough a person later hides for another reason does not reappear in the backlog.
+- The editor lists the backlog at `/walkthroughs` and in the work's 攻略 section. An imported-incomplete walkthrough's editor shows the missed choices; one is struck through once the chart carries its text.
+
+**Migration**: `go run ./cmd/migrate catalog` against kun_catalog (the `migrate-catalog` job). It adds `catalog_walkthrough.import_review jsonb NULL`; every existing row is NULL. **Spec 2.68.0**, additive: one new operation and the optional `import_review` member.
