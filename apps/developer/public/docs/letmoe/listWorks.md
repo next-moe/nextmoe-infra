@@ -20,7 +20,8 @@ With `ids` it is a **batch lookup** of up to 100 catalog work ids, with
 every id that has no visible resource on letmoe echoed back in
 `missing`. This is how you ask "which of these games can be downloaded
 on letmoe" in one round trip. A batch answers a set, not a page, so
-`cursor`, `sort`, `limit` and `include_total` are refused alongside it.
+`cursor`, `sort`, `limit` and `include_total` alongside it are
+`MUTUALLY_EXCLUSIVE_PARAMETERS`.
 
 
 - 所属 API：letmoe 资源面（/v2/letmoe）

@@ -16,16 +16,17 @@ The download options of a resource
 The links `Resource` withholds. Needs the operator-granted
 `letmoe:files` scope.
 
-A `hosted` mirror's `url` is a direct link to letmoe's own file, minted
-for this answer and supporting `Range`. An `external_link` mirror is a
+A `hosted` mirror's `url` is a direct link to letmoe's own file,
+supporting `Range`. It is looked up for each answer and not promised
+to last: a replaced or taken-down file stops downloading, so do not
+store it. An `external_link` mirror is a
 link its publisher hosts elsewhere, with the share code and archive
 password it needs. A `composite` is the game and a moyu patch spliced
 into one download at the edge.
 
 Never cached: every answer, refusals included, is
 `Cache-Control: private, no-store`. Each successful answer counts one
-download on the resource. Ask again rather than keeping a `url`; a
-resource that is taken down stops downloading.
+download on the resource, so ask when a reader asks to download.
 
 
 - 所属 API：letmoe 资源面（/v2/letmoe）

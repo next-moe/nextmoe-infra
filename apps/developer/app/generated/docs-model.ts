@@ -357664,7 +357664,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/letmoe/works",
               "summary": "List or look up games with resources",
-              "description": "Without `ids` this is every game letmoe currently has a resource for,\npaged and sorted.\n\nWith `ids` it is a **batch lookup** of up to 100 catalog work ids, with\nevery id that has no visible resource on letmoe echoed back in\n`missing`. This is how you ask \"which of these games can be downloaded\non letmoe\" in one round trip. A batch answers a set, not a page, so\n`cursor`, `sort`, `limit` and `include_total` are refused alongside it.\n",
+              "description": "Without `ids` this is every game letmoe currently has a resource for,\npaged and sorted.\n\nWith `ids` it is a **batch lookup** of up to 100 catalog work ids, with\nevery id that has no visible resource on letmoe echoed back in\n`missing`. This is how you ask \"which of these games can be downloaded\non letmoe\" in one round trip. A batch answers a set, not a page, so\n`cursor`, `sort`, `limit` and `include_total` alongside it are\n`MUTUALLY_EXCLUSIVE_PARAMETERS`.\n",
               "scope": "",
               "params": [
                 {
@@ -357832,7 +357832,7 @@ export const docsModel: DocsModel = {
                 },
                 {
                   "status": "400",
-                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`MUTUALLY_EXCLUSIVE_PARAMETERS`, `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`,\n`UNKNOWN_INCLUDE`, `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or\n`TOO_MANY_IDS`, and `errors[0]` names the parameter.\n",
                   "schema": {
                     "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
                     "type": "object",
@@ -357868,6 +357868,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -357977,6 +357978,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -358086,6 +358088,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -358648,7 +358651,7 @@ export const docsModel: DocsModel = {
                 },
                 {
                   "status": "400",
-                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`MUTUALLY_EXCLUSIVE_PARAMETERS`, `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`,\n`UNKNOWN_INCLUDE`, `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or\n`TOO_MANY_IDS`, and `errors[0]` names the parameter.\n",
                   "schema": {
                     "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
                     "type": "object",
@@ -358684,6 +358687,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -358793,6 +358797,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -358902,6 +358907,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -359011,6 +359017,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -359497,7 +359504,7 @@ export const docsModel: DocsModel = {
                 },
                 {
                   "status": "400",
-                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`MUTUALLY_EXCLUSIVE_PARAMETERS`, `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`,\n`UNKNOWN_INCLUDE`, `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or\n`TOO_MANY_IDS`, and `errors[0]` names the parameter.\n",
                   "schema": {
                     "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
                     "type": "object",
@@ -359533,6 +359540,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -359642,6 +359650,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -359751,6 +359760,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -359860,6 +359870,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -359939,7 +359950,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/letmoe/resources/{id}/file",
               "summary": "The download options of a resource",
-              "description": "The links `Resource` withholds. Needs the operator-granted\n`letmoe:files` scope.\n\nA `hosted` mirror's `url` is a direct link to letmoe's own file, minted\nfor this answer and supporting `Range`. An `external_link` mirror is a\nlink its publisher hosts elsewhere, with the share code and archive\npassword it needs. A `composite` is the game and a moyu patch spliced\ninto one download at the edge.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Each successful answer counts one\ndownload on the resource. Ask again rather than keeping a `url`; a\nresource that is taken down stops downloading.\n",
+              "description": "The links `Resource` withholds. Needs the operator-granted\n`letmoe:files` scope.\n\nA `hosted` mirror's `url` is a direct link to letmoe's own file,\nsupporting `Range`. It is looked up for each answer and not promised\nto last: a replaced or taken-down file stops downloading, so do not\nstore it. An `external_link` mirror is a\nlink its publisher hosts elsewhere, with the share code and archive\npassword it needs. A `composite` is the game and a moyu patch spliced\ninto one download at the edge.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Each successful answer counts one\ndownload on the resource, so ask when a reader asks to download.\n",
               "scope": "letmoe:files",
               "params": [
                 {
@@ -360018,7 +360029,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "extract_code",
                               "required": true,
-                              "doc": "The netdisk share code",
+                              "doc": "The netdisk share code, empty when none.",
                               "type": "string"
                             },
                             {
@@ -360135,7 +360146,7 @@ export const docsModel: DocsModel = {
                 },
                 {
                   "status": "400",
-                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`MUTUALLY_EXCLUSIVE_PARAMETERS`, `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`,\n`UNKNOWN_INCLUDE`, `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or\n`TOO_MANY_IDS`, and `errors[0]` names the parameter.\n",
                   "schema": {
                     "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
                     "type": "object",
@@ -360171,6 +360182,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -360280,6 +360292,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -360389,6 +360402,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -360498,6 +360512,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",
@@ -360607,6 +360622,7 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "enum": [
                           "INVALID_PARAMETER",
+                          "MUTUALLY_EXCLUSIVE_PARAMETERS",
                           "UNKNOWN_ENUM_VALUE",
                           "LIMIT_TOO_LARGE",
                           "TOO_MANY_IDS",

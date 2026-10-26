@@ -80,7 +80,8 @@ paths:
         every id that has no visible resource on letmoe echoed back in
         `missing`. This is how you ask "which of these games can be downloaded
         on letmoe" in one round trip. A batch answers a set, not a page, so
-        `cursor`, `sort`, `limit` and `include_total` are refused alongside it.
+        `cursor`, `sort`, `limit` and `include_total` alongside it are
+        `MUTUALLY_EXCLUSIVE_PARAMETERS`.
       parameters:
         - $ref: '#/components/parameters/limit'
         - $ref: '#/components/parameters/cursor'
@@ -191,16 +192,17 @@ paths:
         The links `Resource` withholds. Needs the operator-granted
         `letmoe:files` scope.
 
-        A `hosted` mirror's `url` is a direct link to letmoe's own file, minted
-        for this answer and supporting `Range`. An `external_link` mirror is a
+        A `hosted` mirror's `url` is a direct link to letmoe's own file,
+        supporting `Range`. It is looked up for each answer and not promised
+        to last: a replaced or taken-down file stops downloading, so do not
+        store it. An `external_link` mirror is a
         link its publisher hosts elsewhere, with the share code and archive
         password it needs. A `composite` is the game and a moyu patch spliced
         into one download at the edge.
 
         Never cached: every answer, refusals included, is
         `Cache-Control: private, no-store`. Each successful answer counts one
-        download on the resource. Ask again rather than keeping a `url`; a
-        resource that is taken down stops downloading.
+        download on the resource, so ask when a reader asks to download.
       parameters:
         - $ref: '#/components/parameters/resourceId'
         - $ref: '#/components/parameters/nsfw'
@@ -293,9 +295,9 @@ components:
     BadRequest:
       description: |
         The request could not be parsed. `code` is one of `INVALID_PARAMETER`,
-        `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,
-        `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`
-        names the parameter.
+        `MUTUALLY_EXCLUSIVE_PARAMETERS`, `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`,
+        `UNKNOWN_INCLUDE`, `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or
+        `TOO_MANY_IDS`, and `errors[0]` names the parameter.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
@@ -552,7 +554,9 @@ components:
             - type: string
               const: ''
         url: { type: string, format: uri }
-        extract_code: { type: string, description: The netdisk share code, empty when none. }
+        extract_code:
+          type: string
+          description: The netdisk share code, empty when none.
         archive_password: { type: string, description: Empty when the archive has none. }
         note: { type: string }
         region: { type: string }
@@ -721,6 +725,7 @@ components:
           type: string
           enum:
             - INVALID_PARAMETER
+            - MUTUALLY_EXCLUSIVE_PARAMETERS
             - UNKNOWN_ENUM_VALUE
             - LIMIT_TOO_LARGE
             - TOO_MANY_IDS
@@ -738,6 +743,7 @@ components:
             - SERVICE_UNAVAILABLE
         request_id:
           type: string
+          pattern: '^req_[0-9A-HJKMNP-TV-Z]{26}$'
           description: Also sent as `X-Request-ID`. Quote it in a support request.
         errors:
           type: array
