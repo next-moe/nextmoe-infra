@@ -47,8 +47,8 @@ Keyset-paginated work collection. q= switches to search (sort defaults to releva
 | `series_id` | query | 否 | string | Catalog series id. |
 | `engine_id` | query | 否 | string | Catalog engine id. |
 | `platform` | query | 否 | string | Open vocabulary platform token. Unknown matches nothing. |
-| `released_after` | query | 否 | string | YYYY-MM-DD inclusive, earliest release per work. |
-| `released_before` | query | 否 | string | YYYY-MM-DD inclusive, earliest release per work. |
+| `released_after` | query | 否 | string | YYYY-MM-DD inclusive, on each work's release_date. |
+| `released_before` | query | 否 | string | YYYY-MM-DD inclusive, on each work's release_date. |
 | `olang` | query | 否 | string | Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate. |
 | `page` | query | 否 | string | 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. |
 

@@ -255,16 +255,17 @@ func (s *PublicService) CalendarPage(ctx context.Context, b CalendarBucket, f Ca
 
 func calendarSource(b CalendarBucket, f CalendarFilter) (from string, where []string, args []any) {
 	from = `FROM catalog_work w`
+	workOrd := model.WorkReleaseOrdSQL("r", "")
 	if lo, hi, dated := b.window(); dated {
 		from += `
-			JOIN (SELECT r.work_id, min(` + releaseOrd("r") + `) AS ord
+			JOIN (SELECT r.work_id, ` + workOrd + ` AS ord
 				FROM catalog_release r
-				WHERE r.released_y IS NOT NULL AND r.deleted_at IS NULL
+				WHERE r.deleted_at IS NULL
 				  AND r.work_id IN (SELECT c.work_id FROM catalog_release c
 					WHERE c.released_y IS NOT NULL AND c.deleted_at IS NULL
-					  AND ` + releaseOrd("c") + ` BETWEEN ? AND ?)
+					  AND ` + model.ReleaseOrdSQL("c") + ` BETWEEN ? AND ?)
 				GROUP BY r.work_id
-				HAVING min(` + releaseOrd("r") + `) BETWEEN ? AND ?) e ON e.work_id = w.id`
+				HAVING ` + workOrd + ` BETWEEN ? AND ?) e ON e.work_id = w.id`
 		args = append(args, lo, hi, lo, hi)
 	}
 
@@ -277,13 +278,9 @@ func calendarSource(b CalendarBucket, f CalendarFilter) (from string, where []st
 	if b.Kind == CalendarTBABucket {
 		where = append(where,
 			"EXISTS (SELECT 1 FROM catalog_release r WHERE r.work_id = w.id AND r.deleted_at IS NULL)",
-			"NOT EXISTS (SELECT 1 FROM catalog_release r WHERE r.work_id = w.id AND r.deleted_at IS NULL AND r.released_y IS NOT NULL)")
+			"NOT EXISTS (SELECT 1 FROM catalog_release r WHERE r.work_id = w.id AND r.deleted_at IS NULL AND r.released_y IS NOT NULL AND "+model.ReleaseDatesWorkSQL("r")+")")
 	}
 	return from, where, args
-}
-
-func releaseOrd(alias string) string {
-	return alias + ".released_y::int * 10000 + coalesce(" + alias + ".released_m,0)::int * 100 + coalesce(" + alias + ".released_d,0)::int"
 }
 
 // Walking in from each end (ORDER BY ord OFFSET 0 in a subquery, the rule as an
@@ -312,10 +309,10 @@ func (s *PublicService) CalendarBounds(ctx context.Context, f CalendarFilter) (m
 		MaxOrd *int64 `gorm:"column:max_ord"`
 	}
 	q := `SELECT min(e.ord) AS min_ord, max(e.ord) AS max_ord
-		FROM (SELECT min(` + releaseOrd("r") + `) AS ord
+		FROM (SELECT ` + model.WorkReleaseOrdSQL("r", "") + ` AS ord
 			FROM catalog_release r
 			JOIN catalog_work w ON w.id = r.work_id
-			WHERE r.released_y IS NOT NULL AND r.deleted_at IS NULL
+			WHERE r.deleted_at IS NULL
 				AND ` + strings.Join(where, " AND ") + `
 			GROUP BY r.work_id) e`
 	if err := s.db.WithContext(ctx).Raw(q, args...).Scan(&row).Error; err != nil {

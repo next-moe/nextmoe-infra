@@ -259,7 +259,7 @@ func (s *PublicService) WorkDetail(ctx context.Context, id int64, inc PublicIncl
 		OLang:         w.OLang,
 		ContentRating: contentRatingKey(w.ContentRating),
 		ContentLimit:  shelfLimitKey(w.Site, w.ProductWorkID, limits[w.ID], w.ContentRating),
-		ReleaseDate:   earliestReleaseDate(detail.Releases),
+		ReleaseDate:   workReleaseDate(detail.Releases),
 		Titles:        publicTitles(detail.Titles),
 		Latin:         workLatin(detail.Titles, w.DisplayName),
 		Localized:     workLocalized(detail.Titles),
@@ -1189,31 +1189,29 @@ func claimedBy(site *string, productWorkID *int64, claimState *int16, f shelfFac
 	}
 }
 
-func earliestReleaseDate(releases []ReleaseDetail) *string {
-	var bestY, bestM, bestD int16
-	found := false
+func workReleaseDate(releases []ReleaseDetail) *string {
+	hasFull := false
+	for _, rd := range releases {
+		if model.IsFullReleaseKind(rd.Release.Kind) {
+			hasFull = true
+			break
+		}
+	}
+	var best int64
 	for _, rd := range releases {
 		r := rd.Release
-		if r.ReleasedY == nil {
+		if r.ReleasedY == nil || (hasFull && !model.IsFullReleaseKind(r.Kind)) {
 			continue
 		}
-		y := *r.ReleasedY
-		m := derefI16Pub(r.ReleasedM)
-		d := derefI16Pub(r.ReleasedD)
-		if !found || y < bestY || (y == bestY && m < bestM) || (y == bestY && m == bestM && d < bestD) {
-			bestY, bestM, bestD, found = y, m, d, true
+		ord := int64(*r.ReleasedY)*10000 + int64(derefI16Pub(r.ReleasedM))*100 + int64(derefI16Pub(r.ReleasedD))
+		if best == 0 || ord < best {
+			best = ord
 		}
 	}
-	if !found {
+	if best == 0 {
 		return nil
 	}
-	s := fmt.Sprintf("%04d", bestY)
-	if bestM > 0 {
-		s = fmt.Sprintf("%s-%02d", s, bestM)
-		if bestD > 0 {
-			s = fmt.Sprintf("%s-%02d", s, bestD)
-		}
-	}
+	s := partialISOFromOrdinal(best)
 	return &s
 }
 

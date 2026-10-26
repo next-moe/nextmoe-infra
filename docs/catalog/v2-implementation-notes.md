@@ -2671,3 +2671,15 @@ The editor's create-work page sent the original title as `{"lang": …, "title":
 - **Titles.** An absent or `null` `lang` reads as `""`, so only an alias may leave it out, as before. A blank `latin` is stored as no latin instead of being refused, which matches the alias fields.
 
 No spec change: the schema already published these members as nullable. **Zero migrations.**
+
+## A work's release date is its full release (spec 2.72.0, 2026-10-26)
+
+A user reported that games with a trial out and the full version still to come were missing from the release calendar. Work 5769 has a 体験版 dated 2026-09-04 and its 通常版 / 豪華限定版 dated 2026-10-30. Every face took a work's date as the earliest dated release of any kind. So the calendar put 5769 in September, a month that had already passed. Its card printed 2026-09-04, and `release_status` read `released` a month before the game was out. On the local catalog copy, 6,778 live galgame works were dated by an earlier trial or patch, and 116 of them belong to a month from 2026-10 on.
+
+- **The rule.** A work's date is its earliest dated default, digital or physical release. A trial or a patch dates the work only when the work has no release of those three kinds at all. A full release that exists but is undated leaves the work undated (the TBA bucket), even if a trial has a date: 409 works moved there. The 2,287 works known only as trials or patches keep their dates.
+- **One definition.** `model.WorkReleaseOrdSQL` (the aggregate), `model.ReleaseDatesWorkSQL` (the row predicate) and `model.IsFullReleaseKind` (detail, in Go). These three are now the only definitions, and every face reads its date from them: the calendar month, pending and TBA buckets and their bounds, the works list `release_date` and `released_after` / `released_before`, the work detail `release_date`, related works, the release feed's `is_first`, the search index's `released_ord` (`cmd/reindex-catalog`) and series ordering (`jobs/seriesorder`).
+- **Query cost.** The TBA bucket is a nested anti-join, "no dated row that dates the work". Written as the aggregate it was an `OR` of subplans that the planner costed at 1.3M, and it took 140 ms instead of 17 ms. The month bucket (about 30 ms), the bounds (about 23 ms) and the works list release filter (about 115 ms) are unchanged.
+- **Gate.** `TestWorkReleaseDateIsTheFullRelease` covers the four shapes across every service face: trial before full, undated full plus a dated trial, trial only, and patch before digital.
+- **Search.** The OpenSearch `released_ord` is written only by `cmd/reindex-catalog`, which is run by hand (`docker compose -f docker-compose.prod.yml --profile jobs run --rm tools reindex-catalog --batch=5000`). Until that run after the deploy, `released_*` sorting and filtering on `works/search` still use the old date.
+
+**Spec 2.72.0**: doc strings only (`release_date`, `released_after` / `released_before`, the calendar description). **Zero migrations.**
