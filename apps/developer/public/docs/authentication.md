@@ -49,7 +49,7 @@
 `claim_events:read` 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。
 
 > [!NOTE]
-> [`/v2/moyu/*`](/docs/moyu-patches) 与 [`/v2/sticker/*`](/docs/sticker-packs) 两个下游面（面联邦，gateway-terminated）**不需要任何 scope**——任意有效应用密钥都能调用，网关只看密钥本身与限流。它们也**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
+> [`/v2/moyu/*`](/docs/moyu-patches)、[`/v2/sticker/*`](/docs/sticker-packs) 与 [`/v2/letmoe/*`](/docs/letmoe) 三个下游面（面联邦，gateway-terminated）**不需要任何 scope**——任意有效应用密钥都能调用，网关只看密钥本身与限流；唯一的例外是两条 `/file` 下载路由，要运营发放的 `moyu:files` / `letmoe:files`，由下游站点自己判。它们也**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
 
 ## 用户访问令牌
 

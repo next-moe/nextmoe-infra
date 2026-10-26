@@ -1,0 +1,765 @@
+openapi: 3.1.0
+info:
+  title: NextMoe letmoe Face
+  version: 1.0.0
+  x-stability: stable
+  summary: Which download resources 一起萌 (www.letmoe.com) holds for a game.
+  description: |
+    The `letmoe` face of the NextMoe developer platform.
+
+    It answers one question: **for this game, what can be downloaded on
+    letmoe?** A game is named by its NextMoe catalog work id, which is also
+    letmoe's own game id — `/game/{id}` on the site and `{id}` here are the
+    same number, and so is `/v2/catalog/works/{id}`.
+
+    ### What this face is not
+
+    It carries no game titles, covers, tags or staff. Catalog owns those and
+    the same key that reads this face reads `/v2/catalog/works`, so resolve
+    them there.
+
+    Its metadata operations carry **no download link, share code or
+    password**. Every resource carries a `web_url`; send a reader there.
+
+    The exception is `GET /v2/letmoe/resources/{id}/file`, which answers the
+    download options of a resource — letmoe's own hosted file as a direct
+    link, off-site links with their share code and archive password, and
+    merged downloads — to a key holding the `letmoe:files` scope. An operator
+    grants that scope; it is not self-service, and every other key is refused
+    with `SCOPE_REQUIRED`. Each successful answer counts one download on the
+    resource, so ask when a reader asks to download, not ahead of time.
+
+    ### Authentication
+
+    Send a NextMoe application key as `X-API-Key` or as
+    `Authorization: Bearer nmk_live_…`. Any valid key is admitted to the
+    metadata operations; the gateway's job there is identity and metering.
+    The key's rate and quota budget is spent at the gateway, which answers
+    `X-RateLimit-*` and `X-Quota-*` on every response.
+
+    **A browser cannot call this face directly.** The gateway authenticates
+    every method including `OPTIONS`, and a preflight carries no key. Call it
+    from your server.
+
+    ### Conventions
+
+    Shared with catalog `/v2` and the moyu face:
+
+    - every id is a **string**;
+    - collections page by opaque `cursor`, and `total` is opt-in via
+      `include_total=true`;
+    - relations are opt-in via `include=`;
+    - timestamps are RFC 3339 in UTC;
+    - adult works are left out unless you pass `nsfw=true`, on every
+      operation, and a resource of one is `NOT_FOUND` without it;
+    - failures are RFC 9457 `application/problem+json` with a `code` from the
+      platform's closed registry. `401` and `429` are written by the gateway.
+  contact:
+    name: www.letmoe.com
+    url: https://www.letmoe.com
+servers:
+  - url: https://api.nextmoe.dev
+    description: Production
+security:
+  - apiKey: []
+  - bearerKey: []
+tags:
+  - name: resources
+    description: Games letmoe holds resources for, and the resources.
+paths:
+  /v2/letmoe/works:
+    get:
+      operationId: listWorks
+      tags: [resources]
+      summary: List or look up games with resources
+      description: |
+        Without `ids` this is every game letmoe currently has a resource for,
+        paged and sorted.
+
+        With `ids` it is a **batch lookup** of up to 100 catalog work ids, with
+        every id that has no visible resource on letmoe echoed back in
+        `missing`. This is how you ask "which of these games can be downloaded
+        on letmoe" in one round trip. A batch answers a set, not a page, so
+        `cursor`, `sort`, `limit` and `include_total` are refused alongside it.
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/includeTotal'
+        - $ref: '#/components/parameters/nsfw'
+        - name: ids
+          in: query
+          description: Up to 100 catalog work ids.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items: { type: string, pattern: '^[0-9]+$' }
+          example: ['61311', '2002']
+        - name: sort
+          in: query
+          description: |
+            All descending. `updated` orders by when a resource of the game was
+            last published or changed.
+          schema:
+            type: string
+            enum: [updated, downloads, views]
+            default: updated
+      responses:
+        '200':
+          description: A page of games, or the batch answer.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkList' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /v2/letmoe/works/{id}/resources:
+    get:
+      operationId: listWorkResources
+      tags: [resources]
+      summary: The resources of one game
+      description: |
+        Most recently changed first. Only published resources are listed; one
+        under review, taken down or deleted is absent here and `404` at its own
+        URL, exactly as on the site. A game letmoe has never held a resource
+        for is `404`; one whose resources are all gone is an empty list.
+      parameters:
+        - $ref: '#/components/parameters/workId'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/includeTotal'
+        - $ref: '#/components/parameters/nsfw'
+        - name: type
+          in: query
+          description: Comma-separated resource kinds; any of them matches.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/ResourceType' }
+          example: [game, patch]
+        - $ref: '#/components/parameters/resourceInclude'
+      responses:
+        '200':
+          description: A page of resources.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceList' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /v2/letmoe/resources/{id}:
+    get:
+      operationId: getResource
+      tags: [resources]
+      summary: One resource
+      parameters:
+        - $ref: '#/components/parameters/resourceId'
+        - $ref: '#/components/parameters/nsfw'
+        - $ref: '#/components/parameters/resourceInclude'
+      responses:
+        '200':
+          description: The resource.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /v2/letmoe/resources/{id}/file:
+    get:
+      operationId: getResourceFile
+      tags: [resources]
+      summary: The download options of a resource
+      description: |
+        The links `Resource` withholds. Needs the operator-granted
+        `letmoe:files` scope.
+
+        A `hosted` mirror's `url` is a direct link to letmoe's own file, minted
+        for this answer and supporting `Range`. An `external_link` mirror is a
+        link its publisher hosts elsewhere, with the share code and archive
+        password it needs. A `composite` is the game and a moyu patch spliced
+        into one download at the edge.
+
+        Never cached: every answer, refusals included, is
+        `Cache-Control: private, no-store`. Each successful answer counts one
+        download on the resource. Ask again rather than keeping a `url`; a
+        resource that is taken down stops downloading.
+      parameters:
+        - $ref: '#/components/parameters/resourceId'
+        - $ref: '#/components/parameters/nsfw'
+      responses:
+        '200':
+          description: The download options.
+          headers:
+            Cache-Control: { $ref: '#/components/headers/CacheControlPrivate' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceFiles' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/ScopeRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        A NextMoe application key (`nmk_live_` / `nmk_test_`), minted in the
+        developer portal. Any valid key may call this face, except the file
+        route, which needs `letmoe:files`.
+    bearerKey:
+      type: http
+      scheme: bearer
+      description: 'The same key as `Authorization: Bearer nmk_live_...`.'
+  headers:
+    ETag:
+      description: Entity tag; send it back as `If-None-Match` for a `304`.
+      schema: { type: string }
+    CacheControl:
+      description: '`public, max-age=300, s-maxage=1800, stale-while-revalidate=3600`'
+      schema: { type: string, const: 'public, max-age=300, s-maxage=1800, stale-while-revalidate=3600' }
+    CacheControlPrivate:
+      description: '`private, no-store`'
+      schema: { type: string, const: 'private, no-store' }
+  parameters:
+    workId:
+      name: id
+      in: path
+      required: true
+      description: Catalog work id, which is also letmoe's game id.
+      schema: { type: string, pattern: '^[0-9]+$' }
+      example: '61311'
+    resourceId:
+      name: id
+      in: path
+      required: true
+      description: letmoe resource id.
+      schema: { type: string, pattern: '^[0-9]+$' }
+      example: '1024'
+    limit:
+      name: limit
+      in: query
+      description: 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    cursor:
+      name: cursor
+      in: query
+      description: The `next_cursor` from a previous page of the same collection.
+      schema: { type: string, pattern: '^cur_[A-Za-z0-9._~-]+$' }
+    includeTotal:
+      name: include_total
+      in: query
+      description: Count the whole collection. Absent by default because it costs a count.
+      schema: { type: boolean, default: false }
+    nsfw:
+      name: nsfw
+      in: query
+      description: |
+        Include games whose display verdict is adult (`content_limit: nsfw`).
+        Off by default, matching catalog's own convention.
+      schema: { type: boolean, default: false }
+    resourceInclude:
+      name: include
+      in: query
+      description: Comma-separated relations to attach.
+      style: form
+      explode: false
+      schema:
+        type: array
+        items: { type: string, enum: [publisher] }
+  responses:
+    NotModified:
+      description: The `If-None-Match` entity tag still matches.
+    BadRequest:
+      description: |
+        The request could not be parsed. `code` is one of `INVALID_PARAMETER`,
+        `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,
+        `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`
+        names the parameter.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ScopeRequired:
+      description: |
+        The key is valid but lacks the scope this operation needs. `code` is
+        `SCOPE_REQUIRED`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Nothing visible exists at this URL.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    RateLimited:
+      description: |
+        The key's rate limit or quota is spent. Written by the gateway: `code`
+        is `RATE_LIMITED` or `QUOTA_EXCEEDED`. `Retry-After` says when to come
+        back.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ServiceUnavailable:
+      description: A dependency is unavailable. The request may be retried.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    WorkList:
+      type: object
+      required: [object, items, next_cursor, total]
+      properties:
+        object: { type: string, const: list }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Work' }
+        next_cursor:
+          type: [string, 'null']
+          description: Pass as `cursor` for the next page. Null on the last page.
+        total:
+          type: [integer, 'null']
+          description: Null unless `include_total=true`.
+        missing:
+          type: array
+          description: Only on the `ids` lane. The ids that matched nothing, as you spelled them.
+          items: { type: string, pattern: '^[0-9]+$' }
+    Work:
+      type: object
+      description: A game letmoe holds resources for. Names and covers live in catalog.
+      required:
+        - object
+        - id
+        - content_limit
+        - resource_count
+        - has_direct_download
+        - has_chinese_resource
+        - download_count
+        - view_count
+        - resource_updated_at
+        - web_url
+      properties:
+        object: { type: string, const: letmoe_work }
+        id:
+          type: string
+          pattern: '^[0-9]+$'
+          description: The catalog work id, for `/v2/catalog/works/{id}`.
+          examples: ['61311']
+        content_limit: { $ref: '#/components/schemas/ContentLimit' }
+        resource_count: { type: integer, description: Published resources. }
+        has_direct_download:
+          type: boolean
+          description: A published resource downloads without a netdisk — a hosted file, a merged download or a direct link.
+        has_chinese_resource:
+          type: boolean
+          description: A published resource is in Simplified or Traditional Chinese.
+        download_count: { type: integer }
+        view_count: { type: integer }
+        resource_updated_at:
+          type: string
+          format: date-time
+          description: When a resource of the game was last published or changed.
+        web_url:
+          type: string
+          format: uri
+          description: The game on letmoe.
+    ResourceList:
+      type: object
+      required: [object, items, next_cursor, total]
+      properties:
+        object: { type: string, const: list }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Resource' }
+        next_cursor: { type: [string, 'null'] }
+        total: { type: [integer, 'null'] }
+    Resource:
+      type: object
+      description: |
+        One downloadable item. Carries no link, code or password by design —
+        `web_url` is the way to it, and `/file` is the way to its links.
+      required:
+        - object
+        - id
+        - work_id
+        - title
+        - type
+        - origin
+        - version
+        - applicable_game_version
+        - language
+        - platform
+        - runtime
+        - engine_id
+        - size
+        - bytes
+        - blake3
+        - prerequisites
+        - description
+        - install_note
+        - content_warning
+        - content_limit
+        - providers
+        - mirror_count
+        - direct_download
+        - composite_count
+        - rating
+        - download_count
+        - view_count
+        - web_url
+        - created_at
+        - updated_at
+      properties:
+        object: { type: string, const: letmoe_resource }
+        id: { type: string, pattern: '^[0-9]+$' }
+        work_id:
+          type: string
+          pattern: '^[0-9]+$'
+          description: The catalog work id.
+        title:
+          type: string
+          description: |
+            The title letmoe shows, never empty. Most resources carry no title
+            of their own and are named by their game: the work's catalog name,
+            then platform, language and type, in Chinese — for example
+            `心跳文学部 Windows 电脑版 / 安卓手机版 简体中文游戏本体资源下载`.
+        type: { $ref: '#/components/schemas/ResourceType' }
+        origin:
+          type: string
+          enum: [official, original, repost, unknown]
+          description: |
+            `official` is the work's own distribution, `original` is the
+            submitter's own work, `repost` is someone else's work reposted.
+        version:
+          type: string
+          description: The version the submitter labelled it with, free text. Empty when none.
+        applicable_game_version:
+          type: string
+          description: For a patch or a mod, the game version it applies to. Free text.
+        language:
+          type: array
+          items: { $ref: '#/components/schemas/Language' }
+        platform:
+          type: array
+          items: { $ref: '#/components/schemas/Platform' }
+        runtime:
+          type: array
+          description: |
+            What it runs on, letmoe's own vocabulary (`native-win`,
+            `kirikiroid2`, `joiplay`, …). Open: treat an unknown token as text.
+          items: { type: string }
+        engine_id:
+          type: [string, 'null']
+          pattern: '^[0-9]+$'
+          description: A catalog engine id, for `/v2/catalog/engines`.
+        size:
+          type: string
+          description: As the submitter gave it, digits and `MB` or `GB`. Empty when unknown.
+          examples: ['1.2 GB']
+        bytes:
+          type: [integer, 'null']
+          format: int64
+          description: The same size in bytes, or the hosted file's exact size when letmoe measured it.
+        blake3:
+          type: string
+          pattern: '^([0-9a-f]{64})?$'
+          description: BLAKE3 of the hosted file, empty when letmoe has none.
+        prerequisites: { type: string, description: What the reader needs first. Plain text. }
+        description: { type: string, description: Markdown source. }
+        install_note: { type: string, description: Markdown source. }
+        content_warning: { type: string }
+        content_limit: { $ref: '#/components/schemas/ContentLimit' }
+        providers:
+          type: array
+          description: Where the mirrors live. A hosted file is `direct`.
+          items: { $ref: '#/components/schemas/Provider' }
+        mirror_count: { type: integer }
+        direct_download:
+          type: boolean
+          description: One of the mirrors or a merged download downloads without a netdisk.
+        composite_count:
+          type: integer
+          description: Merged downloads (this resource plus a moyu patch) offered alongside.
+        rating:
+          type: object
+          required: [quality, stability, compatibility, count]
+          properties:
+            quality: { type: [number, 'null'], minimum: 1, maximum: 5 }
+            stability: { type: [number, 'null'], minimum: 1, maximum: 5 }
+            compatibility: { type: [number, 'null'], minimum: 1, maximum: 5 }
+            count: { type: integer }
+        download_count: { type: integer }
+        view_count: { type: integer }
+        web_url:
+          type: string
+          format: uri
+          description: The resource on letmoe. Where a reader goes to download.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        publisher:
+          description: Only with `include=publisher`, and absent when the profile could not be read.
+          $ref: '#/components/schemas/User'
+    ResourceFiles:
+      type: object
+      description: The download options of a resource.
+      required: [object, resource_id, mirrors, composites]
+      properties:
+        object: { type: string, const: letmoe_resource_files }
+        resource_id: { type: string, pattern: '^[0-9]+$' }
+        mirrors:
+          type: array
+          description: The primary mirror first.
+          items: { $ref: '#/components/schemas/Mirror' }
+        composites:
+          type: array
+          items: { $ref: '#/components/schemas/Composite' }
+    Mirror:
+      type: object
+      required: [object, id, kind, provider, url, extract_code, archive_password, note, region, is_primary]
+      properties:
+        object: { type: string, const: letmoe_mirror }
+        id: { type: string, pattern: '^[0-9]+$' }
+        kind:
+          type: string
+          enum: [hosted, external_link]
+          description: |
+            `hosted` is letmoe's own file and `url` is a direct link to it. It
+            has no provider, share code or archive password: hosted files are
+            plain zips. `external_link` is hosted elsewhere.
+        provider:
+          description: Empty on a `hosted` mirror.
+          oneOf:
+            - $ref: '#/components/schemas/Provider'
+            - type: string
+              const: ''
+        url: { type: string, format: uri }
+        extract_code: { type: string, description: The netdisk share code, empty when none. }
+        archive_password: { type: string, description: Empty when the archive has none. }
+        note: { type: string }
+        region: { type: string }
+        is_primary: { type: boolean }
+    Composite:
+      type: object
+      description: This resource and a moyu patch, spliced into one download at the edge.
+      required: [object, id, url, filename, bytes, blake3, patch]
+      properties:
+        object: { type: string, const: letmoe_composite }
+        id: { type: string, pattern: '^[0-9]+$' }
+        url: { type: string, format: uri }
+        filename: { type: string }
+        bytes: { type: integer, format: int64 }
+        blake3: { type: string, pattern: '^([0-9a-f]{64})?$' }
+        patch:
+          type: object
+          required: [moyu_resource_id, name, type, language, publisher]
+          properties:
+            moyu_resource_id:
+              type: string
+              pattern: '^[0-9]+$'
+              description: For `/v2/moyu/resources/{id}`.
+            name: { type: string }
+            type:
+              type: array
+              description: moyu's patch kinds.
+              items: { type: string }
+            language:
+              type: array
+              description: moyu's languages.
+              items: { type: string }
+            publisher: { type: string, description: The patch author's display name. }
+    User:
+      type: object
+      description: |
+        Who published it. The profile belongs to the NextMoe identity service;
+        `id` is the same number on every NextMoe site.
+      required: [object, id, name, avatar_url, web_url]
+      properties:
+        object: { type: string, const: user }
+        id: { type: string, pattern: '^[0-9]+$' }
+        name: { type: string }
+        avatar_url: { type: string }
+        web_url: { type: string, format: uri }
+    ContentLimit:
+      type: string
+      enum: [sfw, nsfw]
+      description: Catalog's display verdict for the game, as letmoe mirrors it.
+    ResourceType:
+      type: string
+      enum:
+        - game
+        - collection
+        - patch
+        - translation
+        - crack_fix
+        - mod
+        - save
+        - walkthrough
+        - tool
+        - ost
+        - theme_song
+        - drama
+        - asmr
+        - voice
+        - wallpaper
+        - cg
+        - artbook
+        - comic
+        - video
+        - novel
+        - manual
+        - append
+        - asset
+        - other
+    Language:
+      type: string
+      enum: [zh-cn, zh-tw, ja-jp, en-us, other]
+    Platform:
+      type: string
+      description: A key of catalog's platform registry, the same keys a catalog work's `platforms` carry.
+      enum:
+        - win
+        - and
+        - ios
+        - mac
+        - lin
+        - web
+        - mob
+        - swi
+        - sw2
+        - n3d
+        - nds
+        - wii
+        - wiu
+        - gba
+        - gbc
+        - nes
+        - sfc
+        - ps1
+        - ps2
+        - ps3
+        - ps4
+        - ps5
+        - psp
+        - psv
+        - xb1
+        - xb3
+        - xbo
+        - xxs
+        - sat
+        - smd
+        - scd
+        - drc
+        - pce
+        - pcf
+        - tdo
+        - p88
+        - p98
+        - x1s
+        - x68
+        - fm7
+        - fm8
+        - fmt
+        - msx
+        - dos
+        - dvd
+        - bdp
+        - vnd
+        - oth
+    Provider:
+      type: string
+      enum:
+        - direct
+        - baidu
+        - quark
+        - uc
+        - pan123
+        - xunlei
+        - caiyun
+        - aliyun
+        - lanzou
+        - tianyi
+        - weiyun
+        - pikpak
+        - onedrive
+        - googledrive
+        - mega
+        - telegram
+        - other
+    Problem:
+      type: object
+      description: RFC 9457 problem details, same shape as catalog `/v2`.
+      required: [type, title, status, detail, instance, code, request_id, errors]
+      properties:
+        type:
+          type: string
+          format: uri
+          pattern: '^https://developer\.nextmoe\.dev/problems/platform/[a-z0-9-]+$'
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string }
+        code:
+          type: string
+          enum:
+            - INVALID_PARAMETER
+            - UNKNOWN_ENUM_VALUE
+            - LIMIT_TOO_LARGE
+            - TOO_MANY_IDS
+            - INVALID_CURSOR
+            - UNKNOWN_INCLUDE
+            - UNKNOWN_SORT
+            - MISSING_CREDENTIAL
+            - INVALID_CREDENTIAL
+            - SCOPE_REQUIRED
+            - NOT_FOUND
+            - METHOD_NOT_ALLOWED
+            - RATE_LIMITED
+            - QUOTA_EXCEEDED
+            - INTERNAL_ERROR
+            - SERVICE_UNAVAILABLE
+        request_id:
+          type: string
+          description: Also sent as `X-Request-ID`. Quote it in a support request.
+        errors:
+          type: array
+          description: Field-level failures. Empty when the failure is not field-level.
+          items: { $ref: '#/components/schemas/FieldError' }
+    FieldError:
+      type: object
+      required: [parameter, reason, detail]
+      properties:
+        parameter:
+          type: string
+          enum:
+            - cursor
+            - id
+            - ids
+            - include
+            - include_total
+            - limit
+            - nsfw
+            - sort
+            - type
+        reason:
+          type: string
+          enum: [INVALID_FORMAT, OUT_OF_RANGE, TOO_MANY_ITEMS, UNKNOWN_VALUE, NOT_ALLOWED_VALUE]
+        detail: { type: string }

@@ -357629,6 +357629,3061 @@ export const docsModel: DocsModel = {
           ]
         }
       ]
+    },
+    {
+      "key": "letmoe",
+      "label": "letmoe 资源",
+      "name": "letmoe 资源面",
+      "baseUrl": "https://api.nextmoe.dev",
+      "prefix": "/v2/letmoe",
+      "specUrl": "https://developer.nextmoe.dev/specs/letmoe-openapi.yaml",
+      "auth": {
+        "kind": "api_key",
+        "curl": "Authorization: Bearer nmk_live_<YOUR_KEY>",
+        "display": "Authorization: Bearer nmk_live_…",
+        "note": "任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/letmoe/resources/{id}/file,要运营发放的 letmoe:files"
+      },
+      "notes": [
+        "下游站点面：由 一起萌（www.letmoe.com）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。",
+        "它只回答一件事：这部游戏在 letmoe 上能下载到什么。作品 id 就是 catalog 的作品 id，也是 letmoe 自己的游戏 id——/v2/letmoe/works/{id}、站上的 /game/{id} 与 /v2/catalog/works/{id} 是同一个数。",
+        "任意有效 nmk_ 应用密钥都能调元数据接口，不需要任何 scope——网关只做身份、计量与限流，不做授权。元数据里不带下载链接、提取码与解压密码，每条资源都给 web_url，把读者送过去。",
+        "唯一例外是 /v2/letmoe/resources/{id}/file：对持有 letmoe:files 的密钥给出全部下载方式——letmoe 托管文件的直链、外部网盘链接连同提取码与解压密码、以及与 moyu 补丁合并的下载。这个 scope 由运营发放、不能自助勾选，其余密钥一律 403 SCOPE_REQUIRED。答案一律 no-store，每次成功都给资源记一次下载，所以在读者点下载时再调，不要预取。",
+        "也不带游戏名、封面、标签与 staff：那些归 catalog，同一把密钥读 /v2/catalog/works 即可。",
+        "/v2/letmoe/works 上的 ids= 是批量问法：一次最多 100 个作品 id，没有可见资源的原样回在 missing[] 里。这是「我手上这 100 部作品哪些能在 letmoe 下载」的一次性问法，此时 cursor、sort、limit 与 include_total 会被拒。",
+        "约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。每个接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。",
+        "错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和 letmoe 写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。",
+        "只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路——nmk_ 密钥本来也不该出现在浏览器里。"
+      ],
+      "groups": [
+        {
+          "key": "works",
+          "label": "作品",
+          "operations": [
+            {
+              "id": "listWorks",
+              "method": "get",
+              "path": "/v2/letmoe/works",
+              "summary": "List or look up games with resources",
+              "description": "Without `ids` this is every game letmoe currently has a resource for,\npaged and sorted.\n\nWith `ids` it is a **batch lookup** of up to 100 catalog work ids, with\nevery id that has no visible resource on letmoe echoed back in\n`missing`. This is how you ask \"which of these games can be downloaded\non letmoe\" in one round trip. A batch answers a set, not a page, so\n`cursor`, `sort`, `limit` and `include_total` are refused alongside it.\n",
+              "scope": "",
+              "params": [
+                {
+                  "name": "limit",
+                  "in": "query",
+                  "required": false,
+                  "type": "integer",
+                  "doc": "1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped."
+                },
+                {
+                  "name": "cursor",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "boolean",
+                  "doc": "Count the whole collection. Absent by default because it costs a count."
+                },
+                {
+                  "name": "nsfw",
+                  "in": "query",
+                  "required": false,
+                  "type": "boolean",
+                  "doc": "Include games whose display verdict is adult (`content_limit: nsfw`).\nOff by default, matching catalog's own convention.\n"
+                },
+                {
+                  "name": "ids",
+                  "in": "query",
+                  "required": false,
+                  "type": "string[]",
+                  "doc": "Up to 100 catalog work ids."
+                },
+                {
+                  "name": "sort",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "All descending. `updated` orders by when a resource of the game was\nlast published or changed.\n",
+                  "enum": [
+                    "updated",
+                    "downloads",
+                    "views"
+                  ]
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "A page of games, or the batch answer.",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "object",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "items",
+                        "required": true,
+                        "type": "array",
+                        "itemsOf": {
+                          "doc": "A game letmoe holds resources for. Names and covers live in catalog.",
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "object",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "The catalog work id, for `/v2/catalog/works/{id}`.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "content_limit",
+                              "required": true,
+                              "doc": "Catalog's display verdict for the game, as letmoe mirrors it.",
+                              "enum": [
+                                "sfw",
+                                "nsfw"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "resource_count",
+                              "required": true,
+                              "doc": "Published resources.",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "has_direct_download",
+                              "required": true,
+                              "doc": "A published resource downloads without a netdisk — a hosted file, a merged download or a direct link.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "has_chinese_resource",
+                              "required": true,
+                              "doc": "A published resource is in Simplified or Traditional Chinese.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "download_count",
+                              "required": true,
+                              "type": "integer"
+                            },
+                            {
+                              "name": "view_count",
+                              "required": true,
+                              "type": "integer"
+                            },
+                            {
+                              "name": "resource_updated_at",
+                              "required": true,
+                              "doc": "When a resource of the game was last published or changed.",
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "name": "web_url",
+                              "required": true,
+                              "doc": "The game on letmoe.",
+                              "format": "uri",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "next_cursor",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Pass as `cursor` for the next page. Null on the last page.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "total",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Null unless `include_total=true`.",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "missing",
+                        "doc": "Only on the `ids` lane. The ids that matched nothing, as you spelled them.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
+                  "status": "400",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "The key's rate limit or quota is spent. Written by the gateway: `code`\nis `RATE_LIMITED` or `QUOTA_EXCEEDED`. `Retry-After` says when to come\nback.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "A dependency is unavailable. The request may be retried.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/letmoe/works\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+            },
+            {
+              "id": "listWorkResources",
+              "method": "get",
+              "path": "/v2/letmoe/works/{id}/resources",
+              "summary": "The resources of one game",
+              "description": "Most recently changed first. Only published resources are listed; one\nunder review, taken down or deleted is absent here and `404` at its own\nURL, exactly as on the site. A game letmoe has never held a resource\nfor is `404`; one whose resources are all gone is an empty list.\n",
+              "scope": "",
+              "params": [
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "type": "string",
+                  "doc": "Catalog work id, which is also letmoe's game id."
+                },
+                {
+                  "name": "limit",
+                  "in": "query",
+                  "required": false,
+                  "type": "integer",
+                  "doc": "1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped."
+                },
+                {
+                  "name": "cursor",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "boolean",
+                  "doc": "Count the whole collection. Absent by default because it costs a count."
+                },
+                {
+                  "name": "nsfw",
+                  "in": "query",
+                  "required": false,
+                  "type": "boolean",
+                  "doc": "Include games whose display verdict is adult (`content_limit: nsfw`).\nOff by default, matching catalog's own convention.\n"
+                },
+                {
+                  "name": "type",
+                  "in": "query",
+                  "required": false,
+                  "type": "string[]",
+                  "doc": "Comma-separated resource kinds; any of them matches.",
+                  "enum": [
+                    "game",
+                    "collection",
+                    "patch",
+                    "translation",
+                    "crack_fix",
+                    "mod",
+                    "save",
+                    "walkthrough",
+                    "tool",
+                    "ost",
+                    "theme_song",
+                    "drama",
+                    "asmr",
+                    "voice",
+                    "wallpaper",
+                    "cg",
+                    "artbook",
+                    "comic",
+                    "video",
+                    "novel",
+                    "manual",
+                    "append",
+                    "asset",
+                    "other"
+                  ]
+                },
+                {
+                  "name": "include",
+                  "in": "query",
+                  "required": false,
+                  "type": "string[]",
+                  "doc": "Comma-separated relations to attach.",
+                  "enum": [
+                    "publisher"
+                  ]
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "A page of resources.",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "object",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "items",
+                        "required": true,
+                        "type": "array",
+                        "itemsOf": {
+                          "doc": "One downloadable item. Carries no link, code or password by design —\n`web_url` is the way to it, and `/file` is the way to its links.\n",
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "object",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "work_id",
+                              "required": true,
+                              "doc": "The catalog work id.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "title",
+                              "required": true,
+                              "doc": "The title letmoe shows, never empty. Most resources carry no title\nof their own and are named by their game: the work's catalog name,\nthen platform, language and type, in Chinese — for example\n`心跳文学部 Windows 电脑版 / 安卓手机版 简体中文游戏本体资源下载`.\n",
+                              "type": "string"
+                            },
+                            {
+                              "name": "type",
+                              "required": true,
+                              "enum": [
+                                "game",
+                                "collection",
+                                "patch",
+                                "translation",
+                                "crack_fix",
+                                "mod",
+                                "save",
+                                "walkthrough",
+                                "tool",
+                                "ost",
+                                "theme_song",
+                                "drama",
+                                "asmr",
+                                "voice",
+                                "wallpaper",
+                                "cg",
+                                "artbook",
+                                "comic",
+                                "video",
+                                "novel",
+                                "manual",
+                                "append",
+                                "asset",
+                                "other"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "origin",
+                              "required": true,
+                              "doc": "`official` is the work's own distribution, `original` is the\nsubmitter's own work, `repost` is someone else's work reposted.\n",
+                              "enum": [
+                                "official",
+                                "original",
+                                "repost",
+                                "unknown"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "version",
+                              "required": true,
+                              "doc": "The version the submitter labelled it with, free text. Empty when none.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "applicable_game_version",
+                              "required": true,
+                              "doc": "For a patch or a mod, the game version it applies to. Free text.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "language",
+                              "required": true,
+                              "type": "array",
+                              "itemsOf": {
+                                "enum": [
+                                  "zh-cn",
+                                  "zh-tw",
+                                  "ja-jp",
+                                  "en-us",
+                                  "other"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "platform",
+                              "required": true,
+                              "type": "array",
+                              "itemsOf": {
+                                "doc": "A key of catalog's platform registry, the same keys a catalog work's `platforms` carry.",
+                                "enum": [
+                                  "win",
+                                  "and",
+                                  "ios",
+                                  "mac",
+                                  "lin",
+                                  "web",
+                                  "mob",
+                                  "swi",
+                                  "sw2",
+                                  "n3d",
+                                  "nds",
+                                  "wii",
+                                  "wiu",
+                                  "gba",
+                                  "gbc",
+                                  "nes",
+                                  "sfc",
+                                  "ps1",
+                                  "ps2",
+                                  "ps3",
+                                  "ps4",
+                                  "ps5",
+                                  "psp",
+                                  "psv",
+                                  "xb1",
+                                  "xb3",
+                                  "xbo",
+                                  "xxs",
+                                  "sat",
+                                  "smd",
+                                  "scd",
+                                  "drc",
+                                  "pce",
+                                  "pcf",
+                                  "tdo",
+                                  "p88",
+                                  "p98",
+                                  "x1s",
+                                  "x68",
+                                  "fm7",
+                                  "fm8",
+                                  "fmt",
+                                  "msx",
+                                  "dos",
+                                  "dvd",
+                                  "bdp",
+                                  "vnd",
+                                  "oth"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "runtime",
+                              "required": true,
+                              "doc": "What it runs on, letmoe's own vocabulary (`native-win`,\n`kirikiroid2`, `joiplay`, …). Open: treat an unknown token as text.\n",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "engine_id",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "A catalog engine id, for `/v2/catalog/engines`.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "size",
+                              "required": true,
+                              "doc": "As the submitter gave it, digits and `MB` or `GB`. Empty when unknown.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "bytes",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The same size in bytes, or the hosted file's exact size when letmoe measured it.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "blake3",
+                              "required": true,
+                              "doc": "BLAKE3 of the hosted file, empty when letmoe has none.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "prerequisites",
+                              "required": true,
+                              "doc": "What the reader needs first. Plain text.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "description",
+                              "required": true,
+                              "doc": "Markdown source.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "install_note",
+                              "required": true,
+                              "doc": "Markdown source.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "content_warning",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "content_limit",
+                              "required": true,
+                              "doc": "Catalog's display verdict for the game, as letmoe mirrors it.",
+                              "enum": [
+                                "sfw",
+                                "nsfw"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "providers",
+                              "required": true,
+                              "doc": "Where the mirrors live. A hosted file is `direct`.",
+                              "type": "array",
+                              "itemsOf": {
+                                "enum": [
+                                  "direct",
+                                  "baidu",
+                                  "quark",
+                                  "uc",
+                                  "pan123",
+                                  "xunlei",
+                                  "caiyun",
+                                  "aliyun",
+                                  "lanzou",
+                                  "tianyi",
+                                  "weiyun",
+                                  "pikpak",
+                                  "onedrive",
+                                  "googledrive",
+                                  "mega",
+                                  "telegram",
+                                  "other"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "mirror_count",
+                              "required": true,
+                              "type": "integer"
+                            },
+                            {
+                              "name": "direct_download",
+                              "required": true,
+                              "doc": "One of the mirrors or a merged download downloads without a netdisk.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "composite_count",
+                              "required": true,
+                              "doc": "Merged downloads (this resource plus a moyu patch) offered alongside.",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "rating",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "quality",
+                                  "required": true,
+                                  "nullable": true,
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "stability",
+                                  "required": true,
+                                  "nullable": true,
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "compatibility",
+                                  "required": true,
+                                  "nullable": true,
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "count",
+                                  "required": true,
+                                  "type": "integer"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "download_count",
+                              "required": true,
+                              "type": "integer"
+                            },
+                            {
+                              "name": "view_count",
+                              "required": true,
+                              "type": "integer"
+                            },
+                            {
+                              "name": "web_url",
+                              "required": true,
+                              "doc": "The resource on letmoe. Where a reader goes to download.",
+                              "format": "uri",
+                              "type": "string"
+                            },
+                            {
+                              "name": "created_at",
+                              "required": true,
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "name": "updated_at",
+                              "required": true,
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "name": "publisher",
+                              "doc": "Who published it. The profile belongs to the NextMoe identity service;\n`id` is the same number on every NextMoe site.\n",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "avatar_url",
+                                  "required": true,
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "web_url",
+                                  "required": true,
+                                  "format": "uri",
+                                  "type": "string"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "next_cursor",
+                        "required": true,
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "total",
+                        "required": true,
+                        "nullable": true,
+                        "type": "integer"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
+                  "status": "400",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Nothing visible exists at this URL.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "The key's rate limit or quota is spent. Written by the gateway: `code`\nis `RATE_LIMITED` or `QUOTA_EXCEEDED`. `Retry-After` says when to come\nback.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "A dependency is unavailable. The request may be retried.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/letmoe/works/61311/resources\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+            }
+          ]
+        },
+        {
+          "key": "resources",
+          "label": "资源",
+          "operations": [
+            {
+              "id": "getResource",
+              "method": "get",
+              "path": "/v2/letmoe/resources/{id}",
+              "summary": "One resource",
+              "scope": "",
+              "params": [
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "type": "string",
+                  "doc": "letmoe resource id."
+                },
+                {
+                  "name": "nsfw",
+                  "in": "query",
+                  "required": false,
+                  "type": "boolean",
+                  "doc": "Include games whose display verdict is adult (`content_limit: nsfw`).\nOff by default, matching catalog's own convention.\n"
+                },
+                {
+                  "name": "include",
+                  "in": "query",
+                  "required": false,
+                  "type": "string[]",
+                  "doc": "Comma-separated relations to attach.",
+                  "enum": [
+                    "publisher"
+                  ]
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "The resource.",
+                  "schema": {
+                    "doc": "One downloadable item. Carries no link, code or password by design —\n`web_url` is the way to it, and `/file` is the way to its links.\n",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "object",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "work_id",
+                        "required": true,
+                        "doc": "The catalog work id.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "The title letmoe shows, never empty. Most resources carry no title\nof their own and are named by their game: the work's catalog name,\nthen platform, language and type, in Chinese — for example\n`心跳文学部 Windows 电脑版 / 安卓手机版 简体中文游戏本体资源下载`.\n",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "enum": [
+                          "game",
+                          "collection",
+                          "patch",
+                          "translation",
+                          "crack_fix",
+                          "mod",
+                          "save",
+                          "walkthrough",
+                          "tool",
+                          "ost",
+                          "theme_song",
+                          "drama",
+                          "asmr",
+                          "voice",
+                          "wallpaper",
+                          "cg",
+                          "artbook",
+                          "comic",
+                          "video",
+                          "novel",
+                          "manual",
+                          "append",
+                          "asset",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin",
+                        "required": true,
+                        "doc": "`official` is the work's own distribution, `original` is the\nsubmitter's own work, `repost` is someone else's work reposted.\n",
+                        "enum": [
+                          "official",
+                          "original",
+                          "repost",
+                          "unknown"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "version",
+                        "required": true,
+                        "doc": "The version the submitter labelled it with, free text. Empty when none.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "applicable_game_version",
+                        "required": true,
+                        "doc": "For a patch or a mod, the game version it applies to. Free text.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "language",
+                        "required": true,
+                        "type": "array",
+                        "itemsOf": {
+                          "enum": [
+                            "zh-cn",
+                            "zh-tw",
+                            "ja-jp",
+                            "en-us",
+                            "other"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "platform",
+                        "required": true,
+                        "type": "array",
+                        "itemsOf": {
+                          "doc": "A key of catalog's platform registry, the same keys a catalog work's `platforms` carry.",
+                          "enum": [
+                            "win",
+                            "and",
+                            "ios",
+                            "mac",
+                            "lin",
+                            "web",
+                            "mob",
+                            "swi",
+                            "sw2",
+                            "n3d",
+                            "nds",
+                            "wii",
+                            "wiu",
+                            "gba",
+                            "gbc",
+                            "nes",
+                            "sfc",
+                            "ps1",
+                            "ps2",
+                            "ps3",
+                            "ps4",
+                            "ps5",
+                            "psp",
+                            "psv",
+                            "xb1",
+                            "xb3",
+                            "xbo",
+                            "xxs",
+                            "sat",
+                            "smd",
+                            "scd",
+                            "drc",
+                            "pce",
+                            "pcf",
+                            "tdo",
+                            "p88",
+                            "p98",
+                            "x1s",
+                            "x68",
+                            "fm7",
+                            "fm8",
+                            "fmt",
+                            "msx",
+                            "dos",
+                            "dvd",
+                            "bdp",
+                            "vnd",
+                            "oth"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "runtime",
+                        "required": true,
+                        "doc": "What it runs on, letmoe's own vocabulary (`native-win`,\n`kirikiroid2`, `joiplay`, …). Open: treat an unknown token as text.\n",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "engine_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "A catalog engine id, for `/v2/catalog/engines`.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "size",
+                        "required": true,
+                        "doc": "As the submitter gave it, digits and `MB` or `GB`. Empty when unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "bytes",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The same size in bytes, or the hosted file's exact size when letmoe measured it.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "blake3",
+                        "required": true,
+                        "doc": "BLAKE3 of the hosted file, empty when letmoe has none.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "prerequisites",
+                        "required": true,
+                        "doc": "What the reader needs first. Plain text.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "description",
+                        "required": true,
+                        "doc": "Markdown source.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "install_note",
+                        "required": true,
+                        "doc": "Markdown source.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "content_warning",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "content_limit",
+                        "required": true,
+                        "doc": "Catalog's display verdict for the game, as letmoe mirrors it.",
+                        "enum": [
+                          "sfw",
+                          "nsfw"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "providers",
+                        "required": true,
+                        "doc": "Where the mirrors live. A hosted file is `direct`.",
+                        "type": "array",
+                        "itemsOf": {
+                          "enum": [
+                            "direct",
+                            "baidu",
+                            "quark",
+                            "uc",
+                            "pan123",
+                            "xunlei",
+                            "caiyun",
+                            "aliyun",
+                            "lanzou",
+                            "tianyi",
+                            "weiyun",
+                            "pikpak",
+                            "onedrive",
+                            "googledrive",
+                            "mega",
+                            "telegram",
+                            "other"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "mirror_count",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "direct_download",
+                        "required": true,
+                        "doc": "One of the mirrors or a merged download downloads without a netdisk.",
+                        "type": "boolean"
+                      },
+                      {
+                        "name": "composite_count",
+                        "required": true,
+                        "doc": "Merged downloads (this resource plus a moyu patch) offered alongside.",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "rating",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "quality",
+                            "required": true,
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          {
+                            "name": "stability",
+                            "required": true,
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          {
+                            "name": "compatibility",
+                            "required": true,
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          {
+                            "name": "count",
+                            "required": true,
+                            "type": "integer"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "download_count",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "view_count",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "web_url",
+                        "required": true,
+                        "doc": "The resource on letmoe. Where a reader goes to download.",
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "created_at",
+                        "required": true,
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "updated_at",
+                        "required": true,
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "publisher",
+                        "doc": "Who published it. The profile belongs to the NextMoe identity service;\n`id` is the same number on every NextMoe site.\n",
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "object",
+                            "required": true,
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "type": "string"
+                          },
+                          {
+                            "name": "avatar_url",
+                            "required": true,
+                            "type": "string"
+                          },
+                          {
+                            "name": "web_url",
+                            "required": true,
+                            "format": "uri",
+                            "type": "string"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
+                  "status": "400",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Nothing visible exists at this URL.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "The key's rate limit or quota is spent. Written by the gateway: `code`\nis `RATE_LIMITED` or `QUOTA_EXCEEDED`. `Retry-After` says when to come\nback.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "A dependency is unavailable. The request may be retried.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/letmoe/resources/1024\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+            },
+            {
+              "id": "getResourceFile",
+              "method": "get",
+              "path": "/v2/letmoe/resources/{id}/file",
+              "summary": "The download options of a resource",
+              "description": "The links `Resource` withholds. Needs the operator-granted\n`letmoe:files` scope.\n\nA `hosted` mirror's `url` is a direct link to letmoe's own file, minted\nfor this answer and supporting `Range`. An `external_link` mirror is a\nlink its publisher hosts elsewhere, with the share code and archive\npassword it needs. A `composite` is the game and a moyu patch spliced\ninto one download at the edge.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Each successful answer counts one\ndownload on the resource. Ask again rather than keeping a `url`; a\nresource that is taken down stops downloading.\n",
+              "scope": "letmoe:files",
+              "params": [
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "type": "string",
+                  "doc": "letmoe resource id."
+                },
+                {
+                  "name": "nsfw",
+                  "in": "query",
+                  "required": false,
+                  "type": "boolean",
+                  "doc": "Include games whose display verdict is adult (`content_limit: nsfw`).\nOff by default, matching catalog's own convention.\n"
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "The download options.",
+                  "schema": {
+                    "doc": "The download options of a resource.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "object",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "resource_id",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "mirrors",
+                        "required": true,
+                        "doc": "The primary mirror first.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "object",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "kind",
+                              "required": true,
+                              "doc": "`hosted` is letmoe's own file and `url` is a direct link to it. It\nhas no provider, share code or archive password: hosted files are\nplain zips. `external_link` is hosted elsewhere.\n",
+                              "enum": [
+                                "hosted",
+                                "external_link"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "provider",
+                              "required": true,
+                              "doc": "Empty on a `hosted` mirror.",
+                              "type": "object"
+                            },
+                            {
+                              "name": "url",
+                              "required": true,
+                              "format": "uri",
+                              "type": "string"
+                            },
+                            {
+                              "name": "extract_code",
+                              "required": true,
+                              "doc": "The netdisk share code",
+                              "type": "string"
+                            },
+                            {
+                              "name": "archive_password",
+                              "required": true,
+                              "doc": "Empty when the archive has none.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "note",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "region",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "is_primary",
+                              "required": true,
+                              "type": "boolean"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "composites",
+                        "required": true,
+                        "type": "array",
+                        "itemsOf": {
+                          "doc": "This resource and a moyu patch, spliced into one download at the edge.",
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "object",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "url",
+                              "required": true,
+                              "format": "uri",
+                              "type": "string"
+                            },
+                            {
+                              "name": "filename",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "bytes",
+                              "required": true,
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "blake3",
+                              "required": true,
+                              "type": "string"
+                            },
+                            {
+                              "name": "patch",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "moyu_resource_id",
+                                  "required": true,
+                                  "doc": "For `/v2/moyu/resources/{id}`.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "type",
+                                  "required": true,
+                                  "doc": "moyu's patch kinds.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "language",
+                                  "required": true,
+                                  "doc": "moyu's languages.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "publisher",
+                                  "required": true,
+                                  "doc": "The patch author's display name.",
+                                  "type": "string"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "400",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "The key is valid but lacks the scope this operation needs. `code` is\n`SCOPE_REQUIRED`.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Nothing visible exists at this URL.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "The key's rate limit or quota is spent. Written by the gateway: `code`\nis `RATE_LIMITED` or `QUOTA_EXCEEDED`. `Retry-After` says when to come\nback.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "A dependency is unavailable. The request may be retried.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "enum": [
+                                "cursor",
+                                "id",
+                                "ids",
+                                "include",
+                                "include_total",
+                                "limit",
+                                "nsfw",
+                                "sort",
+                                "type"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/letmoe/resources/1024/file\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+            }
+          ]
+        }
+      ]
     }
   ]
 }
