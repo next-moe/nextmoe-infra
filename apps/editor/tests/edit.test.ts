@@ -442,11 +442,19 @@ describe('problem details', () => {
     expect(fieldKeyOfPointer('/note')).toBeNull()
   })
 
-  it('groups field errors and keeps the server detail', () => {
-    const problem = parseEditProblem(error)
-    expect(editProblemFieldErrors(problem)).toEqual({
-      'catalog.work.titles': ['取值无效：element 0: kind must be 0-2']
-    })
+  it('groups field errors and explains a shape error as a client fault', () => {
+    const messages = editProblemFieldErrors(parseEditProblem(error))
+    expect(Object.keys(messages)).toEqual(['catalog.work.titles'])
+    expect(messages['catalog.work.titles']![0]).toContain('刷新页面后重试')
+    expect(messages['catalog.work.titles']![0]).toContain(
+      'element 0: kind must be 0-2'
+    )
+  })
+
+  it('maps claim pointers to field keys too', () => {
+    expect(fieldKeyOfPointer('/field_values/catalog.work.titles')).toBe(
+      'catalog.work.titles'
+    )
   })
 
   it('prefers a translated message for known codes', () => {

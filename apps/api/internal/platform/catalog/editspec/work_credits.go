@@ -71,7 +71,7 @@ func parseCredits(v any) ([]workCredit, error) {
 			return nil, fmt.Errorf("element %d: credit_name_id must be a positive id", i)
 		}
 		var characterID int64
-		if _, present := obj["character_id"]; present {
+		if raw, present := obj["character_id"]; present && raw != nil {
 			characterID, err = objInt(obj, "character_id", i, true)
 			if err != nil {
 				return nil, err
