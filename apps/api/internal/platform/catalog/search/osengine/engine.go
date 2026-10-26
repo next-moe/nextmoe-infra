@@ -293,7 +293,11 @@ func entitySearchBody(uid string, q spec.EntityQuery) (map[string]any, bool) {
 		filters = append(filters, mustNotTerm("sexual", *q.SexualNot))
 	}
 	query := buildQuery(text, false, true, filters)
-	if text != "" && popularityRanked[uid] {
+	switch {
+	case text == "":
+	case uid == IndexWorks:
+		query = worksRelevanceQuery(text, false, filters)
+	case popularityRanked[uid]:
 		query = popularityRankedQuery(text, filters)
 	}
 	return map[string]any{

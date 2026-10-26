@@ -216,7 +216,7 @@ func TestEntitySearchBodyPopularityRanking(t *testing.T) {
 		browse, _ := entitySearchBody(uid, spec.EntityQuery{Limit: 10})
 		require.Equal(t, canonJSON(t, map[string]any{"match_all": map[string]any{}}), canonJSON(t, browse["query"]), uid)
 	}
-	for _, uid := range []string{IndexCreditNames, IndexCharacters, IndexWorks, IndexTags, IndexTraits} {
+	for _, uid := range []string{IndexCreditNames, IndexCharacters, IndexTags, IndexTraits} {
 		body, _ := entitySearchBody(uid, spec.EntityQuery{Q: "ゆずソフト", Limit: 10})
 		require.Equal(t, canonJSON(t, buildQuery("ゆずソフト", false, true, nil)), canonJSON(t, body["query"]), uid)
 	}
@@ -571,4 +571,14 @@ func TestFilterClausesExcludeTags(t *testing.T) {
 		map[string]any{"bool": map[string]any{"must_not": map[string]any{"terms": map[string]any{"tag_ids": []int64{7, 9}}}}},
 	}), canonJSON(t, got))
 	require.Nil(t, filterClauses(spec.WorksFilter{ExcludeTagIDs: []int64{}, OLang: spec.OLang{All: true}}))
+}
+
+func TestEntitySearchBodyRanksWorksLikeTheWorksLane(t *testing.T) {
+	body, _ := entitySearchBody(IndexWorks, spec.EntityQuery{Q: "clan", Limit: 8})
+	require.Equal(t, canonJSON(t, worksRelevanceQuery("clan", false, nil)), canonJSON(t, body["query"]),
+		"object=work on the search face must rank like works?q=")
+
+	tags, _ := entitySearchBody(IndexTags, spec.EntityQuery{Q: "clan", Limit: 8})
+	_, boosted := tags["query"].(map[string]any)["function_score"]
+	require.False(t, boosted, "other families keep their own ranking")
 }
