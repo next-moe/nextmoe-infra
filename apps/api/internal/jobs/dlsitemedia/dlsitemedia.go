@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"api/internal/infrastructure/database"
@@ -65,6 +66,7 @@ type Opts struct {
 	CDNMissing   string
 	ImageBaseURL string
 	UploadGap    time.Duration
+	Workers      int
 }
 
 type counters struct {
@@ -82,6 +84,9 @@ type runner struct {
 	cli        *imageclient.Client
 	sourceID   int16
 	gap        time.Duration
+	workers    int
+	paceMu     sync.Mutex
+	paceLast   time.Time
 	exist      *existing
 	c          counters
 	pingHashes []string
@@ -162,7 +167,7 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 		"kinds", fmt.Sprintf("intro=%t cover=%t screenshot=%t", opts.Kinds.Intro, opts.Kinds.Cover, opts.Kinds.Screenshot),
 		"offset", opts.Offset, "limit", opts.Limit)
 
-	r := &runner{db: db, sourceID: reg.dlsiteSource, gap: opts.UploadGap, exist: exist, cdnMissing: cdnMissing}
+	r := &runner{db: db, sourceID: reg.dlsiteSource, gap: opts.UploadGap, workers: opts.Workers, exist: exist, cdnMissing: cdnMissing}
 	if needImage {
 		r.cli = imageclient.New(imageclient.Config{
 			BaseURL:      resolveBaseURL(cfg, clientCfg, opts.ImageBaseURL),

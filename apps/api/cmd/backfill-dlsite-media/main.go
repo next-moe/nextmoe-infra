@@ -23,6 +23,7 @@ func main() {
 	cdnMissing := flag.String("cdn-missing", "", "file of <workno>/<filename> lines the DLsite CDN answered 404 for: such a file the mirror lacks is counted as cdn_missing and does not list its work in --worknos-out")
 	imageBaseURL := flag.String("image-base-url", "", "image_service base override (point at the LOCAL dev service, e.g. http://127.0.0.1:9278)")
 	uploadGap := flag.Duration("upload-gap", 0, "min delay between uploads (0 = none; raise for a gentle production sweep)")
+	workers := flag.Int("workers", 1, "concurrent uploads of one work's screenshots; --upload-gap stays a single shared pace across all of them")
 	flag.Parse()
 
 	kinds, err := dlsitemedia.ParseKinds(*kind)
@@ -50,6 +51,7 @@ func main() {
 		CDNMissing:   *cdnMissing,
 		ImageBaseURL: *imageBaseURL,
 		UploadGap:    *uploadGap,
+		Workers:      *workers,
 	})
 	if sum != nil {
 		slog.Info("backfill-dlsite-media summary", "summary", sum)
