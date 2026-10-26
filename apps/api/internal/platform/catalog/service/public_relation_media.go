@@ -25,7 +25,7 @@ func (s *PublicService) attachRelationMedia(ctx context.Context, rels []dto.Publ
 		ids = append(ids, r.Work.ID)
 		subjects = append(subjects, claimSubject{WorkID: r.Work.ID})
 	}
-	dates, err := s.earliestReleaseDatesFor(ctx, ids)
+	dates, err := s.workReleaseDatesFor(ctx, ids)
 	if err != nil {
 		return err
 	}

@@ -89,7 +89,7 @@ type Relation struct {
 	_            struct{} `json:"-" additionalProperties:"true"`
 	RelationType string   `json:"relation_type" maxLength:"64" pattern:"^[a-z][a-z0-9_]*$" doc:"Relation token."`
 	Phrase       string   `json:"phrase" maxLength:"512" doc:"Must not be used as a discriminant."`
-	Work         Work     `json:"work" doc:"Related work. Same type as the work collection. view=basic. cover is the portrait the related work shows on its own detail, under the same nsfw gate; release_date and release_date_precision are its earliest release, as on the works list; banner is always null."`
+	Work         Work     `json:"work" doc:"Related work. Same type as the work collection. view=basic. cover is the portrait the related work shows on its own detail, under the same nsfw gate; release_date and release_date_precision are its release date, as on the works list; banner is always null."`
 }
 
 type WorkCompany struct {
