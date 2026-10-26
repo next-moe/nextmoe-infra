@@ -49,7 +49,7 @@
 
 **路径前缀**:`/v2/<site>/*`(`/v2/moyu`、`/v2/sticker`)。首批接线时(2026-09-08)裁定跟随 §16.2 的修订:/v2 早已不是 catalog 专属(spec 内已有 catalog/store/news/folders/me/moderation/vocabularies 七个命名空间),`<face>` 并列其下是现成形状;门户 docs-model 与 oasdiff 门按 **spec 文档**切分而非按前缀,两份 spec 同描述 `/v2/...` 无冲突。
 
-**计量**:B 档数的是闸门放行的请求,不是下游业务结果(与 A 档不对称,接受)。CDN 命中(`s-maxage` 生效时)不经 Traefik、不入计量——免费只读面接受少计,要严计量的面须自己去掉 `s-maxage`。`UsageRecorder.Record` 的 face 为注册表名(`moyu` / `sticker`),path 为该面静态 `pathLabel`(`/v2/moyu/*` / `/v2/sticker/*`),永不写具体 URI。注册表手维护于 `apps/api/internal/platform/devapi/forwardauth.go`;未注册 face 不得入计量(超长 face 会毒化后续整批 flush,见 model.go Face 列宽教训)。加一张脸 = 注册表一行;要授权的敏感面另立审批 scope 或走 A 档,不复用这条免 scope 通道。
+**计量**:B 档数的是闸门放行的请求,不是下游业务结果(与 A 档不对称,接受)。CDN 命中(`s-maxage` 生效时)不经 Traefik、不入计量——免费只读面接受少计,要严计量的面须自己去掉 `s-maxage`。`UsageRecorder.Record` 的 face 为注册表名(`moyu` / `sticker` / `letmoe`),path 为该面静态 `pathLabel`(`/v2/moyu/*` / `/v2/sticker/*` / `/v2/letmoe/*`),永不写具体 URI。注册表手维护于 `apps/api/internal/platform/devapi/forwardauth.go`;未注册 face 不得入计量(超长 face 会毒化后续整批 flush,见 model.go Face 列宽教训)。加一张脸 = 注册表一行;要授权的敏感面另立审批 scope 或走 A 档,不复用这条免 scope 通道。
 
 **Traefik 标签配方**(占位符随下游服务别名与端口替换;http 孪生只做跳 https,forwardAuth 挂在 websecure):
 
@@ -70,6 +70,8 @@ traefik.http.services.<svc>-pub.loadbalancer.server.port: "<port>"
 ```
 
 sticker 面同一套,`PathPrefix(/v2/sticker)` + `face=sticker`(实测别名/端口:sticker-api:9421、moyu-api:5214、oauth:9277)。
+
+**letmoe 面**(2026-10-26 接入):`PathPrefix(/v2/letmoe)` + `face=letmoe`,letmoe-api:7001,契约镜像在 `docs/downstream/letmoe-openapi.yaml`。`/v2/letmoe/resources/{id}/file` 要运营发放的 `letmoe:files`,与 moyu `/file` 同一做法——它回 `dl.imoe.uk` 托管直链,那条链接不签名、长期有效,对自助密钥开放就等于允许整站导出。上线顺序:infra(注册表 + scope 常量)先,letmoe 的 compose 标签后;反过来时闸门对未注册 face 一律 500,不会越权。
 
 ForwardAuth 对所有方法生效,浏览器 `OPTIONS` 预检不带认证头 → 会被 401。**下游面不支持浏览器直连 fetch**——这是想要的(nmk_ key 不该出现在浏览器),门户文档须写明,免得第三方去查自己的 CORS。
 

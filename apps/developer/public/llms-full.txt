@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 200 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 204 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -31,7 +31,7 @@
 ## 鉴权模型
 
 - 不带凭据：`/v2/catalog` 只读面（`claim-events` 除外）不注册、不带任何凭据就能调，返回与带密钥时逐字节相同，`nsfw=true` 照样可用；按 IPv4 地址或 IPv6 /64 计一份很小的额度（默认 30 次/分钟、1,000 次/天）。CORS 对所有来源开放，浏览器里可直接 fetch。
-- 应用密钥（`Authorization: Bearer nmk_live_…`）——量大了或从自己的服务端调用时使用，在 https://developer.nextmoe.dev 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read，/v2/moyu/* 与 /v2/sticker/* 两个下游面不需要 scope、任意有效密钥可调。/v2 只收 nmk_ 前缀的密钥。
+- 应用密钥（`Authorization: Bearer nmk_live_…`）——量大了或从自己的服务端调用时使用，在 https://developer.nextmoe.dev 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read，/v2/moyu/*、/v2/sticker/* 与 /v2/letmoe/* 三个下游面不需要 scope、任意有效密钥可调（两条 /file 路由除外，分别要运营发放的 moyu:files 与 letmoe:files）。/v2 只收 nmk_ 前缀的密钥。
 - 用户访问令牌（`Authorization: Bearer <access token>`）——/v2/me 与 /v2/moderation 读写的是某个用户自己的东西，用该用户经 OAuth 授权码 + PKCE 授权后的令牌，不是应用密钥。
 - v1 已于 2026-08-27 全面退役：/v1/catalog、/v1/news、/v1/store、/v1/playtime、/api/v1/catalog 与 /api/v1/user/catalog 一律返回 410，Link 指向 /v2。
 - `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 `/v2/catalog/schemas/{object}` 同样不要任何凭据。带应用密钥或带 `catalog:read` 的用户令牌读 `/v2/catalog` 时，走各自更高的额度。
@@ -41,6 +41,7 @@
 - Public API v2：https://api.nextmoe.dev/v2/catalog/openapi.json
 - moyu 补丁面：https://developer.nextmoe.dev/specs/moyu-openapi.yaml
 - sticker 表情包面：https://developer.nextmoe.dev/specs/sticker-openapi.yaml
+- letmoe 资源面：https://developer.nextmoe.dev/specs/letmoe-openapi.yaml
 
 游玩时长与编辑提案两个用户面不提供公开 spec 文件，以本站 Markdown 参考为准。
 
@@ -157,7 +158,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \
 
 返回的数据和匿名请求逐字节相同，只是额度记在你的应用上。
 
-自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（商店联盟链接）。[`/v2/moyu/*`](/docs/moyu-patches) 与 [`/v2/sticker/*`](/docs/sticker-packs) 两个下游面不需要任何 scope，任意有效密钥都能调。`claim_events:read` 由运营方按需授予，不能自助勾选。
+自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（商店联盟链接）。[`/v2/moyu/*`](/docs/moyu-patches)、[`/v2/sticker/*`](/docs/sticker-packs) 与 [`/v2/letmoe/*`](/docs/letmoe) 三个下游面不需要任何 scope，任意有效密钥都能调（两条 `/file` 下载路由除外，要运营发放的 `moyu:files` / `letmoe:files`）。`claim_events:read` 由运营方按需授予，不能自助勾选。
 
 分发出去的桌面客户端没有服务端可放密钥：要么继续匿名（每个用户各自按自己的 IP 计额度），要么改用用户访问令牌——见[原生桌面应用接入](/docs/native-app)。
 
@@ -213,7 +214,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \
 `claim_events:read` 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。
 
 > [!NOTE]
-> [`/v2/moyu/*`](/docs/moyu-patches) 与 [`/v2/sticker/*`](/docs/sticker-packs) 两个下游面（面联邦，gateway-terminated）**不需要任何 scope**——任意有效应用密钥都能调用，网关只看密钥本身与限流。它们也**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
+> [`/v2/moyu/*`](/docs/moyu-patches)、[`/v2/sticker/*`](/docs/sticker-packs) 与 [`/v2/letmoe/*`](/docs/letmoe) 三个下游面（面联邦，gateway-terminated）**不需要任何 scope**——任意有效应用密钥都能调用，网关只看密钥本身与限流；唯一的例外是两条 `/file` 下载路由，要运营发放的 `moyu:files` / `letmoe:files`，由下游站点自己判。它们也**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
 
 ## 用户访问令牌
 
@@ -8545,6 +8546,151 @@ Tags, most used first
 
 ```bash
 curl "https://api.nextmoe.dev/v2/sticker/tags" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+---
+
+# letmoe 资源面
+
+- 路径前缀：`/v2/letmoe`
+- 凭据：Authorization: Bearer nmk_live_…（任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/letmoe/resources/{id}/file,要运营发放的 letmoe:files）
+- 端点数：4
+
+> 下游站点面：由 一起萌（www.letmoe.com）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。
+
+> 它只回答一件事：这部游戏在 letmoe 上能下载到什么。作品 id 就是 catalog 的作品 id，也是 letmoe 自己的游戏 id——/v2/letmoe/works/{id}、站上的 /game/{id} 与 /v2/catalog/works/{id} 是同一个数。
+
+> 任意有效 nmk_ 应用密钥都能调元数据接口，不需要任何 scope——网关只做身份、计量与限流，不做授权。元数据里不带下载链接、提取码与解压密码，每条资源都给 web_url，把读者送过去。
+
+> 唯一例外是 /v2/letmoe/resources/{id}/file：对持有 letmoe:files 的密钥给出全部下载方式——letmoe 托管文件的直链、外部网盘链接连同提取码与解压密码、以及与 moyu 补丁合并的下载。这个 scope 由运营发放、不能自助勾选，其余密钥一律 403 SCOPE_REQUIRED。答案一律 no-store，每次成功都给资源记一次下载，所以在读者点下载时再调，不要预取。
+
+> 也不带游戏名、封面、标签与 staff：那些归 catalog，同一把密钥读 /v2/catalog/works 即可。
+
+> /v2/letmoe/works 上的 ids= 是批量问法：一次最多 100 个作品 id，没有可见资源的原样回在 missing[] 里。这是「我手上这 100 部作品哪些能在 letmoe 下载」的一次性问法，此时 cursor、sort、limit 与 include_total 会被拒。
+
+> 约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。每个接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。
+
+> 错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和 letmoe 写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。
+
+> 只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路——nmk_ 密钥本来也不该出现在浏览器里。
+
+## 作品
+
+### GET /v2/letmoe/works
+
+List or look up games with resources
+
+Without `ids` this is every game letmoe currently has a resource for,
+paged and sorted.
+
+With `ids` it is a **batch lookup** of up to 100 catalog work ids, with
+every id that has no visible resource on letmoe echoed back in
+`missing`. This is how you ask "which of these games can be downloaded
+on letmoe" in one round trip. A batch answers a set, not a page, so
+`cursor`, `sort`, `limit` and `include_total` alongside it are
+`MUTUALLY_EXCLUSIVE_PARAMETERS`.
+
+
+- 所属 API：letmoe 资源面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `limit` | query | 否 | integer | 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
+| `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
+| `nsfw` | query | 否 | boolean | Include games whose display verdict is adult (`content_limit: nsfw`). Off by default, matching catalog's own convention.  |
+| `ids` | query | 否 | string[] | Up to 100 catalog work ids. |
+| `sort` | query | 否 | string | All descending. `updated` orders by when a resource of the game was last published or changed.  取值：updated \| downloads \| views |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/works" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+### GET /v2/letmoe/works/{id}/resources
+
+The resources of one game
+
+Most recently changed first. Only published resources are listed; one
+under review, taken down or deleted is absent here and `404` at its own
+URL, exactly as on the site. A game letmoe has never held a resource
+for is `404`; one whose resources are all gone is an empty list.
+
+
+- 所属 API：letmoe 资源面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Catalog work id, which is also letmoe's game id. |
+| `limit` | query | 否 | integer | 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
+| `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
+| `nsfw` | query | 否 | boolean | Include games whose display verdict is adult (`content_limit: nsfw`). Off by default, matching catalog's own convention.  |
+| `type` | query | 否 | string[] | Comma-separated resource kinds; any of them matches. 取值：game \| collection \| patch \| translation \| crack_fix \| mod \| save \| walkthrough \| tool \| ost \| theme_song \| drama \| asmr \| voice \| wallpaper \| cg \| artbook \| comic \| video \| novel \| manual \| append \| asset \| other |
+| `include` | query | 否 | string[] | Comma-separated relations to attach. 取值：publisher |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/works/61311/resources" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+## 资源
+
+### GET /v2/letmoe/resources/{id}
+
+One resource
+
+- 所属 API：letmoe 资源面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | letmoe resource id. |
+| `nsfw` | query | 否 | boolean | Include games whose display verdict is adult (`content_limit: nsfw`). Off by default, matching catalog's own convention.  |
+| `include` | query | 否 | string[] | Comma-separated relations to attach. 取值：publisher |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/resources/1024" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+### GET /v2/letmoe/resources/{id}/file
+
+The download options of a resource
+
+The links `Resource` withholds. Needs the operator-granted
+`letmoe:files` scope.
+
+A `hosted` mirror's `url` is a direct link to letmoe's own file,
+supporting `Range`. It is looked up for each answer and not promised
+to last: a replaced or taken-down file stops downloading, so do not
+store it. An `external_link` mirror is a
+link its publisher hosts elsewhere, with the share code and archive
+password it needs. A `composite` is the game and a moyu patch spliced
+into one download at the edge.
+
+Never cached: every answer, refusals included, is
+`Cache-Control: private, no-store`. Each successful answer counts one
+download on the resource, so ask when a reader asks to download.
+
+
+- 所属 API：letmoe 资源面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：letmoe:files
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | letmoe resource id. |
+| `nsfw` | query | 否 | boolean | Include games whose display verdict is adult (`content_limit: nsfw`). Off by default, matching catalog's own convention.  |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/resources/1024/file" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

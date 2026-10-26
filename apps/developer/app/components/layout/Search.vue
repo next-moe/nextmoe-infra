@@ -113,7 +113,8 @@ const SUGGESTED = [
 const iconFor = (route: string) => {
   if (route.startsWith('/problems')) return 'lucide:octagon-alert'
   if (route.startsWith('/docs/vocabularies')) return 'lucide:list-tree'
-  if (/^\/docs\/(v2|moyu|sticker)\//.test(route)) return 'lucide:terminal'
+  if (/^\/docs\/(v2|moyu|sticker|letmoe)\//.test(route))
+    return 'lucide:terminal'
   if (route.startsWith('/docs')) return 'lucide:book-open'
   return 'lucide:compass'
 }
