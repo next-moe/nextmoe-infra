@@ -45,8 +45,14 @@ const released = computed(() =>
 const releasedInvalid = computed(
   () => releasedText.value.trim() !== '' && released.value === null
 )
+const titleNeedsLang = computed(
+  () => originalTitle.value.trim() !== '' && !olang.value
+)
 const canSubmit = computed(
-  () => displayName.value.trim() !== '' && !releasedInvalid.value
+  () =>
+    displayName.value.trim() !== '' &&
+    !releasedInvalid.value &&
+    !titleNeedsLang.value
 )
 
 let idempotencyKey: string | null = null
@@ -64,10 +70,9 @@ const submit = async (confirmDuplicates = false) => {
   if (originalTitle.value.trim()) {
     fieldValues[TITLES] = [
       {
-        lang: olang.value ?? null,
+        lang: olang.value,
         title: originalTitle.value.trim(),
-        kind: titleKindBase.value,
-        latin: null
+        kind: titleKindBase.value
       }
     ]
   }
@@ -140,8 +145,15 @@ const submit = async (confirmDuplicates = false) => {
 
       <div class="space-y-1">
         <span class="text-default-700 text-sm font-medium">原文标题</span>
-        <KunInput v-model="originalTitle" aria-label="原文标题" />
-        <p class="text-default-400 text-xs">
+        <KunInput
+          v-model="originalTitle"
+          aria-label="原文标题"
+          :is-invalid="titleNeedsLang"
+        />
+        <p v-if="titleNeedsLang" class="text-danger-500 text-xs">
+          填写原文标题时，请先在上方选择原语言。
+        </p>
+        <p v-else class="text-default-400 text-xs">
           作品原语言的正式名；和显示名相同时也可以填上，用于查重与搜索。
         </p>
       </div>

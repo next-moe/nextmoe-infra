@@ -1,6 +1,7 @@
 package editspec_test
 
 import (
+	"strings"
 	"testing"
 
 	"api/internal/platform/apiv2/vocab"
@@ -123,6 +124,68 @@ func TestScalarNullabilityMatchesValidators(t *testing.T) {
 			if declared != accepted {
 				t.Errorf("%s: declares nullable=%v but the validator accepts null=%v",
 					f.Key, declared, accepted)
+			}
+		}
+	}
+}
+
+func sampleMemberValue(m editing.ElementMember) any {
+	if m.Vocabulary != "" {
+		if m.Type == "int" {
+			return float64(m.Base)
+		}
+		return vocab.Tokens(m.Vocabulary)[0]
+	}
+	switch m.Type {
+	case "text":
+		return "x"
+	case "bool":
+		return false
+	case "imagehash":
+		return strings.Repeat("0123456789abcdef", 4)
+	default:
+		return float64(1)
+	}
+}
+
+// The schema publishes these members as nullable, and the editor's create-work
+// page sent "latin": null accordingly — every new work with an original title
+// was refused with "element 0: latin must be a non-empty string when present".
+// Null is checked against the validator's verdict on the absent member, not
+// against what it stores: on catalog.work.credits an absent release_id keeps
+// the stored one while null clears it.
+func TestNullableMembersAcceptNull(t *testing.T) {
+	reg := fullRegistry(t)
+	for _, typeName := range reg.Types() {
+		spec, _ := reg.Type(typeName)
+		for i := range spec.Fields {
+			f := &spec.Fields[i]
+			if f.Validate == nil || f.Value == nil || f.Value.Element == nil || f.Value.Element.Type != "object" {
+				continue
+			}
+			sample := func() map[string]any {
+				el := map[string]any{}
+				for _, m := range f.Value.Element.Members {
+					el[m.Key] = sampleMemberValue(m)
+				}
+				return el
+			}
+			if err := f.Validate([]any{sample()}); err != nil {
+				t.Errorf("%s: sample element rejected: %v", f.Key, err)
+				continue
+			}
+			for _, m := range f.Value.Element.Members {
+				if !m.Nullable {
+					continue
+				}
+				absent, null := sample(), sample()
+				delete(absent, m.Key)
+				null[m.Key] = nil
+				wantErr := f.Validate([]any{absent})
+				gotErr := f.Validate([]any{null})
+				if (wantErr == nil) != (gotErr == nil) {
+					t.Errorf("%s.%s: absent gives %v but null gives %v", f.Key, m.Key, wantErr, gotErr)
+				}
 			}
 		}
 	}

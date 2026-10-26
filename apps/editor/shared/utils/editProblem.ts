@@ -1,3 +1,5 @@
+import { explainFieldError, type MemberLabeler } from './fieldErrorText'
+
 export interface EditProblemFieldError {
   pointer?: string
   parameter?: string
@@ -45,7 +47,29 @@ const CODE_MESSAGES: Record<string, string> = {
   INVALID_STATE_TRANSITION: '这条提案已不在可操作的状态',
   IDEMPOTENCY_REQUEST_IN_PROGRESS: '上一次提交仍在处理中，请稍候',
   PAYLOAD_TOO_LARGE: '文件过大',
-  UNSUPPORTED_MEDIA_TYPE: '不支持的文件格式'
+  UNSUPPORTED_MEDIA_TYPE: '不支持的文件格式',
+  MISSING_CREDENTIAL: '登录状态已失效，请重新登录',
+  INVALID_CREDENTIAL: '登录状态已失效，请重新登录',
+  USER_IDENTITY_REQUIRED: '需要登录后才能操作',
+  ALREADY_EXISTS: '已经存在相同的记录',
+  CLAIM_NOT_OWNED: '这部作品由其他用户认领，只有认领者可以操作',
+  TENANT_MISMATCH: '这个条目不属于当前站点',
+  DECISION_ALREADY_MADE: '这条提案已经被处理过了，请刷新查看结果',
+  IDEMPOTENCY_KEY_REUSED: '提交内容和上一次不一致，请刷新页面后重试',
+  RELEASE_CREATION_DISABLED: '暂不支持在这里新建发行版本',
+  GONE: '这项功能已下线',
+  INTERNAL_ERROR: '资料库出错了，请稍后再试',
+  SERVICE_UNAVAILABLE: '资料库暂时不可用，请稍后再试'
+}
+
+export interface ProblemLabels {
+  field: (fieldKey: string) => string
+  member: MemberLabeler
+}
+
+const RAW_LABELS: ProblemLabels = {
+  field: (fieldKey) => fieldKey,
+  member: (_fieldKey, member) => member
 }
 
 export const parseEditProblem = (error: unknown): EditProblem => {
@@ -64,7 +88,11 @@ export const parseEditProblem = (error: unknown): EditProblem => {
   }
 }
 
-export const editProblemMessage = (problem: EditProblem) => {
+export const editProblemMessage = (
+  problem: EditProblem,
+  labels: ProblemLabels = RAW_LABELS,
+  fallback = '提交失败'
+) => {
   if (problem.code && CODE_MESSAGES[problem.code]) {
     return CODE_MESSAGES[problem.code]!
   }
@@ -74,27 +102,41 @@ export const editProblemMessage = (problem: EditProblem) => {
   if (problem.status >= 500) {
     return '资料库暂时不可用，请稍后再试'
   }
-  return problem.detail || problem.title || '提交失败'
+  for (const entry of problem.errors) {
+    const key = fieldKeyOfPointer(entry.pointer)
+    if (key && entry.detail) {
+      return `「${labels.field(key)}」${explainFieldError(key, entry.detail, labels.member)}`
+    }
+  }
+  const first = problem.errors.find((entry) => entry.detail)?.detail
+  const parts = [problem.detail || problem.title, first].filter(
+    (part, index, all): part is string => !!part && all.indexOf(part) === index
+  )
+  return parts.join('：') || fallback
 }
 
-const POINTER_PATCH_KEY = /^\/patch\/([^/]+)/
+const POINTER_FIELD_KEY = /^\/(?:patch|field_values)\/([^/]+)/
 
 export const fieldKeyOfPointer = (pointer: string | undefined) => {
-  const match = (pointer ?? '').match(POINTER_PATCH_KEY)
+  const match = (pointer ?? '').match(POINTER_FIELD_KEY)
   return match
     ? decodeURIComponent(match[1]!.replace(/~1/g, '/').replace(/~0/g, '~'))
     : null
 }
 
-export const editProblemFieldErrors = (problem: EditProblem) => {
+export const editProblemFieldErrors = (
+  problem: EditProblem,
+  memberLabel?: MemberLabeler
+) => {
   const out: Record<string, string[]> = {}
   for (const entry of problem.errors) {
     const key = fieldKeyOfPointer(entry.pointer)
     if (!key) {
       continue
     }
-    const label = REASON_LABELS[entry.reason] ?? entry.reason
-    const message = entry.detail ? `${label}：${entry.detail}` : label
+    const message = entry.detail
+      ? explainFieldError(key, entry.detail, memberLabel)
+      : (REASON_LABELS[entry.reason] ?? entry.reason)
     out[key] = [...(out[key] ?? []), message]
   }
   return out
