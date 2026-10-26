@@ -15,6 +15,7 @@ import type {
   EditStoredDraft
 } from '#shared/types/edit'
 import type { EditQuota } from '#shared/types/quota'
+import { PROBLEM_LABELS } from '~/utils/review/problem'
 
 const DRAFT_SAVE_DELAY_MS = 800
 const QUOTA_MAX_AGE_MS = 15_000
@@ -319,11 +320,14 @@ export const useEntityEditor = (
       return { ok: true as const, proposal }
     } catch (error) {
       const problem = parseEditProblem(error)
-      serverErrors.value = editProblemFieldErrors(problem)
+      serverErrors.value = editProblemFieldErrors(problem, memberLabel)
       if (problem.status && problem.status < 500) {
         idempotencyKey = null
       }
-      return { ok: false as const, message: editProblemMessage(problem) }
+      return {
+        ok: false as const,
+        message: editProblemMessage(problem, PROBLEM_LABELS)
+      }
     }
   }
 

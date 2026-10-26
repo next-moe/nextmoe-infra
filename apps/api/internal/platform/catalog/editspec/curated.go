@@ -152,7 +152,7 @@ func asObject(el any, index int, allowed ...string) (map[string]any, error) {
 
 func objInt(obj map[string]any, key string, index int, required bool) (int64, error) {
 	raw, present := obj[key]
-	if !present {
+	if !present || raw == nil {
 		if required {
 			return 0, fmt.Errorf("element %d: %s is required", index, key)
 		}
@@ -172,7 +172,7 @@ func objInt(obj map[string]any, key string, index int, required bool) (int64, er
 
 func objString(obj map[string]any, key string, index int, required bool, maxRunes int) (string, error) {
 	raw, present := obj[key]
-	if !present {
+	if !present || raw == nil {
 		if required {
 			return "", fmt.Errorf("element %d: %s is required", index, key)
 		}
@@ -193,7 +193,7 @@ func objString(obj map[string]any, key string, index int, required bool, maxRune
 
 func objBool(obj map[string]any, key string, index int) (bool, error) {
 	raw, present := obj[key]
-	if !present {
+	if !present || raw == nil {
 		return false, nil
 	}
 	b, ok := raw.(bool)

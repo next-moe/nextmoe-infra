@@ -14,6 +14,19 @@ const CONFIG_LABELS: Record<string, string> = Object.fromEntries(
   )
 )
 
+const MEMBER_LABELS: Record<string, string> = Object.fromEntries(
+  Object.values(EDIT_CONFIGS).flatMap((config) =>
+    Object.entries(config.fields).flatMap(([key, field]) =>
+      Object.entries(field.members ?? {}).flatMap(([member, entry]) =>
+        entry.label ? [[`${key}/${member}`, entry.label]] : []
+      )
+    )
+  )
+)
+
+export const memberLabel = (fieldKey: string, member: string) =>
+  MEMBER_LABELS[`${fieldKey}/${member}`] ?? FIELD_LABELS[member] ?? member
+
 export const fieldLabel = (key: string) => {
   const suppressed = key.endsWith('.suppressed')
   const full = key.replace(/\.suppressed$/, '')

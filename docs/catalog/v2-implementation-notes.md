@@ -2661,3 +2661,13 @@ An editor can paste a text walkthrough and get a draft chart to edit (kungal top
 - **Editor.** 「从文字生成」 in the outline toolbar opens a paste box with a copyright notice and shows the verdict, coverage and missed lines. Loading the draft replaces the chart (undoable) and switches lang to `ja` when the draft contains kana.
 
 **Migration**: `go run ./cmd/migrate catalog` creates the empty `catalog_walkthrough_draft_log` table. **Deploy**: `docker-compose.prod.yml` passes the AI upstream variables to `catalog`. **Spec 2.71.0**, additive: one new operation.
+
+## Nullable list members accept null (2026-10-26)
+
+The editor's create-work page sent the original title as `{"lang": …, "title": …, "kind": 0, "latin": null}`, which the schema allows, since `latin` is published as a nullable member. `catalog.work.titles` refused it with `element 0: latin must be a non-empty string when present`, so a new work with an original title could not be created at all. This was not specific to that field: 17 nullable members across `aliases` (character, credit name, label), `titles`, `covers`, `screenshots`, `credits` and `relations` read JSON `null` as a wrong type.
+
+- **The fix is in the validators, not in the engine.** The shared element helpers `objString` / `objInt` / `objBool` read `null` the way they read an absent member, so a required member still answers `is required`. `titles` and `credits` read their own `lang`, `latin` and `character_id` the same way. Dropping `null` members in the engine before `Validate` was tried and reverted: on `catalog.work.credits` an absent `release_id`, `label_id` or `spoiler` keeps the stored value while `null` clears it (`TestCreditOptionalMembersSurviveAClientThatOmitsThem`), so the two cannot be merged above the field.
+- **Gate.** `TestNullableMembersAcceptNull` builds a valid element for every object-list field from its declared members. It then requires the real validator to give `null` the same verdict as the absent member. A new nullable member that refuses `null` fails it.
+- **Titles.** An absent or `null` `lang` reads as `""`, so only an alias may leave it out, as before. A blank `latin` is stored as no latin instead of being refused, which matches the alias fields.
+
+No spec change: the schema already published these members as nullable. **Zero migrations.**

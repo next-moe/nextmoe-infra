@@ -54,9 +54,11 @@ func parseTitles(v any) ([]workTitle, error) {
 				return nil, fmt.Errorf("element %d: unknown key %q", i, key)
 			}
 		}
-		lang, ok := obj["lang"].(string)
-		if !ok {
-			return nil, fmt.Errorf("element %d: lang must be a string", i)
+		lang := ""
+		if raw, present := obj["lang"]; present && raw != nil {
+			if lang, ok = raw.(string); !ok {
+				return nil, fmt.Errorf("element %d: lang must be a string", i)
+			}
 		}
 		title, ok := obj["title"].(string)
 		if !ok {
@@ -94,10 +96,12 @@ func parseTitles(v any) ([]workTitle, error) {
 			return nil, fmt.Errorf("element %d: %q is not an allowed language", i, lang)
 		}
 		latin := ""
-		if raw, present := obj["latin"]; present {
-			latin, ok = raw.(string)
-			if !ok || strings.TrimSpace(latin) == "" {
-				return nil, fmt.Errorf("element %d: latin must be a non-empty string when present", i)
+		if raw, present := obj["latin"]; present && raw != nil {
+			if latin, ok = raw.(string); !ok {
+				return nil, fmt.Errorf("element %d: latin must be a string", i)
+			}
+			if strings.TrimSpace(latin) == "" {
+				latin = ""
 			}
 			if len([]rune(latin)) > maxTitleRunes {
 				return nil, fmt.Errorf("element %d: latin must be at most %d characters", i, maxTitleRunes)

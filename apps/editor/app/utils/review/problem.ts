@@ -1,3 +1,10 @@
+import {
+  editProblemMessage,
+  parseEditProblem,
+  type ProblemLabels
+} from '#shared/utils/editProblem'
+import { fieldLabel, memberLabel } from '~/utils/format'
+
 interface ProblemBody {
   title?: string
   detail?: string
@@ -21,16 +28,18 @@ export const problemStatus = (error: unknown) => {
   )
 }
 
+export const PROBLEM_LABELS: ProblemLabels = {
+  field: fieldLabel,
+  member: memberLabel
+}
+
 export const problemMessage = (
   error: unknown,
   fallback = '操作失败，请稍后再试'
-) => {
-  const body = (error as FetchFailure | null)?.data
-  const first = body?.errors?.find((entry) => entry.detail)?.detail
-  return (
-    [body?.detail || body?.title, first].filter(Boolean).join('：') || fallback
-  )
-}
+) =>
+  (error as FetchFailure | null)?.data
+    ? editProblemMessage(parseEditProblem(error), PROBLEM_LABELS, fallback)
+    : fallback
 
 export const problemCode = (error: unknown) =>
   (error as FetchFailure | null)?.data?.code ?? ''

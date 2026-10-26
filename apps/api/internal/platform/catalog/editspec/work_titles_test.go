@@ -70,7 +70,7 @@ func TestTitlesValidator(t *testing.T) {
 		{"long title", []any{title("ja", strings.Repeat("あ", 501), 0)}},
 		{"kind out of range", []any{title("ja", "a", 4)}},
 		{"kind not integer", []any{map[string]any{"lang": "ja", "title": "a", "kind": 1.5}}},
-		{"empty latin", []any{titleLatin("ja", "a", " ", 0)}},
+		{"latin not a string", []any{map[string]any{"lang": "ja", "title": "a", "kind": float64(0), "latin": 1}}},
 		{"duplicate element", []any{title("ja", "a", 0), title("ja", "a", 0)}},
 		{"no official title", []any{title("ja", "a", 1)}},
 	}
@@ -142,6 +142,18 @@ func TestTitlesApplyAndDerivation(t *testing.T) {
 		}
 		if w.DisplayName != "日本語名" {
 			t.Fatalf("derived display_name: %q", w.DisplayName)
+		}
+	})
+
+	t.Run("null and blank optional members store as absent", func(t *testing.T) {
+		work := createWork(t, "旧名")
+		mergeTitles(t, work.ID, []any{
+			map[string]any{"lang": "ja", "title": "原題", "kind": float64(0), "latin": nil},
+			map[string]any{"lang": nil, "title": "略称", "kind": float64(1), "latin": "  "},
+		}, nil)
+		rows := loadTitleRows(t, work.ID)
+		if len(rows) != 2 || rows[0].Latin != nil || rows[1].Latin != nil || rows[1].Lang != "" {
+			t.Fatalf("rows: %+v", rows)
 		}
 	})
 
