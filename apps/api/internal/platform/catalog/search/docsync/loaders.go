@@ -1,0 +1,445 @@
+package docsync
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"math"
+	"time"
+
+	"api/internal/platform/catalog/editspec"
+	"api/internal/platform/catalog/model"
+	catalogSearch "api/internal/platform/catalog/search"
+	"api/internal/platform/catalog/search/chardocs"
+
+	"gorm.io/gorm"
+)
+
+func loadCreditNamePopularity(db *gorm.DB, s scope) (map[int64]int, error) {
+	var rows []struct {
+		ID  int64 `gorm:"column:id"`
+		Cnt int   `gorm:"column:cnt"`
+	}
+	if err := db.Raw(`SELECT credit_name_id AS id, count(*) AS cnt FROM catalog_credit WHERE true`+s.and("credit_name_id")+
+		` GROUP BY credit_name_id`, s.args()...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	m := make(map[int64]int, len(rows))
+	for _, r := range rows {
+		m[r.ID] = r.Cnt
+	}
+	return m, nil
+}
+
+func loadSources(db *gorm.DB, entityType int16, s scope) (map[int64][]string, map[int64][]string, error) {
+	var rows []struct {
+		EntityID int64  `gorm:"column:entity_id"`
+		Key      string `gorm:"column:key"`
+		Ext      string `gorm:"column:external_id"`
+	}
+	if err := db.Raw(`SELECT r.entity_id, s.key, r.external_id FROM catalog_external_ref r
+		JOIN catalog_source s ON s.id = r.source_id WHERE r.entity_type = ? AND `+editspec.NotSuppressedExternalRefSQL("r")+
+		s.and("r.entity_id")+` ORDER BY r.entity_id, r.source_id, r.external_id`, s.args(entityType)...).Scan(&rows).Error; err != nil {
+		return nil, nil, err
+	}
+	srcs := map[int64][]string{}
+	keys := map[int64][]string{}
+	keySeen := map[int64]map[string]bool{}
+	for _, r := range rows {
+		srcs[r.EntityID] = append(srcs[r.EntityID], r.Key+":"+r.Ext)
+		if keySeen[r.EntityID] == nil {
+			keySeen[r.EntityID] = map[string]bool{}
+		}
+		if !keySeen[r.EntityID][r.Key] {
+			keySeen[r.EntityID][r.Key] = true
+			keys[r.EntityID] = append(keys[r.EntityID], r.Key)
+		}
+	}
+	return srcs, keys, nil
+}
+
+func reindexCreditNames(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, s scope) ([]int64, error) {
+	pop, err := loadCreditNamePopularity(db, s)
+	if err != nil {
+		return nil, err
+	}
+	srcs, keys, err := loadSources(db, model.EntityTypeCreditName, s)
+	if err != nil {
+		return nil, err
+	}
+	aliases, err := loadAliases(db, s)
+	if err != nil {
+		return nil, err
+	}
+	var indexed []int64
+	lastID := int64(0)
+	for {
+		var rows []struct {
+			ID       int64  `gorm:"column:id"`
+			Name     string `gorm:"column:name"`
+			Lang     string `gorm:"column:lang"`
+			Latin    string `gorm:"column:latin"`
+			PersonID *int64 `gorm:"column:person_id"`
+		}
+		if err := db.Raw(`SELECT id, name, lang, coalesce(latin,'') AS latin, CASE WHEN link_visibility = ? THEN person_id END AS person_id FROM catalog_credit_name WHERE id > ?`+
+			s.and("id")+` ORDER BY id LIMIT ?`, append([]any{model.LinkVisibilityPublic}, s.pageArgs(lastID, batch)...)...).Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		if len(rows) == 0 {
+			break
+		}
+		docs := make([]catalogSearch.EntityDoc, len(rows))
+		for i, r := range rows {
+			d := catalogSearch.EntityDoc{
+				ID: "n" + fmt.Sprint(r.ID), EntityType: "credit_name", Latin: r.Latin,
+				Sources: srcs[r.ID], SourceKeys: keys[r.ID], PersonID: r.PersonID,
+				Popularity: catalogSearch.Popularity(pop[r.ID]),
+			}
+			d.SetName(r.Lang, r.Name)
+			for _, a := range aliases[r.ID] {
+				d.AddAlias(a.lang, a.name)
+			}
+			docs[i] = d
+			indexed = append(indexed, r.ID)
+		}
+		if err := idx.UpsertBatch(ctx, catalogSearch.IndexCreditNames, docs); err != nil {
+			return nil, err
+		}
+		lastID = rows[len(rows)-1].ID
+	}
+	return indexed, nil
+}
+
+func reindexLabels(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, s scope) ([]int64, error) {
+	pop, err := loadEdgeWorkCounts(db, reindexLabelEdge, s)
+	if err != nil {
+		return nil, err
+	}
+	srcs, keys, err := loadSources(db, model.EntityTypeLabel, s)
+	if err != nil {
+		return nil, err
+	}
+	aliases, err := loadAliasTable(db, "catalog_label_alias", "label_id", editspec.NotSuppressedLabelAliasSQL("a"), s)
+	if err != nil {
+		return nil, err
+	}
+	if s == nil {
+		if err := purgeSoftDeleted(ctx, db, idx, catalogSearch.IndexLabels, "catalog_label", "b"); err != nil {
+			return nil, err
+		}
+	}
+	var indexed []int64
+	lastID := int64(0)
+	for {
+		var rows []struct {
+			ID    int64  `gorm:"column:id"`
+			Name  string `gorm:"column:display_name"`
+			Lang  string `gorm:"column:lang"`
+			Latin string `gorm:"column:latin"`
+			Kind  int16  `gorm:"column:kind"`
+		}
+		if err := db.Raw(`SELECT id, display_name, lang, coalesce(latin,'') AS latin, kind FROM catalog_label
+			WHERE id > ? AND deleted_at IS NULL`+s.and("id")+` ORDER BY id LIMIT ?`, s.pageArgs(lastID, batch)...).Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		if len(rows) == 0 {
+			break
+		}
+		docs := make([]catalogSearch.EntityDoc, len(rows))
+		for i, r := range rows {
+			kind := r.Kind
+			d := catalogSearch.EntityDoc{
+				ID: "b" + fmt.Sprint(r.ID), EntityType: "label", Latin: r.Latin,
+				Sources: srcs[r.ID], SourceKeys: keys[r.ID], Kind: &kind,
+				Popularity: catalogSearch.Popularity(pop[r.ID]),
+			}
+			d.SetName(r.Lang, r.Name)
+			for _, a := range aliases[r.ID] {
+				d.AddAlias(a.lang, a.name)
+			}
+			docs[i] = d
+			indexed = append(indexed, r.ID)
+		}
+		if err := idx.UpsertBatch(ctx, catalogSearch.IndexLabels, docs); err != nil {
+			return nil, err
+		}
+		lastID = rows[len(rows)-1].ID
+	}
+	return indexed, nil
+}
+
+type alias struct{ lang, name string }
+
+func loadAliases(db *gorm.DB, s scope) (map[int64][]alias, error) {
+	return loadAliasTable(db, "catalog_name_alias", "credit_name_id", "", s)
+}
+
+func loadAliasTable(db *gorm.DB, table, ownerCol, live string, s scope) (map[int64][]alias, error) {
+	var rows []struct {
+		OwnerID int64  `gorm:"column:owner_id"`
+		Name    string `gorm:"column:name"`
+		Lang    string `gorm:"column:lang"`
+	}
+	q := fmt.Sprintf(`SELECT a.%s AS owner_id, a.name, a.lang FROM %s a WHERE true`, ownerCol, table)
+	if live != "" {
+		q += " AND " + live
+	}
+	q += s.and("a." + ownerCol)
+	if err := db.Raw(q, s.args()...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	m := map[int64][]alias{}
+	for _, r := range rows {
+		m[r.OwnerID] = append(m[r.OwnerID], alias{lang: r.Lang, name: r.Name})
+	}
+	return m, nil
+}
+
+func purgeSoftDeleted(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, uid, table, prefix string) error {
+	var ids []int64
+	if err := db.Raw(fmt.Sprintf(
+		`SELECT id FROM %s WHERE deleted_at IS NOT NULL ORDER BY id`, table)).Scan(&ids).Error; err != nil {
+		return err
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	docIDs := make([]string, len(ids))
+	for i, id := range ids {
+		docIDs[i] = prefix + fmt.Sprint(id)
+	}
+	if err := idx.DeleteBatch(ctx, uid, docIDs); err != nil {
+		return err
+	}
+	slog.Info("purged soft-deleted documents", "index", uid, "docs", len(docIDs))
+	return nil
+}
+
+func loadWorkPopularitySignal(db *gorm.DB, s scope) (map[int64]float64, error) {
+	raw, err := chardocs.LoadWorkPopularityRaw(db, s)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[int64]float64, len(raw))
+	for id, v := range raw {
+		m[id] = math.Log1p(v)
+	}
+	return m, nil
+}
+
+func reindexCharacters(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, s scope) ([]int64, error) {
+	charCtx, err := chardocs.Load(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	srcs, keys, err := loadSources(db, model.EntityTypeCharacter, s)
+	if err != nil {
+		return nil, err
+	}
+	aliases, err := loadAliasTable(db, "catalog_character_alias", "character_id",
+		editspec.NotSuppressedCharacterAliasSQL("a"), s)
+	if err != nil {
+		return nil, err
+	}
+	if s == nil {
+		if err := purgeSoftDeleted(ctx, db, idx, catalogSearch.IndexCharacters, "catalog_character", "c"); err != nil {
+			return nil, err
+		}
+	}
+	var indexed []int64
+	lastID := int64(0)
+	for {
+		var rows []chardocs.Row
+		if err := db.Raw(`SELECT id, display_name, lang, coalesce(latin,'') AS latin, gender FROM catalog_character
+			WHERE id > ? AND deleted_at IS NULL`+s.and("id")+` ORDER BY id LIMIT ?`, s.pageArgs(lastID, batch)...).Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		if len(rows) == 0 {
+			break
+		}
+		docs, err := charCtx.Build(ctx, db, rows)
+		if err != nil {
+			return nil, err
+		}
+		for i, r := range rows {
+			docs[i].Sources = srcs[r.ID]
+			docs[i].SourceKeys = keys[r.ID]
+			for _, a := range aliases[r.ID] {
+				docs[i].AddAlias(a.lang, a.name)
+			}
+			indexed = append(indexed, r.ID)
+		}
+		if err := idx.UpsertBatch(ctx, catalogSearch.IndexCharacters, docs); err != nil {
+			return nil, err
+		}
+		lastID = rows[len(rows)-1].ID
+	}
+	return indexed, nil
+}
+
+type workTitle struct {
+	lang, title, latin string
+	kind               int16
+}
+
+func loadWorkTitles(db *gorm.DB, s scope) (map[int64][]workTitle, error) {
+	const population = `w.deleted_at IS NULL AND w.status = 0
+		AND w.medium_id = (SELECT id FROM catalog_medium WHERE key = 'galgame')`
+
+	m := map[int64][]workTitle{}
+	var native []struct {
+		WorkID int64  `gorm:"column:work_id"`
+		Lang   string `gorm:"column:lang"`
+		Title  string `gorm:"column:title"`
+		Latin  string `gorm:"column:latin"`
+		Kind   int16  `gorm:"column:kind"`
+	}
+	if err := db.Raw(`SELECT t.work_id, t.lang, t.title, coalesce(t.latin,'') AS latin, t.kind
+		FROM catalog_work_title t
+		JOIN catalog_work w ON w.id = t.work_id
+		WHERE `+population+` AND `+editspec.NotSuppressedWorkTitleSQL("t")+s.and("t.work_id")+`
+		ORDER BY t.work_id, t.kind, t.lang, t.title = w.display_name DESC, t.id`, s.args()...).Scan(&native).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range native {
+		m[r.WorkID] = append(m[r.WorkID], workTitle{lang: r.Lang, title: r.Title, latin: r.Latin, kind: r.Kind})
+	}
+	return m, nil
+}
+
+type workIntro struct{ lang, text string }
+
+func loadWorkIntros(db *gorm.DB, s scope) (map[int64][]workIntro, error) {
+	const population = `w.deleted_at IS NULL AND w.status = 0
+		AND w.medium_id = (SELECT id FROM catalog_medium WHERE key = 'galgame')`
+
+	out := map[int64][]workIntro{}
+	var native []struct {
+		WorkID int64  `gorm:"column:work_id"`
+		Lang   string `gorm:"column:lang"`
+		Intro  string `gorm:"column:intro"`
+	}
+	if err := db.Raw(`SELECT i.work_id, i.lang, i.intro
+		FROM catalog_work_intro i JOIN catalog_work w ON w.id = i.work_id
+		WHERE `+population+` AND `+editspec.NotSuppressedWorkIntroSQL("i")+s.and("i.work_id")+`
+		ORDER BY i.work_id, i.lang, `+
+		editspec.IntroFoldOrderSQL("i.source_id", "i.provenance")+
+		`, i.id`, s.args()...).Scan(&native).Error; err != nil {
+		return nil, err
+	}
+	seen := map[int64]map[string]bool{}
+	for _, r := range native {
+		langs := seen[r.WorkID]
+		if langs == nil {
+			langs = map[string]bool{}
+			seen[r.WorkID] = langs
+		}
+		if langs[r.Lang] {
+			continue
+		}
+		langs[r.Lang] = true
+		out[r.WorkID] = append(out[r.WorkID], workIntro{lang: r.Lang, text: r.Intro})
+	}
+	return out, nil
+}
+
+func reindexWorks(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, s scope) ([]int64, error) {
+	pop, err := loadWorkPopularitySignal(db, s)
+	if err != nil {
+		return nil, err
+	}
+	srcs, keys, err := loadSources(db, model.EntityTypeWork, s)
+	if err != nil {
+		return nil, err
+	}
+	titles, err := loadWorkTitles(db, s)
+	if err != nil {
+		return nil, err
+	}
+	facets, err := loadWorksFacets(db, s)
+	if err != nil {
+		return nil, err
+	}
+	intros, err := loadWorkIntros(db, s)
+	if err != nil {
+		return nil, err
+	}
+	ratings, err := loadWorkRatingSort(db, s)
+	if err != nil {
+		return nil, err
+	}
+	// Works was the only soft-deleting lane without this purge: the 2026-08-29
+	// merge wave left its 3,242 soft-deleted works in the index — hits
+	// self-healed through DB hydration, totals and ranking slots did not — and
+	// the stale documents had to be hand-deleted over the search API.
+	if s == nil {
+		if err := purgeSoftDeleted(ctx, db, idx, catalogSearch.IndexWorks, "catalog_work", "w"); err != nil {
+			return nil, err
+		}
+	}
+	var indexed []int64
+	lastID := int64(0)
+	for {
+		var rows []struct {
+			ID          int64  `gorm:"column:id"`
+			DisplayName string `gorm:"column:display_name"`
+			// Explicit column tag: GORM snake-cases OLang to o_lang, which
+			// matches no result column and would scan as "" — the trap that left
+			// the works list's olang empty from W1 until A2-1a.
+			OLang         string    `gorm:"column:olang"`
+			ContentRating int16     `gorm:"column:content_rating"`
+			Site          string    `gorm:"column:site"`
+			ProductWorkID *int64    `gorm:"column:product_work_id"`
+			ClaimState    *int16    `gorm:"column:claim_state"`
+			UpdatedAt     time.Time `gorm:"column:updated_at"`
+			DisplayNSFW   bool      `gorm:"column:display_nsfw"`
+			// cover_art_all_explicit is trigger-maintained; content_limit reaches
+			// the index only through this job, so omitting it here would serve a
+			// stale shelf on the search face until the next daily run.
+			CoverArtAllExplicit bool  `gorm:"column:cover_art_all_explicit"`
+			TitleNSFW           *bool `gorm:"column:title_nsfw"`
+		}
+		if err := db.Raw(`SELECT w.id, w.display_name, w.olang, w.content_rating, coalesce(w.site,'') AS site,
+				w.product_work_id, w.claim_state, w.updated_at, w.display_nsfw, w.cover_art_all_explicit, w.title_nsfw
+			FROM catalog_work w
+			WHERE w.id > ? AND w.deleted_at IS NULL AND w.status = 0
+				AND w.medium_id = (SELECT id FROM catalog_medium WHERE key = 'galgame')`+s.and("w.id")+`
+			ORDER BY w.id LIMIT ?`, s.pageArgs(lastID, batch)...).Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		if len(rows) == 0 {
+			break
+		}
+		docs := make([]catalogSearch.EntityDoc, len(rows))
+		for i, r := range rows {
+			in := catalogSearch.WorkDocInput{
+				ID: r.ID, DisplayName: r.DisplayName, OLang: r.OLang,
+				ContentRating: r.ContentRating,
+				Claimed:       r.Site != "",
+				ClaimState:    model.ClaimStateKey(&r.Site, r.ProductWorkID, r.ClaimState),
+				ContentLimit: model.DisplayLimitKey(model.WorkShelf{
+					Site: &r.Site, ProductWorkID: r.ProductWorkID, DisplayNSFW: r.DisplayNSFW,
+					ContentRating: r.ContentRating, CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW,
+				}),
+				ReleasedOrd: facets.releasedOrd[r.ID], UpdatedTS: r.UpdatedAt.Unix(),
+				Popularity: pop[r.ID], Sources: srcs[r.ID], SourceKeys: keys[r.ID],
+				TagIDs: facets.tagIDs[r.ID], LabelIDs: facets.labelIDs[r.ID],
+				EngineIDs: facets.engineIDs[r.ID], SeriesIDs: facets.seriesIDs[r.ID],
+				Ratings: ratings[r.ID],
+			}
+			for _, t := range titles[r.ID] {
+				in.Titles = append(in.Titles, catalogSearch.WorkDocTitle{Lang: t.lang, Title: t.title, Latin: t.latin})
+			}
+			for _, iv := range intros[r.ID] {
+				in.Intros = append(in.Intros, catalogSearch.WorkDocIntro{Lang: iv.lang, Text: iv.text})
+			}
+			docs[i] = catalogSearch.BuildWorkDoc(in)
+			indexed = append(indexed, r.ID)
+		}
+		if err := idx.UpsertBatch(ctx, catalogSearch.IndexWorks, docs); err != nil {
+			return nil, err
+		}
+		lastID = rows[len(rows)-1].ID
+	}
+	return indexed, nil
+}

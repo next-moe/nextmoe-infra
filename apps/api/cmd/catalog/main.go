@@ -25,6 +25,7 @@ import (
 	catHandler "api/internal/platform/catalog/handler"
 	"api/internal/platform/catalog/repository"
 	catalogSearch "api/internal/platform/catalog/search"
+	"api/internal/platform/catalog/search/docsync"
 	"api/internal/platform/catalog/service"
 	"api/internal/platform/catalog/walkthroughdraft"
 	"api/internal/platform/devapi"
@@ -135,6 +136,9 @@ func main() {
 		slog.Error("editing: register catalog entity types", "error", err)
 		os.Exit(1)
 	}
+	searchSync := docsync.NewSyncer(catalogDB.DB(), searcher)
+	editRegistry.Observe(searchSync.Observe)
+	searchSync.Start(permCtx)
 	editPolicy := editing.NewPolicyStore(catalogDB.DB(), editRegistry)
 	editPolicy.Start(permCtx)
 	catHandler.RegisterEditPolicy(adminAPI, editPolicy)

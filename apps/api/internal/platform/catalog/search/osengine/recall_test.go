@@ -71,29 +71,37 @@ func TestOpenSearchRecall(t *testing.T) {
 		n := loadFixtureIndex(t, ctx, eng, uid, titles)
 		if uid == IndexWorks {
 			worksLines = n
-			seps := separatorDocs()
-			require.NoError(t, eng.Upsert(ctx, uid, seps))
-			for _, d := range seps {
-				src, _ := d.Source.(map[string]any)
-				titles[d.ID] = titleBlobFromMap(src)
-			}
+			upsertExtra(t, eng, uid, separatorDocs(), titles)
 		}
+		upsertExtra(t, eng, uid, prefixDocs()[uid], titles)
 		require.NoError(t, eng.Refresh(ctx, uid))
 	}
 
 	count, err := eng.Count(ctx, IndexWorks)
 	require.NoError(t, err)
-	require.Equal(t, int64(worksLines+2), count)
+	require.Equal(t, int64(worksLines+len(separatorDocs())+len(prefixDocs()[IndexWorks])), count)
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			assertRecall(t, tc, recallSearch(t, eng, tc), titles)
 		})
 	}
-	for _, tc := range separatorCases() {
+	for _, tc := range slices.Concat(separatorCases(), prefixCases()) {
 		t.Run(tc.Name, func(t *testing.T) {
 			assertRecall(t, tc, recallSearch(t, eng, tc), titles)
 		})
+	}
+}
+
+func upsertExtra(t *testing.T, eng *Engine, uid string, docs []BulkDoc, titles map[string]string) {
+	t.Helper()
+	if len(docs) == 0 {
+		return
+	}
+	require.NoError(t, eng.Upsert(t.Context(), uid, docs))
+	for _, d := range docs {
+		src, _ := d.Source.(map[string]any)
+		titles[d.ID] = titleBlobFromMap(src)
 	}
 }
 
@@ -265,5 +273,48 @@ func separatorCases() []recallCase {
 			MustID:   "wsep2",
 			MustRank: 3,
 		},
+	}
+}
+
+func prefixDocs() map[string][]BulkDoc {
+	doc := func(id, entityType, name string, popularity float64) BulkDoc {
+		return BulkDoc{ID: id, Source: map[string]any{
+			"id":          id,
+			"entity_type": entityType,
+			"name_other":  name,
+			"popularity":  popularity,
+			"sources":     []string{},
+			"source_keys": []string{},
+		}}
+	}
+	return map[string][]BulkDoc{
+		IndexEngines: {
+			doc("epre1", "engine", "GPK2", 1),
+			doc("epre2", "engine", "SiglusEngine", 3),
+			doc("epre3", "engine", "KiriKiri", 5),
+			doc("epre4", "engine", "KiriKiri Z", 2),
+		},
+		IndexWorks: {
+			doc("wpre1", "work", "Riddle Joker", 1),
+			doc("wpre2", "work", "Zephyrwitch", 0),
+			doc("wpre3", "work", "Zephyrwitch Legacy", 9.6),
+			doc("wpre4", "work", "Zephyrwitch Medical Chart", 8.7),
+			doc("wpre5", "work", "Quillmark Story", 0),
+			doc("wpre6", "work", "Quillmark Tales", 0.5),
+			doc("wpre7", "work", "Quillmark and the Long Night of Falling Stars", 8.8),
+		},
+	}
+}
+
+func prefixCases() []recallCase {
+	return []recallCase{
+		{Name: "prefix gpk -> GPK2", Index: IndexEngines, Q: "gpk", MustID: "epre1", MustRank: 1},
+		{Name: "prefix siglus -> SiglusEngine", Index: IndexEngines, Q: "siglus", MustID: "epre2", MustRank: 1},
+		{Name: "prefix keeps the exact name first", Index: IndexEngines, Q: "kirikiri", MustID: "epre3", MustRank: 1},
+		{Name: "prefix kirikiri z", Index: IndexEngines, Q: "kirikiri z", MustID: "epre4", MustRank: 1},
+		{Name: "prefix of a later word", Index: IndexWorks, Q: "riddle jok", MustID: "wpre1", MustRank: 3},
+		{Name: "prefix of a single word", Index: IndexWorks, Q: "ridd", MustID: "wpre1", MustRank: 8},
+		{Name: "an exact title outranks popular partial matches", Index: IndexWorks, Q: "zephyrwitch", MustID: "wpre2", MustRank: 1},
+		{Name: "popularity orders equal word matches", Index: IndexWorks, Q: "quillmark", MustID: "wpre7", MustRank: 1},
 	}
 }

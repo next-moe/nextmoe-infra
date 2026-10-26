@@ -124,6 +124,17 @@ func (c *Catalog) ListCreditNames(ctx context.Context, q collect.Query, nameQ st
 	if q.Batch && len(ids) == 0 {
 		return finishList([]repr.CreditName{}, nil, 0, q, missing), nil
 	}
+	if nq := catsvc.NormalizeNameQuery(nameQ); nq != "" && !q.Batch && c.Public.SearchAvailable() {
+		page, perr := searchPage(q)
+		if perr != nil {
+			return repr.List[repr.CreditName]{}, perr
+		}
+		data, err := c.Public.NamesSearch(ctx, nq, page, listLimit(q))
+		if err != nil {
+			return repr.List[repr.CreditName]{}, err
+		}
+		return nameSearchList(q, data, creditNameFromRow), nil
+	}
 	data, lerr := c.Public.NamesList(ctx, ids, catsvc.NormalizeNameQuery(nameQ), q.Cursor, listLimit(q))
 	if lerr != nil {
 		return repr.List[repr.CreditName]{}, listCursorErr(lerr)
@@ -148,6 +159,17 @@ func (c *Catalog) ListPersons(ctx context.Context, q collect.Query, nameQ string
 	}
 	if q.Batch && len(ids) == 0 {
 		return finishList([]repr.Person{}, nil, 0, q, missing), nil
+	}
+	if nq := catsvc.NormalizeNameQuery(nameQ); nq != "" && !q.Batch && c.Public.SearchAvailable() {
+		page, perr := searchPage(q)
+		if perr != nil {
+			return repr.List[repr.Person]{}, perr
+		}
+		data, err := c.Public.PersonsSearch(ctx, nq, page, listLimit(q))
+		if err != nil {
+			return repr.List[repr.Person]{}, err
+		}
+		return nameSearchList(q, data, personFromRow), nil
 	}
 	data, lerr := c.Public.PersonsList(ctx, ids, catsvc.NormalizeNameQuery(nameQ), q.Cursor, listLimit(q))
 	if lerr != nil {
@@ -244,4 +266,25 @@ func listLimit(q collect.Query) int {
 		return 100
 	}
 	return q.Limit
+}
+
+func nameSearchList[T any](q collect.Query, data catsvc.NameSearchPage, conv func(catsvc.EntityListRow) T) repr.List[T] {
+	items := make([]T, 0, len(data.Items))
+	for _, it := range data.Items {
+		items = append(items, conv(it))
+	}
+	if q.Page > 0 {
+		return finishPageList(items, data.Total)
+	}
+	var next *string
+	if int64(data.Page)*int64(data.Limit) < data.Total && len(data.Items) > 0 {
+		enc := collect.EncodeCursor(strconv.Itoa(data.Page + 1))
+		next = &enc
+	}
+	out := repr.NewList(items, next)
+	if q.IncludeTotal {
+		n := data.Total
+		out.Total = &n
+	}
+	return out
 }

@@ -13970,7 +13970,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.72.0
+  version: 2.73.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -15385,12 +15385,12 @@ paths:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
             type: string
-        - description: Name search. Empty lists by id. Must not be used as a discriminant.
+        - description: "Name search over the search index (name, latin and aliases): a prefix, pinyin, kana or script variant matches, and results come in relevance order; the cursor then pages that order. Empty lists by id. Must not be used as a discriminant."
           explode: false
           in: query
           name: q
           schema:
-            description: Name search. Empty lists by id. Must not be used as a discriminant.
+            description: "Name search over the search index (name, latin and aliases): a prefix, pinyin, kana or script variant matches, and results come in relevance order; the cursor then pages that order. Empty lists by id. Must not be used as a discriminant."
             maxLength: 512
             type: string
       responses:
@@ -16205,12 +16205,12 @@ paths:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
             type: string
-        - description: "Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."
+        - description: "Name search over the person's credit names whose person link is public (name, latin and aliases) in the search index: a prefix, pinyin, kana or script variant matches, and results come in relevance order, one per person; the cursor then pages that order. Must not be used as a discriminant."
           explode: false
           in: query
           name: q
           schema:
-            description: "Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."
+            description: "Name search over the person's credit names whose person link is public (name, latin and aliases) in the search index: a prefix, pinyin, kana or script variant matches, and results come in relevance order, one per person; the cursor then pages that order. Must not be used as a discriminant."
             maxLength: 512
             type: string
       responses:
@@ -17023,12 +17023,12 @@ paths:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
             type: string
-        - description: "Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."
+        - description: "Title search over the same dated releases this collection lists, in this collection's date order: the release title or its work's display name as a case-insensitive substring, or a work that matches q in the works search index (prefix, aliases, pinyin, script variants; its 200 best matches). Must not be used as a discriminant."
           explode: false
           in: query
           name: q
           schema:
-            description: "Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."
+            description: "Title search over the same dated releases this collection lists, in this collection's date order: the release title or its work's display name as a case-insensitive substring, or a work that matches q in the works search index (prefix, aliases, pinyin, script variants; its 200 best matches). Must not be used as a discriminant."
             maxLength: 512
             type: string
       responses:

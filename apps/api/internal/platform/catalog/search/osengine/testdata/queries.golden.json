@@ -22,6 +22,23 @@
               }
             },
             {
+              "prefix": {
+                "titles_kw": {
+                  "boost": 100,
+                  "value": "clannad"
+                }
+              }
+            },
+            {
+              "match_bool_prefix": {
+                "titles": {
+                  "boost": 2,
+                  "operator": "and",
+                  "query": "CLANNAD"
+                }
+              }
+            },
+            {
               "match_phrase": {
                 "titles_ja": {
                   "boost": 6,
@@ -1623,6 +1640,23 @@
                 "titles_pinyin": {
                   "boost": 12,
                   "value": "key"
+                }
+              }
+            },
+            {
+              "prefix": {
+                "titles_kw": {
+                  "boost": 10,
+                  "value": "key"
+                }
+              }
+            },
+            {
+              "match_bool_prefix": {
+                "titles": {
+                  "boost": 2,
+                  "operator": "and",
+                  "query": "Key"
                 }
               }
             },
@@ -3773,6 +3807,23 @@
               }
             },
             {
+              "prefix": {
+                "titles_kw": {
+                  "boost": 100,
+                  "value": "senren"
+                }
+              }
+            },
+            {
+              "match_bool_prefix": {
+                "titles": {
+                  "boost": 2,
+                  "operator": "and",
+                  "query": "senren"
+                }
+              }
+            },
+            {
               "match_phrase": {
                 "titles_ja": {
                   "boost": 6,
@@ -3866,6 +3917,23 @@
                 "titles_pinyin": {
                   "boost": 12,
                   "value": "jinyue"
+                }
+              }
+            },
+            {
+              "prefix": {
+                "titles_kw": {
+                  "boost": 100,
+                  "value": "jinyue"
+                }
+              }
+            },
+            {
+              "match_bool_prefix": {
+                "titles": {
+                  "boost": 2,
+                  "operator": "and",
+                  "query": "jinyue"
                 }
               }
             },
@@ -4093,6 +4161,23 @@
                 "titles_pinyin": {
                   "boost": 12,
                   "value": "clannad"
+                }
+              }
+            },
+            {
+              "prefix": {
+                "titles_kw": {
+                  "boost": 100,
+                  "value": "clannad"
+                }
+              }
+            },
+            {
+              "match_bool_prefix": {
+                "titles": {
+                  "boost": 2,
+                  "operator": "and",
+                  "query": "CLANNAD"
                 }
               }
             },
@@ -4353,6 +4438,23 @@
                 "titles_pinyin": {
                   "boost": 12,
                   "value": "fatestaynight"
+                }
+              }
+            },
+            {
+              "prefix": {
+                "titles_kw": {
+                  "boost": 100,
+                  "value": "fatestaynight"
+                }
+              }
+            },
+            {
+              "match_bool_prefix": {
+                "titles": {
+                  "boost": 2,
+                  "operator": "and",
+                  "query": "Fate/stay night"
                 }
               }
             },
@@ -4660,6 +4762,23 @@
               }
             },
             {
+              "prefix": {
+                "titles_kw": {
+                  "boost": 10,
+                  "value": "aokana"
+                }
+              }
+            },
+            {
+              "match_bool_prefix": {
+                "titles": {
+                  "boost": 2,
+                  "operator": "and",
+                  "query": "aokana"
+                }
+              }
+            },
+            {
               "match_phrase": {
                 "titles_ja": {
                   "boost": 6,
@@ -4744,7 +4863,32 @@
               "term": {
                 "titles_kw": {
                   "boost": 14,
-                  "value": "ｋｅｙ"
+                  "value": "key"
+                }
+              }
+            },
+            {
+              "prefix": {
+                "titles_pinyin": {
+                  "boost": 12,
+                  "value": "key"
+                }
+              }
+            },
+            {
+              "prefix": {
+                "titles_kw": {
+                  "boost": 10,
+                  "value": "key"
+                }
+              }
+            },
+            {
+              "match_bool_prefix": {
+                "titles": {
+                  "boost": 2,
+                  "operator": "and",
+                  "query": "Ｋｅｙ"
                 }
               }
             },
@@ -4801,15 +4945,6 @@
                   "query": "Ｋｅｙ"
                 }
               }
-            },
-            {
-              "match": {
-                "titles_ngram": {
-                  "boost": 3,
-                  "operator": "and",
-                  "query": "Ｋｅｙ"
-                }
-              }
             }
           ]
         }
@@ -4842,7 +4977,7 @@
               "term": {
                 "titles_kw": {
                   "boost": 14,
-                  "value": "ｄ．ｃ．ダカーポ"
+                  "value": "dcダカーポ"
                 }
               }
             },
@@ -4915,7 +5050,7 @@
                   "boost": 8,
                   "fuzziness": 2,
                   "max_expansions": 80,
-                  "value": "ｄ．ｃ．ダカーポ"
+                  "value": "dcダカーポ"
                 }
               }
             }

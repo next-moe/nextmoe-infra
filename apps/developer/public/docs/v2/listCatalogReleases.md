@@ -32,7 +32,7 @@ Keyset-paginated dated releases, sorted by date_desc by default. q= filters by r
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `q` | query | 否 | string | Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant. |
+| `q` | query | 否 | string | Title search over the same dated releases this collection lists, in this collection's date order: the release title or its work's display name as a case-insensitive substring, or a work that matches q in the works search index (prefix, aliases, pinyin, script variants; its 200 best matches). Must not be used as a discriminant. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/releases"

@@ -1,4 +1,4 @@
-package main
+package docsync
 
 import (
 	"context"
@@ -36,7 +36,7 @@ func TestReindexWorksPurgesSoftDeleted(t *testing.T) {
 	}
 	waitWorkDocs(t, idx, 2)
 
-	if err := reindexWorks(context.Background(), facetTestDB, idx, 100); err != nil {
+	if _, err := reindexWorks(context.Background(), facetTestDB, idx, 100, nil); err != nil {
 		t.Fatalf("reindexWorks: %v", err)
 	}
 	if err := idx.Refresh(context.Background(), catalogSearch.IndexWorks); err != nil {

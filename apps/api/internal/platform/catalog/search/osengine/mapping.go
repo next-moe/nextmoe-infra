@@ -12,7 +12,7 @@ import (
 var analysisJSON []byte
 
 const (
-	SchemaVersion   = 3
+	SchemaVersion   = 4
 	maxResultWindow = 500000
 
 	IndexCreditNames = "catalog_credit_names"
@@ -50,6 +50,10 @@ func IndexBody(uid string) (map[string]any, error) {
 	var analysis map[string]any
 	if err := json.Unmarshal(analysisJSON, &analysis); err != nil {
 		return nil, fmt.Errorf("analysis.json: %w", err)
+	}
+	charFilters, _ := analysis["char_filter"].(map[string]any)
+	charFilters["kw_strip"] = map[string]any{
+		"type": "pattern_replace", "pattern": kwStripPattern(), "replacement": "",
 	}
 	return map[string]any{
 		"settings": map[string]any{

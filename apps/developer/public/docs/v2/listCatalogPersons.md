@@ -32,7 +32,7 @@ Keyset-paginated persons. q= searches the display name and every credit name who
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `q` | query | 否 | string | Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant. |
+| `q` | query | 否 | string | Name search over the person's credit names whose person link is public (name, latin and aliases) in the search index: a prefix, pinyin, kana or script variant matches, and results come in relevance order, one per person; the cursor then pages that order. Must not be used as a discriminant. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/persons"

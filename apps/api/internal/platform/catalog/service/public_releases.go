@@ -39,6 +39,7 @@ type ReleaseFeedFilter struct {
 	Include       WorksListInclude
 	IDs           []int64
 	TitleQuery    string
+	TitleWorkIDs  []int64
 }
 
 func (f ReleaseFeedFilter) lane() string {
@@ -293,8 +294,13 @@ func releaseFeedSource(f ReleaseFeedFilter) (from string, where []string, args [
 	}
 	if f.TitleQuery != "" {
 		pat := "%" + escapeLikePattern(f.TitleQuery) + "%"
-		where = append(where, `(r.title ILIKE ? ESCAPE '\' OR w.display_name ILIKE ? ESCAPE '\')`)
+		match := `r.title ILIKE ? ESCAPE '\' OR w.display_name ILIKE ? ESCAPE '\'`
 		args = append(args, pat, pat)
+		if len(f.TitleWorkIDs) > 0 {
+			match += ` OR r.work_id IN ?`
+			args = append(args, f.TitleWorkIDs)
+		}
+		where = append(where, "("+match+")")
 	}
 	return from, where, args
 }

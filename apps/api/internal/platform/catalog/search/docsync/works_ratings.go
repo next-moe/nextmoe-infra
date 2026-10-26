@@ -1,4 +1,4 @@
-package main
+package docsync
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func loadWorkRatingSort(db *gorm.DB) (map[int64]map[string]float64, error) {
+func loadWorkRatingSort(db *gorm.DB, s scope) (map[int64]map[string]float64, error) {
 	var rows []struct {
 		WorkID int64   `gorm:"column:work_id"`
 		Source string  `gorm:"column:source"`
@@ -17,12 +17,14 @@ func loadWorkRatingSort(db *gorm.DB) (map[int64]map[string]float64, error) {
 		Votes  int     `gorm:"column:vote_count"`
 		Mean   float64 `gorm:"column:mean"`
 	}
-	q := fmt.Sprintf(`SELECT r.work_id, s.key AS source, r.score::float8 AS score, r.vote_count,
-			avg(r.score::float8) OVER (PARTITION BY r.source_id) AS mean
+	q := fmt.Sprintf(`SELECT r.work_id, s.key AS source, r.score::float8 AS score, r.vote_count, m.mean
 		FROM catalog_work_rating r
 		JOIN catalog_source s ON s.id = r.source_id `+worksPopulationJoin+`
-		WHERE s.key IN ?`, "r.work_id")
-	if err := db.Raw(q, spec.RatingSources).Scan(&rows).Error; err != nil {
+		JOIN (SELECT pr.source_id, avg(pr.score::float8) AS mean
+			FROM catalog_work_rating pr `+fmt.Sprintf(worksPopulationJoin, "pr.work_id")+`
+			GROUP BY pr.source_id) m ON m.source_id = r.source_id
+		WHERE s.key IN ?`+s.and("r.work_id"), "r.work_id")
+	if err := db.Raw(q, s.args(spec.RatingSources)...).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("work rating sort: %w", err)
 	}
 	m := make(map[int64]map[string]float64)
