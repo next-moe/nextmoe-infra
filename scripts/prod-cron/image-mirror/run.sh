@@ -1,7 +1,8 @@
 #!/bin/sh
 # shellcheck disable=SC2016
-# Weekly image mirror (catalog): VNDB covers and character portraits, DLsite
-# covers and sample screenshots, Bangumi covers, company logos and person photos.
+# Weekly image mirror (catalog): VNDB covers, screenshots and character
+# portraits, DLsite covers and sample screenshots, Bangumi covers, company logos
+# and person photos.
 # Canonical copy: scripts/prod-cron/image-mirror/run.sh in nextmoe-infra — edit
 # there and redeploy; the box copy is /root/image-mirror/run.sh and must stay
 # byte-identical.
@@ -32,6 +33,12 @@ VNDB_RSYNC=${IMAGE_MIRROR_VNDB_RSYNC:-rsync://dl.vndb.org/vndb-img/}
 DLSITE_IMG_TAG=${IMAGE_MIRROR_DLSITE_IMAGE:-ghcr.io/kunmoe/kun-dlsite-api:latest}
 COVERS_MAX=${IMAGE_MIRROR_COVERS_MAX:-500}
 PORTRAITS_MAX=${IMAGE_MIRROR_PORTRAITS_MAX:-3000}
+# VNDB screenshots had no lane after wave 161 retired the wiki's one-off import:
+# on 2026-10-26, 16,415 live works with a VNDB anchor and no screenshot at all
+# had ~94.6k on VNDB. The tool caps a run by works, newest first.
+SHOTS_WORKS=${IMAGE_MIRROR_SHOTS_WORKS:-3000}
+UPLOAD_WORKERS=${IMAGE_MIRROR_UPLOAD_WORKERS:-4}
+LANES=${IMAGE_MIRROR_LANES:-vndb dlsite bangumi}
 DLSITE_BATCH=${IMAGE_MIRROR_DLSITE_BATCH:-3000}
 DLSITE_WORKS_MAX=${IMAGE_MIRROR_DLSITE_WORKS_MAX:-3000}
 DLSITE_404_RETRY_DAYS=${IMAGE_MIRROR_DLSITE_404_RETRY_DAYS:-90}
@@ -123,17 +130,20 @@ lane_vndb() {
     > state/covers-dry.log 2>&1 || { echo "FATAL: covers dry run failed"; cat state/covers-dry.log; return 1; }
   run sh -c "$DSNSH"'; backfill-character-portraits --dsn "$CAT" --vndb-image-dir /w/mirror/vndb --files-out /w/state/portraits.files' \
     > state/portraits-dry.log 2>&1 || { echo "FATAL: portraits dry run failed"; cat state/portraits-dry.log; return 1; }
+  run sh -c "$DSNSH"'; backfill-vndb-screenshots --dsn "$CAT" --image-dir /w/mirror/vndb --limit '"$SHOTS_WORKS"' --files-out /w/state/shots.files' \
+    > state/shots-dry.log 2>&1 || { echo "FATAL: screenshots dry run failed"; cat state/shots-dry.log; return 1; }
   covers=$(counter to_fetch state/covers-dry.log)
   portraits=$(counter missing_file state/portraits-dry.log)
-  echo "vndb: covers to fetch ${covers:-?} (ceiling $COVERS_MAX), portraits ${portraits:-?} (ceiling $PORTRAITS_MAX)"
-  if [ -z "$covers" ] || [ -z "$portraits" ]; then
-    echo "FATAL: could not read the vndb dry-run counts"; cat state/covers-dry.log state/portraits-dry.log; return 1
+  shots=$(counter to_fetch state/shots-dry.log)
+  echo "vndb: covers to fetch ${covers:-?} (ceiling $COVERS_MAX), portraits ${portraits:-?} (ceiling $PORTRAITS_MAX), screenshots ${shots:-?} (at most $SHOTS_WORKS works)"
+  if [ -z "$covers" ] || [ -z "$portraits" ] || [ -z "$shots" ]; then
+    echo "FATAL: could not read the vndb dry-run counts"; cat state/covers-dry.log state/portraits-dry.log state/shots-dry.log; return 1
   fi
   if [ "$covers" -gt "$COVERS_MAX" ] || [ "$portraits" -gt "$PORTRAITS_MAX" ]; then
     echo "FATAL: vndb fetch list over its ceiling — inspect state/*.files before raising it"; return 1
   fi
 
-  cat state/covers.files state/portraits.files | sort -u > state/vndb.files || return 1
+  cat state/covers.files state/portraits.files state/shots.files | sort -u > state/vndb.files || return 1
   if [ -s state/vndb.files ]; then
     rc=0
     timeout 3h rsync -a --contimeout=60 --timeout=300 --files-from=state/vndb.files "$VNDB_RSYNC" "$m/" || rc=$?
@@ -151,6 +161,8 @@ lane_vndb() {
     || { echo "WARN: covers upload failed"; ok=1; }
   run sh -c "$DSNSH"'; backfill-character-portraits --dsn "$CAT" --vndb-image-dir /w/mirror/vndb --upload-gap 100ms --apply' \
     || { echo "WARN: portraits upload failed"; ok=1; }
+  run sh -c "$DSNSH"'; backfill-vndb-screenshots --dsn "$CAT" --image-dir /w/mirror/vndb --limit '"$SHOTS_WORKS"' --workers '"$UPLOAD_WORKERS"' --upload-gap 100ms --apply' \
+    || { echo "WARN: screenshots upload failed"; ok=1; }
   if [ "$ok" -eq 0 ]; then
     rm -rf "$m"
   fi
@@ -253,7 +265,7 @@ lane_dlsite() {
     fi
   fi
 
-  run sh -c "$DSNSH"'; backfill-dlsite-media --dsn "$CAT" --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --upload-gap 100ms --apply' \
+  run sh -c "$DSNSH"'; backfill-dlsite-media --dsn "$CAT" --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --workers '"$UPLOAD_WORKERS"' --upload-gap 100ms --apply' \
     || { echo "WARN: dlsite upload failed"; return 1; }
   rm -rf "$m"
 }
@@ -318,9 +330,13 @@ lane_bangumi() {
 
 # The lanes share nothing but the image service, so one failing never stops
 # another; any failing fails the run.
-if ! lane_vndb; then echo "WARN: vndb lane failed"; FAIL=1; fi
-if ! lane_dlsite; then echo "WARN: dlsite lane failed"; FAIL=1; fi
-if ! lane_bangumi; then echo "WARN: bangumi lane failed"; FAIL=1; fi
+for lane in $LANES; do
+  case "$lane" in
+    vndb|dlsite|bangumi) ;;
+    *) echo "FATAL: unknown lane '$lane' in IMAGE_MIRROR_LANES"; FAIL=1; continue ;;
+  esac
+  if ! "lane_$lane"; then echo "WARN: $lane lane failed"; FAIL=1; fi
+done
 
 find logs -name 'run-*.log' ! -name "run-$(date -u +%F).log" -exec gzip -qf {} \;
 find logs -name 'run-*.log.gz' -mtime +90 -delete
