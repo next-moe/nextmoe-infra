@@ -9,11 +9,6 @@
       "type": "pattern_replace",
       "pattern": "[=＝☆★×✕～〜・♪♭♯†‡|:/+#@!?&＆＊*-]",
       "replacement": " "
-    },
-    "kw_strip": {
-      "type": "pattern_replace",
-      "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
-      "replacement": ""
     }
   },
   "tokenizer": {

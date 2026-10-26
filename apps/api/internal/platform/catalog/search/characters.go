@@ -10,6 +10,11 @@ type CharactersResult struct {
 	Total int64
 }
 
+type PersonsResult struct {
+	IDs   []int64
+	Total int64
+}
+
 func CharacterDocID(id int64) string { return "c" + strconv.FormatInt(id, 10) }
 
 func CharacterDocIDToID(docID string) (int64, bool) {

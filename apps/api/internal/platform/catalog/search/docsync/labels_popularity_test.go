@@ -1,4 +1,4 @@
-package main
+package docsync
 
 import (
 	"context"
@@ -67,7 +67,7 @@ func TestReindexLabelsPopularityCountsLiveWorks(t *testing.T) {
 	}
 	t.Cleanup(func() { dbtest.SweepSearchIndexes(client, prefix) })
 
-	if err := reindexLabels(context.Background(), facetTestDB, idx, 100); err != nil {
+	if _, err := reindexLabels(context.Background(), facetTestDB, idx, 100, nil); err != nil {
 		t.Fatalf("reindexLabels: %v", err)
 	}
 	if err := idx.Refresh(context.Background(), catalogSearch.IndexLabels); err != nil {

@@ -118,6 +118,14 @@ func (a *osAdapter) SearchCharacters(ctx context.Context, q spec.CharacterQuery)
 	return out, nil
 }
 
+func (a *osAdapter) SearchPersons(ctx context.Context, q spec.EntityQuery) (PersonsResult, error) {
+	res, err := a.eng.SearchPersons(ctx, q)
+	if err != nil {
+		return PersonsResult{}, err
+	}
+	return PersonsResult(res), nil
+}
+
 func (a *osAdapter) CharacterTraitCounts(ctx context.Context, nsfw bool) (map[int64]int64, error) {
 	return a.eng.CharacterTraitCounts(ctx, nsfw)
 }

@@ -130,3 +130,35 @@ func TestOnMergePanicDoesNotCrash(t *testing.T) {
 		t.Fatalf("panic rolled the merge back: open_note=%q", w.OpenNote)
 	}
 }
+
+func TestRegistryObserverSeesEveryMergeWithoutAnOnMergeHook(t *testing.T) {
+	cleanTables(t)
+	reg := editing.NewRegistry()
+	if err := reg.Register(widgetSpec(testDB)); err != nil {
+		t.Fatalf("register widget spec: %v", err)
+	}
+	type seen struct {
+		entityType string
+		entityID   int64
+	}
+	var calls []seen
+	reg.Observe(func(_ context.Context, entityType string, ev editing.MergeEvent) {
+		calls = append(calls, seen{entityType, ev.EntityID})
+	})
+	reg.Observe(func(context.Context, string, editing.MergeEvent) { panic("observer boom") })
+	e := editing.NewEngine(testDB, reg)
+	createWidget(t, 7)
+
+	if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+		EntityType: "test.widget", EntityID: 7,
+		Patch: map[string]any{fOpen: "observed"}, Actor: anonActor(10),
+	}); err != nil {
+		t.Fatalf("direct edit: %v", err)
+	}
+	if len(calls) != 1 || calls[0] != (seen{"test.widget", 7}) {
+		t.Fatalf("observer calls = %+v", calls)
+	}
+	if w := loadWidget(t, 7); w.OpenNote != "observed" {
+		t.Fatalf("a panicking observer undid the merge: open_note=%q", w.OpenNote)
+	}
+}

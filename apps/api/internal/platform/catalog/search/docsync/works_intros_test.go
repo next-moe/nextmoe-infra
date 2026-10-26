@@ -1,4 +1,4 @@
-package main
+package docsync
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 
 func introsOf(t *testing.T, workID int64) map[string]string {
 	t.Helper()
-	all, err := loadWorkIntros(facetTestDB)
+	all, err := loadWorkIntros(facetTestDB, nil)
 	if err != nil {
 		t.Fatalf("loadWorkIntros: %v", err)
 	}

@@ -44,17 +44,17 @@ type listTraitsOutput struct {
 
 type listPersonsInput struct {
 	CollectionInput
-	Q string `query:"q" maxLength:"512" doc:"Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."`
+	Q string `query:"q" maxLength:"512" doc:"Name search over the person's credit names whose person link is public (name, latin and aliases) in the search index: a prefix, pinyin, kana or script variant matches, and results come in relevance order, one per person; the cursor then pages that order. Must not be used as a discriminant."`
 }
 
 type listReleasesInput struct {
 	CollectionInput
-	Q string `query:"q" maxLength:"512" doc:"Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."`
+	Q string `query:"q" maxLength:"512" doc:"Title search over the same dated releases this collection lists, in this collection's date order: the release title or its work's display name as a case-insensitive substring, or a work that matches q in the works search index (prefix, aliases, pinyin, script variants; its 200 best matches). Must not be used as a discriminant."`
 }
 
 type listCreditNamesInput struct {
 	CollectionInput
-	Q string `query:"q" maxLength:"512" doc:"Name search. Empty lists by id. Must not be used as a discriminant."`
+	Q string `query:"q" maxLength:"512" doc:"Name search over the search index (name, latin and aliases): a prefix, pinyin, kana or script variant matches, and results come in relevance order; the cursor then pages that order. Empty lists by id. Must not be used as a discriminant."`
 }
 
 type listCompaniesInput struct {

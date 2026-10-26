@@ -1,26 +1,10 @@
 package osengine
 
 import (
-	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"api/internal/platform/catalog/search/spec"
 )
-
-const kwStripPunct = "=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆-"
-
-func CompactKeyword(text string) string {
-	var b strings.Builder
-	b.Grow(len(text))
-	for _, r := range text {
-		if unicode.IsSpace(r) || strings.ContainsRune(kwStripPunct, r) {
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return strings.ToLower(b.String())
-}
 
 func isCJKRune(r rune) bool {
 	return (r >= 0x4E00 && r <= 0x9FFF) || (r >= 0x3040 && r <= 0x30FF)
@@ -126,9 +110,11 @@ func titleShould(text string, searchIntro, entity bool) []any {
 			"term": map[string]any{"titles_kw": map[string]any{"value": kw, "boost": 14}},
 		})
 		if latin {
-			should = append(should, map[string]any{
-				"prefix": map[string]any{"titles_pinyin": map[string]any{"value": kw, "boost": 12}},
-			})
+			should = append(should,
+				map[string]any{"prefix": map[string]any{"titles_pinyin": map[string]any{"value": kw, "boost": 12}}},
+				map[string]any{"prefix": map[string]any{"titles_kw": map[string]any{"value": kw, "boost": titlePrefixBoost(entity)}}},
+				map[string]any{"match_bool_prefix": map[string]any{"titles": map[string]any{"query": text, "operator": "and", "boost": 2}}},
+			)
 		}
 	}
 	should = append(should, precisionClauses(text, !latin)...)
@@ -190,12 +176,7 @@ const exactNameTier = 1e6
 func popularityRankedQuery(text string, filters []any) map[string]any {
 	should := titleShould(text, false, true)
 	if kw := CompactKeyword(text); kw != "" {
-		should = append(should, map[string]any{
-			"constant_score": map[string]any{
-				"filter": map[string]any{"term": map[string]any{"titles_kw": kw}},
-				"boost":  exactNameTier,
-			},
-		})
+		should = append(should, exactTitleClause(kw, exactNameTier))
 	}
 	return map[string]any{
 		"function_score": map[string]any{
@@ -203,6 +184,53 @@ func popularityRankedQuery(text string, filters []any) map[string]any {
 			"functions": []any{
 				map[string]any{"weight": 1},
 				map[string]any{"field_value_factor": map[string]any{"field": "popularity", "missing": 0}},
+			},
+			"score_mode": "sum",
+			"boost_mode": "multiply",
+		},
+	}
+}
+
+const (
+	entityTitlePrefixBoost = 10
+	workTitlePrefixBoost   = 100
+	worksExactTitleTier    = 1e4
+	worksPopularityFactor  = 0.1
+)
+
+func titlePrefixBoost(entity bool) float64 {
+	if entity {
+		return entityTitlePrefixBoost
+	}
+	return workTitlePrefixBoost
+}
+
+func exactTitleClause(kw string, tier float64) map[string]any {
+	return map[string]any{
+		"constant_score": map[string]any{
+			"filter": map[string]any{"term": map[string]any{"titles_kw": kw}},
+			"boost":  tier,
+		},
+	}
+}
+
+func worksRelevanceQuery(text string, searchIntro bool, filters []any) map[string]any {
+	should := titleShould(text, searchIntro, false)
+	if kw := CompactKeyword(text); kw != "" {
+		should = append(should, exactTitleClause(kw, worksExactTitleTier))
+	}
+	return popularityBoosted(shouldQuery(should, filters))
+}
+
+func popularityBoosted(query any) map[string]any {
+	return map[string]any{
+		"function_score": map[string]any{
+			"query": query,
+			"functions": []any{
+				map[string]any{"weight": 1},
+				map[string]any{"field_value_factor": map[string]any{
+					"field": "popularity", "factor": worksPopularityFactor, "missing": 0,
+				}},
 			},
 			"score_mode": "sum",
 			"boost_mode": "multiply",

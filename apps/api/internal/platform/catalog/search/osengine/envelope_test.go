@@ -105,7 +105,7 @@ func TestWorksSearchBodyFilterPlacement(t *testing.T) {
 	f := spec.WorksFilter{DocID: "w1"}
 
 	withText, _ := worksSearchBody(spec.WorksQuery{Q: "CLANNAD", Filter: f, Limit: 8, Page: 1})
-	q, ok := withText["query"].(map[string]any)
+	q, ok := withText["query"].(map[string]any)["function_score"].(map[string]any)["query"].(map[string]any)
 	require.True(t, ok)
 	bq, ok := q["bool"].(map[string]any)
 	require.True(t, ok)
@@ -259,10 +259,17 @@ func TestWorksSearchBodyAggs(t *testing.T) {
 func TestWorksSearchBodyUsesTitleShouldNotWorksBody(t *testing.T) {
 	canon := WorksBody("千原万神", 8, false)
 	body, _ := worksSearchBody(spec.WorksQuery{Q: "千原万神", Limit: 8, Page: 1, Filter: spec.WorksFilter{DocID: "w1"}})
-	bq := body["query"].(map[string]any)["bool"].(map[string]any)
-	canonShould := canon["query"].(map[string]any)["bool"].(map[string]any)["should"]
-	require.Equal(t, canonJSON(t, canonShould), canonJSON(t, bq["should"]))
+	fs := body["query"].(map[string]any)["function_score"].(map[string]any)
+	require.Equal(t, "multiply", fs["boost_mode"], "relevance blends popularity into the score")
+	bq := fs["query"].(map[string]any)["bool"].(map[string]any)
+	canonShould := canon["query"].(map[string]any)["bool"].(map[string]any)["should"].([]any)
+	wantShould := append(append([]any{}, canonShould...), exactTitleClause(CompactKeyword("千原万神"), worksExactTitleTier))
+	require.Equal(t, canonJSON(t, wantShould), canonJSON(t, bq["should"]))
 	require.NotNil(t, bq["filter"])
+
+	sorted, _ := worksSearchBody(spec.WorksQuery{Q: "千原万神", Limit: 8, Page: 1, SortLane: "popularity:desc"})
+	_, boosted := sorted["query"].(map[string]any)["function_score"]
+	require.False(t, boosted, "an explicit sort lane is not a relevance query")
 	_, hasFrom := canon["from"]
 	require.False(t, hasFrom)
 	require.Equal(t, 0, body["from"])
@@ -502,7 +509,7 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = io.WriteString(w, `{
 					"catalog_works": {
-						"mappings": {"_meta": {"schema_version": 3}}
+						"mappings": {"_meta": {"schema_version": 4}}
 					}
 				}`)
 			case http.MethodPut:
@@ -527,7 +534,7 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 			switch r.Method {
 			case http.MethodGet:
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 3}}}}`)
+				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 4}}}}`)
 			case http.MethodPut:
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&mapping))
 				_, _ = io.WriteString(w, `{"acknowledged":true}`)
@@ -545,7 +552,7 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 		eng := testEngine(t, func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet {
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 3}}}}`)
+				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 4}}}}`)
 				return
 			}
 			w.WriteHeader(http.StatusBadRequest)

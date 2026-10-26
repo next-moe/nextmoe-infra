@@ -1,4 +1,4 @@
-package main
+package docsync
 
 import (
 	"context"
@@ -211,7 +211,7 @@ func TestWorksFacetLoadersScopeAndResolve(t *testing.T) {
 		mkRelease(t, id, 1999, 1, 1)
 	}
 
-	facets, err := loadWorksFacets(facetTestDB)
+	facets, err := loadWorksFacets(facetTestDB, nil)
 	if err != nil {
 		t.Fatalf("loadWorksFacets: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestWorksFacetLoadersScopeAndResolve(t *testing.T) {
 
 	bare := mkWork(t, "Undated", model.WorkStatusLive, galgameMedium)
 	mkRelease(t, bare, 0, 0, 0)
-	facets, err = loadWorksFacets(facetTestDB)
+	facets, err = loadWorksFacets(facetTestDB, nil)
 	if err != nil {
 		t.Fatalf("reload facets: %v", err)
 	}
@@ -251,14 +251,14 @@ func TestWorksFacetLoadersScopeAndResolve(t *testing.T) {
 		t.Fatalf("undated work %d must have NO release ordinal entry", bare)
 	}
 
-	counts, err := loadEdgeWorkCounts(facetTestDB, reindexTagEdge)
+	counts, err := loadEdgeWorkCounts(facetTestDB, reindexTagEdge, nil)
 	if err != nil {
 		t.Fatalf("tag work counts: %v", err)
 	}
 	if counts[tag.ID] != 1 {
 		t.Fatalf("tag work count = %d, want 1 (population-scoped, DISTINCT)", counts[tag.ID])
 	}
-	counts, err = loadEdgeWorkCounts(facetTestDB, reindexLabelEdge)
+	counts, err = loadEdgeWorkCounts(facetTestDB, reindexLabelEdge, nil)
 	if err != nil {
 		t.Fatalf("label work counts: %v", err)
 	}

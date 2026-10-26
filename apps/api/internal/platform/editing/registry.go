@@ -254,6 +254,13 @@ type Registry struct {
 	types     map[string]*EntityTypeSpec
 	overrides atomic.Pointer[overrideTable]
 	knownPerm func(key string) bool
+	observers []MergeObserver
+}
+
+type MergeObserver func(ctx context.Context, entityType string, ev MergeEvent)
+
+func (r *Registry) Observe(fn MergeObserver) {
+	r.observers = append(r.observers, fn)
 }
 
 func NewRegistry() *Registry {

@@ -48,7 +48,7 @@ export const ENTITY_META: Record<EditFamily, EntityMeta> = {
     searchable: true,
     listQuery: true,
     searchVia: 'list',
-    searchHint: '按发行标题或所属作品的标题搜索。'
+    searchHint: '按发行标题或所属作品的标题搜索；作品标题也匹配前缀、拼音与别名。'
   },
   character: {
     family: 'character',
@@ -70,7 +70,7 @@ export const ENTITY_META: Record<EditFamily, EntityMeta> = {
     searchable: true,
     listQuery: true,
     searchVia: 'list',
-    searchHint: '按人物显示名或公开的署名名搜索。'
+    searchHint: '按人物公开的署名名搜索，前缀、拼音与别名都能命中，结果按相关度排列。'
   },
   credit_name: {
     family: 'credit_name',

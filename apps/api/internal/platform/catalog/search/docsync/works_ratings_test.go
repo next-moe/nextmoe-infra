@@ -1,4 +1,4 @@
-package main
+package docsync
 
 import (
 	"math"
@@ -39,7 +39,7 @@ func TestLoadWorkRatingSortShrinksAgainstTheIndexedPopulation(t *testing.T) {
 		rate(w, "bangumi", 1.0, 1000)
 	}
 
-	got, err := loadWorkRatingSort(facetTestDB)
+	got, err := loadWorkRatingSort(facetTestDB, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

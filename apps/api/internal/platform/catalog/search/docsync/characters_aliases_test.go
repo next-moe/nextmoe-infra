@@ -1,4 +1,4 @@
-package main
+package docsync
 
 import (
 	"testing"
@@ -28,7 +28,7 @@ func TestSuppressedCharacterAliasLeavesTheSearchDocument(t *testing.T) {
 	}
 
 	live := editspec.NotSuppressedCharacterAliasSQL("a")
-	before, err := loadAliasTable(facetTestDB, "catalog_character_alias", "character_id", live)
+	before, err := loadAliasTable(facetTestDB, "catalog_character_alias", "character_id", live, nil)
 	if err != nil {
 		t.Fatalf("loadAliasTable: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestSuppressedCharacterAliasLeavesTheSearchDocument(t *testing.T) {
 		t.Fatalf("suppress: %v", err)
 	}
 
-	after, err := loadAliasTable(facetTestDB, "catalog_character_alias", "character_id", live)
+	after, err := loadAliasTable(facetTestDB, "catalog_character_alias", "character_id", live, nil)
 	if err != nil {
 		t.Fatalf("loadAliasTable: %v", err)
 	}
