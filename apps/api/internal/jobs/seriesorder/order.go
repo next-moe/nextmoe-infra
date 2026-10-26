@@ -43,19 +43,20 @@ func LoadFacts(ctx context.Context, db *gorm.DB, workIDs []int64) (*Facts, error
 		return f, nil
 	}
 	var dates []struct {
-		WorkID int64 `gorm:"column:work_id"`
-		Key    int64 `gorm:"column:key"`
+		WorkID int64  `gorm:"column:work_id"`
+		Key    *int64 `gorm:"column:key"`
 	}
 	if err := db.WithContext(ctx).Raw(`
-		SELECT work_id,
-		       min(released_y::bigint * 10000 + coalesce(released_m, 0) * 100 + coalesce(released_d, 0)) AS key
-		FROM catalog_release
-		WHERE work_id IN ? AND deleted_at IS NULL AND released_y IS NOT NULL
-		GROUP BY work_id`, workIDs).Scan(&dates).Error; err != nil {
+		SELECT r.work_id, `+model.WorkReleaseOrdSQL("r", "")+` AS key
+		FROM catalog_release r
+		WHERE r.work_id IN ? AND r.deleted_at IS NULL
+		GROUP BY r.work_id`, workIDs).Scan(&dates).Error; err != nil {
 		return nil, err
 	}
 	for _, d := range dates {
-		f.releaseKey[d.WorkID] = d.Key
+		if d.Key != nil {
+			f.releaseKey[d.WorkID] = *d.Key
+		}
 	}
 
 	var edges []Edge

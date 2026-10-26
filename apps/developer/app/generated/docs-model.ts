@@ -4251,7 +4251,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/calendar",
               "summary": "Release calendar",
-              "description": "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+              "description": "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. A work sits where its release_date puts it, the same date the works list shows: a trial before the full release does not move it. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -6024,7 +6024,7 @@ export const docsModel: DocsModel = {
                               "name": "release_date",
                               "required": true,
                               "nullable": true,
-                              "doc": "Calendar date. null when release_status is announced, cancelled, or unknown.",
+                              "doc": "Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown.",
                               "format": "date",
                               "type": "string"
                             },
@@ -15754,7 +15754,7 @@ export const docsModel: DocsModel = {
                                   "name": "release_date",
                                   "required": true,
                                   "nullable": true,
-                                  "doc": "Calendar date. null when release_status is announced, cancelled, or unknown.",
+                                  "doc": "Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown.",
                                   "format": "date",
                                   "type": "string"
                                 },
@@ -30277,7 +30277,7 @@ export const docsModel: DocsModel = {
                                   "name": "release_date",
                                   "required": true,
                                   "nullable": true,
-                                  "doc": "Calendar date. null when release_status is announced, cancelled, or unknown.",
+                                  "doc": "Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown.",
                                   "format": "date",
                                   "type": "string"
                                 },
@@ -82161,14 +82161,14 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "YYYY-MM-DD inclusive, earliest release per work."
+                  "doc": "YYYY-MM-DD inclusive, on each work's release_date."
                 },
                 {
                   "name": "released_before",
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "YYYY-MM-DD inclusive, earliest release per work."
+                  "doc": "YYYY-MM-DD inclusive, on each work's release_date."
                 },
                 {
                   "name": "olang",
@@ -83808,7 +83808,7 @@ export const docsModel: DocsModel = {
                               "name": "release_date",
                               "required": true,
                               "nullable": true,
-                              "doc": "Calendar date. null when release_status is announced, cancelled, or unknown.",
+                              "doc": "Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown.",
                               "format": "date",
                               "type": "string"
                             },
@@ -87332,7 +87332,7 @@ export const docsModel: DocsModel = {
                         "name": "release_date",
                         "required": true,
                         "nullable": true,
-                        "doc": "Calendar date. null when release_status is announced, cancelled, or unknown.",
+                        "doc": "Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown.",
                         "format": "date",
                         "type": "string"
                       },
@@ -103553,7 +103553,7 @@ export const docsModel: DocsModel = {
                                   "name": "release_date",
                                   "required": true,
                                   "nullable": true,
-                                  "doc": "Calendar date. null when release_status is announced, cancelled, or unknown.",
+                                  "doc": "Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown.",
                                   "format": "date",
                                   "type": "string"
                                 },
@@ -138841,7 +138841,7 @@ export const docsModel: DocsModel = {
                               "name": "release_date",
                               "required": true,
                               "nullable": true,
-                              "doc": "Calendar date. null when release_status is announced, cancelled, or unknown.",
+                              "doc": "Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown.",
                               "format": "date",
                               "type": "string"
                             },

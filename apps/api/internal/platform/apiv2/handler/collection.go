@@ -99,8 +99,8 @@ type listWorksInput struct {
 	SeriesID       string `query:"series_id" maxLength:"20" doc:"Catalog series id."`
 	EngineID       string `query:"engine_id" maxLength:"20" doc:"Catalog engine id."`
 	Platform       string `query:"platform" maxLength:"64" doc:"Open vocabulary platform token. Unknown matches nothing."`
-	ReleasedAfter  string `query:"released_after" maxLength:"10" doc:"YYYY-MM-DD inclusive, earliest release per work."`
-	ReleasedBefore string `query:"released_before" maxLength:"10" doc:"YYYY-MM-DD inclusive, earliest release per work."`
+	ReleasedAfter  string `query:"released_after" maxLength:"10" doc:"YYYY-MM-DD inclusive, on each work's release_date."`
+	ReleasedBefore string `query:"released_before" maxLength:"10" doc:"YYYY-MM-DD inclusive, on each work's release_date."`
 	OLang          string `query:"olang" maxLength:"64" doc:"Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate."`
 	PageInput
 }

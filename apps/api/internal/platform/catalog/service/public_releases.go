@@ -109,7 +109,7 @@ func (s *PublicService) ReleaseFeed(ctx context.Context, f ReleaseFeedFilter, cu
 	limit = clampBrowseLimit(limit)
 
 	from, where, args := releaseFeedSource(f)
-	ord := releaseOrd("r")
+	ord := model.ReleaseOrdSQL("r")
 	if cur.ID > 0 {
 		if lane == releaseFeedLaneAsc {
 			where = append(where, "(("+ord+") > ? OR (("+ord+") = ? AND r.id > ?))")
@@ -126,9 +126,9 @@ func (s *PublicService) ReleaseFeed(ctx context.Context, f ReleaseFeedFilter, cu
 	q := `SELECT r.id, r.kind, r.title, r.lang, r.platform, r.engine_id,
 			r.released_y, r.released_m, r.released_d, r.extra,
 			` + ord + ` AS ord,
-			(` + ord + `) = (SELECT min(` + releaseOrd("r2") + `) FROM catalog_release r2
-				WHERE r2.work_id = r.work_id AND r2.deleted_at IS NULL
-				  AND r2.released_y IS NOT NULL AND r2.released_m IS NOT NULL) AS is_first,
+			coalesce(` + model.ReleaseDatesWorkSQL("r") + `
+				AND (` + ord + `) = (SELECT ` + model.WorkReleaseOrdSQL("r2", "r2.released_m IS NOT NULL") + ` FROM catalog_release r2
+					WHERE r2.work_id = r.work_id AND r2.deleted_at IS NULL), false) AS is_first,
 			w.id AS work_id, w.medium_id, w.display_name, w.olang, w.content_rating,
 			w.site, w.product_work_id, w.claim_state, w.created_at, w.updated_at ` +
 		from + ` WHERE ` + strings.Join(where, " AND ") +
@@ -284,11 +284,11 @@ func releaseFeedSource(f ReleaseFeedFilter) (from string, where []string, args [
 		args = append(args, f.Platform, f.Platform)
 	}
 	if f.DateFrom > 0 {
-		where = append(where, "("+releaseOrd("r")+") >= ?")
+		where = append(where, "("+model.ReleaseOrdSQL("r")+") >= ?")
 		args = append(args, f.DateFrom)
 	}
 	if f.DateTo > 0 {
-		where = append(where, "("+releaseOrd("r")+") <= ?")
+		where = append(where, "("+model.ReleaseOrdSQL("r")+") <= ?")
 		args = append(args, f.DateTo)
 	}
 	if f.TitleQuery != "" {

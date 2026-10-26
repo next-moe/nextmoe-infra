@@ -44,22 +44,23 @@ var (
 	reindexEngineEdge = `(SELECT engine_id AS key_id, work_id FROM ` + editspec.VisibleWorkEnginesSQL + ` x) e`
 )
 
-func loadEarliestReleaseOrd(db *gorm.DB) (map[int64]int64, error) {
+func loadWorkReleaseOrd(db *gorm.DB) (map[int64]int64, error) {
 	var rows []struct {
-		WorkID int64 `gorm:"column:work_id"`
-		Ord    int64 `gorm:"column:ord"`
+		WorkID int64  `gorm:"column:work_id"`
+		Ord    *int64 `gorm:"column:ord"`
 	}
-	q := fmt.Sprintf(`SELECT r.work_id,
-			min(r.released_y::int * 10000 + coalesce(r.released_m,0)::int * 100 + coalesce(r.released_d,0)::int) AS ord
+	q := fmt.Sprintf(`SELECT r.work_id, `+model.WorkReleaseOrdSQL("r", "")+` AS ord
 		FROM catalog_release r `+worksPopulationJoin+`
-		WHERE r.released_y IS NOT NULL AND r.deleted_at IS NULL
+		WHERE r.deleted_at IS NULL
 		GROUP BY r.work_id`, "r.work_id")
 	if err := db.Raw(q).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[int64]int64, len(rows))
 	for _, r := range rows {
-		m[r.WorkID] = r.Ord
+		if r.Ord != nil {
+			m[r.WorkID] = *r.Ord
+		}
 	}
 	return m, nil
 }
@@ -87,7 +88,7 @@ func loadWorksFacets(db *gorm.DB) (worksFacets, error) {
 	if f.seriesIDs, err = loadWorkEdgeIDs(db, reindexSeriesEdge); err != nil {
 		return f, fmt.Errorf("work series ids: %w", err)
 	}
-	if f.releasedOrd, err = loadEarliestReleaseOrd(db); err != nil {
+	if f.releasedOrd, err = loadWorkReleaseOrd(db); err != nil {
 		return f, fmt.Errorf("earliest release ordinal: %w", err)
 	}
 	return f, nil

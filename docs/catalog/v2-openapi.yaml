@@ -9943,7 +9943,7 @@ components:
           type: string
         work:
           $ref: "#/components/schemas/Work"
-          description: Related work. Same type as the work collection. view=basic. cover is the portrait the related work shows on its own detail, under the same nsfw gate; release_date and release_date_precision are its earliest release, as on the works list; banner is always null.
+          description: Related work. Same type as the work collection. view=basic. cover is the portrait the related work shows on its own detail, under the same nsfw gate; release_date and release_date_precision are its release date, as on the works list; banner is always null.
       required:
         - relation_type
         - phrase
@@ -13325,7 +13325,7 @@ components:
             $ref: "#/components/schemas/Relation"
           type: array
         release_date:
-          description: Calendar date. null when release_status is announced, cancelled, or unknown.
+          description: "Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown."
           format: date
           maxLength: 10
           type:
@@ -13970,13 +13970,13 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.71.0
+  version: 2.72.0
   x-stability: stable
 openapi: 3.1.0
 paths:
   /v2/catalog/calendar:
     get:
-      description: One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+      description: "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. A work sits where its release_date puts it, the same date the works list shows: a trial before the full release does not move it. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE."
       operationId: listCatalogCalendar
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -19529,20 +19529,20 @@ paths:
             description: Open vocabulary platform token. Unknown matches nothing.
             maxLength: 64
             type: string
-        - description: YYYY-MM-DD inclusive, earliest release per work.
+        - description: YYYY-MM-DD inclusive, on each work's release_date.
           explode: false
           in: query
           name: released_after
           schema:
-            description: YYYY-MM-DD inclusive, earliest release per work.
+            description: YYYY-MM-DD inclusive, on each work's release_date.
             maxLength: 10
             type: string
-        - description: YYYY-MM-DD inclusive, earliest release per work.
+        - description: YYYY-MM-DD inclusive, on each work's release_date.
           explode: false
           in: query
           name: released_before
           schema:
-            description: YYYY-MM-DD inclusive, earliest release per work.
+            description: YYYY-MM-DD inclusive, on each work's release_date.
             maxLength: 10
             type: string
         - description: Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate.

@@ -34,7 +34,7 @@
 
 | 想要                                                          | 字段                                                                  | 参数                                                      |
 | ------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
-| 封面、发售日（最早一次发行）、分级、原语言                    | `cover`、`release_date`、`content_rating`、`olang`                    | 默认就有                                                  |
+| 封面、发售日（最早的正式版）、分级、原语言                    | `cover`、`release_date`、`content_rating`、`olang`                    | 默认就有                                                  |
 | 各语言的正式译名                                              | `latin`、`localized`                                                  | `include=titles`                                          |
 | 简介                                                          | `intros`                                                              | `include=intros`                                          |
 | 开发商 / 发行商                                               | `companies[]`，按 `attribution_role` 分（`developer`、`publisher`……） | `include=companies`                                       |

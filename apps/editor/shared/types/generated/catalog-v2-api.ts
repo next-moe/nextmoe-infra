@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Release calendar
-         * @description One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+         * @description One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. A work sits where its release_date puts it, the same date the works list shows: a trial before the full release does not move it. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
          */
         get: operations["listCatalogCalendar"];
         put?: never;
@@ -8924,7 +8924,7 @@ export interface components {
             phrase: string;
             /** @description Relation token. */
             relation_type: string;
-            /** @description Related work. Same type as the work collection. view=basic. cover is the portrait the related work shows on its own detail, under the same nsfw gate; release_date and release_date_precision are its earliest release, as on the works list; banner is always null. */
+            /** @description Related work. Same type as the work collection. view=basic. cover is the portrait the related work shows on its own detail, under the same nsfw gate; release_date and release_date_precision are its release date, as on the works list; banner is always null. */
             work: components["schemas"]["Work"];
         } & {
             [key: string]: unknown;
@@ -10734,7 +10734,7 @@ export interface components {
             relations?: components["schemas"]["Relation"][];
             /**
              * Format: date
-             * @description Calendar date. null when release_status is announced, cancelled, or unknown.
+             * @description Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown.
              */
             release_date: string | null;
             /**
@@ -15676,9 +15676,9 @@ export interface operations {
                 engine_id?: string;
                 /** @description Open vocabulary platform token. Unknown matches nothing. */
                 platform?: string;
-                /** @description YYYY-MM-DD inclusive, earliest release per work. */
+                /** @description YYYY-MM-DD inclusive, on each work's release_date. */
                 released_after?: string;
-                /** @description YYYY-MM-DD inclusive, earliest release per work. */
+                /** @description YYYY-MM-DD inclusive, on each work's release_date. */
                 released_before?: string;
                 /** @description Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate. */
                 olang?: string;

@@ -231,14 +231,14 @@ func worksListWhere(f WorksListFilter) ([]string, []any) {
 		args = append(args, f.Platform, f.Platform, f.Platform)
 	}
 	if f.ReleasedAfter > 0 || f.ReleasedBefore > 0 {
-		earliest := `(SELECT min(r.released_y::int*10000 + coalesce(r.released_m,0)::int*100 + coalesce(r.released_d,0)::int)
-			FROM catalog_release r WHERE r.work_id = w.id AND r.released_y IS NOT NULL AND r.deleted_at IS NULL)`
+		released := `(SELECT ` + model.WorkReleaseOrdSQL("r", "") + `
+			FROM catalog_release r WHERE r.work_id = w.id AND r.deleted_at IS NULL)`
 		if f.ReleasedAfter > 0 {
-			where = append(where, earliest+" >= ?")
+			where = append(where, released+" >= ?")
 			args = append(args, f.ReleasedAfter)
 		}
 		if f.ReleasedBefore > 0 {
-			where = append(where, earliest+" <= ?")
+			where = append(where, released+" <= ?")
 			args = append(args, f.ReleasedBefore)
 		}
 	}
@@ -361,7 +361,7 @@ func (s *PublicService) enrichWorkListItems(ctx context.Context, rows []workList
 	var dates map[int64]*string
 	if sel.Wants("release_date") {
 		var err error
-		if dates, err = s.earliestReleaseDatesFor(ctx, ids); err != nil {
+		if dates, err = s.workReleaseDatesFor(ctx, ids); err != nil {
 			return nil, err
 		}
 	}
@@ -392,25 +392,27 @@ func (s *PublicService) enrichWorkListItems(ctx context.Context, rows []workList
 	return out, nil
 }
 
-func (s *PublicService) earliestReleaseDatesFor(ctx context.Context, ids []int64) (map[int64]*string, error) {
+func (s *PublicService) workReleaseDatesFor(ctx context.Context, ids []int64) (map[int64]*string, error) {
 	if len(ids) == 0 {
 		return map[int64]*string{}, nil
 	}
 	var rows []struct {
-		WorkID int64 `gorm:"column:work_id"`
-		Ord    int64 `gorm:"column:ord"`
+		WorkID int64  `gorm:"column:work_id"`
+		Ord    *int64 `gorm:"column:ord"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`
-		SELECT work_id,
-		       min(released_y::int * 10000 + coalesce(released_m,0)::int * 100 + coalesce(released_d,0)::int) AS ord
-		FROM catalog_release
-		WHERE work_id IN ? AND released_y IS NOT NULL AND deleted_at IS NULL
-		GROUP BY work_id`, ids).Scan(&rows).Error; err != nil {
+		SELECT r.work_id, `+model.WorkReleaseOrdSQL("r", "")+` AS ord
+		FROM catalog_release r
+		WHERE r.work_id IN ? AND r.deleted_at IS NULL
+		GROUP BY r.work_id`, ids).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make(map[int64]*string, len(rows))
 	for _, r := range rows {
-		d := partialISOFromOrdinal(r.Ord)
+		if r.Ord == nil {
+			continue
+		}
+		d := partialISOFromOrdinal(*r.Ord)
 		out[r.WorkID] = &d
 	}
 	return out, nil
