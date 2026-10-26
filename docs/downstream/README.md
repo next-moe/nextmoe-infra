@@ -1,6 +1,6 @@
 # Vendored downstream face specs
 
-Byte-identical mirrors of the two Tier-B downstream faces' OpenAPI documents, kept
+Byte-identical mirrors of the Tier-B downstream faces' OpenAPI documents, kept
 here only so the developer portal has a spec file to build from — `apps/developer`
 reads these paths from `scripts/faces.mjs` and copies them to `public/specs/` at
 build time. They are not the contract.
@@ -9,6 +9,7 @@ build time. They are not the contract.
 | --------- | ----------------------- | --------------------------------------------------------------- |
 | `moyu`    | `moyu-openapi.yaml`     | `kun-galgame-patch/docs/open-api/moyu-openapi.yaml`              |
 | `sticker` | `sticker-openapi.yaml`  | `kun-galgame-stickers/docs/open-api/sticker-openapi.yaml`        |
+| `letmoe`  | `letmoe-openapi.yaml`   | `kun-letmoe-community/docs/open-api/letmoe-openapi.yaml`         |
 
 Each face is served by its own repo's service; that repo owns the contract and is
 the only place a change may be authored.
@@ -20,6 +21,7 @@ Re-copy the file from the owning repo — no editing here, ever:
 ```bash
 cp ../kun-galgame-patch/docs/open-api/moyu-openapi.yaml docs/downstream/moyu-openapi.yaml
 cp ../kun-galgame-stickers/docs/open-api/sticker-openapi.yaml docs/downstream/sticker-openapi.yaml
+cp ../kun-letmoe-community/docs/open-api/letmoe-openapi.yaml docs/downstream/letmoe-openapi.yaml
 pnpm --filter developer sync:specs
 ```
 

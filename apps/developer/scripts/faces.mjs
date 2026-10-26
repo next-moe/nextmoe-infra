@@ -8,8 +8,8 @@
 //
 // Wave R3 (2026-08-27) retired the five v1 faces (catalog, playtime, edit,
 // news, store) with the code that served them, leaving v2 as the only
-// first-party face; moyu and sticker joined later as federated downstream
-// faces, served by their own repos behind the same gateway.
+// first-party face; moyu, sticker and letmoe joined later as federated
+// downstream faces, served by their own repos behind the same gateway.
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -24,13 +24,15 @@ export const STICKER_SPEC = join(
   REPO_ROOT,
   'docs/downstream/sticker-openapi.yaml'
 )
+export const LETMOE_SPEC = join(REPO_ROOT, 'docs/downstream/letmoe-openapi.yaml')
 
 export const PORTAL_URL = 'https://developer.nextmoe.dev'
 
 // PR #168 (2026-09-08): the downstream faces take any valid key with no scope.
 // There is no `moyu:read` / `sticker:read` — the strings do not exist and a mint
-// asking for one is refused, so a read route must never print a scope. The one
-// scoped route is moyu's /file, on the operator-granted moyu:files.
+// asking for one is refused, so a read route must never print a scope. The
+// scoped routes are the /file routes, on the operator-granted moyu:files and
+// letmoe:files.
 export const DOWNSTREAM_KEY_AUTH = {
   kind: 'api_key',
   curl: 'Authorization: Bearer nmk_live_<YOUR_KEY>',
@@ -39,6 +41,7 @@ export const DOWNSTREAM_KEY_AUTH = {
 }
 
 const MOYU_FILE_PATH = '/v2/moyu/resources/{id}/file'
+const LETMOE_FILE_PATH = '/v2/letmoe/resources/{id}/file'
 
 // A face is a path prefix plus the credential that prefix accepts. The spec
 // itself carries neither: OpenAPI security schemes are not emitted by the
@@ -169,6 +172,34 @@ export const FACES = [
       '错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和表情包站写的其余错误同一个形状，code 取自平台那份封闭注册表。按 HTTP status 分支，再看 code。',
       '只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路。'
     ]
+  },
+  {
+    key: 'letmoe',
+    label: 'letmoe 资源',
+    name: 'letmoe 资源面',
+    file: LETMOE_SPEC,
+    prefix: '/v2/letmoe',
+    specUrl: `${PORTAL_URL}/specs/letmoe-openapi.yaml`,
+    scope: (method, path) => (path === LETMOE_FILE_PATH ? 'letmoe:files' : ''),
+    auth: {
+      ...DOWNSTREAM_KEY_AUTH,
+      note: '任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/letmoe/resources/{id}/file,要运营发放的 letmoe:files'
+    },
+    autoGroups: [
+      { key: 'works', label: '作品', match: /^\/v2\/letmoe\/works/ },
+      { key: 'resources', label: '资源', match: /^\/v2\/letmoe\/resources/ }
+    ],
+    notes: [
+      '下游站点面：由 一起萌（www.letmoe.com）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。',
+      '它只回答一件事：这部游戏在 letmoe 上能下载到什么。作品 id 就是 catalog 的作品 id，也是 letmoe 自己的游戏 id——/v2/letmoe/works/{id}、站上的 /game/{id} 与 /v2/catalog/works/{id} 是同一个数。',
+      '任意有效 nmk_ 应用密钥都能调元数据接口，不需要任何 scope——网关只做身份、计量与限流，不做授权。元数据里不带下载链接、提取码与解压密码，每条资源都给 web_url，把读者送过去。',
+      '唯一例外是 /v2/letmoe/resources/{id}/file：对持有 letmoe:files 的密钥给出全部下载方式——letmoe 托管文件的直链、外部网盘链接连同提取码与解压密码、以及与 moyu 补丁合并的下载。这个 scope 由运营发放、不能自助勾选，其余密钥一律 403 SCOPE_REQUIRED。答案一律 no-store，每次成功都给资源记一次下载，所以在读者点下载时再调，不要预取。',
+      '也不带游戏名、封面、标签与 staff：那些归 catalog，同一把密钥读 /v2/catalog/works 即可。',
+      '/v2/letmoe/works 上的 ids= 是批量问法：一次最多 100 个作品 id，没有可见资源的原样回在 missing[] 里。这是「我手上这 100 部作品哪些能在 letmoe 下载」的一次性问法，此时 cursor、sort、limit 与 include_total 会被拒。',
+      '约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。每个接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。',
+      '错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和 letmoe 写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。',
+      '只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路——nmk_ 密钥本来也不该出现在浏览器里。'
+    ]
   }
 ]
 
@@ -196,5 +227,6 @@ export const USER_TOKEN_AUTH = {
 export const EXPECTED_OPERATION_COUNTS = {
   v2: 185,
   moyu: 6,
-  sticker: 9
+  sticker: 9,
+  letmoe: 4
 }

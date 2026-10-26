@@ -22,6 +22,7 @@ import (
 var forwardAuthFaces = map[string]string{
 	"moyu":    "/v2/moyu/*",
 	"sticker": "/v2/sticker/*",
+	"letmoe":  "/v2/letmoe/*",
 }
 
 type ForwardAuth struct {
@@ -106,8 +107,8 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 }
 
 // Traefik returns a refused forward-auth response to the caller verbatim,
-// headers and body, so this is the error document a /v2/moyu or /v2/sticker
-// client reads. Until 2026-09-18 it was the platform's {code, message}
+// headers and body, so this is the error document a downstream face's client
+// reads. Until 2026-09-18 it was the platform's {code, message}
 // envelope while every other /v2 answer was problem+json.
 func refuseForward(c fiber.Ctx, code, detail string) error {
 	instance := ""

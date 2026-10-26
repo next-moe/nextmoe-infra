@@ -31,6 +31,13 @@ export const DOCS_FACE_META: Record<
     badge: '下游站点面',
     tagline:
       'sticker.kungal.com 联邦进来的只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，不需要任何 scope。标题是多语言映射，id 与翻页约定与 catalog /v2 相同。'
+  },
+  letmoe: {
+    icon: 'lucide:download',
+    label: 'letmoe 资源',
+    badge: '下游站点面',
+    tagline:
+      '一起萌（www.letmoe.com）联邦进来的只读面：一部游戏在 letmoe 上能下载到哪些资源。任意有效应用密钥即可读元数据；下载直链、网盘链接与解压密码只在 /file 上给持有运营发放的 letmoe:files 的密钥。作品 id 就是 catalog 作品 id。'
   }
 }
 

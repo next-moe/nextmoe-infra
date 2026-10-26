@@ -177,3 +177,14 @@ func TestHasScope(t *testing.T) {
 		t.Errorf("did not expect galgame:nsfw present")
 	}
 }
+
+func TestDownstreamFileScopesAreNotSelfService(t *testing.T) {
+	for _, sc := range []string{ScopeMoyuFiles, ScopeLetmoeFiles} {
+		if slices.Contains(selfServiceScopes, sc) {
+			t.Errorf("selfServiceScopes must NOT contain %q — it is granted by an operator", sc)
+		}
+		if err := checkMintScopes([]string{sc}); err != ErrScopeNotAllowed {
+			t.Errorf("self-service minting %s = %v, want ErrScopeNotAllowed", sc, err)
+		}
+	}
+}
