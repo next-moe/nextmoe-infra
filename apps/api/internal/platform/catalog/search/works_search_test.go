@@ -108,6 +108,10 @@ func TestBuildTagDoc(t *testing.T) {
 	assert.EqualValues(t, 1, *d.Kind)
 	assert.InDelta(t, 1.9459, d.Popularity, 0.001, "work count is log-damped like a credit count")
 	assert.Equal(t, []string{"galgame_wiki"}, d.SourceKeys)
+
+	d = BuildTagDoc(TagDocInput{ID: 1444, Name: "萝莉", Aliases: []string{"萝莉", "loli", "蘿莉"}})
+	assert.Equal(t, []string{"loli"}, d.AliasesOther, "a source name equal to the tag name is not repeated")
+	assert.Equal(t, []string{"蘿莉"}, d.AliasesZh)
 }
 
 func TestGuessLang(t *testing.T) {

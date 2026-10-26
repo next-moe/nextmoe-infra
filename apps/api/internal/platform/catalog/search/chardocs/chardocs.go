@@ -36,7 +36,7 @@ func Load(ctx context.Context, db *gorm.DB) (*Context, error) {
 	if err != nil {
 		return nil, err
 	}
-	workPop, err := LoadWorkPopularityRaw(db.WithContext(ctx))
+	workPop, err := LoadWorkPopularityRaw(db.WithContext(ctx), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -48,14 +48,18 @@ func Load(ctx context.Context, db *gorm.DB) (*Context, error) {
 	}, nil
 }
 
-func LoadWorkPopularityRaw(db *gorm.DB) (map[int64]float64, error) {
+func LoadWorkPopularityRaw(db *gorm.DB, workIDs []int64) (map[int64]float64, error) {
 	var rows []struct {
 		WorkID int64 `gorm:"column:work_id"`
 		V      int64 `gorm:"column:v"`
 	}
-	if err := db.Raw(`SELECT work_id, max(value) AS v FROM catalog_work_popularity
-		WHERE metric IN (?, ?) GROUP BY work_id`,
-		model.PopularityMetricBgmCollect, model.PopularityMetricDownloads).Scan(&rows).Error; err != nil {
+	q := `SELECT work_id, max(value) AS v FROM catalog_work_popularity WHERE metric IN (?, ?)`
+	args := []any{model.PopularityMetricBgmCollect, model.PopularityMetricDownloads}
+	if workIDs != nil {
+		q += ` AND work_id IN ?`
+		args = append(args, workIDs)
+	}
+	if err := db.Raw(q+` GROUP BY work_id`, args...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[int64]float64, len(rows))

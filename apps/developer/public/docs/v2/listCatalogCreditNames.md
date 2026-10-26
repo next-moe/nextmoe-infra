@@ -32,7 +32,7 @@ Keyset-paginated credited names. q= filters by name. Anonymous calls are allowed
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `q` | query | 否 | string | Name search. Empty lists by id. Must not be used as a discriminant. |
+| `q` | query | 否 | string | Name search over the search index (name, latin and aliases): a prefix, pinyin, kana or script variant matches, and results come in relevance order; the cursor then pages that order. Empty lists by id. Must not be used as a discriminant. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/credit-names"

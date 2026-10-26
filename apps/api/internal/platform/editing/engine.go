@@ -60,22 +60,30 @@ func (e *Engine) afterMerge(ctx context.Context, rev *Revision) {
 	for _, m := range rev.mirrored {
 		e.afterMerge(ctx, m)
 	}
-	spec, ok := e.reg.Type(rev.EntityType)
-	if !ok || spec.OnMerge == nil {
-		return
+	ev := MergeEvent{
+		EntityID: rev.EntityID, ActorUID: rev.ActorUID, AmenderUID: rev.AmenderUID, Action: rev.Action,
 	}
+	if spec, ok := e.reg.Type(rev.EntityType); ok && spec.OnMerge != nil {
+		guardHook(rev, func() {
+			if err := spec.OnMerge(ctx, ev); err != nil {
+				slog.Warn("editing: OnMerge hook failed",
+					"entity_type", rev.EntityType, "entity_id", rev.EntityID, "err", err)
+			}
+		})
+	}
+	for _, observe := range e.reg.observers {
+		guardHook(rev, func() { observe(ctx, rev.EntityType, ev) })
+	}
+}
+
+func guardHook(rev *Revision, hook func()) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("editing: OnMerge hook panicked",
 				"entity_type", rev.EntityType, "entity_id", rev.EntityID, "panic", r)
 		}
 	}()
-	if err := spec.OnMerge(ctx, MergeEvent{
-		EntityID: rev.EntityID, ActorUID: rev.ActorUID, AmenderUID: rev.AmenderUID, Action: rev.Action,
-	}); err != nil {
-		slog.Warn("editing: OnMerge hook failed",
-			"entity_type", rev.EntityType, "entity_id", rev.EntityID, "err", err)
-	}
+	hook()
 }
 
 func (e *Engine) ownerSite(ctx context.Context, spec *EntityTypeSpec, entityID int64, needed bool) (*string, error) {

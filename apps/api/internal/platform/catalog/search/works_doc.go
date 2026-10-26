@@ -118,6 +118,7 @@ type TagDocInput struct {
 	WorkCount  int
 	Sources    []string
 	SourceKeys []string
+	Aliases    []string
 }
 
 func BuildTagDoc(in TagDocInput) EntityDoc {
@@ -129,6 +130,11 @@ func BuildTagDoc(in TagDocInput) EntityDoc {
 		Popularity: math.Log1p(float64(in.WorkCount)),
 	}
 	d.SetName(GuessLang(in.Name), in.Name)
+	for _, a := range in.Aliases {
+		if a != in.Name {
+			d.AddAlias(GuessLang(a), a)
+		}
+	}
 	return d
 }
 

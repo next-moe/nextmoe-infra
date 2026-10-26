@@ -65,4 +65,13 @@ func TestReleaseSearchMatchesTitleOrWorkName(t *testing.T) {
 	n, _, _, err := svc.ReleaseFeedMeta(ctx, ReleaseFeedFilter{TitleQuery: "summer"})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n, "the total counts the same filter")
+
+	byIndex := ReleaseFeedFilter{TitleQuery: "サマポケ", TitleWorkIDs: []int64{w.ID}}
+	feed, err := svc.ReleaseFeed(ctx, byIndex, "", 20)
+	require.NoError(t, err)
+	require.Len(t, feed.Items, 1, "a work the search index matched brings its releases")
+	require.Equal(t, titled.ID, feed.Items[0].ID)
+	n, _, _, err = svc.ReleaseFeedMeta(ctx, byIndex)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
 }

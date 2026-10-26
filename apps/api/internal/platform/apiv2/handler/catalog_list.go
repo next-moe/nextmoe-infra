@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 
 	"api/internal/platform/apiv2/collect"
@@ -227,6 +228,13 @@ func (c *Catalog) ListReleases(ctx context.Context, q collect.Query, titleQ stri
 	f := catsvc.ReleaseFeedFilter{
 		NSFW: q.NSFW, Sort: sort, Kinds: releaseFeedKinds(), IDs: ids,
 		OLang: catsvc.PublicOLang{All: true}, TitleQuery: catsvc.NormalizeNameQuery(titleQ),
+	}
+	if f.TitleQuery != "" {
+		workIDs, werr := c.Public.WorkIDsMatchingTitle(ctx, f.TitleQuery)
+		if werr != nil {
+			slog.Warn("releases q: work title search failed; matching release and work titles only", "err", werr)
+		}
+		f.TitleWorkIDs = workIDs
 	}
 	limit := q.Limit
 	if q.Batch {

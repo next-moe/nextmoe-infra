@@ -1,10 +1,9 @@
-package main
+package docsync
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"api/internal/platform/catalog/editspec"
@@ -13,13 +12,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func loadGroupedCount(db *gorm.DB, table, col string) (map[int64]int, error) {
+func loadGroupedCount(db *gorm.DB, table, col string, s scope) (map[int64]int, error) {
 	var rows []struct {
 		ID  int64 `gorm:"column:id"`
 		Cnt int   `gorm:"column:cnt"`
 	}
-	q := fmt.Sprintf(`SELECT %s AS id, count(*) AS cnt FROM %s GROUP BY %s`, col, table, col)
-	if err := db.Raw(q).Scan(&rows).Error; err != nil {
+	q := fmt.Sprintf(`SELECT %s AS id, count(*) AS cnt FROM %s WHERE true%s GROUP BY %s`, col, table, s.and(col), col)
+	if err := db.Raw(q, s.args()...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[int64]int, len(rows))
@@ -29,12 +28,13 @@ func loadGroupedCount(db *gorm.DB, table, col string) (map[int64]int, error) {
 	return m, nil
 }
 
-func reindexSeries(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	pop, err := loadGroupedCount(db, "(SELECT vsm.series_id FROM catalog_series_member vsm WHERE "+editspec.NotSuppressedWorkSeriesSQL("vsm")+") x", "series_id")
+func reindexSeries(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, s scope) ([]int64, error) {
+	pop, err := loadGroupedCount(db, "(SELECT vsm.series_id FROM catalog_series_member vsm WHERE "+editspec.NotSuppressedWorkSeriesSQL("vsm")+") x", "series_id", s)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	processed, lastID := 0, int64(0)
+	var indexed []int64
+	lastID := int64(0)
 	for {
 		var rows []struct {
 			ID          int64  `gorm:"column:id"`
@@ -49,8 +49,8 @@ func reindexSeries(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 			JOIN catalog_source src ON src.id = s.source_id
 			LEFT JOIN catalog_series_name_override o
 				ON o.source_id = s.source_id AND o.external_id = s.external_id
-			WHERE s.id > ? ORDER BY s.id LIMIT ?`, lastID, batch).Scan(&rows).Error; err != nil {
-			return err
+			WHERE s.id > ?`+s.and("s.id")+` ORDER BY s.id LIMIT ?`, s.pageArgs(lastID, batch)...).Scan(&rows).Error; err != nil {
+			return nil, err
 		}
 		if len(rows) == 0 {
 			break
@@ -64,32 +64,32 @@ func reindexSeries(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 				Popularity: catalogSearch.Popularity(pop[r.ID]),
 			}
 			docs[i] = d
+			indexed = append(indexed, r.ID)
 		}
 		if err := idx.UpsertBatch(ctx, catalogSearch.IndexSeries, docs); err != nil {
-			return err
+			return nil, err
 		}
-		processed += len(rows)
 		lastID = rows[len(rows)-1].ID
 	}
-	slog.Info("reindexed", "index", catalogSearch.IndexSeries, "docs", processed)
-	return nil
+	return indexed, nil
 }
 
-func reindexEngines(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	pop, err := loadGroupedCount(db, editspec.VisibleWorkEnginesSQL+" x", "engine_id")
+func reindexEngines(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, s scope) ([]int64, error) {
+	pop, err := loadGroupedCount(db, editspec.VisibleWorkEnginesSQL+" x", "engine_id", s)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	processed, lastID := 0, int64(0)
+	var indexed []int64
+	lastID := int64(0)
 	for {
 		var rows []struct {
 			ID      int64  `gorm:"column:id"`
 			Name    string `gorm:"column:name"`
 			Aliases []byte `gorm:"column:aliases"`
 		}
-		if err := db.Raw(`SELECT id, name, aliases FROM catalog_engine WHERE id > ? ORDER BY id LIMIT ?`,
-			lastID, batch).Scan(&rows).Error; err != nil {
-			return err
+		if err := db.Raw(`SELECT id, name, aliases FROM catalog_engine WHERE id > ?`+s.and("id")+` ORDER BY id LIMIT ?`,
+			s.pageArgs(lastID, batch)...).Scan(&rows).Error; err != nil {
+			return nil, err
 		}
 		if len(rows) == 0 {
 			break
@@ -101,23 +101,23 @@ func reindexEngines(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer
 				NameOther: r.Name, AliasesOther: engineAliasList(r.Aliases),
 				Popularity: catalogSearch.Popularity(pop[r.ID]),
 			}
+			indexed = append(indexed, r.ID)
 		}
 		if err := idx.UpsertBatch(ctx, catalogSearch.IndexEngines, docs); err != nil {
-			return err
+			return nil, err
 		}
-		processed += len(rows)
 		lastID = rows[len(rows)-1].ID
 	}
-	slog.Info("reindexed", "index", catalogSearch.IndexEngines, "docs", processed)
-	return nil
+	return indexed, nil
 }
 
-func reindexTraits(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	pop, err := loadGroupedCount(db, "catalog_character_trait_link", "trait_id")
+func reindexTraits(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, s scope) ([]int64, error) {
+	pop, err := loadGroupedCount(db, "catalog_character_trait_link", "trait_id", s)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	processed, lastID := 0, int64(0)
+	var indexed []int64
+	lastID := int64(0)
 	for {
 		var rows []struct {
 			ID      int64  `gorm:"column:id"`
@@ -128,9 +128,9 @@ func reindexTraits(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 			Sexual  bool   `gorm:"column:sexual"`
 		}
 		if err := db.Raw(`SELECT id, vndb_tid, name, name_zh, alias, sexual_family AS sexual
-			FROM catalog_character_trait WHERE id > ? AND searchable = true ORDER BY id LIMIT ?`,
-			lastID, batch).Scan(&rows).Error; err != nil {
-			return err
+			FROM catalog_character_trait WHERE id > ? AND searchable = true`+s.and("id")+` ORDER BY id LIMIT ?`,
+			s.pageArgs(lastID, batch)...).Scan(&rows).Error; err != nil {
+			return nil, err
 		}
 		if len(rows) == 0 {
 			break
@@ -144,15 +144,14 @@ func reindexTraits(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 				Sources: []string{"vndb:" + r.VndbTID}, SourceKeys: []string{"vndb"},
 				Sexual: &sexual, Popularity: catalogSearch.Popularity(pop[r.ID]),
 			}
+			indexed = append(indexed, r.ID)
 		}
 		if err := idx.UpsertBatch(ctx, catalogSearch.IndexTraits, docs); err != nil {
-			return err
+			return nil, err
 		}
-		processed += len(rows)
 		lastID = rows[len(rows)-1].ID
 	}
-	slog.Info("reindexed", "index", catalogSearch.IndexTraits, "docs", processed)
-	return nil
+	return indexed, nil
 }
 
 func engineAliasList(raw []byte) []string {

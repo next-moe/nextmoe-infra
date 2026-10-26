@@ -1,4 +1,4 @@
-package main
+package docsync
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 
 func titlesOf(t *testing.T, workID int64) [][4]any {
 	t.Helper()
-	all, err := loadWorkTitles(facetTestDB)
+	all, err := loadWorkTitles(facetTestDB, nil)
 	if err != nil {
 		t.Fatalf("loadWorkTitles: %v", err)
 	}

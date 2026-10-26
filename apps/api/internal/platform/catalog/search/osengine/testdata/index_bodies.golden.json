@@ -2,7 +2,7 @@
   "catalog_characters": {
     "mappings": {
       "_meta": {
-        "schema_version": 3
+        "schema_version": 4
       },
       "dynamic": false,
       "properties": {
@@ -217,7 +217,7 @@
             "type": "icu_normalizer"
           },
           "kw_strip": {
-            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
+            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡*＊|｜:：/／+＋#＃@＠!！?？\\&＆\\-－'＇’‘.．,，、。~(（)）\\[［\\]］「」『』【】〈〉《》\"＂“”　 \\s]",
             "replacement": "",
             "type": "pattern_replace"
           },
@@ -283,7 +283,7 @@
   "catalog_engines": {
     "mappings": {
       "_meta": {
-        "schema_version": 3
+        "schema_version": 4
       },
       "dynamic": false,
       "properties": {
@@ -483,7 +483,7 @@
             "type": "icu_normalizer"
           },
           "kw_strip": {
-            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
+            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡*＊|｜:：/／+＋#＃@＠!！?？\\&＆\\-－'＇’‘.．,，、。~(（)）\\[［\\]］「」『』【】〈〉《》\"＂“”　 \\s]",
             "replacement": "",
             "type": "pattern_replace"
           },
@@ -549,7 +549,7 @@
   "catalog_series": {
     "mappings": {
       "_meta": {
-        "schema_version": 3
+        "schema_version": 4
       },
       "dynamic": false,
       "properties": {
@@ -749,7 +749,7 @@
             "type": "icu_normalizer"
           },
           "kw_strip": {
-            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
+            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡*＊|｜:：/／+＋#＃@＠!！?？\\&＆\\-－'＇’‘.．,，、。~(（)）\\[［\\]］「」『』【】〈〉《》\"＂“”　 \\s]",
             "replacement": "",
             "type": "pattern_replace"
           },
@@ -815,7 +815,7 @@
   "catalog_traits": {
     "mappings": {
       "_meta": {
-        "schema_version": 3
+        "schema_version": 4
       },
       "dynamic": false,
       "properties": {
@@ -1018,7 +1018,7 @@
             "type": "icu_normalizer"
           },
           "kw_strip": {
-            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
+            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡*＊|｜:：/／+＋#＃@＠!！?？\\&＆\\-－'＇’‘.．,，、。~(（)）\\[［\\]］「」『』【】〈〉《》\"＂“”　 \\s]",
             "replacement": "",
             "type": "pattern_replace"
           },
@@ -1084,7 +1084,7 @@
   "catalog_credit_names": {
     "mappings": {
       "_meta": {
-        "schema_version": 3
+        "schema_version": 4
       },
       "dynamic": false,
       "properties": {
@@ -1287,7 +1287,7 @@
             "type": "icu_normalizer"
           },
           "kw_strip": {
-            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
+            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡*＊|｜:：/／+＋#＃@＠!！?？\\&＆\\-－'＇’‘.．,，、。~(（)）\\[［\\]］「」『』【】〈〉《》\"＂“”　 \\s]",
             "replacement": "",
             "type": "pattern_replace"
           },
@@ -1353,7 +1353,7 @@
   "catalog_labels": {
     "mappings": {
       "_meta": {
-        "schema_version": 3
+        "schema_version": 4
       },
       "dynamic": false,
       "properties": {
@@ -1556,7 +1556,7 @@
             "type": "icu_normalizer"
           },
           "kw_strip": {
-            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
+            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡*＊|｜:：/／+＋#＃@＠!！?？\\&＆\\-－'＇’‘.．,，、。~(（)）\\[［\\]］「」『』【】〈〉《》\"＂“”　 \\s]",
             "replacement": "",
             "type": "pattern_replace"
           },
@@ -1622,7 +1622,7 @@
   "catalog_tags": {
     "mappings": {
       "_meta": {
-        "schema_version": 3
+        "schema_version": 4
       },
       "dynamic": false,
       "properties": {
@@ -1828,7 +1828,7 @@
             "type": "icu_normalizer"
           },
           "kw_strip": {
-            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
+            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡*＊|｜:：/／+＋#＃@＠!！?？\\&＆\\-－'＇’‘.．,，、。~(（)）\\[［\\]］「」『』【】〈〉《》\"＂“”　 \\s]",
             "replacement": "",
             "type": "pattern_replace"
           },
@@ -1894,7 +1894,7 @@
   "catalog_works": {
     "mappings": {
       "_meta": {
-        "schema_version": 3
+        "schema_version": 4
       },
       "dynamic": false,
       "properties": {
@@ -2161,7 +2161,7 @@
             "type": "icu_normalizer"
           },
           "kw_strip": {
-            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡＊*|:/+#@!?&＆\\s-]",
+            "pattern": "[=＝☆★×✕～〜・♪♭♯†‡*＊|｜:：/／+＋#＃@＠!！?？\\&＆\\-－'＇’‘.．,，、。~(（)）\\[［\\]］「」『』【】〈〉《》\"＂“”　 \\s]",
             "replacement": "",
             "type": "pattern_replace"
           },

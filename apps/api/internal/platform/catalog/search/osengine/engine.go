@@ -245,8 +245,12 @@ func worksSearchBody(q spec.WorksQuery) (map[string]any, bool) {
 		dropHits = true
 	}
 	filters := filterClauses(q.Filter)
+	query := buildQuery(text, q.SearchIntro, false, filters)
+	if _, _, explicit := parseSortLane(q.SortLane); text != "" && !explicit {
+		query = worksRelevanceQuery(text, q.SearchIntro, filters)
+	}
 	body := map[string]any{
-		"query":            buildQuery(text, q.SearchIntro, false, filters),
+		"query":            query,
 		"from":             from,
 		"size":             size,
 		"sort":             searchSort(q.SortLane, text != ""),

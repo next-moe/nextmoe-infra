@@ -20,6 +20,7 @@ type Engine interface {
 	SearchEntities(ctx context.Context, uid string, q spec.EntityQuery) (SearchResult, error)
 	SearchWorks(ctx context.Context, q spec.WorksQuery) (WorksResult, error)
 	SearchCharacters(ctx context.Context, q spec.CharacterQuery) (CharactersResult, error)
+	SearchPersons(ctx context.Context, q spec.EntityQuery) (PersonsResult, error)
 	CharacterTraitCounts(ctx context.Context, nsfw bool) (map[int64]int64, error)
 }
 
@@ -59,6 +60,10 @@ func (i *Indexer) Health(ctx context.Context) error {
 
 func (i *Indexer) SearchEntities(ctx context.Context, uid string, q spec.EntityQuery) (SearchResult, error) {
 	return i.engine.SearchEntities(ctx, uid, q)
+}
+
+func (i *Indexer) SearchPersons(ctx context.Context, q spec.EntityQuery) (PersonsResult, error) {
+	return i.engine.SearchPersons(ctx, q)
 }
 
 func (i *Indexer) SearchWorks(ctx context.Context, q spec.WorksQuery) (WorksResult, error) {
