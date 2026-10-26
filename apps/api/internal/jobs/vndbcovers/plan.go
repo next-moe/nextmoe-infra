@@ -33,7 +33,7 @@ func parseVNResponse(r io.Reader) (*vnResponse, error) {
 	return &out, nil
 }
 
-func ratingLevel(v float64) int16 {
+func RatingLevel(v float64) int16 {
 	if math.IsNaN(v) || v <= 0 {
 		return 0
 	}

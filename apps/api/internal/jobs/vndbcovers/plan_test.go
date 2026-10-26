@@ -56,7 +56,7 @@ func TestRatingLevel(t *testing.T) {
 		{math.NaN(), 0},
 	}
 	for _, c := range cases {
-		assert.Equal(t, c.want, ratingLevel(c.in), "ratingLevel(%v)", c.in)
+		assert.Equal(t, c.want, RatingLevel(c.in), "RatingLevel(%v)", c.in)
 	}
 }
 

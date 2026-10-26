@@ -35,7 +35,7 @@ func printForecast(plan []planRow, opts Opts) {
 			pin += " (pinned)"
 		}
 		fmt.Fprintf(w, "%d\t%s\tfound\t%s\t%d\t%d\t%s\n", row.WorkID, row.VNDBID, pin,
-			ratingLevel(row.Img.Sexual), ratingLevel(row.Img.Violence), action)
+			RatingLevel(row.Img.Sexual), RatingLevel(row.Img.Violence), action)
 	}
 	w.Flush()
 }
