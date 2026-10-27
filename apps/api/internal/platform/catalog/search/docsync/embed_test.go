@@ -45,7 +45,7 @@ func TestEmbedWorksReembedsOnlyChangedCards(t *testing.T) {
 	emb := &fakeEmbedder{}
 	run := func() EmbedStats {
 		t.Helper()
-		stats, err := EmbedWorks(ctx, facetTestDB, idx, emb, 100, 1, 2, nil)
+		stats, err := EmbedWorks(ctx, facetTestDB, idx, emb, EmbedOptions{Batch: 100, EmbedBatch: 1, Concurrency: 2})
 		if err != nil {
 			t.Fatalf("embed works: %v", err)
 		}
@@ -77,7 +77,7 @@ func TestEmbedWorksReembedsOnlyChangedCards(t *testing.T) {
 		t.Fatalf("embedded texts = %q", emb.texts)
 	}
 
-	hits, err := idx.SearchWorkVectors(ctx, []float32{1, 0, 0, 0}, 5, spec.WorksFilter{OLang: spec.OLang{All: true}})
+	hits, err := idx.SearchWorkVectors(ctx, catalogSearch.IndexWorkVectors, []float32{1, 0, 0, 0}, 5, spec.WorksFilter{OLang: spec.OLang{All: true}})
 	if err != nil {
 		t.Fatalf("knn search: %v", err)
 	}

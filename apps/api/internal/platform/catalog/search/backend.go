@@ -27,7 +27,8 @@ type Engine interface {
 	UpsertVectors(ctx context.Context, uid string, docs []VectorDoc) error
 	UpdateVectorFilters(ctx context.Context, uid string, docs []VectorDoc) error
 	VectorStamps(ctx context.Context, uid string, ids []string) (map[string]VectorStamp, error)
-	SearchWorkVectors(ctx context.Context, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error)
+	SearchWorkVectors(ctx context.Context, uid string, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error)
+	SearchCharacterVectors(ctx context.Context, uid string, vector []float32, k int, q spec.CharacterQuery) ([]VectorHit, error)
 }
 
 type Indexer struct{ engine Engine }

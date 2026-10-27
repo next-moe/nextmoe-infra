@@ -12,12 +12,59 @@ import (
 )
 
 const (
-	VectorSchemaVersion = 1
-	IndexWorkVectors    = "catalog_work_vectors"
+	VectorSchemaVersion   = 1
+	IndexWorkVectors      = "catalog_work_vectors"
+	IndexCharacterVectors = "catalog_character_vectors"
 )
 
-func VectorIndexBody(dims int) map[string]any {
+func vectorFilterProperties(uid string) (map[string]any, error) {
 	long := map[string]any{"type": "long"}
+	integer := map[string]any{"type": "integer"}
+	switch uid {
+	case IndexWorkVectors:
+		return map[string]any{
+			"content_rating": integer,
+			"claimed":        map[string]any{"type": "boolean"},
+			"claim_state":    keywordField(),
+			"content_limit":  keywordField(),
+			"olang":          keywordField(),
+			"tag_ids":        long,
+			"label_ids":      long,
+			"engine_ids":     long,
+			"series_ids":     long,
+			"released_ord":   integer,
+		}, nil
+	case IndexCharacterVectors:
+		return map[string]any{
+			"gender":        integer,
+			"trait_ids":     long,
+			"trait_ids_sfw": long,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown vector index %q", uid)
+	}
+}
+
+func VectorIndexBody(uid string, dims int) (map[string]any, error) {
+	props, err := vectorFilterProperties(uid)
+	if err != nil {
+		return nil, err
+	}
+	props["vector"] = map[string]any{
+		"type":              "knn_vector",
+		"dimension":         dims,
+		"space_type":        "cosinesimil",
+		"mode":              "on_disk",
+		"compression_level": "16x",
+		"method": map[string]any{
+			"name": "hnsw", "engine": "faiss",
+			"parameters": map[string]any{"m": 16, "ef_construction": 128},
+		},
+	}
+	props["id"] = keywordField()
+	props["catalog_id"] = map[string]any{"type": "long"}
+	props["embed_model"] = keywordField()
+	props["text_hash"] = keywordField()
 	return map[string]any{
 		"settings": map[string]any{
 			"index": map[string]any{
@@ -27,45 +74,23 @@ func VectorIndexBody(dims int) map[string]any {
 			},
 		},
 		"mappings": map[string]any{
-			"dynamic": false,
-			"_meta":   map[string]any{"schema_version": VectorSchemaVersion, "dims": dims},
-			"properties": map[string]any{
-				"vector": map[string]any{
-					"type":              "knn_vector",
-					"dimension":         dims,
-					"space_type":        "cosinesimil",
-					"mode":              "on_disk",
-					"compression_level": "16x",
-					"method": map[string]any{
-						"name": "hnsw", "engine": "faiss",
-						"parameters": map[string]any{"m": 16, "ef_construction": 128},
-					},
-				},
-				"id":             keywordField(),
-				"catalog_id":     long,
-				"embed_model":    keywordField(),
-				"text_hash":      keywordField(),
-				"content_rating": map[string]any{"type": "integer"},
-				"claimed":        map[string]any{"type": "boolean"},
-				"claim_state":    keywordField(),
-				"content_limit":  keywordField(),
-				"olang":          keywordField(),
-				"tag_ids":        long,
-				"label_ids":      long,
-				"engine_ids":     long,
-				"series_ids":     long,
-				"released_ord":   map[string]any{"type": "integer"},
-			},
+			"dynamic":    false,
+			"_meta":      map[string]any{"schema_version": VectorSchemaVersion, "dims": dims},
+			"properties": props,
 		},
-	}
+	}, nil
 }
 
 func (e *Engine) EnsureVectorIndex(ctx context.Context, uid string, dims int) error {
+	body, err := VectorIndexBody(uid, dims)
+	if err != nil {
+		return err
+	}
 	name := e.client.IndexName(uid)
 	var got map[string]any
-	err := e.client.Do(ctx, http.MethodGet, "/"+name, nil, &got)
+	err = e.client.Do(ctx, http.MethodGet, "/"+name, nil, &got)
 	if opensearch.IsNotFound(err) {
-		if err := e.client.Do(ctx, http.MethodPut, "/"+name, VectorIndexBody(dims), nil); err != nil && !isResourceAlreadyExists(err) {
+		if err := e.client.Do(ctx, http.MethodPut, "/"+name, body, nil); err != nil && !isResourceAlreadyExists(err) {
 			return fmt.Errorf("create index %s: %w", name, err)
 		}
 		return nil
@@ -136,9 +161,17 @@ type VectorHit struct {
 	Score     float64
 }
 
-func (e *Engine) SearchVectors(ctx context.Context, uid string, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error) {
+func (e *Engine) SearchWorkVectors(ctx context.Context, uid string, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error) {
+	return e.searchVectors(ctx, uid, vector, k, filterClauses(f))
+}
+
+func (e *Engine) SearchCharacterVectors(ctx context.Context, uid string, vector []float32, k int, q spec.CharacterQuery) ([]VectorHit, error) {
+	return e.searchVectors(ctx, uid, vector, k, characterFilterClauses(q))
+}
+
+func (e *Engine) searchVectors(ctx context.Context, uid string, vector []float32, k int, clauses []any) ([]VectorHit, error) {
 	knn := map[string]any{"vector": vector, "k": k}
-	if clauses := filterClauses(f); len(clauses) > 0 {
+	if len(clauses) > 0 {
 		knn["filter"] = map[string]any{"bool": map[string]any{"filter": clauses}}
 	}
 	body := map[string]any{

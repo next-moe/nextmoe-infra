@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"maps"
+	"slices"
 	"strings"
 
 	"api/internal/platform/catalog/search/osengine"
@@ -37,75 +40,87 @@ func (i *Indexer) VectorStamps(ctx context.Context, uid string, ids []string) (m
 	return i.engine.VectorStamps(ctx, uid, ids)
 }
 
-func (i *Indexer) SearchWorkVectors(ctx context.Context, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error) {
-	return i.engine.SearchWorkVectors(ctx, vector, k, f)
+func (i *Indexer) SearchWorkVectors(ctx context.Context, uid string, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error) {
+	return i.engine.SearchWorkVectors(ctx, uid, vector, k, f)
+}
+
+func (i *Indexer) SearchCharacterVectors(ctx context.Context, uid string, vector []float32, k int, q spec.CharacterQuery) ([]VectorHit, error) {
+	return i.engine.SearchCharacterVectors(ctx, uid, vector, k, q)
 }
 
 const (
-	workCardVersion  = "work-card-v1"
+	WorkCardVersion      = "work-card-v1"
+	CharacterCardVersion = "character-card-v1"
+
 	cardIntroRunes   = 600
 	cardMaxTags      = 40
 	cardMaxTitleRows = 8
+	cardMaxWorks     = 5
 )
 
 type VectorDoc struct {
-	ID         string    `json:"id"`
-	CatalogID  int64     `json:"catalog_id"`
-	EmbedModel string    `json:"embed_model"`
-	TextHash   string    `json:"text_hash"`
-	Vector     []float32 `json:"vector,omitempty"`
+	ID         string
+	CatalogID  int64
+	EmbedModel string
+	TextHash   string
+	Vector     []float32
+	Filters    map[string]any
+}
 
-	ContentRating *int16  `json:"content_rating,omitempty"`
-	Claimed       *bool   `json:"claimed,omitempty"`
-	ClaimState    string  `json:"claim_state,omitempty"`
-	ContentLimit  string  `json:"content_limit,omitempty"`
-	OLang         string  `json:"olang,omitempty"`
-	TagIDs        []int64 `json:"tag_ids,omitempty"`
-	LabelIDs      []int64 `json:"label_ids,omitempty"`
-	EngineIDs     []int64 `json:"engine_ids,omitempty"`
-	SeriesIDs     []int64 `json:"series_ids,omitempty"`
-	ReleasedOrd   int64   `json:"released_ord,omitempty"`
+func (d VectorDoc) MarshalJSON() ([]byte, error) {
+	m := maps.Clone(d.Filters)
+	if m == nil {
+		m = map[string]any{}
+	}
+	m["id"], m["catalog_id"], m["embed_model"], m["text_hash"] = d.ID, d.CatalogID, d.EmbedModel, d.TextHash
+	if d.Vector != nil {
+		m["vector"] = d.Vector
+	}
+	return json.Marshal(m)
+}
+
+// Filter maps carry every key with an explicit empty value: the filter-only
+// refresh is a partial update, and a key left out keeps its old value — a work
+// that lost its last tag would stay findable by that tag.
+func nullable(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func idList(v []int64) []int64 {
+	if v == nil {
+		return []int64{}
+	}
+	return v
 }
 
 func NewWorkVectorDoc(d EntityDoc) VectorDoc {
-	return VectorDoc{
-		ID: d.ID, CatalogID: d.CatalogID,
-		ContentRating: d.ContentRating, Claimed: d.Claimed, ClaimState: d.ClaimState,
-		ContentLimit: d.ContentLimit, OLang: d.OLang,
-		TagIDs: d.TagIDs, LabelIDs: d.LabelIDs, EngineIDs: d.EngineIDs, SeriesIDs: d.SeriesIDs,
-		ReleasedOrd: d.ReleasedOrd,
-	}
-}
-
-func (d VectorDoc) FilterFields() map[string]any {
-	str := func(s string) any {
-		if s == "" {
-			return nil
-		}
-		return s
-	}
-	ids := func(v []int64) []int64 {
-		if v == nil {
-			return []int64{}
-		}
-		return v
-	}
 	var released any
 	if d.ReleasedOrd != 0 {
 		released = d.ReleasedOrd
 	}
-	return map[string]any{
+	return VectorDoc{ID: d.ID, CatalogID: d.CatalogID, Filters: map[string]any{
 		"content_rating": d.ContentRating,
 		"claimed":        d.Claimed,
-		"claim_state":    str(d.ClaimState),
-		"content_limit":  str(d.ContentLimit),
-		"olang":          str(d.OLang),
-		"tag_ids":        ids(d.TagIDs),
-		"label_ids":      ids(d.LabelIDs),
-		"engine_ids":     ids(d.EngineIDs),
-		"series_ids":     ids(d.SeriesIDs),
+		"claim_state":    nullable(d.ClaimState),
+		"content_limit":  nullable(d.ContentLimit),
+		"olang":          nullable(d.OLang),
+		"tag_ids":        idList(d.TagIDs),
+		"label_ids":      idList(d.LabelIDs),
+		"engine_ids":     idList(d.EngineIDs),
+		"series_ids":     idList(d.SeriesIDs),
 		"released_ord":   released,
-	}
+	}}
+}
+
+func NewCharacterVectorDoc(d EntityDoc) VectorDoc {
+	return VectorDoc{ID: d.ID, CatalogID: d.CatalogID, Filters: map[string]any{
+		"gender":        d.Gender,
+		"trait_ids":     idList(d.TraitIDs),
+		"trait_ids_sfw": idList(d.TraitIDsSFW),
+	}}
 }
 
 func WorkCardText(in WorkDocInput, tagNames []string) string {
@@ -129,8 +144,13 @@ func WorkCardText(in WorkDocInput, tagNames []string) string {
 		b.WriteString("\n")
 		b.WriteString(strings.Join(tagNames, ", "))
 	}
+	writeCardIntros(&b, in.Intros)
+	return b.String()
+}
+
+func writeCardIntros(b *strings.Builder, intros []WorkDocIntro) {
 	for _, want := range []string{"zh", "ja", "other"} {
-		for _, intro := range in.Intros {
+		for _, intro := range intros {
 			if bucket(intro.Lang) != want || strings.TrimSpace(intro.Text) == "" {
 				continue
 			}
@@ -139,10 +159,47 @@ func WorkCardText(in WorkDocInput, tagNames []string) string {
 			break
 		}
 	}
+}
+
+type CharacterCard struct {
+	Doc    EntityDoc
+	Works  []string
+	Traits []string
+	Intros []WorkDocIntro
+}
+
+func CharacterCardText(c CharacterCard) string {
+	var b strings.Builder
+	names := []string{}
+	for _, n := range []string{c.Doc.NameJa, c.Doc.NameZh, c.Doc.NameOther, c.Doc.Latin} {
+		if n != "" && !slices.Contains(names, n) {
+			names = append(names, n)
+		}
+	}
+	for _, list := range [][]string{c.Doc.AliasesJa, c.Doc.AliasesZh, c.Doc.AliasesOther} {
+		for _, n := range list {
+			if len(names) >= cardMaxTitleRows {
+				break
+			}
+			if n != "" && !slices.Contains(names, n) {
+				names = append(names, n)
+			}
+		}
+	}
+	b.WriteString(strings.Join(names, " / "))
+	if len(c.Works) > 0 {
+		b.WriteString("\n")
+		b.WriteString(strings.Join(c.Works[:min(len(c.Works), cardMaxWorks)], " / "))
+	}
+	if len(c.Traits) > 0 {
+		b.WriteString("\n")
+		b.WriteString(strings.Join(c.Traits[:min(len(c.Traits), cardMaxTags)], ", "))
+	}
+	writeCardIntros(&b, c.Intros)
 	return b.String()
 }
 
-func CardHash(model, text string) string {
-	sum := sha256.Sum256([]byte(workCardVersion + "\x00" + model + "\x00" + text))
+func CardHash(version, model, text string) string {
+	sum := sha256.Sum256([]byte(version + "\x00" + model + "\x00" + text))
 	return hex.EncodeToString(sum[:16])
 }

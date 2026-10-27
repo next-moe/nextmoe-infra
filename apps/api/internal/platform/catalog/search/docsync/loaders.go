@@ -228,38 +228,48 @@ func loadWorkPopularitySignal(db *gorm.DB, s scope) (map[int64]float64, error) {
 }
 
 func reindexCharacters(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, s scope) ([]int64, error) {
-	charCtx, err := chardocs.Load(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-	srcs, keys, err := loadSources(db, model.EntityTypeCharacter, s)
-	if err != nil {
-		return nil, err
-	}
-	aliases, err := loadAliasTable(db, "catalog_character_alias", "character_id",
-		editspec.NotSuppressedCharacterAliasSQL("a"), s)
-	if err != nil {
-		return nil, err
-	}
 	if s == nil {
 		if err := purgeSoftDeleted(ctx, db, idx, catalogSearch.IndexCharacters, "catalog_character", "c"); err != nil {
 			return nil, err
 		}
 	}
 	var indexed []int64
+	err := forEachCharacterDoc(ctx, db, s, batch, func(docs []catalogSearch.EntityDoc) error {
+		for _, d := range docs {
+			indexed = append(indexed, d.CatalogID)
+		}
+		return idx.UpsertBatch(ctx, catalogSearch.IndexCharacters, docs)
+	})
+	return indexed, err
+}
+
+func forEachCharacterDoc(ctx context.Context, db *gorm.DB, s scope, batch int, fn func([]catalogSearch.EntityDoc) error) error {
+	charCtx, err := chardocs.Load(ctx, db)
+	if err != nil {
+		return err
+	}
+	srcs, keys, err := loadSources(db, model.EntityTypeCharacter, s)
+	if err != nil {
+		return err
+	}
+	aliases, err := loadAliasTable(db, "catalog_character_alias", "character_id",
+		editspec.NotSuppressedCharacterAliasSQL("a"), s)
+	if err != nil {
+		return err
+	}
 	lastID := int64(0)
 	for {
 		var rows []chardocs.Row
 		if err := db.Raw(`SELECT id, display_name, lang, coalesce(latin,'') AS latin, gender FROM catalog_character
 			WHERE id > ? AND deleted_at IS NULL`+s.and("id")+` ORDER BY id LIMIT ?`, s.pageArgs(lastID, batch)...).Scan(&rows).Error; err != nil {
-			return nil, err
+			return err
 		}
 		if len(rows) == 0 {
-			break
+			return nil
 		}
 		docs, err := charCtx.Build(ctx, db, rows)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for i, r := range rows {
 			docs[i].Sources = srcs[r.ID]
@@ -267,14 +277,12 @@ func reindexCharacters(ctx context.Context, db *gorm.DB, idx *catalogSearch.Inde
 			for _, a := range aliases[r.ID] {
 				docs[i].AddAlias(a.lang, a.name)
 			}
-			indexed = append(indexed, r.ID)
 		}
-		if err := idx.UpsertBatch(ctx, catalogSearch.IndexCharacters, docs); err != nil {
-			return nil, err
+		if err := fn(docs); err != nil {
+			return err
 		}
 		lastID = rows[len(rows)-1].ID
 	}
-	return indexed, nil
 }
 
 type workTitle struct {

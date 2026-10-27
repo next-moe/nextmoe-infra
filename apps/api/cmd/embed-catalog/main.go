@@ -17,13 +17,24 @@ import (
 )
 
 func main() {
-	batch := flag.Int("batch", 2000, "works loaded per page")
+	entity := flag.String("entity", "works", "works | characters")
+	batch := flag.Int("batch", 2000, "entities loaded per page")
 	embedBatch := flag.Int("embed-batch", 16, "texts per embeddings request")
-	concurrency := flag.Int("concurrency", 8, "embeddings requests in flight")
+	concurrency := flag.Int("concurrency", 32, "embeddings requests in flight")
 	model := flag.String("model", catalogSearch.DefaultEmbedModel, "embedding model id")
 	dims := flag.Int("dims", 1024, "vector dimension of -model")
-	idsFlag := flag.String("ids", "", "comma-separated work ids (default: every live work)")
+	idsFlag := flag.String("ids", "", "comma-separated entity ids (default: every live one)")
 	flag.Parse()
+
+	embed, uid := docsync.EmbedWorks, catalogSearch.IndexWorkVectors
+	switch *entity {
+	case "works":
+	case "characters":
+		embed, uid = docsync.EmbedCharacters, catalogSearch.IndexCharacterVectors
+	default:
+		slog.Error("unknown -entity", "value", *entity)
+		os.Exit(1)
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -59,14 +70,16 @@ func main() {
 		os.Exit(1)
 	}
 	ctx := context.Background()
-	if err := idx.EnsureVectorIndex(ctx, catalogSearch.IndexWorkVectors, *dims); err != nil {
+	if err := idx.EnsureVectorIndex(ctx, uid, *dims); err != nil {
 		slog.Error("vector index", "error", err)
 		os.Exit(1)
 	}
 	emb := catalogSearch.NewOpenAIEmbedder(cfg.AIUpstream.BaseURL, cfg.AIUpstream.Token, *model)
 	start := time.Now()
-	stats, err := docsync.EmbedWorks(ctx, db.DB(), idx, emb, *batch, *embedBatch, *concurrency, ids)
-	slog.Info("embed-catalog", "scanned", stats.Scanned, "embedded", stats.Embedded,
+	stats, err := embed(ctx, db.DB(), idx, emb, docsync.EmbedOptions{
+		Batch: *batch, EmbedBatch: *embedBatch, Concurrency: *concurrency, IDs: ids,
+	})
+	slog.Info("embed-catalog", "entity", *entity, "scanned", stats.Scanned, "embedded", stats.Embedded,
 		"filter_only", stats.FilterOnly, "elapsed", time.Since(start).Round(time.Second))
 	if err != nil {
 		slog.Error("embed-catalog failed", "error", err)

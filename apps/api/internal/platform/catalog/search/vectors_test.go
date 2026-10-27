@@ -47,18 +47,33 @@ func TestWorkCardTextCaps(t *testing.T) {
 	}
 }
 
-func TestCardHashTracksModelAndText(t *testing.T) {
-	base := CardHash("m1", "text")
-	if base == CardHash("m2", "text") || base == CardHash("m1", "text2") {
-		t.Fatal("hash must change with model and text")
+func TestCharacterCardText(t *testing.T) {
+	d := EntityDoc{NameJa: "朝武芳乃", Latin: "Tomotake Yoshino", AliasesZh: []string{"芳乃"}, AliasesJa: []string{"朝武芳乃"}}
+	got := CharacterCardText(CharacterCard{
+		Doc:    d,
+		Works:  []string{"千恋＊万花"},
+		Traits: []string{"巫女", "黒髪"},
+		Intros: []WorkDocIntro{{Lang: "ja", Text: "神社の巫女。"}},
+	})
+	want := "朝武芳乃 / Tomotake Yoshino / 芳乃\n千恋＊万花\n巫女, 黒髪\n神社の巫女。"
+	if got != want {
+		t.Fatalf("card text:\n got %q\nwant %q", got, want)
 	}
-	if base != CardHash("m1", "text") {
+}
+
+func TestCardHashTracksModelAndText(t *testing.T) {
+	base := CardHash("v1", "m1", "text")
+	if base == CardHash("v1", "m2", "text") || base == CardHash("v1", "m1", "text2") || base == CardHash("v2", "m1", "text") {
+		t.Fatal("hash must change with version, model and text")
+	}
+	if base != CardHash("v1", "m1", "text") {
 		t.Fatal("hash must be deterministic")
 	}
 }
 
-func TestFilterFieldsClearEmptyValues(t *testing.T) {
-	raw, err := json.Marshal(VectorDoc{ID: "w1", EmbedModel: "m", TextHash: "h", Vector: []float32{1}}.FilterFields())
+func decodeJSON(t *testing.T, v any) map[string]any {
+	t.Helper()
+	raw, err := json.Marshal(v)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,16 +81,40 @@ func TestFilterFieldsClearEmptyValues(t *testing.T) {
 	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatal(err)
 	}
+	return got
+}
+
+func TestVectorFiltersClearEmptyValues(t *testing.T) {
+	work := decodeJSON(t, NewWorkVectorDoc(EntityDoc{ID: "w1", CatalogID: 1}).Filters)
 	for _, k := range []string{"embed_model", "text_hash", "vector", "id"} {
-		if _, ok := got[k]; ok {
+		if _, ok := work[k]; ok {
 			t.Errorf("filter update must not carry %q", k)
 		}
 	}
-	if v, ok := got["tag_ids"].([]any); !ok || len(v) != 0 {
-		t.Errorf("empty tag_ids must be sent as [] to clear the old value, got %#v", got["tag_ids"])
+	if v, ok := work["tag_ids"].([]any); !ok || len(v) != 0 {
+		t.Errorf("empty tag_ids must be sent as [] to clear the old value, got %#v", work["tag_ids"])
 	}
-	if v, ok := got["content_limit"]; !ok || v != nil {
+	if v, ok := work["content_limit"]; !ok || v != nil {
 		t.Errorf("empty content_limit must be sent as null, got %#v", v)
+	}
+	char := decodeJSON(t, NewCharacterVectorDoc(EntityDoc{ID: "c1", CatalogID: 1}).Filters)
+	if v, ok := char["trait_ids_sfw"].([]any); !ok || len(v) != 0 {
+		t.Errorf("empty trait_ids_sfw must be sent as [], got %#v", char["trait_ids_sfw"])
+	}
+	if v, ok := char["gender"]; !ok || v != nil {
+		t.Errorf("unknown gender must be sent as null, got %#v", v)
+	}
+}
+
+func TestVectorDocMarshalMergesStampsAndFilters(t *testing.T) {
+	d := NewWorkVectorDoc(EntityDoc{ID: "w7", CatalogID: 7, OLang: "ja"})
+	d.EmbedModel, d.TextHash, d.Vector = "m", "h", []float32{0.5}
+	got := decodeJSON(t, d)
+	if got["id"] != "w7" || got["catalog_id"] != float64(7) || got["embed_model"] != "m" || got["text_hash"] != "h" || got["olang"] != "ja" {
+		t.Fatalf("marshalled doc = %v", got)
+	}
+	if v, ok := got["vector"].([]any); !ok || len(v) != 1 {
+		t.Fatalf("vector = %#v", got["vector"])
 	}
 }
 

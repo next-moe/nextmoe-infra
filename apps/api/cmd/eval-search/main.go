@@ -78,6 +78,7 @@ func main() {
 	rrfK := flag.Int("rrf-k", catalogSearch.DefaultRRFK, "RRF k constant")
 	bm25Weight := flag.Float64("bm25-weight", 1, "RRF weight of the BM25 list (the kNN list weighs 1)")
 	model := flag.String("model", catalogSearch.DefaultEmbedModel, "embedding model id (must match the indexed vectors)")
+	vectorIndex := flag.String("vector-index", catalogSearch.IndexWorkVectors, "work vector index uid to query")
 	instruct := flag.Bool("instruct", true, "prefix queries with the retrieval instruction")
 	flag.Parse()
 
@@ -125,7 +126,7 @@ func main() {
 			slog.Error("embed query", "query", r.Query, "error", err)
 			os.Exit(1)
 		}
-		hits, err := idx.SearchWorkVectors(ctx, vecs[0], *depth, filter)
+		hits, err := idx.SearchWorkVectors(ctx, *vectorIndex, vecs[0], *depth, filter)
 		if err != nil {
 			slog.Error("knn", "query", r.Query, "error", err)
 			os.Exit(1)
