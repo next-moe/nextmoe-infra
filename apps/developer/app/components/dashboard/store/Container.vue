@@ -97,7 +97,7 @@ const peak = computed(() =>
           去控制台铸密钥
           <KunIcon name="lucide:arrow-right" class="ml-1 size-4" />
         </KunButton>
-        <KunButton variant="flat" size="md" @click="navigateTo('/docs/v2')">
+        <KunButton variant="flat" size="md" @click="navigateTo('/docs/store')">
           <KunIcon name="lucide:book-open" class="mr-1 size-4" />
           阅读接入文档
         </KunButton>
@@ -176,8 +176,9 @@ const peak = computed(() =>
 
       <p class="text-default-400 text-xs leading-relaxed">
         去重口径:同一条短链、同一个 JST 日、同一个指纹(访问 IP 与 User-Agent 的
-        SHA-256)只算一次——这是我们对 DLsite
-        的承诺;User-Agent 自报是爬虫、链接预览或 HTTP 库的访问照常跳转,但不计入去重点击。计数每小时从跳转器同步一次,当天数字始终是不完整的。
+        SHA-256)只算一次——这是我们对 DLsite 的承诺;User-Agent
+        自报是爬虫、链接预览或 HTTP
+        库的访问照常跳转,但不计入去重点击。计数每小时从跳转器同步一次,当天数字始终是不完整的。
       </p>
     </template>
 
