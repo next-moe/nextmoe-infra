@@ -20,17 +20,18 @@ import (
 )
 
 type PublicService struct {
-	db          *gorm.DB
-	read        *ReadService
-	resolve     *ResolveService
-	mediums     map[int16]string
-	sources     map[int16]string
-	cdnBase     string
-	imageMeta   ImageMetaFunc
-	metaCache   *imageMetaCache
-	totals      *totalsCache
-	worksSearch *catsearch.Indexer
-	traitCounts *traitCountCache
+	db           *gorm.DB
+	read         *ReadService
+	resolve      *ResolveService
+	mediums      map[int16]string
+	sources      map[int16]string
+	cdnBase      string
+	imageMeta    ImageMetaFunc
+	metaCache    *imageMetaCache
+	totals       *totalsCache
+	worksSearch  *catsearch.Indexer
+	traitCounts  *traitCountCache
+	engineRaters engineRatersCache
 }
 
 // FlushTotals empties the include_total count cache so the next read recounts.

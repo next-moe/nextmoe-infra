@@ -105,6 +105,7 @@ func engineFromListItem(it dto.PublicEngineListItem) repr.Engine {
 	}
 	return repr.Engine{
 		Object: "engine", ID: repr.ID(it.ID), DisplayName: it.Name, WorkCount: it.WorkCount,
+		RaterCount: it.RaterCount, RatedWorkCount: it.RatedWorkCount,
 		Description: it.Description, Aliases: aliases,
 	}
 }

@@ -3149,6 +3149,16 @@ components:
             - engine
           type: string
           x-vocabulary-closed: true
+        rated_work_count:
+          description: Works among work_count that at least 10 people rated on VNDB, Bangumi or ErogameScape. Up to an hour stale.
+          format: int64
+          minimum: 0
+          type: integer
+        rater_count:
+          description: Sum over the works work_count counts of each work's largest rater count on VNDB, Bangumi or ErogameScape. A work none of them rates adds 0. Up to an hour stale. sort=popularity orders by it.
+          format: int64
+          minimum: 0
+          type: integer
         work_count:
           description: Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.
           format: int64
@@ -3159,6 +3169,8 @@ components:
         - id
         - display_name
         - work_count
+        - rater_count
+        - rated_work_count
         - description
         - aliases
       type: object
@@ -13970,7 +13982,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.73.0
+  version: 2.74.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -15773,7 +15785,7 @@ paths:
         - catalog
   /v2/catalog/engines:
     get:
-      description: Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+      description: "Keyset-paginated engines. sort=id (default) or popularity: rater_count descending, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate."
       operationId: listCatalogEngines
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
