@@ -1,7 +1,6 @@
-
 export type DocsMethod = 'get' | 'post' | 'put' | 'patch' | 'delete'
 
-export type DocsFaceKey = 'v2' | 'moyu' | 'sticker' | 'letmoe'
+export type DocsFaceKey = 'v2' | 'store' | 'moyu' | 'sticker' | 'letmoe'
 
 export interface DocsAuth {
   kind: 'api_key' | 'user_token' | 'none' | 'optional'

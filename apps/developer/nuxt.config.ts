@@ -87,7 +87,21 @@ export default defineNuxtConfig({
     // — in-app navigation goes through the updated constants in nav.ts.
     '/usage': { redirect: { to: '/dashboard/usage', statusCode: 301 } },
     '/store': { redirect: { to: '/dashboard/store', statusCode: 301 } },
-    '/apps/**': { redirect: { to: '/dashboard/apps/**', statusCode: 301 } }
+    '/apps/**': { redirect: { to: '/dashboard/apps/**', statusCode: 301 } },
+
+    ...Object.fromEntries(
+      [
+        'listStorePrices',
+        'getStoreWorkPrices',
+        'getStorePurchaseLinks',
+        'getStoreStats'
+      ].flatMap((id) =>
+        ['', '.md'].map((ext) => [
+          `/docs/v2/${id}${ext}`,
+          { redirect: { to: `/docs/store/${id}${ext}`, statusCode: 301 } }
+        ])
+      )
+    )
   },
 
   modules: [

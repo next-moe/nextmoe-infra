@@ -1,4 +1,4 @@
-# The download options of a resource · letmoe 资源面
+# The download options of a resource · letmoe 下载资源链接面
 
 > NextMoe·未萌 开放 API —— ACGN 数据，以此为准。同一部作品在六个源各有一个页面，NextMoe 把它们对齐成一条记录，逐字段给出裁定后的标准答案，并附上答案取自哪个源。
 
@@ -29,7 +29,7 @@ Never cached: every answer, refusals included, is
 download on the resource, so ask when a reader asks to download.
 
 
-- 所属 API：letmoe 资源面（/v2/letmoe）
+- 所属 API：letmoe 下载资源链接面（/v2/letmoe）
 - 鉴权：Authorization: Bearer nmk_live_…
 - scope：letmoe:files
 

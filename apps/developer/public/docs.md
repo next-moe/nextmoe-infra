@@ -9,19 +9,21 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 4 个 API
+## 5 个 API
 
-- [Public API v2](https://developer.nextmoe.dev/docs/v2.md) — `/v2`，185 个端点，Authorization: Bearer nmk_live_…
+- [Public API v2](https://developer.nextmoe.dev/docs/v2.md) — `/v2`，181 个端点，Authorization: Bearer nmk_live_…
+- [DLsite 分销面](https://developer.nextmoe.dev/docs/store.md) — `/v2/store`，4 个端点，Authorization: Bearer nmk_live_…
 - [moyu 补丁面](https://developer.nextmoe.dev/docs/moyu.md) — `/v2/moyu`，6 个端点，Authorization: Bearer nmk_live_…
 - [sticker 表情包面](https://developer.nextmoe.dev/docs/sticker.md) — `/v2/sticker`，9 个端点，Authorization: Bearer nmk_live_…
-- [letmoe 资源面](https://developer.nextmoe.dev/docs/letmoe.md) — `/v2/letmoe`，4 个端点，Authorization: Bearer nmk_live_…
+- [letmoe 下载资源链接面](https://developer.nextmoe.dev/docs/letmoe.md) — `/v2/letmoe`，4 个端点，Authorization: Bearer nmk_live_…
 
 ## OpenAPI 原文（机器可读）
 
 - Public API v2：https://api.nextmoe.dev/v2/catalog/openapi.json
+- DLsite 分销面：https://api.nextmoe.dev/v2/catalog/openapi.json
 - moyu 补丁面：https://developer.nextmoe.dev/specs/moyu-openapi.yaml
 - sticker 表情包面：https://developer.nextmoe.dev/specs/sticker-openapi.yaml
-- letmoe 资源面：https://developer.nextmoe.dev/specs/letmoe-openapi.yaml
+- letmoe 下载资源链接面：https://developer.nextmoe.dev/specs/letmoe-openapi.yaml
 
 游玩时长与编辑提案两个用户面不提供公开 spec 文件，以本站 Markdown 参考为准。
 

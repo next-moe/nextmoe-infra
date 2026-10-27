@@ -178,6 +178,12 @@ const galgameCount = computed(() => {
       </div>
     </section>
 
+    <section class="border-default-200 border-b">
+      <div class="mx-auto max-w-7xl px-4 py-16 md:px-6 md:py-20">
+        <LandingApis />
+      </div>
+    </section>
+
     <section class="mx-auto max-w-7xl px-4 py-16 md:px-6 md:py-20">
       <LandingTryIt />
 

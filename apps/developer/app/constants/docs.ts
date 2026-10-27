@@ -18,6 +18,12 @@ export const DOCS_FACE_META: Record<
     tagline:
       'NextMoe 公开 API v2，正式公开面。无信封、RFC 9457 错误、字符串 id、keyset 游标。目录只读面不带凭据就能调，按 IP 限流；应用密钥是 nmk_live_（CRC32 校验位），任何应用都能在门户自助铸造，无需申请。'
   },
+  store: {
+    icon: 'lucide:shopping-bag',
+    label: 'DLsite 分销',
+    tagline:
+      '为你的站点铸一条只属于你的应用的 DLsite 购买短链，读者经它购买，平台按去重点击把 DLsite 返还的优惠券分给你。铸链接与读点击统计要带 store:read 的应用密钥（控制台自助勾选）；DLsite、Getchu、Steam 的商店价格免凭据可读。'
+  },
   moyu: {
     icon: 'lucide:package',
     label: 'moyu 补丁',
@@ -34,7 +40,7 @@ export const DOCS_FACE_META: Record<
   },
   letmoe: {
     icon: 'lucide:download',
-    label: 'letmoe 资源',
+    label: 'letmoe 下载资源链接',
     badge: '下游站点面',
     tagline:
       '一起萌（www.letmoe.com）联邦进来的只读面：一部游戏在 letmoe 上能下载到哪些资源。任意有效应用密钥即可读元数据；下载直链、网盘链接与解压密码只在 /file 上给持有运营发放的 letmoe:files 的密钥。作品 id 就是 catalog 作品 id。'

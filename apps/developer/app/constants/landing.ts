@@ -30,3 +30,48 @@ export const LANDING_ACCESS_TIERS = [
     link: { to: '/docs/user-data', label: '代表用户读写' }
   }
 ] as const
+
+export const LANDING_APIS = [
+  {
+    icon: 'lucide:layers',
+    title: '多源数据',
+    prefix: '/v2/catalog',
+    body: '作品、角色、厂牌与人物在六个上游的资料对齐成一条记录，逐字段给出裁定后的答案，并标明取自哪个源。',
+    to: '/docs/v2'
+  },
+  {
+    icon: 'lucide:user-round-check',
+    title: '用户数据',
+    prefix: '/v2/me',
+    body: '代表用户读写评分、游玩时长、游玩状态与收藏夹，全网一人一份，在哪个站写的都是同一份。',
+    to: '/docs/user-data'
+  },
+  {
+    icon: 'lucide:package',
+    title: 'moyu 补丁',
+    prefix: '/v2/moyu',
+    body: '一部游戏在鲲 Galgame 补丁上有哪些汉化、修正与存档等补丁资源，可批量反查、可增量同步。',
+    to: '/docs/moyu-patches'
+  },
+  {
+    icon: 'lucide:download',
+    title: 'letmoe 下载资源链接',
+    prefix: '/v2/letmoe',
+    body: '一部游戏在一起萌上能下载到哪些资源；获得授权的站点可以直接取下载链接。',
+    to: '/docs/letmoe'
+  },
+  {
+    icon: 'lucide:shopping-bag',
+    title: 'DLsite 分销',
+    prefix: '/v2/store',
+    body: '为你的站点铸专属的 DLsite 购买短链，按读者的点击分得 DLsite 返还的优惠券。',
+    to: '/docs/store'
+  },
+  {
+    icon: 'lucide:smile',
+    title: 'sticker 表情包',
+    prefix: '/v2/sticker',
+    body: '按 catalog 作品与角色索引的 Galgame 表情包素材，一个角色有哪些表情一次查到。',
+    to: '/docs/sticker-packs'
+  }
+] as const
