@@ -22,6 +22,12 @@ type Engine interface {
 	SearchCharacters(ctx context.Context, q spec.CharacterQuery) (CharactersResult, error)
 	SearchPersons(ctx context.Context, q spec.EntityQuery) (PersonsResult, error)
 	CharacterTraitCounts(ctx context.Context, nsfw bool) (map[int64]int64, error)
+
+	EnsureVectorIndex(ctx context.Context, uid string, dims int) error
+	UpsertVectors(ctx context.Context, uid string, docs []VectorDoc) error
+	UpdateVectorFilters(ctx context.Context, uid string, docs []VectorDoc) error
+	VectorStamps(ctx context.Context, uid string, ids []string) (map[string]VectorStamp, error)
+	SearchWorkVectors(ctx context.Context, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error)
 }
 
 type Indexer struct{ engine Engine }
