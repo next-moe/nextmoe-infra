@@ -2,6 +2,8 @@ package docsync
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -11,8 +13,9 @@ import (
 )
 
 type fakeEmbedder struct {
-	mu    sync.Mutex
-	texts []string
+	mu     sync.Mutex
+	texts  []string
+	failOn string
 }
 
 func (f *fakeEmbedder) Model() string { return "fake-embed" }
@@ -20,6 +23,11 @@ func (f *fakeEmbedder) Model() string { return "fake-embed" }
 func (f *fakeEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	for _, s := range texts {
+		if f.failOn != "" && strings.Contains(s, f.failOn) {
+			return nil, errors.New("upstream 503")
+		}
+	}
 	f.texts = append(f.texts, texts...)
 	out := make([][]float32, len(texts))
 	for i, s := range texts {
@@ -83,5 +91,29 @@ func TestEmbedWorksReembedsOnlyChangedCards(t *testing.T) {
 	}
 	if len(hits) != 2 || (hits[0].CatalogID != a && hits[0].CatalogID != b) {
 		t.Fatalf("knn hits = %+v", hits)
+	}
+}
+
+func TestEmbedWorksSkipsAFailingBatchAndFinishesTheRest(t *testing.T) {
+	truncateFacetTables(t)
+	idx, _ := syncTestIndex(t, "embedskip")
+	ctx := context.Background()
+	if err := idx.EnsureVectorIndex(ctx, catalogSearch.IndexWorkVectors, 4); err != nil {
+		t.Fatalf("ensure vector index: %v", err)
+	}
+	mkWork(t, "Riddle Joker", model.WorkStatusLive, galgameMedium)
+	mkWork(t, "BROKEN card", model.WorkStatusLive, galgameMedium)
+	mkWork(t, "Senren Banka", model.WorkStatusLive, galgameMedium)
+
+	emb := &fakeEmbedder{failOn: "BROKEN"}
+	stats, err := EmbedWorks(ctx, facetTestDB, idx, emb, EmbedOptions{Batch: 100, EmbedBatch: 1, Concurrency: 1})
+	if err == nil || stats.Failed != 1 || stats.Embedded != 2 {
+		t.Fatalf("stats = %+v, err = %v; want the broken card skipped, the rest embedded and an error", stats, err)
+	}
+
+	emb.failOn = ""
+	stats, err = EmbedWorks(ctx, facetTestDB, idx, emb, EmbedOptions{Batch: 100, EmbedBatch: 1, Concurrency: 1})
+	if err != nil || stats.Embedded != 1 || stats.FilterOnly != 2 {
+		t.Fatalf("rerun stats = %+v, err = %v; want only the skipped card embedded", stats, err)
 	}
 }

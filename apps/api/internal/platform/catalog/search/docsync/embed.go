@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sync/atomic"
 
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
@@ -18,6 +19,7 @@ type EmbedStats struct {
 	Scanned    int
 	Embedded   int
 	FilterOnly int
+	Failed     int
 }
 
 type EmbedOptions struct {
@@ -75,6 +77,7 @@ func (r *embedRun) page(ctx context.Context, version string, cards []card) error
 		return err
 	}
 	r.stats.FilterOnly += len(fresh)
+	var failed atomic.Int64
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(r.opts.Concurrency)
 	for start := 0; start < len(stale); start += r.opts.EmbedBatch {
@@ -83,7 +86,15 @@ func (r *embedRun) page(ctx context.Context, version string, cards []card) error
 		g.Go(func() error {
 			vecs, err := r.emb.Embed(gctx, chunkTexts)
 			if err != nil {
-				return fmt.Errorf("embed %s %d..%d: %w", r.uid, chunk[0].CatalogID, chunk[len(chunk)-1].CatalogID, err)
+				if gctx.Err() != nil {
+					return gctx.Err()
+				}
+				// A whole 130k-character backfill died on one batch that Workers AI
+				// kept answering 503 "Unknown internal error" (code 3048). Cards
+				// left unstamped are picked up by the next run, so skip and go on.
+				slog.Warn("embed batch skipped", "index", r.uid, "from", chunk[0].CatalogID, "to", chunk[len(chunk)-1].CatalogID, "error", err)
+				failed.Add(int64(len(chunk)))
+				return nil
 			}
 			for i := range chunk {
 				chunk[i].Vector = vecs[i]
@@ -94,9 +105,18 @@ func (r *embedRun) page(ctx context.Context, version string, cards []card) error
 	if err := g.Wait(); err != nil {
 		return err
 	}
-	r.stats.Embedded += len(stale)
-	slog.Info("embed page", "index", r.uid, "scanned", r.stats.Scanned, "embedded", r.stats.Embedded, "filter_only", r.stats.FilterOnly)
+	r.stats.Failed += int(failed.Load())
+	r.stats.Embedded += len(stale) - int(failed.Load())
+	slog.Info("embed page", "index", r.uid, "scanned", r.stats.Scanned, "embedded", r.stats.Embedded,
+		"filter_only", r.stats.FilterOnly, "failed", r.stats.Failed)
 	return nil
+}
+
+func (r *embedRun) result(err error) (EmbedStats, error) {
+	if err == nil && r.stats.Failed > 0 {
+		err = fmt.Errorf("%d cards failed to embed; rerun to retry them", r.stats.Failed)
+	}
+	return r.stats, err
 }
 
 func loadTagNames(db *gorm.DB) (map[int64]string, error) {
@@ -137,7 +157,7 @@ func EmbedWorks(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, em
 		}
 		return run.page(ctx, catalogSearch.WorkCardVersion, cards)
 	})
-	return run.stats, err
+	return run.result(err)
 }
 
 type characterExtras struct {
@@ -219,5 +239,5 @@ func EmbedCharacters(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexe
 		}
 		return run.page(ctx, catalogSearch.CharacterCardVersion, cards)
 	})
-	return run.stats, err
+	return run.result(err)
 }

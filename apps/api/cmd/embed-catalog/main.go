@@ -80,7 +80,7 @@ func main() {
 		Batch: *batch, EmbedBatch: *embedBatch, Concurrency: *concurrency, IDs: ids,
 	})
 	slog.Info("embed-catalog", "entity", *entity, "scanned", stats.Scanned, "embedded", stats.Embedded,
-		"filter_only", stats.FilterOnly, "elapsed", time.Since(start).Round(time.Second))
+		"filter_only", stats.FilterOnly, "failed", stats.Failed, "elapsed", time.Since(start).Round(time.Second))
 	if err != nil {
 		slog.Error("embed-catalog failed", "error", err)
 		os.Exit(1)
