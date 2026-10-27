@@ -281,7 +281,7 @@ export interface paths {
         };
         /**
          * List engines
-         * @description Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+         * @description Keyset-paginated engines. sort=id (default) or popularity: rater_count descending, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
          */
         get: operations["listCatalogEngines"];
         put?: never;
@@ -4875,6 +4875,16 @@ export interface components {
              * @enum {string}
              */
             object: "engine";
+            /**
+             * Format: int64
+             * @description Works among work_count that at least 10 people rated on VNDB, Bangumi or ErogameScape. Up to an hour stale.
+             */
+            rated_work_count: number;
+            /**
+             * Format: int64
+             * @description Sum over the works work_count counts of each work's largest rater count on VNDB, Bangumi or ErogameScape. A work none of them rates adds 0. Up to an hour stale. sort=popularity orders by it.
+             */
+            rater_count: number;
             /**
              * Format: int64
              * @description Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.
@@ -12139,7 +12149,7 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Name search. Empty lists by id. Must not be used as a discriminant. */
+                /** @description Name search over the search index (name, latin and aliases): a prefix, pinyin, kana or script variant matches, and results come in relevance order; the cursor then pages that order. Empty lists by id. Must not be used as a discriminant. */
                 q?: string;
             };
             header?: never;
@@ -12902,7 +12912,7 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant. */
+                /** @description Name search over the person's credit names whose person link is public (name, latin and aliases) in the search index: a prefix, pinyin, kana or script variant matches, and results come in relevance order, one per person; the cursor then pages that order. Must not be used as a discriminant. */
                 q?: string;
             };
             header?: never;
@@ -13582,7 +13592,7 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant. */
+                /** @description Title search over the same dated releases this collection lists, in this collection's date order: the release title or its work's display name as a case-insensitive substring, or a work that matches q in the works search index (prefix, aliases, pinyin, script variants; its 200 best matches). Must not be used as a discriminant. */
                 q?: string;
             };
             header?: never;

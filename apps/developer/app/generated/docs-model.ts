@@ -34139,7 +34139,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/engines",
               "summary": "List engines",
-              "description": "Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated engines. sort=id (default) or popularity: rater_count descending, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -34309,6 +34309,20 @@ export const docsModel: DocsModel = {
                                 "engine"
                               ],
                               "type": "string"
+                            },
+                            {
+                              "name": "rated_work_count",
+                              "required": true,
+                              "doc": "Works among work_count that at least 10 people rated on VNDB, Bangumi or ErogameScape. Up to an hour stale.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "rater_count",
+                              "required": true,
+                              "doc": "Sum over the works work_count counts of each work's largest rater count on VNDB, Bangumi or ErogameScape. A work none of them rates adds 0. Up to an hour stale. sort=popularity orders by it.",
+                              "format": "int64",
+                              "type": "integer"
                             },
                             {
                               "name": "work_count",
@@ -35789,6 +35803,20 @@ export const docsModel: DocsModel = {
                           "engine"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "rated_work_count",
+                        "required": true,
+                        "doc": "Works among work_count that at least 10 people rated on VNDB, Bangumi or ErogameScape. Up to an hour stale.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "rater_count",
+                        "required": true,
+                        "doc": "Sum over the works work_count counts of each work's largest rater count on VNDB, Bangumi or ErogameScape. A work none of them rates adds 0. Up to an hour stale. sort=popularity orders by it.",
+                        "format": "int64",
+                        "type": "integer"
                       },
                       {
                         "name": "work_count",

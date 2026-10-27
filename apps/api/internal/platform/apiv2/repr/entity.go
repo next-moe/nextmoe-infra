@@ -204,13 +204,15 @@ type Series struct {
 }
 
 type Engine struct {
-	_           struct{} `json:"-" additionalProperties:"true"`
-	Object      string   `json:"object" enum:"engine" doc:"Type discriminant. Always engine."`
-	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog engine id."`
-	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	WorkCount   int      `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter."`
-	Description string   `json:"description" maxLength:"8000" doc:"Free-text description. Empty if unrecorded. Must not be used as a discriminant."`
-	Aliases     []string `json:"aliases" doc:"Alternate spellings of the engine name. Empty array if none."`
+	_              struct{} `json:"-" additionalProperties:"true"`
+	Object         string   `json:"object" enum:"engine" doc:"Type discriminant. Always engine."`
+	ID             string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog engine id."`
+	DisplayName    string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
+	WorkCount      int      `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter."`
+	RaterCount     int64    `json:"rater_count" minimum:"0" doc:"Sum over the works work_count counts of each work's largest rater count on VNDB, Bangumi or ErogameScape. A work none of them rates adds 0. Up to an hour stale. sort=popularity orders by it."`
+	RatedWorkCount int      `json:"rated_work_count" minimum:"0" doc:"Works among work_count that at least 10 people rated on VNDB, Bangumi or ErogameScape. Up to an hour stale."`
+	Description    string   `json:"description" maxLength:"8000" doc:"Free-text description. Empty if unrecorded. Must not be used as a discriminant."`
+	Aliases        []string `json:"aliases" doc:"Alternate spellings of the engine name. Empty array if none."`
 }
 
 type Role struct {
