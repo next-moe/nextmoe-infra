@@ -1,4 +1,4 @@
-# Get storefront prices for one work · Public API v2
+# Get storefront prices for one work · DLsite 分销面
 
 > NextMoe·未萌 开放 API —— ACGN 数据，以此为准。同一部作品在六个源各有一个页面，NextMoe 把它们对齐成一条记录，逐字段给出裁定后的标准答案，并附上答案取自哪个源。
 
@@ -15,8 +15,8 @@ Get storefront prices for one work
 
 Cached storefront price quotes for one catalog work. Unauthenticated. Quotes are cached observations; read fetched_at / expires_at / stale. pending means a fetch is in flight, retry shortly.
 
-- 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
+- 所属 API：DLsite 分销面（/v2/store）
+- 鉴权：无需凭据
 - scope：无需凭据
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
@@ -24,9 +24,8 @@ Cached storefront price quotes for one catalog work. Unauthenticated. Quotes are
 | `id` | path | 是 | string | Decimal catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/store/prices/1" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/store/prices/1"
 ```
 
 ---
-本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/v2/getStoreWorkPrices
+本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/store/getStoreWorkPrices

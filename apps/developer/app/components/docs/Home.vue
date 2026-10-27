@@ -43,8 +43,12 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3"`
         <NuxtLink to="/docs/v2" class="text-primary hover:underline"
           >v2</NuxtLink
         >
-        这一个公开面上。另有 moyu 补丁、sticker 表情包与 letmoe
-        资源三个下游站点面接在同一把密钥后面，合计
+        这一个公开面上；
+        <NuxtLink to="/docs/store" class="text-primary hover:underline"
+          >DLsite 分销</NuxtLink
+        >
+        单独成一份参考。另有 moyu 补丁、sticker 表情包与 letmoe
+        下载资源链接三个下游站点面接在同一把密钥后面，合计
         {{ totalOperations }} 个端点。
       </p>
       <p class="text-default-500 mt-3 max-w-2xl leading-relaxed">

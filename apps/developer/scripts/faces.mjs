@@ -10,6 +10,8 @@
 // news, store) with the code that served them, leaving v2 as the only
 // first-party face; moyu, sticker and letmoe joined later as federated
 // downstream faces, served by their own repos behind the same gateway.
+// /v2/store is cut out of v2 as its own reference: a face owns the paths under
+// its prefix unless a longer prefix on the same spec claims them.
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -24,7 +26,10 @@ export const STICKER_SPEC = join(
   REPO_ROOT,
   'docs/downstream/sticker-openapi.yaml'
 )
-export const LETMOE_SPEC = join(REPO_ROOT, 'docs/downstream/letmoe-openapi.yaml')
+export const LETMOE_SPEC = join(
+  REPO_ROOT,
+  'docs/downstream/letmoe-openapi.yaml'
+)
 
 export const PORTAL_URL = 'https://developer.nextmoe.dev'
 
@@ -66,20 +71,21 @@ export const FACES = [
       if (path.startsWith('/v2/me/folders') || path === '/v2/me/works') {
         return method === 'get' ? 'folder:read 或 folder:write' : 'folder:write'
       }
-      if (path.startsWith('/v2/me/') || path.startsWith('/v2/moderation/')) return ''
+      if (path.startsWith('/v2/me/') || path.startsWith('/v2/moderation/'))
+        return ''
       if (
         path.startsWith('/v2/problems') ||
         path.startsWith('/v2/vocabularies') ||
         path.startsWith('/v2/news') ||
-        path.startsWith('/v2/store/prices') ||
         path === '/v2/catalog/stats' ||
         path.startsWith('/v2/catalog/schemas/')
       ) {
         return ''
       }
-      if (path.startsWith('/v2/store/')) return 'store:read'
-      if (path === '/v2/catalog/claim-events') return 'catalog:read + claim_events:read'
-      if (path === '/v2/folders/holders') return 'catalog:read + folder_holders:read'
+      if (path === '/v2/catalog/claim-events')
+        return 'catalog:read + claim_events:read'
+      if (path === '/v2/folders/holders')
+        return 'catalog:read + folder_holders:read'
       return 'catalog:read'
     },
     auth: {
@@ -94,10 +100,13 @@ export const FACES = [
       { key: 'news', label: '资讯', match: /^\/v2\/news/ },
       { key: 'folders', label: '公开收藏夹', match: /^\/v2\/folders/ },
       { key: 'ratings', label: '公开评分', match: /^\/v2\/ratings/ },
-      { key: 'work-records', label: '公开游玩记录', match: /^\/v2\/work-records/ },
+      {
+        key: 'work-records',
+        label: '公开游玩记录',
+        match: /^\/v2\/work-records/
+      },
       { key: 'me', label: '我的', match: /^\/v2\/me/ },
-      { key: 'moderation', label: '审核', match: /^\/v2\/moderation/ },
-      { key: 'store', label: '商店', match: /^\/v2\/store/ }
+      { key: 'moderation', label: '审核', match: /^\/v2\/moderation/ }
     ],
     notes: [
       '正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。',
@@ -114,6 +123,39 @@ export const FACES = [
       '/v2/work-records?user_id= 是别人的游玩记录，个人主页的游戏库读它：列出该账号有游玩状态的作品，每条带时长与评分，按状态的更新时间倒序；facets=state 给出五个状态各有几部（与列表同一组筛选，state= 也算在内，标签页的数字取自不带 state= 的请求），content_limit=sfw 时列表、total 与计数一起排除 nsfw 作品。只要 catalog:read。本人看自己的走 /v2/me/work-records，参数相同、不看隐私开关、只要用户令牌。游玩记录默认公开；本人经 PATCH /v2/me/privacy 设为 private 后，除本人的用户令牌外一律 403 PLAY_RECORDS_PRIVATE，评分仍在 /v2/ratings 公开。/v2/me/privacy 读写都只要用户令牌、不需要 scope。',
       '错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。',
       '客户端必须忽略未知字段、容忍开放词表中未见过的取值，并为未知错误 code 准备一个按 HTTP status 的兜底分支。'
+    ]
+  },
+  {
+    key: 'store',
+    label: 'DLsite 分销',
+    name: 'DLsite 分销面',
+    file: V2_SPEC,
+    prefix: '/v2/store',
+    specUrl: `${API_HOST}/v2/catalog/openapi.json`,
+    scope: (method, path) =>
+      path.startsWith('/v2/store/prices') ? '' : 'store:read',
+    auth: {
+      kind: 'api_key',
+      curl: 'Authorization: Bearer nmk_live_<YOUR_KEY>',
+      display: 'Authorization: Bearer nmk_live_…',
+      note: 'v2 应用密钥,铸造时勾选 store:read,自助、无需申请;商店价格免凭据'
+    },
+    autoGroups: [
+      {
+        key: 'links',
+        label: '分销链接',
+        match: /^\/v2\/store\/(purchase-links|stats)/
+      },
+      { key: 'prices', label: '商店价格', match: /^\/v2\/store\/prices/ }
+    ],
+    notes: [
+      '与目录同属 v2 公开面，单独成一份参考：给你的站点铸一条只属于你的应用的 DLsite 购买短链，读者经它购买，平台按点击把 DLsite 返还的优惠券分给你。',
+      '/v2/store/purchase-links/{product_id} 按 DLsite 作品号（同人 RJ、商业 VJ）铸链接，同一个应用、同一个作品号重复调用拿回同一条。purchase_url 原样使用、不要改写或再包一层——结算读的就是它背后的点击计数。活动期间同时给 coupon_url 与 campaign，没有活动时两者为 null。',
+      '铸链接与读统计要带 store:read 的应用密钥。这个 scope 在控制台自助勾选、不审核，缺了是 403 SCOPE_REQUIRED。',
+      '/v2/store/stats 是带来请求的这个应用所铸链接的每日点击，按 JST 日统计，一次最多 92 天，缺省是最近 30 天。uniques 是去重点击：同一条短链、同一个 JST 日、同一个访问指纹只算一次，自报为爬虫、链接预览或 HTTP 库的访问照常跳转但不计入。计数每小时同步一次，当天的数字始终不完整。',
+      '能铸链接不等于参与分成：每月的优惠券池是定额的，按去重点击的份额分，参与名单由运营维护。控制台「分销链接」页能看到你名下应用的点击与分到的优惠券。',
+      '/v2/store/prices 是商店价格，不带凭据就能调：DLsite、Getchu、Steam 等商店按地区的报价，一次最多 100 部作品。报价是缓存的观测值，看 fetched_at / expires_at / stale；pending 表示正在抓取，稍后重试，批量车道从不等待冷启动。',
+      '错误体与 v2 其余部分相同，是 RFC 9457 application/problem+json。'
     ]
   },
   {
@@ -175,8 +217,8 @@ export const FACES = [
   },
   {
     key: 'letmoe',
-    label: 'letmoe 资源',
-    name: 'letmoe 资源面',
+    label: 'letmoe 下载资源链接',
+    name: 'letmoe 下载资源链接面',
     file: LETMOE_SPEC,
     prefix: '/v2/letmoe',
     specUrl: `${PORTAL_URL}/specs/letmoe-openapi.yaml`,
@@ -225,7 +267,8 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 185,
+  v2: 181,
+  store: 4,
   moyu: 6,
   sticker: 9,
   letmoe: 4
