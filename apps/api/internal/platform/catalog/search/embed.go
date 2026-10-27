@@ -14,6 +14,10 @@ import (
 
 const DefaultEmbedModel = "@cf/qwen/qwen3-embedding-0.6b"
 
+const workQueryInstruct = "Instruct: Given a visual novel search query, retrieve the visual novel it describes\nQuery: "
+
+func WorkQueryText(q string) string { return workQueryInstruct + q }
+
 type Embedder interface {
 	Model() string
 	Embed(ctx context.Context, texts []string) ([][]float32, error)
