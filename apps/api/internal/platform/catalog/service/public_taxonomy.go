@@ -38,6 +38,7 @@ type TagsListFilter struct {
 type EnginesListFilter struct {
 	NSFW bool
 	IDs  []int64
+	Sort string
 }
 
 type RolesListFilter struct {
@@ -229,6 +230,9 @@ func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor s
 }
 
 func (s *PublicService) EnginesList(ctx context.Context, f EnginesListFilter, cursor string, limit int) (dto.PublicEnginesListData, error) {
+	if f.Sort == engineSortPopularity {
+		return s.enginesByRaters(ctx, f, cursor, limit)
+	}
 	cur, err := decodePublicCursor(cursor, taxonomyLaneEngines)
 	if err != nil {
 		return dto.PublicEnginesListData{}, err
@@ -247,12 +251,7 @@ func (s *PublicService) EnginesList(ctx context.Context, f EnginesListFilter, cu
 		args = append(args, cur.ID)
 	}
 
-	var rows []struct {
-		ID          int64
-		Name        string
-		Description string
-		Aliases     datatypes.JSON
-	}
+	var rows []engineRow
 	q := `SELECT id, name, description, aliases FROM catalog_engine ` + whereClause(where) + ` ORDER BY id ASC`
 	q, args, paginated := applyBrowseLimit(q, args, limit+taxonomyOverFetch, f.IDs)
 	if err := s.db.WithContext(ctx).Raw(q, args...).Scan(&rows).Error; err != nil {
@@ -267,7 +266,34 @@ func (s *PublicService) EnginesList(ctx context.Context, f EnginesListFilter, cu
 	for i, r := range rows {
 		ids[i] = r.ID
 	}
-	counts, err := s.workCountsFor(ctx, engineWorkEdge, ids, f.NSFW)
+	raters, err := s.engineRatersFor(ctx, f.NSFW)
+	if err != nil {
+		return dto.PublicEnginesListData{}, err
+	}
+	out, err := s.engineListItems(ctx, rows, f.NSFW, raters)
+	if err != nil {
+		return dto.PublicEnginesListData{}, err
+	}
+	if out.Total, err = s.taxonomyTotal(ctx, "catalog_engine", filterWhere, filterArgs); err != nil {
+		return dto.PublicEnginesListData{}, err
+	}
+	out.NextCursor = taxonomyNextCursor(taxonomyLaneEngines, ids, more)
+	return out, nil
+}
+
+type engineRow struct {
+	ID          int64
+	Name        string
+	Description string
+	Aliases     datatypes.JSON
+}
+
+func (s *PublicService) engineListItems(ctx context.Context, rows []engineRow, nsfw bool, raters map[int64]engineRaters) (dto.PublicEnginesListData, error) {
+	ids := make([]int64, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ID
+	}
+	counts, err := s.workCountsFor(ctx, engineWorkEdge, ids, nsfw)
 	if err != nil {
 		return dto.PublicEnginesListData{}, err
 	}
@@ -275,13 +301,10 @@ func (s *PublicService) EnginesList(ctx context.Context, f EnginesListFilter, cu
 	for i, r := range rows {
 		out.Items[i] = dto.PublicEngineListItem{
 			ID: r.ID, Name: r.Name, WorkCount: counts[r.ID],
+			RaterCount: raters[r.ID].Raters, RatedWorkCount: raters[r.ID].RatedWorks,
 			Description: r.Description, Aliases: engineAliases(r.Aliases),
 		}
 	}
-	if out.Total, err = s.taxonomyTotal(ctx, "catalog_engine", filterWhere, filterArgs); err != nil {
-		return dto.PublicEnginesListData{}, err
-	}
-	out.NextCursor = taxonomyNextCursor(taxonomyLaneEngines, ids, more)
 	return out, nil
 }
 
@@ -303,8 +326,13 @@ func (s *PublicService) EngineDetail(ctx context.Context, id int64, nsfw bool) (
 	if err != nil {
 		return dto.PublicEngine{}, false, err
 	}
+	raters, err := s.engineRatersFor(ctx, nsfw)
+	if err != nil {
+		return dto.PublicEngine{}, false, err
+	}
 	rec := dto.PublicEngine{
 		ID: head.ID, Name: head.Name, WorkCount: counts[id],
+		RaterCount: raters[id].Raters, RatedWorkCount: raters[id].RatedWorks,
 		Description: head.Description, Aliases: engineAliases(head.Aliases),
 	}
 	if rec.Refs, err = s.entityRefs(ctx, model.EntityTypeEngine, id); err != nil {

@@ -373,10 +373,10 @@ func SeriesSpec() Spec {
 
 func EngineSpec() Spec {
 	return Spec{
-		Sort:    []string{"id"},
+		Sort:    []string{"id", "popularity"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "id", "display_name", "work_count", "description", "aliases"},
+		Fields:  []string{"object", "id", "display_name", "work_count", "rater_count", "rated_work_count", "description", "aliases"},
 	}
 }
 

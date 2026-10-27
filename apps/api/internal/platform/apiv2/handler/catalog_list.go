@@ -112,7 +112,7 @@ func (c *Catalog) ListEngines(ctx context.Context, q collect.Query) (repr.List[r
 	if q.Batch && len(ids) == 0 {
 		return finishList([]repr.Engine{}, nil, 0, q, missing), nil
 	}
-	f := catsvc.EnginesListFilter{NSFW: q.NSFW, IDs: ids}
+	f := catsvc.EnginesListFilter{NSFW: q.NSFW, IDs: ids, Sort: q.Sort}
 	limit := q.Limit
 	if q.Batch {
 		limit = 100

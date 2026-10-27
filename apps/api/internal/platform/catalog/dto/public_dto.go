@@ -554,11 +554,13 @@ type PublicTagsListData struct {
 }
 
 type PublicEngineListItem struct {
-	ID          int64    `json:"id"`
-	Name        string   `json:"name"`
-	WorkCount   int      `json:"work_count"`
-	Description string   `json:"description"`
-	Aliases     []string `json:"aliases"`
+	ID             int64    `json:"id"`
+	Name           string   `json:"name"`
+	WorkCount      int      `json:"work_count"`
+	RaterCount     int64    `json:"rater_count"`
+	RatedWorkCount int      `json:"rated_work_count"`
+	Description    string   `json:"description"`
+	Aliases        []string `json:"aliases"`
 }
 
 type PublicEnginesListData struct {
@@ -601,12 +603,14 @@ type PublicCalendarMeta struct {
 }
 
 type PublicEngine struct {
-	ID          int64              `json:"id"`
-	Name        string             `json:"name"`
-	WorkCount   int                `json:"work_count"`
-	Description string             `json:"description"`
-	Aliases     []string           `json:"aliases"`
-	Refs        []PublicCatalogRef `json:"refs"`
+	ID             int64              `json:"id"`
+	Name           string             `json:"name"`
+	WorkCount      int                `json:"work_count"`
+	RaterCount     int64              `json:"rater_count"`
+	RatedWorkCount int                `json:"rated_work_count"`
+	Description    string             `json:"description"`
+	Aliases        []string           `json:"aliases"`
+	Refs           []PublicCatalogRef `json:"refs"`
 }
 
 type PublicWorksSearchData struct {

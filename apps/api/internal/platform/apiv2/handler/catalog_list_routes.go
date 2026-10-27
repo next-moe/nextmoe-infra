@@ -121,7 +121,7 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/engines",
 		Summary:            "List engines",
-		Description:        "Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
+		Description:        "Keyset-paginated engines. sort=id (default) or popularity: rater_count descending, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,

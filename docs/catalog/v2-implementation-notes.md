@@ -2697,3 +2697,13 @@ A user reported that searching the editor's engines for `gpk` did not find GPK2;
 - **Releases.** `releases?q=` keeps its date order and keyset cursor. It also matches the releases of the 200 works that the works index finds for `q`, which brings in prefixes, aliases, pinyin and script variants through the work's titles.
 
 **Spec 2.73.0**: the `q` descriptions of `persons`, `credit-names` and `releases`. **Zero migrations.** One `reindex-catalog -recreate` is needed for the SchemaVersion bump.
+
+## Engines rank by raters (spec 2.74.0, 2026-10-27)
+
+A user pointed out that Ren'Py (about 17k works) and TyranoScript (about 4.9k) outnumber KiriKiri (about 4.8k) on `work_count`, though most of their works nobody has played. On the local catalog copy, 72% of Ren'Py's works carry no rating at all, against 26% of KiriKiri's.
+
+- **Fields.** `Engine` gains `rater_count`: over the works `work_count` counts, each work's largest rater count on VNDB, Bangumi or ErogameScape, summed. A work counts once, so a player who rated it on all three sites is not counted three times. DLsite is left out: its rating counts measure a different storefront population. `rated_work_count` is the number of those works with at least 10 raters. Both are on the list and the detail.
+- **Sort.** `GET /v2/catalog/engines?sort=popularity` orders by `rater_count` descending, then id. The cursor carries the rater count, so a page boundary survives a refresh of the aggregate. `ids=` batches rank too and still do not paginate.
+- **Cost.** One aggregate over every engine edge, about 60–110 ms on the local copy (273k works), cached in process for an hour per nsfw population. No table, no job. On local data the nsfw ranking reads KiriKiri 582,656 / Unity 369,181 / Ren'Py 302,277.
+
+**Spec 2.74.0**, additive. **Zero migrations.**

@@ -1041,7 +1041,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出引擎",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/engines",
-    "b": "listCatalogEngines /v2/catalog/engines get List engines Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. keyset 分页的引擎。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogEngines /v2/catalog/engines get List engines Keyset-paginated engines. sort=id (default) or popularity: rater_count descending, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. keyset 分页的引擎。sort=id（默认）或 popularity：按 rater_count 降序，再按 id。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/getCatalogEngine",
