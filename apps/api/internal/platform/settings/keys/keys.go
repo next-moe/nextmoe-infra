@@ -283,6 +283,7 @@ var live = settings.NewRegistry(
 		},
 	},
 	apiv2Domain,
+	agentDomain,
 	catalogDomain,
 	communityDomain,
 	developerDomain,
