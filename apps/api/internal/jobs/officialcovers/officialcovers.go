@@ -15,6 +15,7 @@ import (
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
+	"api/internal/platform/provenance"
 	"api/pkg/config"
 	"api/pkg/imageclient"
 	"api/pkg/imageshrink"
@@ -246,6 +247,13 @@ func (w *writer) write(ctx context.Context, p planned, body []byte, name string)
 				return err
 			}
 			w.stats.Relabeled++
+		case held[0].SourceID == p.Source && held[0].Kind != p.Kind &&
+			!provenance.IsHuman(provenance.FirstSource(held[0].FieldProvenance, "kind")):
+			if err := tx.Model(&held[0]).Update("kind", p.Kind).Error; err != nil {
+				return err
+			}
+			w.stats.Relabeled++
+			return nil
 		default:
 			w.stats.Dedup++
 			return nil

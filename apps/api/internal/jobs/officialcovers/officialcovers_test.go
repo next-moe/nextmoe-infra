@@ -234,3 +234,39 @@ func TestALegacyUploadIdenticalToTheOfficialCoverIsResourced(t *testing.T) {
 	require.NoError(t, testDB.Where("work_id = ? AND image_hash = ?", pinned, strings.Repeat("p", 64)).Take(&kept).Error)
 	assert.Equal(t, model.SourceCurated, kept.SourceID)
 }
+
+func TestADigitalCoverAlreadyHeldAsMainConverges(t *testing.T) {
+	clean(t)
+	w := work(t, "v9", "")
+	cover(t, w, model.SourceCurated, "", "l", false)
+	cover(t, w, model.SourceVNDB, "main", "m", false)
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/healthz", "/image/reference-ping":
+			_, _ = rw.Write([]byte(`{"code":0}`))
+		case "/release":
+			_ = json.NewEncoder(rw).Encode(map[string]any{"more": false, "results": []any{map[string]any{
+				"id": "r9", "vns": []any{map[string]any{"id": "v9"}},
+				"images": []any{map[string]any{"type": "dig", "url": srv.URL + "/dig.jpg", "dims": []int{700, 1000}}},
+			}}})
+		case "/image/upload":
+			_ = json.NewEncoder(rw).Encode(map[string]any{"code": 0, "data": map[string]any{
+				"hash": strings.Repeat("m", 64), "width": 700, "height": 1000}})
+		default:
+			_, _ = rw.Write([]byte("jpeg-bytes"))
+		}
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{}
+	cfg.CatalogImageClient.ClientID, cfg.CatalogImageClient.ClientSecret = "id", "secret"
+	opts := Opts{DSN: testDSN, Apply: true, ImageBaseURL: srv.URL, VNDBBase: srv.URL, BgmBase: srv.URL}
+	stats, err := Run(context.Background(), cfg, opts)
+	require.NoError(t, err)
+	assert.Equal(t, 1, stats.Relabeled, stats.String())
+	again, err := Run(context.Background(), cfg, opts)
+	require.NoError(t, err)
+	assert.Zero(t, again.Candidates, "VNDB's main image was its digital cover; once labelled so, the lane is done")
+}
