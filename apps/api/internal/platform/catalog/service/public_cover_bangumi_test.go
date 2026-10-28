@@ -43,3 +43,16 @@ func TestEditorPinnedBangumiCoverBeatsVNDB(t *testing.T) {
 	}
 	wantPortrait(t, svc, []WorkCoverRow{vndb, bgm}, meta, true, bgm, "an editor's pin outranks the source preference")
 }
+
+func TestWithoutAPortraitTheSharpestCoverTakesTheSlot(t *testing.T) {
+	svc := bangumiSvc()
+	small, sharp := choiceRow("0001", "main", vndbTestSourceID), choiceRow("ffff", "main", bangumiTestSourceID)
+	meta := map[string]ImageMeta{
+		small.ImageHash: {Width: 256, Height: 144},
+		sharp.ImageHash: {Width: 1668, Height: 940},
+	}
+	slots := svc.pickCoverSlots([]WorkCoverRow{small, sharp}, meta, false)
+	if portraitOf(slots) == nil || slots.Portrait.URL != svc.imageURL(sharp.ImageHash) {
+		t.Fatalf("portrait = %+v, want the sharper landscape cover", portraitOf(slots))
+	}
+}
