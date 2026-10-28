@@ -200,7 +200,7 @@ func (a *Admin) DeleteProvider(ctx context.Context, id int64) error {
 type ModelView struct {
 	ID            int64     `json:"id"`
 	Key           string    `json:"key"`
-	Kind          string    `json:"kind" enum:"chat,embedding,moderation"`
+	Kind          string    `json:"kind" enum:"chat,embedding,moderation,search"`
 	ContextTokens int       `json:"context_tokens"`
 	MaxOutput     int       `json:"max_output"`
 	ToolCall      bool      `json:"tool_call"`
@@ -218,7 +218,7 @@ func modelView(m Model) ModelView {
 
 type ModelInput struct {
 	Key           *string `json:"key,omitempty" maxLength:"64"`
-	Kind          *string `json:"kind,omitempty" enum:"chat,embedding,moderation"`
+	Kind          *string `json:"kind,omitempty" enum:"chat,embedding,moderation,search"`
 	ContextTokens *int    `json:"context_tokens,omitempty" minimum:"0"`
 	MaxOutput     *int    `json:"max_output,omitempty" minimum:"0"`
 	ToolCall      *bool   `json:"tool_call,omitempty"`
@@ -479,6 +479,8 @@ func protocolFor(kind string) string {
 		return ProtocolEmbeddings
 	case ModelModeration:
 		return ProtocolModerations
+	case ModelSearch:
+		return ProtocolResponses
 	}
 	return ProtocolChat
 }

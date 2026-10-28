@@ -31,8 +31,11 @@ type Server struct {
 	Clock   func() time.Time
 	MaxBody int
 
-	WebSearch bool
+	WebSearch func() bool
+	Vision    func() bool
 }
+
+func (s *Server) webSearch() bool { return s.WebSearch != nil && s.WebSearch() }
 
 func who(ctx huma.Context) *caller { return callerOf(humafiber.Unwrap(ctx)) }
 
@@ -72,6 +75,7 @@ type PersonaBody struct {
 	Avatar             string            `json:"avatar"`
 	Greetings          []string          `json:"greetings"`
 	Suggestions        []SuggestionGroup `json:"suggestions" doc:"Starter prompts for an empty conversation, grouped like the mode chips of a composer."`
+	Uploads            UploadsBody       `json:"uploads" doc:"What the upload menu may offer on this site, from the settings center."`
 	WebSearchAvailable bool              `json:"web_search_available" doc:"Whether web_search can do anything; hide the toggle when false."`
 }
 
@@ -151,7 +155,7 @@ func (s *Server) Register(api huma.API) {
 			var greetings []string
 			_ = json.Unmarshal(p.Greetings, &greetings)
 			return &struct{ Body PersonaBody }{PersonaBody{Name: p.Name, Avatar: p.Avatar, Greetings: greetings,
-				Suggestions: s.suggestions(p), WebSearchAvailable: s.WebSearch}}, nil
+				Suggestions: s.suggestions(p), WebSearchAvailable: s.webSearch(), Uploads: s.uploadsBody(c.SiteID)}}, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "getAgentQuota", Method: http.MethodGet, Path: "/v2/agent/quota",
@@ -401,6 +405,7 @@ func (s *Server) Register(api huma.API) {
 		})
 
 	s.registerBranching(api)
+	s.registerUploads(api)
 	s.registerSearch(api)
 }
 
@@ -425,7 +430,7 @@ func (s *Server) send(ctx context.Context, in *sendInput) (*sendOutput, error) {
 	if err != nil {
 		return nil, err
 	}
-	parts, perr := validateParts(in.Body.Parts)
+	parts, perr := s.validateParts(ctx, c, conv, in.Body.Parts)
 	if perr != nil {
 		return nil, perr
 	}
@@ -463,33 +468,18 @@ func (s *Server) startTurn(ctx context.Context, c *caller, run *model.Run, res s
 	if err != nil {
 		return err
 	}
-	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName)})
+	var ids []string
+	for _, m := range branch {
+		var parts []service.Part
+		_ = json.Unmarshal(m.Parts, &parts)
+		ids = append(ids, service.UploadIDs(parts)...)
+	}
+	uploads, err := s.Store.UploadsByID(ctx, ids)
+	if err != nil {
+		return err
+	}
+	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName), Uploads: uploads})
 	return nil
-}
-
-func validateParts(in []service.Part) ([]service.Part, error) {
-	total := 0
-	out := make([]service.Part, 0, len(in))
-	for _, p := range in {
-		switch p.Type {
-		case "text":
-		case "file":
-			if !strings.HasPrefix(p.MediaType, "text/") && p.MediaType != "application/json" && p.MediaType != "application/x-yaml" {
-				return nil, fail(http.StatusUnsupportedMediaType, CodeUnsupportedAttachment, "only text files can be attached for now")
-			}
-		default:
-			return nil, huma.Error400BadRequest("unsupported part type " + p.Type)
-		}
-		total += len([]rune(p.Text))
-		out = append(out, service.Part{Type: p.Type, Text: strings.Clone(p.Text), MediaType: strings.Clone(p.MediaType), Filename: strings.Clone(p.Filename)})
-	}
-	if total == 0 {
-		return nil, fail(http.StatusBadRequest, CodeEmptyMessage, "the message is empty")
-	}
-	if total > int(keys.AgentTurnMaxInputChars.Get()) {
-		return nil, fail(http.StatusRequestEntityTooLarge, CodeInputTooLong, "the message and its attachments are too long")
-	}
-	return out, nil
 }
 
 func encodeCursor(t time.Time, id int64) string {

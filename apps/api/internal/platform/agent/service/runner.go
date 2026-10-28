@@ -45,6 +45,7 @@ type Turn struct {
 	History     []model.Message
 	Reservation Reservation
 	SiteName    string
+	Uploads     map[string]*model.Upload
 }
 
 func (r *Runner) Start(t Turn) {
@@ -132,7 +133,11 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	}
 	maxSteps := int(keys.AgentTurnMaxSteps.Get())
 	trun := reg.NewRun(maxSteps * 2)
-	msgs := buildMessages(t, time.Now())
+	msgs, vision := buildMessages(t, time.Now())
+	scene := llm.SceneAssistant
+	if vision {
+		scene = llm.SceneVision
+	}
 	var parts []Part
 	usedWeb := false
 	fin := Finish{Status: model.RunCompleted}
@@ -153,7 +158,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		st := &stepState{w: w, textID: fmt.Sprintf("text-%d", step), reasID: fmt.Sprintf("reasoning-%d", step)}
 		last := step == maxSteps-1 || trun.Exhausted()
 		call := llm.Call{
-			Scene: llm.SceneAssistant, AffinityKey: strconv.FormatInt(run.ConversationID, 10), Messages: msgs,
+			Scene: scene, AffinityKey: strconv.FormatInt(run.ConversationID, 10), Messages: msgs,
 			MaxTokens: int(keys.AgentTurnMaxOutputTokens.Get()), Site: t.SiteName, UserID: run.UserID,
 		}
 		if !last {
@@ -287,7 +292,7 @@ func (r *Runner) titleConversation(t Turn, reply []Part, w *stream.Writer) bool 
 	defer cancel()
 	var user string
 	if n := len(t.History); n > 0 {
-		user = messageText(t.History[n-1])
+		user = messageText(t.History[n-1], t.Uploads)
 	}
 	content := clipRunes(user, 500)
 	if answer := partsText(reply); answer != "" {

@@ -108,3 +108,26 @@ type Persona struct {
 }
 
 func (Persona) TableName() string { return "agent_persona" }
+
+const (
+	UploadImage    = "image"
+	UploadText     = "text"
+	UploadDocument = "document"
+)
+
+type Upload struct {
+	ID             string `gorm:"primaryKey;size:36"`
+	UserID         int64  `gorm:"not null;index"`
+	SiteID         int64  `gorm:"not null"`
+	ConversationID *int64 `gorm:"index"`
+	Kind           string `gorm:"size:16;not null"`
+	MediaType      string `gorm:"size:100;not null"`
+	Filename       string `gorm:"size:255;not null;default:''"`
+	Size           int64  `gorm:"not null"`
+	Data           []byte `gorm:"type:bytea"`
+	Text           string `gorm:"type:text;not null;default:''"`
+	Truncated      bool   `gorm:"not null;default:false"`
+	CreatedAt      time.Time
+}
+
+func (Upload) TableName() string { return "agent_upload" }

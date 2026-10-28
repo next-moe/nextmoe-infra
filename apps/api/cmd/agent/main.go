@@ -37,7 +37,7 @@ func main() {
 	health.MaybeProbe(cfg.AgentService.Port, "/healthz")
 	logger.Init(cfg.Server.Env)
 
-	application, err := app.New(cfg, app.Options{Name: "kun-agent"})
+	application, err := app.New(cfg, app.Options{Name: "kun-agent", BodyLimit: 32 << 20})
 	if err != nil {
 		slog.Error("app init", "error", err)
 		os.Exit(1)
@@ -89,21 +89,35 @@ func main() {
 	if len(orphans) > 0 {
 		slog.Warn("marked runs left by the previous process as interrupted", "runs", len(orphans))
 	}
+	go func() {
+		for range time.Tick(time.Hour) {
+			if n, err := store.SweepUploads(context.Background(), time.Now().Add(-24*time.Hour)); err != nil {
+				slog.Warn("agent: sweep unused uploads", "err", err)
+			} else if n > 0 {
+				slog.Info("agent: swept unused uploads", "n", n)
+			}
+		}
+	}()
 
 	catalogHTTP := &http.Client{Timeout: 15 * time.Second}
 	catalogFor := func(siteID int64) *tools.CatalogClient {
 		return &tools.CatalogClient{Base: cfg.LLM.CatalogBase, NSFW: keys.AgentCatalogNSFW.ForSite(uint(siteID)), HTTP: catalogHTTP}
 	}
 	public := tools.NewPublicHTTPClient()
-	var web, read tools.Tool
-	if cfg.LLM.BraveAPIKey != "" {
-		web, read = &tools.WebSearch{APIKey: cfg.LLM.BraveAPIKey, HTTP: &http.Client{Timeout: 15 * time.Second}}, &tools.ReadURL{HTTP: public}
-	} else {
-		slog.Warn("agent: KUN_BRAVE_API_KEY not set — web search is off")
+	webReady := func() bool {
+		_, ok := gw.Ready(llm.SceneWebSearch)
+		return ok
 	}
+	webSearch := &tools.WebSearch{Search: func(ctx context.Context, query, instructions string) (llm.SearchResult, error) {
+		return gw.WebSearch(ctx, llm.SceneWebSearch, query, instructions, "agent", 0)
+	}}
+	readURL := &tools.ReadURL{HTTP: public}
 	toolsFor := func(siteID int64) *tools.Registry {
 		cat := catalogFor(siteID)
-		return tools.NewRegistry(&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat}, web, read)
+		if !webReady() {
+			return tools.NewRegistry(&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat})
+		}
+		return tools.NewRegistry(&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat}, webSearch, readURL)
 	}
 	broker := stream.NewBroker()
 	runner := service.NewRunner(store, gw, broker, quota, toolsFor)
@@ -115,7 +129,8 @@ func main() {
 	}
 	server := &agentHandler.Server{
 		Store: store, Runner: runner, Broker: broker, Quota: quota,
-		Limits: agentHandler.NewLimiter(rdb), Search: &agentHandler.Searcher{Catalog: catalogFor}, WebSearch: web != nil,
+		Limits: agentHandler.NewLimiter(rdb), Search: &agentHandler.Searcher{Catalog: catalogFor}, WebSearch: webReady,
+		Vision: func() bool { _, ok := gw.Ready(llm.SceneVision); return ok },
 	}
 	if powVerifier != nil {
 		server.Verify = powVerifier

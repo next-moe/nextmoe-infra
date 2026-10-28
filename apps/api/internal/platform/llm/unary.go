@@ -2,6 +2,7 @@ package llm
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -138,17 +139,16 @@ func postJSON(ctx context.Context, client *http.Client, url, key string, headers
 		Model string `json:"model"`
 		Usage struct {
 			PromptTokens int `json:"prompt_tokens"`
+			InputTokens  int `json:"input_tokens"`
+			OutputTokens int `json:"output_tokens"`
 			TotalTokens  int `json:"total_tokens"`
 		} `json:"usage"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return out, Response{}, &Error{Kind: ErrKindMalformed, Status: resp.StatusCode, Msg: truncate(string(data), 300)}
 	}
-	in := meta.Usage.PromptTokens
-	if in == 0 {
-		in = meta.Usage.TotalTokens
-	}
-	out.result = Result{Model: meta.Model, Usage: Usage{InputTokens: in}}
+	in := cmp.Or(meta.Usage.PromptTokens, meta.Usage.InputTokens, meta.Usage.TotalTokens)
+	out.result = Result{Model: meta.Model, Usage: Usage{InputTokens: in, OutputTokens: meta.Usage.OutputTokens}}
 	return out, Response{Body: data, Model: meta.Model, Usage: out.result.Usage}, nil
 }
 
@@ -196,6 +196,10 @@ func (g *Gateway) Probe(ctx context.Context, routeID int64) (ProbeResult, error)
 	case ModelModeration:
 		var res Response
 		res, err = g.unaryAttempt(ctx, s, sc, c, Request{Body: map[string]json.RawMessage{"input": json.RawMessage(`"ping"`)}, Site: "admin"}, "/moderations", uuid.NewString(), false)
+		served = res.Model
+	case ModelSearch:
+		var res Response
+		res, err = g.unaryAttempt(ctx, s, sc, c, Request{Body: map[string]json.RawMessage{"input": json.RawMessage(`"ping"`)}, Site: "admin"}, "/responses", uuid.NewString(), false)
 		served = res.Model
 	default:
 		var res Result

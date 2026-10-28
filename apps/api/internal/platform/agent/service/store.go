@@ -36,6 +36,7 @@ type Part struct {
 	Title     string          `json:"title,omitempty"`
 	Data      json.RawMessage `json:"data,omitempty"`
 
+	UploadID   string          `json:"uploadId,omitempty"`
 	ToolCallID string          `json:"toolCallId,omitempty"`
 	State      string          `json:"state,omitempty"`
 	Input      json.RawMessage `json:"input,omitempty"`
@@ -130,7 +131,7 @@ func (s *Store) SetFeedback(ctx context.Context, userID, siteID, messageID int64
 
 func (s *Store) DeleteConversation(ctx context.Context, c *model.Conversation) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for _, m := range []any{&model.Message{}, &model.Run{}} {
+		for _, m := range []any{&model.Message{}, &model.Run{}, &model.Upload{}} {
 			if err := tx.Where("conversation_id = ?", c.ID).Delete(m).Error; err != nil {
 				return err
 			}
@@ -273,6 +274,12 @@ func (s *Store) StartRun(ctx context.Context, r StartRequest) (*model.Run, bool,
 				Parts: datatypes.JSON(parts), Status: model.MessageComplete, RunID: run.ID, CreatedAt: s.now()}
 			if err := tx.Create(&user).Error; err != nil {
 				return err
+			}
+			if ids := UploadIDs(r.Parts); len(ids) > 0 {
+				if err := tx.Model(&model.Upload{}).Where("id IN ? AND user_id = ?", ids, r.Conversation.UserID).
+					Update("conversation_id", r.Conversation.ID).Error; err != nil {
+					return err
+				}
 			}
 		}
 		reply := model.Message{ConversationID: r.Conversation.ID, ParentID: &user.ID, Role: model.RoleAssistant,

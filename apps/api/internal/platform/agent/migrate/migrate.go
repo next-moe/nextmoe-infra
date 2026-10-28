@@ -14,6 +14,12 @@
 // on it, and walking down to a leaf prefers the child chosen or created last,
 // so returning to a question restores the reply the user last picked under it.
 // All additive; existing rows need no backfill (null falls back to created_at).
+//
+// 2026-10-29, uploads: agent_upload holds what users attach to a message,
+// owned by its user: a scaled-down picture in data, or the UTF-8 / extracted
+// text of a text file or document in text. conversation_id is set once a
+// message uses it; unattached rows are swept by the agent after a day and the
+// rest go with their conversation. New table, nothing to backfill.
 package migrate
 
 import (
@@ -26,7 +32,7 @@ import (
 )
 
 func Run(db *gorm.DB) error {
-	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}, &model.Run{}, &model.Persona{}); err != nil {
+	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}, &model.Run{}, &model.Persona{}, &model.Upload{}); err != nil {
 		return fmt.Errorf("agent automigrate: %w", err)
 	}
 	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_run_active

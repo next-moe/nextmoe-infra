@@ -18,18 +18,27 @@ import (
 	"api/internal/platform/llm"
 )
 
+// Providers do not honour max_tool_calls; without this bound one call ran ten
+// searches over 300k input tokens. Two searches cost about a fifth of that.
+const webSearchInstructions = "Run at most two web searches and open no pages; then answer in under 200 words. Report the key facts with dates, each followed by its source link. Answer in the language of the question, and say so plainly when the web has no reliable answer."
+
+const maxWebSources = 8
+
 type WebSearch struct {
-	APIKey string
-	HTTP   *http.Client
+	Search func(ctx context.Context, query, instructions string) (llm.SearchResult, error)
 }
 
 func (t *WebSearch) Spec() llm.Tool {
 	return llm.Tool{
 		Name:        "web_search",
-		Description: "Search the public web. Use it only when the catalog has no answer or the question is about recent news, releases or facts outside the catalog. Cite the URLs you rely on.",
-		Parameters:  schema(map[string]any{"query": map[string]any{"type": "string"}}, "query"),
+		Description: "Search the public web and get a sourced summary. Use it only when the catalog has no answer or the question is about recent news, releases or facts outside the catalog. One call can take half a minute, so ask one complete question instead of several narrow ones. Cite the URLs you rely on.",
+		Parameters:  schema(map[string]any{"query": map[string]any{"type": "string", "description": "A complete question in natural language."}}, "query"),
 	}
 }
+
+func (t *WebSearch) Timeout() time.Duration { return 90 * time.Second }
+
+func (t *WebSearch) MaxCalls() int { return 2 }
 
 func (t *WebSearch) Run(ctx context.Context, args json.RawMessage) (Output, error) {
 	var in struct {
@@ -38,41 +47,19 @@ func (t *WebSearch) Run(ctx context.Context, args json.RawMessage) (Output, erro
 	if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Query) == "" {
 		return Output{Text: `{"error":"query is required"}`}, nil
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		"https://api.search.brave.com/res/v1/web/search?"+url.Values{"q": {in.Query}, "count": {"6"}}.Encode(), nil)
+	res, err := t.Search(ctx, in.Query, webSearchInstructions)
 	if err != nil {
-		return Output{}, err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Subscription-Token", t.APIKey)
-	resp, err := t.HTTP.Do(req)
-	if err != nil {
-		return Output{}, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return Output{}, fmt.Errorf("web search: http %d", resp.StatusCode)
-	}
-	var body struct {
-		Web struct {
-			Results []struct {
-				Title       string `json:"title"`
-				URL         string `json:"url"`
-				Description string `json:"description"`
-			} `json:"results"`
-		} `json:"web"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&body); err != nil {
 		return Output{}, err
 	}
 	out := Output{}
-	type hit struct{ Title, URL, Snippet string }
-	var hits []hit
-	for _, r := range body.Web.Results {
-		hits = append(hits, hit{stripTags(r.Title), r.URL, stripTags(r.Description)})
-		out.Sources = append(out.Sources, Source{URL: r.URL, Title: stripTags(r.Title)})
+	cites := res.Citations
+	if len(cites) > maxWebSources {
+		cites = cites[:maxWebSources]
 	}
-	raw, _ := json.Marshal(map[string]any{"results": hits})
+	for _, c := range cites {
+		out.Sources = append(out.Sources, Source{URL: c.URL, Title: c.Title})
+	}
+	raw, _ := json.Marshal(map[string]any{"summary": res.Text, "sources": cites})
 	out.Text = string(raw)
 	return out, nil
 }

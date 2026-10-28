@@ -584,7 +584,6 @@ services:
       KUN_AGENT_CLIENT_ID: ${KUN_AGENT_CLIENT_ID:-}
       KUN_AGENT_CLIENT_SECRET: ${KUN_AGENT_CLIENT_SECRET:-}
       KUN_AGENT_POW_KEYS: ${KUN_AGENT_POW_KEYS:-}
-      KUN_BRAVE_API_KEY: ${KUN_BRAVE_API_KEY:-}
     depends_on:
       migrate: { condition: service_completed_successfully }
       migrate-ai: { condition: service_completed_successfully }     # llm_* routing tables

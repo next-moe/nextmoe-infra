@@ -674,7 +674,7 @@ export interface components {
             enabled?: boolean;
             key?: string;
             /** @enum {string} */
-            kind?: "chat" | "embedding" | "moderation";
+            kind?: "chat" | "embedding" | "moderation" | "search";
             /** Format: int64 */
             max_output?: number;
             reasoning?: boolean;
@@ -691,7 +691,7 @@ export interface components {
             id: number;
             key: string;
             /** @enum {string} */
-            kind: "chat" | "embedding" | "moderation";
+            kind: "chat" | "embedding" | "moderation" | "search";
             /** Format: int64 */
             max_output: number;
             reasoning: boolean;

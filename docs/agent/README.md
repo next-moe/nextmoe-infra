@@ -11,7 +11,7 @@ agent 服务（:9287，`kun_agent` 库）是全站共用的 AI 助手：对话�
 ```
 浏览器 ──► 你站后端（BFF） ──► agent :9287 ──► LLM 网关（kun_ai 路由表，多供应商故障转移）
                                    ├──► catalog /v2（混合检索：BM25 + 向量）
-                                   ├──► Brave（联网搜索，可选）
+                                   ├──► 网关场景 agent.web_search（联网搜索，可选）
                                    └──► oauth（萌萌点扣费）
 ```
 
@@ -77,7 +77,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 ```
 
 - `parent_id` 省略 = 接在当前分支末尾；`"0"` = 新开一个根分支；传某条 assistant 消息 = 在它后面续问。**前端正在看别的分支时，一定要显式传 `parent_id`（当前显示的最后一条消息）**，否则会接到服务端记住的分支上。
-- 附件目前只收文本（`text/*`、`application/json`、`application/x-yaml`），由你后端读出内容放进 `text`；图片返回 415。文字和附件总长受 `agent.turn.max_input_chars` 限制（413）。
+- 附件先传到 `POST /v2/agent/uploads`，再在 parts 里写 `{"type":"file","uploadId":"…"}`，见 §3.6。旧的写法（文本附件把内容直接放进 `text`）仍然可用。文字和附件总长受 `agent.turn.max_input_chars` 限制（413）。
 - 同一个 `Idempotency-Key` 换了请求体返回 422；同一对话已有回复在生成时返回 409。
 - 免费次数用完且萌萌点不足返回 402。
 
@@ -109,6 +109,8 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `IDEMPOTENCY_KEY_REUSED` | 422 | 同一个 Idempotency-Key 换了请求体 |
 | `BAD_PARENT` / `EMPTY_MESSAGE` | 400 | `parent_id` 不属于该对话 / 消息为空 |
 | `NOT_REGENERABLE` | 400 | 重新生成的 `message_id` 不是本对话的用户消息 |
+| `FILE_TOO_LARGE` / `UNREADABLE_FILE` | 413 / 422 | 文件超过本站上限 / 读不出来（文本不是 UTF-8、文档只有图片没有文字、文件损坏） |
+| `BAD_UPLOAD` / `TOO_MANY_FILES` | 400 | `uploadId` 不是你本人在本对话可用的上传 / 一条消息的文件数超过上限 |
 | `UNSUPPORTED_ATTACHMENT` / `INPUT_TOO_LONG` | 415 / 413 | 附件类型不支持 / 输入超长 |
 | `RATE_LIMITED` / `ANON_DAILY_LIMIT` / `ANON_GLOBAL_LIMIT` | 429 | 每分钟限流 / 该 IP 今日搜索用完 / 全站未登录搜索今日用完 |
 | `POW_REQUIRED` / `POW_REJECTED` / `POW_UNAVAILABLE` | 403 / 403 / 503 | 需要工作量证明 / 解无效、过期或已用过 / 服务端没配 PoW |
@@ -139,6 +141,25 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 - `web_search: true` 的组，点出去的问题要带 `web_search: true` 发送。`web_search_available` 为 false 时服务端不会返回这类组，前端也应隐藏联网开关。
 - 站点可以在 `agent_persona.suggestions` 里配自己的组；为空时用内置的默认组。
 
+### 3.6 上传
+
+上传菜单的内容来自 `GET /persona` 的 `uploads`，全部由设置中心的 `agent.upload.*` 控制（可按站点覆盖）：
+
+```json
+{"max_files": 4, "options": [
+  {"kind": "image", "label": "图片", "icon": "image", "accept": "image/png,image/jpeg,image/webp,image/gif", "max_bytes": 10485760},
+  {"kind": "text", "label": "文本 / 代码", "icon": "file-text", "accept": ".txt,.md,…", "max_bytes": 524288},
+  {"kind": "document", "label": "文档", "icon": "file", "accept": ".pdf,.docx", "max_bytes": 20971520}
+]}
+```
+
+- 点上传按钮弹出菜单，每项一个选项，`accept` 直接给 `<input type="file">`。`max_files` 为 0 或 `options` 为空时不显示上传按钮。
+- `POST /v2/agent/uploads`（`multipart/form-data`，字段名 `file`）→ `{id, kind, media_type, filename, size, chars, truncated, url}`。你的 BFF 原样转发 multipart 即可；前端可以先按 `max_bytes` 拦一次。
+- 图片会缩到长边 1568 像素再交给模型；文档只提取文字（扫描件没有文字会返回 `UNREADABLE_FILE`）；文字超过单条消息上限会截断，`truncated` 为 true。
+- 发消息时引用：`{"type":"file","uploadId":"<id>"}`。落库后这个 part 带 `mediaType`、`filename`、`url`；`GET /v2/agent/uploads/{id}` 用同样的鉴权取回缩略后的图片或模型读到的文字，前端显示附件时用它。
+- 上传后一天内没有被消息引用的文件会被清理；被引用的文件随对话一起删除。
+- 本轮上下文里有图片时，这一轮由网关场景 `agent.vision` 回答。
+
 ## 4. 萌萌点与次数
 
 全部是后台动态配置（设置中心 `agent` 域，带站点作用域的可以按站覆盖），不写死：
@@ -154,6 +175,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `agent.anon.rate_per_minute` / `agent.anon.quota_per_day` / `agent.anon.global_quota_per_day` | 未登录每 IP 每分钟 / 每天、全站每天上限 |
 | `agent.catalog_nsfw` | 该站助手能否看到 r18 作品（站点级） |
 | `agent.turn.max_steps` / `agent.turn.max_output_tokens` / `agent.turn.max_input_chars` / `agent.context.max_messages` | 单轮工具调用步数、输出上限、输入上限、带入的历史条数 |
+| `agent.upload.max_files`、`agent.upload.{image,text,document}.{enabled,max_bytes,types}` | 上传：每条消息的文件数，每类的开关、大小上限、允许的类型（图片按 MIME，文本和文档按扩展名），都可按站点覆盖 |
 
 扣费流程：发消息时先预留免费次数，不够的部分只核对萌萌点余额；回复成功后才结算，萌萌点经 oauth 扣除（幂等键 `agent:run:<run_id>`），开了联网但这一轮没用上的不收加价。失败、取消的轮次退回免费次数，也不扣萌萌点。界面上统一写「消耗 NextMoe 萌萌点」。
 
@@ -175,6 +197,6 @@ go run ./cmd/migrate ai         # kun_ai 里的 llm_* 路由表
 go run ./cmd/agent              # :9287
 ```
 
-模型、供应商和 key 都在 LLM 网关里配置（管理端「LLM 网关配置」，仅 ren，见 `docs/ai/llm-gateway.md`）。本地网关为空时，`apps/api/.env` 里的 `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` 会在第一次启动时被种成第一个供应商；网关里没有可用路由时，每一轮都会失败。`KUN_LLM_KEK` 要和 ai 服务用同一个值。其余可选：`KUN_AGENT_CLIENT_ID` / `KUN_AGENT_CLIENT_SECRET`（不填只有免费次数）、`KUN_AGENT_POW_KEYS`、`KUN_BRAVE_API_KEY`（不填就没有联网搜索）。
+模型、供应商和 key 都在 LLM 网关里配置（管理端「LLM 网关配置」，仅 ren，见 `docs/ai/llm-gateway.md`）。本地网关为空时，`apps/api/.env` 里的 `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` 会在第一次启动时被种成第一个供应商；网关里没有可用路由时，每一轮都会失败。`KUN_LLM_KEK` 要和 ai 服务用同一个值。其余可选：`KUN_AGENT_CLIENT_ID` / `KUN_AGENT_CLIENT_SECRET`（不填只有免费次数）、`KUN_AGENT_POW_KEYS`。联网搜索和看图不靠环境变量，由网关里的 `agent.web_search`、`agent.vision` 场景决定（见 `docs/ai/llm-gateway.md` §8）。
 
 本地还要在设置中心给你的站点打开 `agent.enabled`。

@@ -81,11 +81,12 @@ type Run struct {
 	budget int
 	mu     sync.Mutex
 	calls  int
+	byName map[string]int
 	reuse  map[string]Output
 }
 
 func (r *Registry) NewRun(budget int) *Run {
-	return &Run{reg: r, budget: budget, reuse: map[string]Output{}}
+	return &Run{reg: r, budget: budget, byName: map[string]int{}, reuse: map[string]Output{}}
 }
 
 func (r *Run) Exhausted() bool {
@@ -117,10 +118,19 @@ func (r *Run) Call(ctx context.Context, name, rawArgs string) Output {
 		r.mu.Unlock()
 		return Output{Text: `{"error":"tool budget spent; answer with what you have"}`}
 	}
+	if mc, ok := t.(interface{ MaxCalls() int }); ok && r.byName[name] >= mc.MaxCalls() {
+		r.mu.Unlock()
+		return Output{Text: fmt.Sprintf(`{"error":"%s may run only %d times per answer; answer with what you have"}`, name, mc.MaxCalls())}
+	}
 	r.calls++
+	r.byName[name]++
 	r.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(ctx, toolTimeout)
+	timeout := toolTimeout
+	if tt, ok := t.(interface{ Timeout() time.Duration }); ok {
+		timeout = tt.Timeout()
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	out, err := t.Run(ctx, args)
 	if err != nil {

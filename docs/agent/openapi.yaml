@@ -235,6 +235,8 @@ components:
           type: string
         type:
           type: string
+        uploadId:
+          type: string
         url:
           type: string
       required:
@@ -267,6 +269,9 @@ components:
           type:
             - array
             - "null"
+        uploads:
+          $ref: "#/components/schemas/UploadsBody"
+          description: What the upload menu may offer on this site, from the settings center.
         web_search_available:
           description: Whether web_search can do anything; hide the toggle when false.
           type: boolean
@@ -275,6 +280,7 @@ components:
         - avatar
         - greetings
         - suggestions
+        - uploads
         - web_search_available
       type: object
     Problem:
@@ -533,6 +539,97 @@ components:
         - icon
         - web_search
         - prompts
+      type: object
+    UploadBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/UploadBody.json
+          format: uri
+          readOnly: true
+          type: string
+        chars:
+          description: Characters of text the model will read; 0 for a picture.
+          format: int64
+          type: integer
+        filename:
+          type: string
+        id:
+          type: string
+        kind:
+          enum:
+            - image
+            - text
+            - document
+          type: string
+        media_type:
+          type: string
+        size:
+          description: Bytes the user sent.
+          format: int64
+          type: integer
+        truncated:
+          description: The text was longer than one message may carry and was cut.
+          type: boolean
+        url:
+          description: Where the file can be fetched back from the agent with the same credentials.
+          type: string
+      required:
+        - id
+        - kind
+        - media_type
+        - filename
+        - size
+        - chars
+        - truncated
+        - url
+      type: object
+    UploadOption:
+      additionalProperties: false
+      properties:
+        accept:
+          description: Ready for <input type=file accept>.
+          type: string
+        icon:
+          description: A lucide icon name.
+          type: string
+        kind:
+          enum:
+            - image
+            - text
+            - document
+          type: string
+        label:
+          type: string
+        max_bytes:
+          format: int64
+          type: integer
+      required:
+        - kind
+        - label
+        - icon
+        - accept
+        - max_bytes
+      type: object
+    UploadsBody:
+      additionalProperties: false
+      properties:
+        max_files:
+          description: Files one message may carry; 0 means no upload button.
+          format: int64
+          type: integer
+        options:
+          description: One entry per menu item, in display order.
+          items:
+            $ref: "#/components/schemas/UploadOption"
+          type:
+            - array
+            - "null"
+      required:
+        - max_files
+        - options
       type: object
 info:
   description: "The NextMoe AI assistant: conversations, streamed replies and search. Called by a site's backend with the user's access token (or the site's client credentials for signed-out search). Replies stream as the AI SDK UI message stream protocol (SSE) from GET /v2/agent/runs/{id}/stream, which honours Last-Event-ID and answers 204 when the run has no live stream."
@@ -901,5 +998,76 @@ paths:
                 $ref: "#/components/schemas/Problem"
           description: Error
       summary: "Search mode: find works from a description"
+      tags:
+        - agent
+  /v2/agent/uploads:
+    post:
+      description: Stores one file for the caller's next message; reference it as {"type":"file","uploadId":…} in the parts. Pictures are scaled down, documents keep only their text. Unused uploads are dropped after a day.
+      operationId: createAgentUpload
+      requestBody:
+        content:
+          multipart/form-data:
+            encoding:
+              file:
+                contentType: application/octet-stream
+            schema:
+              properties:
+                file:
+                  contentEncoding: binary
+                  contentMediaType: application/octet-stream
+                  format: binary
+                  type: string
+              required:
+                - file
+              type: object
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadBody"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Attach a file
+      tags:
+        - agent
+  /v2/agent/uploads/{id}:
+    get:
+      description: The scaled-down picture, or the text the model read for a text file or document.
+      operationId: getAgentUpload
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            maxLength: 36
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                contentEncoding: base64
+                type: string
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Fetch an attached file back
       tags:
         - agent

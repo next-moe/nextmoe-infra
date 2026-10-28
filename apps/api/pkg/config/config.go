@@ -121,7 +121,6 @@ type AIServiceConfig struct {
 
 type LLMConfig struct {
 	KEK          string
-	BraveAPIKey  string
 	CatalogBase  string
 	OAuthBase    string
 	ClientID     string
@@ -670,7 +669,6 @@ func Load() (*Config, error) {
 	}
 	cfg.LLM = LLMConfig{
 		KEK:          getEnv("KUN_LLM_KEK", ""),
-		BraveAPIKey:  getEnv("KUN_BRAVE_API_KEY", ""),
 		CatalogBase:  getEnv("KUN_AGENT_CATALOG_BASE", "http://127.0.0.1:9281"),
 		OAuthBase:    getEnv("KUN_AGENT_OAUTH_BASE", "http://127.0.0.1:9277"),
 		ClientID:     getEnv("KUN_AGENT_CLIENT_ID", ""),

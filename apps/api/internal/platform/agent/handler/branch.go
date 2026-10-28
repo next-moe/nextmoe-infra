@@ -55,7 +55,7 @@ func (s *Server) suggestions(p *model.Persona) []SuggestionGroup {
 	}
 	out := make([]SuggestionGroup, 0, len(groups))
 	for _, g := range groups {
-		if g.WebSearch && !s.WebSearch {
+		if g.WebSearch && !s.webSearch() {
 			continue
 		}
 		out = append(out, g)
