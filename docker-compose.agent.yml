@@ -42,6 +42,9 @@ x-agent-env: &agent-env
   KUN_PG_TIMEZONE: Asia/Shanghai
   KUN_AI_PG_DATABASE: kun_ai
   KUN_AGENT_PG_DATABASE: kun_agent
+  # config.Load refuses to start without it, migrate-agent included: the first
+  # prod deploy failed "JWT_SECRET is required" when only the agent had it.
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Dokploy Environment (same as the main stack)}
 
 services:
   migrate-agent:
@@ -61,7 +64,6 @@ services:
       REDIS_ENABLED: "true"
       REDIS_HOST: ${KUN_AGENT_INFRA_REDIS_HOST:-redis}
       REDIS_PORT: "6379"
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Dokploy Environment (same as the main stack)}
       KUN_SITE_URL: https://account.nextmoe.com
       KUN_OIDC_JWKS_URL: http://infra-oauth:9277/oauth/jwks
       KUN_AGENT_OAUTH_BASE: http://infra-oauth:9277
