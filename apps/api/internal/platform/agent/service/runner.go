@@ -92,6 +92,10 @@ func (s *stepState) on(ev llm.Event) {
 	switch ev.Kind {
 	case llm.EventText:
 		if !s.textOn {
+			if strings.TrimSpace(ev.Text) == "" {
+				return
+			}
+			ev.Text = strings.TrimLeft(ev.Text, " \t\r\n")
 			s.textOn = true
 			s.w.Emit(map[string]any{"type": "text-start", "id": s.textID})
 		}
@@ -150,17 +154,18 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		fin.InputTokens += res.Usage.InputTokens
 		fin.OutputTokens += res.Usage.OutputTokens
 		if err != nil {
+			slog.Warn("agent: run step failed", "run", run.ID, "step", step, "err", err)
 			fin.Status, fin.ErrorKind = model.RunFailed, string(llm.KindOf(err))
 			if errors.Is(ctx.Err(), context.Canceled) {
 				fin.Status = model.RunCanceled
 			}
-			if text := st.textBuf.String(); text != "" {
+			if text := strings.TrimSpace(st.textBuf.String()); text != "" {
 				parts = append(parts, Part{Type: "text", Text: text})
 			}
 			break
 		}
-		if res.Text != "" {
-			parts = append(parts, Part{Type: "text", Text: res.Text})
+		if text := strings.TrimSpace(res.Text); text != "" {
+			parts = append(parts, Part{Type: "text", Text: text})
 		}
 		if len(res.ToolCalls) == 0 {
 			w.Emit(map[string]any{"type": "finish-step"})
@@ -267,10 +272,10 @@ func (r *Runner) titleConversation(ctx context.Context, t Turn, reply []Part) {
 	}
 	answer := partsText(reply)
 	res, err := r.gw.Stream(ctx, llm.Call{
-		Scene: llm.SceneTitle, Buffered: true, Site: t.SiteName, UserID: t.Run.UserID,
+		Scene: llm.SceneTitle, Buffered: true, MaxTokens: 512, Site: t.SiteName, UserID: t.Run.UserID,
 		Messages: []llm.Message{
 			{Role: llm.RoleSystem, Content: "用不超过 16 个字概括这段对话的主题，作为标题。只输出标题本身，不要引号、不要句号。"},
-			{Role: llm.RoleUser, Content: clipRunes(user, 500) + "\n\n" + clipRunes(answer, 500)},
+			{Role: llm.RoleUser, Content: clipRunes(user, 500) + "\n\n" + clipRunes(answer, 500) + "\n/no_think"},
 		},
 	}, nil)
 	if err != nil {

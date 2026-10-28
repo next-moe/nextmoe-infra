@@ -32,7 +32,7 @@ func streamServer(t *testing.T, status int, body string) *httptest.Server {
 	return srv
 }
 
-const okStream = `{"model":"m","choices":[{"delta":{"reasoning_content":"think"}}]}`
+const okStream = `{"model":"m","choices":[{"delta":{"reasoning":"think","reasoning_content":"think"}}]}`
 
 func okFrames(text string) []string {
 	return []string{
@@ -83,6 +83,16 @@ func TestStreamParsesTextReasoningToolsAndUsage(t *testing.T) {
 	}
 	if len(events) != 2 || events[0].Kind != EventReasoning || events[1].Text != "hello" {
 		t.Fatalf("events = %+v", events)
+	}
+}
+
+func TestStreamAcceptsNumericContentTokens(t *testing.T) {
+	srv := streamServer(t, http.StatusOK, sse(`{"choices":[{"delta":{"content":"第"}}]}`, `{"choices":[{"delta":{"content":1}}]}`,
+		`{"choices":[{"delta":{"content":"部"},"finish_reason":"stop"}]}`, "[DONE]"))
+	g := testGateway(t, srv.URL)
+	res, err := g.Stream(context.Background(), Call{Scene: "s"}, func(Event) {})
+	if err != nil || res.Text != "第1部" {
+		t.Fatalf("res=%q err=%v", res.Text, err)
 	}
 }
 

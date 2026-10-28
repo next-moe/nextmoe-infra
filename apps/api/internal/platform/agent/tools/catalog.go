@@ -57,6 +57,7 @@ type work struct {
 	} `json:"intros"`
 	Tags []struct {
 		DisplayName string `json:"display_name"`
+		IsSexual    bool   `json:"is_sexual"`
 	} `json:"tags"`
 	Companies []struct {
 		DisplayName string `json:"display_name"`
@@ -85,12 +86,45 @@ func (w work) brief() map[string]any {
 	return m
 }
 
+func (w work) searchBrief(nsfw bool) map[string]any {
+	m := w.brief()
+	var tags []string
+	for _, t := range w.Tags {
+		if len(tags) == 8 {
+			break
+		}
+		if !t.IsSexual || nsfw {
+			tags = append(tags, t.DisplayName)
+		}
+	}
+	if len(tags) > 0 {
+		m["tags"] = tags
+	}
+	for _, want := range []string{"zh", "ja", ""} {
+		for _, in := range w.Intros {
+			if strings.HasPrefix(in.Lang, want) && in.Value != "" {
+				m["intro"] = clipRunes(in.Value, 160)
+				return m
+			}
+		}
+	}
+	return m
+}
+
+func clipRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "…"
+}
+
 func (c *CatalogClient) searchWorks(ctx context.Context, query string, limit int) ([]work, string, error) {
 	var list struct {
 		Items      []work  `json:"items"`
 		SearchMode *string `json:"search_mode"`
 	}
-	q := url.Values{"q": {query}, "search_mode": {"hybrid"}, "limit": {strconv.Itoa(limit)}}
+	q := url.Values{"q": {query}, "search_mode": {"hybrid"}, "limit": {strconv.Itoa(limit)}, "include": {"intros,tags"}}
 	if err := c.get(ctx, "/v2/catalog/works", q, &list); err != nil {
 		return nil, "", err
 	}
@@ -139,7 +173,7 @@ func (t *SearchCatalog) Run(ctx context.Context, args json.RawMessage) (Output, 
 	out := Output{}
 	briefs := make([]map[string]any, 0, len(works))
 	for _, w := range works {
-		briefs = append(briefs, w.brief())
+		briefs = append(briefs, w.searchBrief(t.Client.NSFW))
 		out.Cards = append(out.Cards, w.card())
 	}
 	raw, _ := json.Marshal(map[string]any{"works": briefs})

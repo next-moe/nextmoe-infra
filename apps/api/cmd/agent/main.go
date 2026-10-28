@@ -121,7 +121,7 @@ func main() {
 	application.Fiber.Use(middleware.RequestID())
 	application.Fiber.Use(middleware.Logger())
 	application.Fiber.Get("/healthz", func(c fiber.Ctx) error { return c.JSON(fiber.Map{"status": "ok"}) })
-	verifier := oidctoken.NewVerifierWithJWKS(cfg.JWT.Secret, cfg.OIDC.JWKSURL)
+	verifier := oidctoken.NewVerifierWithJWKS(cfg.JWT.Secret, cfg.OIDC.JWKSURL).RequiringIssuer(cfg.OIDC.Issuer)
 	api := agentHandler.Setup(application.Fiber, server, verifier,
 		siteRepo.NewOAuthClientRepository(application.DB.DB()), agentHandler.NewSiteResolver(application.DB.DB()))
 	application.Fiber.Get("/openapi.json", func(c fiber.Ctx) error {

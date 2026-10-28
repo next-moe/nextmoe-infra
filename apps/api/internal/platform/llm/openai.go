@@ -103,21 +103,21 @@ type chunk struct {
 	Model   string `json:"model"`
 	Choices []struct {
 		Delta struct {
-			Content          string `json:"content"`
-			ReasoningContent string `json:"reasoning_content"`
-			Reasoning        string `json:"reasoning"`
+			Content          lenientText `json:"content"`
+			ReasoningContent lenientText `json:"reasoning_content"`
+			Reasoning        lenientText `json:"reasoning"`
 			ToolCalls        []struct {
 				Index    int    `json:"index"`
 				ID       string `json:"id"`
 				Function struct {
-					Name      string `json:"name"`
-					Arguments string `json:"arguments"`
+					Name      string      `json:"name"`
+					Arguments lenientText `json:"arguments"`
 				} `json:"function"`
 			} `json:"tool_calls"`
 		} `json:"delta"`
 		Message *struct {
-			Content          string `json:"content"`
-			ReasoningContent string `json:"reasoning_content"`
+			Content          lenientText `json:"content"`
+			ReasoningContent lenientText `json:"reasoning_content"`
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
@@ -134,6 +134,24 @@ type chunk struct {
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error"`
+}
+
+// Workers AI's qwen3-30b-a3b streamed a digit token as a bare JSON number,
+// {"delta":{"content":1}}; decoding into a string failed the frame and every
+// answer that listed "1." died mid-stream as malformed.
+type lenientText string
+
+func (a *lenientText) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		*a = lenientText(s)
+		return nil
+	}
+	if string(b) == "null" {
+		return nil
+	}
+	*a = lenientText(b)
+	return nil
 }
 
 type accumulator struct {
@@ -159,10 +177,13 @@ func (a *accumulator) apply(c *chunk, sink chatSink) {
 	}
 	for _, ch := range c.Choices {
 		d := ch.Delta
-		content, reasoning := d.Content, d.ReasoningContent+d.Reasoning
+		content, reasoning := string(d.Content), string(d.ReasoningContent)
+		if reasoning == "" {
+			reasoning = string(d.Reasoning)
+		}
 		if ch.Message != nil {
-			content += ch.Message.Content
-			reasoning += ch.Message.ReasoningContent
+			content += string(ch.Message.Content)
+			reasoning += string(ch.Message.ReasoningContent)
 		}
 		if reasoning != "" {
 			a.reasoning.WriteString(reasoning)
@@ -183,7 +204,7 @@ func (a *accumulator) apply(c *chunk, sink chatSink) {
 				cur.ID = t.ID
 			}
 			cur.Name += t.Function.Name
-			cur.Arguments += t.Function.Arguments
+			cur.Arguments += string(t.Function.Arguments)
 		}
 		if ch.FinishReason != "" {
 			a.result.FinishReason = ch.FinishReason
@@ -293,7 +314,7 @@ func streamChat(ctx context.Context, client *http.Client, t chatTarget, body []b
 		}
 		var c chunk
 		if err := json.Unmarshal([]byte(data), &c); err != nil {
-			return out, &Error{Kind: ErrKindMalformed, Msg: "bad stream frame: " + truncate(data, 120)}
+			return out, &Error{Kind: ErrKindMalformed, Msg: "bad stream frame (" + err.Error() + "): " + truncate(data, 400)}
 		}
 		if c.Error != nil {
 			return out, classifyHTTP(http.StatusBadGateway, c.Error.Message)
