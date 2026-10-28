@@ -290,11 +290,18 @@ func contains(xs []string, x string) bool {
 func (r *Runner) titleConversation(t Turn, w *stream.Writer) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	var user string
+	var typed []string
 	if n := len(t.History); n > 0 {
-		user = messageText(t.History[n-1], t.Uploads)
+		for _, p := range decodeParts(t.History[n-1]) {
+			if p.Type == "text" {
+				typed = append(typed, p.Text)
+			}
+		}
 	}
-	content := clipRunes(user, 500)
+	content := clipRunes(strings.Join(typed, "\n"), 500)
+	if strings.TrimSpace(content) == "" {
+		return false
+	}
 	res, err := r.gw.Stream(ctx, llm.Call{
 		Scene: llm.SceneTitle, Buffered: true, MaxTokens: 512, Site: t.SiteName, UserID: t.Run.UserID,
 		Messages: []llm.Message{
@@ -306,7 +313,7 @@ func (r *Runner) titleConversation(t Turn, w *stream.Writer) bool {
 		slog.Warn("agent: title", "conversation", t.Conv.ID, "err", err)
 		return false
 	}
-	title := clipRunes(strings.Trim(strings.TrimSpace(firstLine(res.Text)), "\"'「」《》。"), 40)
+	title := tidyTitle(firstLine(res.Text))
 	if title == "" {
 		return false
 	}
@@ -325,6 +332,24 @@ func firstLine(s string) string {
 	s = strings.TrimSpace(s)
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
 		return s[:i]
+	}
+	return s
+}
+
+var titlePairs = [][2]string{{"「", "」"}, {"《", "》"}, {"『", "』"}, {"“", "”"}, {"\"", "\""}, {"'", "'"}}
+
+func tidyTitle(s string) string {
+	s = strings.TrimRight(strings.TrimSpace(s), "。.")
+	for _, p := range titlePairs {
+		if len(s) > len(p[0])+len(p[1]) && strings.HasPrefix(s, p[0]) && strings.HasSuffix(s, p[1]) {
+			s = s[len(p[0]) : len(s)-len(p[1])]
+		}
+	}
+	s = clipRunes(strings.TrimSpace(s), 40)
+	for _, p := range titlePairs[:4] {
+		if strings.Count(s, p[0]) > strings.Count(s, p[1]) {
+			s = strings.TrimSpace(s[:strings.LastIndex(s, p[0])])
+		}
 	}
 	return s
 }
