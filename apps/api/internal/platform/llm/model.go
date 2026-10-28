@@ -21,6 +21,11 @@ const (
 	ProtocolResponses   = "responses"
 	ProtocolImages      = "images"
 
+	StrategyWeighted  = "weighted"
+	StrategyLeastBusy = "least_busy"
+	StrategyLatency   = "latency"
+	StrategyCost      = "cost"
+
 	RouteActive   = "active"
 	RouteDisabled = "disabled"
 
@@ -41,6 +46,7 @@ type Provider struct {
 	Headers            datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'"`
 	PriceMultiplierPPM int64          `gorm:"not null;default:1000000"`
 	Enabled            bool           `gorm:"not null;default:true"`
+	CatalogSyncedAt    *time.Time
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
@@ -81,6 +87,7 @@ type Route struct {
 	Status         string `gorm:"size:16;not null;default:'active'"`
 	StatusReason   string `gorm:"size:255;not null;default:''"`
 	MaxConcurrency int    `gorm:"not null;default:0"`
+	RPM            int    `gorm:"column:rpm;not null;default:0"`
 	PriceID        *int64
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -125,6 +132,9 @@ type Scene struct {
 	Key              string         `gorm:"primaryKey;size:64"`
 	ModelID          int64          `gorm:"not null"`
 	FallbackModelIDs datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	ContextFallback  datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	ContentFallback  datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	Strategy         string         `gorm:"size:16;not null;default:'weighted'"`
 	Class            string         `gorm:"size:16;not null;default:'interactive'"`
 	Temperature      *float64
 	MaxOutput        int `gorm:"not null;default:0"`

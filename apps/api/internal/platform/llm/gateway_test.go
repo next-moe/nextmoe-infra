@@ -187,12 +187,12 @@ func TestBreakerOpensAndSuspends(t *testing.T) {
 	now := time.Unix(1000, 0)
 	h := newHealth(func() time.Time { return now })
 	for range 2 {
-		h.failure(1, ErrKindUpstream)
+		h.failure(1, &Error{Kind: ErrKindUpstream})
 	}
 	if _, blocked := h.blockedUntil(1); blocked {
 		t.Fatal("two transient failures must not open the breaker")
 	}
-	h.failure(1, ErrKindUpstream)
+	h.failure(1, &Error{Kind: ErrKindUpstream})
 	if _, blocked := h.blockedUntil(1); !blocked {
 		t.Fatal("the third transient failure opens the breaker")
 	}
@@ -200,7 +200,8 @@ func TestBreakerOpensAndSuspends(t *testing.T) {
 	if _, blocked := h.blockedUntil(1); blocked {
 		t.Fatal("success closes the breaker")
 	}
-	if h.failure(2, ErrKindAuth) || h.failure(2, ErrKindAuth) || !h.failure(2, ErrKindAuth) || h.failure(2, ErrKindAuth) {
+	auth := func() bool { alert, _ := h.failure(2, &Error{Kind: ErrKindAuth}); return alert }
+	if auth() || auth() || !auth() || auth() {
 		t.Fatal("the third auth failure in a row raises one alert")
 	}
 	until, blocked := h.blockedUntil(2)
@@ -208,10 +209,35 @@ func TestBreakerOpensAndSuspends(t *testing.T) {
 		t.Fatalf("four auth failures back the route off 8m, got %v", until.Sub(now))
 	}
 	for range 10 {
-		h.failure(2, ErrKindAuth)
+		h.failure(2, &Error{Kind: ErrKindAuth})
 	}
 	if until, _ := h.blockedUntil(2); until.Sub(now) != 30*time.Minute {
 		t.Fatalf("the auth backoff caps at 30m, got %v", until.Sub(now))
+	}
+	h.failure(3, &Error{Kind: ErrKindRateLimit, RetryAfter: 45 * time.Second})
+	if until, blocked := h.blockedUntil(3); !blocked || until.Sub(now) != 45*time.Second {
+		t.Fatalf("one 429 with Retry-After cools the route for exactly that long, got %v", until.Sub(now))
+	}
+	h.failure(4, &Error{Kind: ErrKindRateLimit, RetryAfter: 3 * time.Hour})
+	if until, _ := h.blockedUntil(4); until.Sub(now) != retryAfterCap {
+		t.Fatalf("Retry-After is capped, got %v", until.Sub(now))
+	}
+}
+
+func TestRetryAfterReadsSecondsDatesAndResetHeaders(t *testing.T) {
+	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
+	for _, c := range []struct {
+		h    http.Header
+		want time.Duration
+	}{
+		{http.Header{"Retry-After": {"20"}}, 20 * time.Second},
+		{http.Header{"Retry-After": {now.Add(90 * time.Second).Format(http.TimeFormat)}}, 90 * time.Second},
+		{http.Header{"X-Ratelimit-Reset-Requests": {"1m30s"}}, 90 * time.Second},
+		{http.Header{}, 0},
+	} {
+		if got := retryAfter(c.h, now); got != c.want {
+			t.Errorf("retryAfter(%v) = %v, want %v", c.h, got, c.want)
+		}
 	}
 }
 

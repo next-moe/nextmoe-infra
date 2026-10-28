@@ -35,6 +35,12 @@ func Run(db *gorm.DB) error {
 	// admin "sync models" action and a daily sync) and
 	// llm_price_revision.per_call_micro (per call / per picture, default 0, so
 	// every existing revision keeps its token-only price). Additive.
+	//
+	// Same day, routing: llm_route.rpm (0 = unlimited; max_concurrency is now
+	// enforced too), llm_scene.strategy (default 'weighted', today's behaviour),
+	// llm_scene.context_fallback / content_fallback (default '[]', none) and
+	// llm_provider.catalog_synced_at (null until the first sync). Additive;
+	// every existing route and scene keeps behaving as before.
 	if err := db.AutoMigrate(llm.Tables()...); err != nil {
 		return fmt.Errorf("llm gateway automigrate: %w", err)
 	}

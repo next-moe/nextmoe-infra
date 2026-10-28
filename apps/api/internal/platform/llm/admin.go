@@ -59,6 +59,7 @@ type ProviderView struct {
 	Headers            map[string]string `json:"headers"`
 	PriceMultiplierPPM int64             `json:"price_multiplier_ppm"`
 	Enabled            bool              `json:"enabled"`
+	CatalogSyncedAt    *time.Time        `json:"catalog_synced_at" doc:"Last successful read of the provider's model list."`
 	CreatedAt          time.Time         `json:"created_at"`
 	UpdatedAt          time.Time         `json:"updated_at"`
 }
@@ -67,7 +68,7 @@ func providerView(p Provider) ProviderView {
 	h := map[string]string{}
 	_ = json.Unmarshal(p.Headers, &h)
 	return ProviderView{ID: p.ID, Name: p.Name, BaseURL: p.BaseURL, KeyConfigured: len(p.KeyCipher) > 0 || p.KeyEnv != "",
-		KeyHint: p.KeyHint, Headers: h, PriceMultiplierPPM: p.PriceMultiplierPPM, Enabled: p.Enabled, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
+		KeyHint: p.KeyHint, Headers: h, PriceMultiplierPPM: p.PriceMultiplierPPM, Enabled: p.Enabled, CatalogSyncedAt: p.CatalogSyncedAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 }
 
 type ProviderInput struct {
@@ -350,18 +351,22 @@ type RouteView struct {
 	Weight       int        `json:"weight"`
 	Status       string     `json:"status" enum:"active,disabled"`
 	StatusReason string     `json:"status_reason"`
+	MaxInFlight  int        `json:"max_in_flight" doc:"Concurrent calls this route may carry across all gateway processes; 0 is unlimited."`
+	RPM          int        `json:"rpm" doc:"Calls per minute across all gateway processes; 0 is unlimited."`
 	Price        *Price     `json:"price"`
 	Stats24h     RouteStats `json:"stats_24h"`
 }
 
 type RouteInput struct {
-	ModelID    *int64  `json:"model_id,omitempty"`
-	ProviderID *int64  `json:"provider_id,omitempty"`
-	UpstreamID *string `json:"upstream_id,omitempty" maxLength:"128"`
-	Priority   *int    `json:"priority,omitempty"`
-	Weight     *int    `json:"weight,omitempty" minimum:"1" maximum:"10000"`
-	Status     *string `json:"status,omitempty" enum:"active,disabled"`
-	Price      *Price  `json:"price,omitempty"`
+	ModelID     *int64  `json:"model_id,omitempty"`
+	ProviderID  *int64  `json:"provider_id,omitempty"`
+	UpstreamID  *string `json:"upstream_id,omitempty" maxLength:"128"`
+	Priority    *int    `json:"priority,omitempty"`
+	Weight      *int    `json:"weight,omitempty" minimum:"1" maximum:"10000"`
+	Status      *string `json:"status,omitempty" enum:"active,disabled"`
+	MaxInFlight *int    `json:"max_in_flight,omitempty" minimum:"0" maximum:"10000"`
+	RPM         *int    `json:"rpm,omitempty" minimum:"0" maximum:"1000000"`
+	Price       *Price  `json:"price,omitempty"`
 }
 
 func (a *Admin) Routes(ctx context.Context) ([]RouteView, error) {
@@ -396,7 +401,7 @@ func (a *Admin) Routes(ctx context.Context) ([]RouteView, error) {
 	}
 	out := make([]RouteView, len(rows))
 	for i, r := range rows {
-		out[i] = RouteView{ID: r.ID, ModelID: r.ModelID, ProviderID: r.ProviderID, UpstreamID: r.UpstreamID, Protocol: r.Protocol, Priority: r.Priority,
+		out[i] = RouteView{ID: r.ID, ModelID: r.ModelID, ProviderID: r.ProviderID, UpstreamID: r.UpstreamID, Protocol: r.Protocol, MaxInFlight: r.MaxConcurrency, RPM: r.RPM, Priority: r.Priority,
 			Weight: r.Weight, Status: r.Status, StatusReason: r.StatusReason, Stats24h: byRoute[r.ID]}
 		if r.PriceID != nil {
 			if p, ok := byPrice[*r.PriceID]; ok {
@@ -451,6 +456,12 @@ func (a *Admin) saveRoute(ctx context.Context, r *Route, in RouteInput, creating
 		}
 		if r.Weight <= 0 {
 			r.Weight = 100
+		}
+		if in.MaxInFlight != nil {
+			r.MaxConcurrency = *in.MaxInFlight
+		}
+		if in.RPM != nil {
+			r.RPM = *in.RPM
 		}
 		if in.Status != nil {
 			r.Status, r.StatusReason = *in.Status, ""
@@ -536,6 +547,9 @@ type SceneView struct {
 	Key              string    `json:"key"`
 	ModelID          int64     `json:"model_id"`
 	FallbackModelIDs []int64   `json:"fallback_model_ids" nullable:"false"`
+	ContextFallback  []int64   `json:"context_fallback_model_ids" nullable:"false" doc:"Tried after a model rejects the input as too long."`
+	ContentFallback  []int64   `json:"content_fallback_model_ids" nullable:"false" doc:"Tried after a model's content filter refuses the request, before anything streamed."`
+	Strategy         string    `json:"strategy" enum:"weighted,least_busy,latency,cost"`
 	Class            string    `json:"class" enum:"interactive,search,batch,moderation"`
 	Temperature      *float64  `json:"temperature" nullable:"true"`
 	MaxOutput        int       `json:"max_output"`
@@ -548,6 +562,9 @@ type SceneView struct {
 type SceneInput struct {
 	ModelID          int64    `json:"model_id"`
 	FallbackModelIDs []int64  `json:"fallback_model_ids" maxItems:"8" nullable:"false"`
+	ContextFallback  []int64  `json:"context_fallback_model_ids,omitempty" maxItems:"4"`
+	ContentFallback  []int64  `json:"content_fallback_model_ids,omitempty" maxItems:"4"`
+	Strategy         string   `json:"strategy,omitempty" enum:"weighted,least_busy,latency,cost" doc:"How routes of one priority tier are ordered: weighted keeps a conversation on one route (rendezvous on its key), least_busy prefers fewer calls in flight in this process, latency the lowest recent first-byte time (with a tenth of calls exploring), cost the cheapest price."`
 	Class            string   `json:"class" enum:"interactive,search,batch,moderation"`
 	Temperature      *float64 `json:"temperature" minimum:"0" maximum:"2" nullable:"true"`
 	MaxOutput        int      `json:"max_output" minimum:"0"`
@@ -557,9 +574,15 @@ type SceneInput struct {
 }
 
 func sceneView(s Scene) SceneView {
-	fb := []int64{}
+	fb, cf, nf := []int64{}, []int64{}, []int64{}
 	_ = json.Unmarshal(s.FallbackModelIDs, &fb)
-	return SceneView{Key: s.Key, ModelID: s.ModelID, FallbackModelIDs: fb, Class: s.Class, Temperature: s.Temperature,
+	_ = json.Unmarshal(s.ContextFallback, &cf)
+	_ = json.Unmarshal(s.ContentFallback, &nf)
+	strategy := s.Strategy
+	if strategy == "" {
+		strategy = StrategyWeighted
+	}
+	return SceneView{Key: s.Key, ModelID: s.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, Class: s.Class, Temperature: s.Temperature,
 		MaxOutput: s.MaxOutput, TTFTMs: s.TTFTMs, IdleMs: s.IdleMs, TotalMs: s.TotalMs, UpdatedAt: s.UpdatedAt}
 }
 
@@ -581,6 +604,8 @@ func (a *Admin) PutScene(ctx context.Context, key string, in SceneInput) (SceneV
 	}
 	db := a.db.WithContext(ctx)
 	ids := append([]int64{in.ModelID}, in.FallbackModelIDs...)
+	ids = append(ids, in.ContextFallback...)
+	ids = append(ids, in.ContentFallback...)
 	var models []Model
 	if err := db.Where("id IN ?", ids).Find(&models).Error; err != nil {
 		return SceneView{}, err
@@ -601,7 +626,13 @@ func (a *Admin) PutScene(ctx context.Context, key string, in SceneInput) (SceneV
 		return SceneView{}, invalid("the primary model cannot also be a fallback")
 	}
 	fb, _ := json.Marshal(nonNil(in.FallbackModelIDs))
-	s := Scene{Key: key, ModelID: in.ModelID, FallbackModelIDs: fb, Class: in.Class, Temperature: in.Temperature,
+	cf, _ := json.Marshal(nonNil(in.ContextFallback))
+	nf, _ := json.Marshal(nonNil(in.ContentFallback))
+	strategy := in.Strategy
+	if strategy == "" {
+		strategy = StrategyWeighted
+	}
+	s := Scene{Key: key, ModelID: in.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, Class: in.Class, Temperature: in.Temperature,
 		MaxOutput: in.MaxOutput, TTFTMs: in.TTFTMs, IdleMs: in.IdleMs, TotalMs: in.TotalMs, UpdatedAt: a.now()}
 	if s.Class == "" {
 		s.Class = ClassInteractive

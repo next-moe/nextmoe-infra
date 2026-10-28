@@ -27,6 +27,8 @@ const (
 	kindFromName     = "name"
 	kindFromAdmin    = "admin"
 	kindFromProbe    = "probe"
+
+	KindAuto = "auto"
 )
 
 var gatewayKinds = []string{ModelChat, ModelEmbedding, ModelModeration, ModelSearch, ModelImage}
@@ -141,7 +143,7 @@ type CatalogProbe struct {
 type CatalogRoute struct {
 	RouteID  int64  `json:"route_id"`
 	ModelKey string `json:"model_key"`
-	Status   string `json:"status"`
+	Status   string `json:"status" enum:"active,disabled"`
 }
 
 type ProviderModelView struct {
@@ -300,6 +302,7 @@ func (a *Admin) SyncProviderModels(ctx context.Context, providerID int64) (SyncR
 	if err != nil {
 		return SyncResult{}, err
 	}
+	_ = a.db.WithContext(ctx).Model(&p).Update("catalog_synced_at", now).Error
 	routes, err := a.catalogRoutes(ctx, p.ID)
 	if err != nil {
 		return res, err
@@ -388,17 +391,23 @@ func (a *Admin) providerModelOut(ctx context.Context, m *ProviderModel) (Provide
 }
 
 func (a *Admin) SetProviderModelKind(ctx context.Context, id int64, kind string) (ProviderModelView, error) {
-	if !slices.Contains(catalogKinds, kind) {
+	if kind != KindAuto && !slices.Contains(catalogKinds, kind) {
 		return ProviderModelView{}, invalid("unknown kind %q", kind)
 	}
 	m, err := a.providerModel(ctx, id)
 	if err != nil {
 		return ProviderModelView{}, err
 	}
-	if err := a.db.WithContext(ctx).Model(m).Updates(map[string]any{"kind": kind, "kind_source": kindFromAdmin}).Error; err != nil {
+	source := kindFromAdmin
+	if kind == KindAuto {
+		var out []string
+		_ = json.Unmarshal(m.OutputModalities, &out)
+		kind, source = guessKind(m.UpstreamID, out)
+	}
+	if err := a.db.WithContext(ctx).Model(m).Updates(map[string]any{"kind": kind, "kind_source": source}).Error; err != nil {
 		return ProviderModelView{}, err
 	}
-	m.Kind, m.KindSource = kind, kindFromAdmin
+	m.Kind, m.KindSource = kind, source
 	return a.providerModelOut(ctx, m)
 }
 

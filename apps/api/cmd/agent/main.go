@@ -65,6 +65,7 @@ func main() {
 		os.Exit(1)
 	}
 	gw := llm.New(aiDB.DB(), kek)
+	gw.SetCoordinator(llm.NewRedisCoord(rdb))
 	if err := gw.Refresh(ctx); err != nil {
 		slog.Error("llm gateway snapshot", "error", err)
 		os.Exit(1)

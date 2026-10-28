@@ -28,7 +28,9 @@ func mapLLMErr(op string, err error) *houseError {
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
 	case stderrors.Is(err, llm.ErrInUse):
 		return apiErrMsg(http.StatusConflict, errors.ErrValidationFailed, err.Error())
-	case stderrors.Is(err, llm.ErrInvalid), stderrors.Is(err, llm.ErrNoKEK), stderrors.Is(err, llm.ErrCatalogUnsupported):
+	case stderrors.Is(err, llm.ErrCatalogUnsupported):
+		return apiErrMsg(http.StatusBadRequest, errors.ErrValidationFailed, "该供应商不在 /models 提供模型列表（例如 Cloudflare Workers AI 的 OpenAI 兼容地址），请在「路由」里手动添加")
+	case stderrors.Is(err, llm.ErrInvalid), stderrors.Is(err, llm.ErrNoKEK):
 		return apiErrMsg(http.StatusBadRequest, errors.ErrValidationFailed, err.Error())
 	case stderrors.As(err, new(*llm.Error)):
 		return apiErrMsg(http.StatusBadGateway, errors.ErrValidationFailed, err.Error())
@@ -119,7 +121,7 @@ func (s *llmAdmin) register(api huma.API) {
 		guard("update provider model", func(ctx context.Context, in *struct {
 			IDPath
 			Body struct {
-				Kind string `json:"kind" enum:"chat,embedding,moderation,search,image,video,speech,transcription,rerank"`
+				Kind string `json:"kind" enum:"auto,chat,embedding,moderation,search,image,video,speech,transcription,rerank" doc:"auto goes back to the kind the metadata or name suggests."`
 			}
 		}) (llm.ProviderModelView, error) {
 			return s.a.SetProviderModelKind(ctx, in.ID, in.Body.Kind)
@@ -127,11 +129,15 @@ func (s *llmAdmin) register(api huma.API) {
 	huma.Register(api, op("probeLLMProviderModel", http.MethodPost, "/provider-models/{id}/probe", "Call the upstream model once as the given kind; a success records the kind"),
 		guard("probe provider model", func(ctx context.Context, in *struct {
 			IDPath
-			Body struct {
+			Body *struct {
 				Kind string `json:"kind,omitempty" enum:"chat,embedding,moderation,search,image" doc:"Defaults to the entry's kind. image generates one picture and is billed."`
-			}
+			} `required:"false"`
 		}) (llm.ProviderModelView, error) {
-			return s.a.ProbeProviderModel(ctx, in.ID, in.Body.Kind)
+			kind := ""
+			if in.Body != nil {
+				kind = in.Body.Kind
+			}
+			return s.a.ProbeProviderModel(ctx, in.ID, kind)
 		}))
 	huma.Register(api, op("adoptLLMProviderModel", http.MethodPost, "/provider-models/{id}/adopt", "Route a catalog entry: create the gateway model if needed, then the route"),
 		guard("adopt provider model", func(ctx context.Context, in *struct {
@@ -139,6 +145,18 @@ func (s *llmAdmin) register(api huma.API) {
 			Body llm.AdoptInput
 		}) (llm.AdoptResult, error) {
 			return s.a.AdoptProviderModel(ctx, in.ID, in.Body)
+		}))
+
+	huma.Register(api, op("getLLMHealth", http.MethodGet, "/health", "Every route's breaker, load, limits and last-hour numbers"),
+		guard("health", func(ctx context.Context, _ *struct{}) ([]llm.RouteHealthView, error) { return s.a.Health(ctx) }))
+	huma.Register(api, op("resetLLMRouteCooldown", http.MethodPost, "/routes/{id}/reset-cooldown", "End a route's cooldown in every gateway process"),
+		guard("reset cooldown", func(ctx context.Context, in *IDPath) (*empty, error) { return nil, s.a.ResetCooldown(ctx, in.ID) }))
+	huma.Register(api, op("planLLMScene", http.MethodGet, "/scenes/{key}/plan", "The order a call to this scene would try routes in, right now"),
+		guard("plan scene", func(ctx context.Context, in *struct {
+			KeyPath
+			Affinity string `query:"affinity" maxLength:"128" doc:"A conversation id, to see where the weighted strategy pins it."`
+		}) (llm.ScenePlan, error) {
+			return s.a.PlanScene(ctx, in.Key, in.Affinity)
 		}))
 
 	huma.Register(api, op("listLLMModels", http.MethodGet, "/models", "List models"),

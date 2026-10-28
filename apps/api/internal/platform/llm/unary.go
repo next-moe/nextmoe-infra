@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"slices"
 	"strings"
@@ -60,24 +61,46 @@ func (g *Gateway) unary(ctx context.Context, r Request, kind, path string) (Resp
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(sc.TotalMs)*time.Millisecond)
 	defer cancel()
 	callID := uuid.NewString()
-	plan := s.plan(sc, "", g.health)
+	plan := s.plan(sc, "", g.health, g.stats)
 	if len(plan) == 0 {
 		return Response{}, &Error{Kind: ErrKindNoRoute, Msg: "no active route for " + sc.Key}
 	}
+	if len(plan) == 1 {
+		plan = append(plan, plan[0])
+	}
 	var lastErr error
+	attempts, limited := 0, 0
 	for i, c := range plan {
-		if i >= maxAttempts {
+		if attempts >= maxAttempts {
 			break
+		}
+		if i > 0 && c.route == plan[i-1].route {
+			if !KindOf(lastErr).transient() {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return Response{CallID: callID}, lastErr
+			case <-time.After(time.Duration(300+rand.IntN(500)) * time.Millisecond):
+			}
 		}
 		res, err := g.unaryAttempt(ctx, s, sc, c, r, path, callID, true)
 		if err == nil {
 			res.CallID = callID
 			return res, nil
 		}
+		if KindOf(err) == ErrKindLimited {
+			limited++
+			continue
+		}
+		attempts++
 		lastErr = err
 		if !KindOf(err).failsOver() || ctx.Err() != nil {
 			return res, err
 		}
+	}
+	if lastErr == nil && limited > 0 {
+		return Response{CallID: callID}, &Error{Kind: ErrKindRateLimit, Msg: "every route of " + sc.Key + " is at its concurrency or per-minute limit"}
 	}
 	return Response{CallID: callID}, lastErr
 }
@@ -88,6 +111,14 @@ func (g *Gateway) unaryAttempt(ctx context.Context, s *snapshot, sc *Scene, c ca
 		body[k] = v
 	}
 	body["model"] = c.route.UpstreamID
+	if track {
+		release, ok := g.coord.Acquire(ctx, c.route.ID, c.route.MaxConcurrency, c.route.RPM)
+		if !ok {
+			return Response{}, &Error{Kind: ErrKindLimited, Msg: "route at its limit"}
+		}
+		defer release()
+		defer g.stats.begin(c.route.ID)()
+	}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return Response{}, &Error{Kind: ErrKindBadRequest, Msg: err.Error()}
@@ -100,12 +131,10 @@ func (g *Gateway) unaryAttempt(ctx context.Context, s *snapshot, sc *Scene, c ca
 		return resp, err
 	}
 	if err != nil {
-		if g.health.failure(c.route.ID, KindOf(err)) {
-			g.alert(c.route, err)
-		}
+		g.noteFailure(ctx, c.route, err)
 		return resp, err
 	}
-	g.health.success(c.route.ID)
+	g.noteSuccess(ctx, c.route.ID, g.now().Sub(started))
 	return resp, nil
 }
 
@@ -137,7 +166,7 @@ func postJSON(ctx context.Context, client *http.Client, url, key string, headers
 		return out, Response{}, classifyTransport(ctx, err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return out, Response{}, classifyHTTP(resp.StatusCode, string(data))
+		return out, Response{}, httpError(resp, string(data))
 	}
 	var meta struct {
 		Model string `json:"model"`
@@ -297,7 +326,7 @@ func (g *Gateway) Ready(scene string) (string, bool) {
 	if m := s.models[sc.ModelID]; m != nil {
 		key = m.Key
 	}
-	return key, len(s.plan(sc, "", g.health)) > 0
+	return key, len(s.plan(sc, "", g.health, g.stats)) > 0
 }
 
 func (g *Gateway) Models() []Model {

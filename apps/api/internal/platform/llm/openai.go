@@ -277,7 +277,7 @@ func streamChat(ctx context.Context, client *http.Client, t chatTarget, body []b
 	}
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-		return out, classifyHTTP(resp.StatusCode, string(raw))
+		return out, httpError(resp, string(raw))
 	}
 
 	acc := &accumulator{tools: map[int]*ToolCall{}}

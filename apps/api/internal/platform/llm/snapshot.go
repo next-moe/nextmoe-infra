@@ -145,12 +145,21 @@ type candidate struct {
 	forced   bool
 }
 
-func (s *snapshot) plan(sc *Scene, affinity string, h *health) []candidate {
+func (s *snapshot) plan(sc *Scene, affinity string, h *health, st *routeStats) []candidate {
 	chain := []int64{sc.ModelID}
-	var fallbacks []int64
-	if len(sc.FallbackModelIDs) > 0 && json.Unmarshal(sc.FallbackModelIDs, &fallbacks) == nil {
-		chain = append(chain, fallbacks...)
+	chain = append(chain, modelIDs(sc.FallbackModelIDs)...)
+	return s.planChain(sc, chain, affinity, h, st, true)
+}
+
+func modelIDs(raw []byte) []int64 {
+	var ids []int64
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &ids)
 	}
+	return ids
+}
+
+func (s *snapshot) planChain(sc *Scene, chain []int64, affinity string, h *health, st *routeStats, forceOne bool) []candidate {
 	var out, blocked []candidate
 	var until []time.Time
 	for _, mid := range chain {
@@ -165,7 +174,7 @@ func (s *snapshot) plan(sc *Scene, affinity string, h *health) []candidate {
 			for end < len(routes) && routes[end].Priority == routes[start].Priority {
 				end++
 			}
-			for _, r := range rendezvous(routes[start:end], affinity) {
+			for _, r := range s.order(sc.Strategy, routes[start:end], affinity, st) {
 				c := candidate{route: r, model: m, provider: s.providers[r.ProviderID]}
 				if t, ok := h.blockedUntil(r.ID); ok {
 					blocked, until = append(blocked, c), append(until, t)
@@ -176,7 +185,7 @@ func (s *snapshot) plan(sc *Scene, affinity string, h *health) []candidate {
 			start = end
 		}
 	}
-	if len(out) == 0 && len(blocked) > 0 {
+	if forceOne && len(out) == 0 && len(blocked) > 0 {
 		best := 0
 		for i := range blocked {
 			if until[i].Before(until[best]) {
@@ -187,6 +196,40 @@ func (s *snapshot) plan(sc *Scene, affinity string, h *health) []candidate {
 		out = append(out, blocked[best])
 	}
 	return out
+}
+
+func (s *snapshot) order(strategy string, tier []*Route, affinity string, st *routeStats) []*Route {
+	switch strategy {
+	case StrategyLeastBusy:
+		ordered := rendezvous(tier, affinity)
+		load := st.inflightOf(ordered)
+		slices.SortStableFunc(ordered, func(a, b *Route) int { return cmp.Compare(load[a.ID], load[b.ID]) })
+		return ordered
+	case StrategyLatency:
+		ordered := rendezvous(tier, "")
+		if st.explore() {
+			return ordered
+		}
+		lat := st.latencyOf(ordered)
+		slices.SortStableFunc(ordered, func(a, b *Route) int { return cmp.Compare(lat[a.ID], lat[b.ID]) })
+		return ordered
+	case StrategyCost:
+		ordered := rendezvous(tier, affinity)
+		slices.SortStableFunc(ordered, func(a, b *Route) int { return cmp.Compare(s.unitPrice(a), s.unitPrice(b)) })
+		return ordered
+	}
+	return rendezvous(tier, affinity)
+}
+
+func (s *snapshot) unitPrice(r *Route) int64 {
+	if r.PriceID == nil {
+		return math.MaxInt64
+	}
+	p := s.prices[*r.PriceID]
+	if p == nil {
+		return math.MaxInt64
+	}
+	return p.InputMicro + p.OutputMicro + p.PerCallMicro*1_000_000
 }
 
 func rendezvous(routes []*Route, key string) []*Route {
