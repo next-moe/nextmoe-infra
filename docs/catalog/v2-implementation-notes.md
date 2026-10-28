@@ -2748,6 +2748,7 @@ Deploy:
 Bangumi serves the covers of adult games blurred or mosaicked, and the ladder picked them because they are usually the sharper portrait.
 
 - **Election.** When the response may carry sexual art (the viewer opted in and the work is on the nsfw shelf), a work that holds a VNDB cover-art row drops its Bangumi cover rows from the pool, for the portrait and the banner alike. An editor's pin and the vote leader still come first. Without a VNDB cover, Bangumi stays.
-- **Backfill gap.** `cmd/backfill-vndb-covers` skipped every work that already held a cover from any official source, so a work with a Bangumi cover or a `censored` stand-in never got its VNDB cover. On production 3,456 vndb-anchored works had none (1,756 of them behind a Bangumi cover; v2868 was the report). The candidate gate now counts only VNDB's own non-packaging rows.
+- **Backfill gap.** `cmd/backfill-vndb-covers` skipped every work that already held a cover from any official source, so a work with a Bangumi cover or a `censored` stand-in never got its VNDB cover. On production 3,456 vndb-anchored works had none (1,756 of them behind a Bangumi cover; v2868 was the report). The candidate gate now counts only VNDB's own non-packaging rows. The production run uploaded 2,396 covers; the 1,059 works left have no VNDB image.
+- **No portrait, sharpest wins.** When a work holds no portrait-shaped cover, the ladder took the first row by sort order, and importer rows all share sort order 0, so the image hash decided. After the backfill, work 30923 showed a 256x144 VNDB image over its 1668x940 Bangumi cover. The slot now takes the sharpest measured cover before falling back to the first row.
 
 **Spec 2.77.0**: the `cover` description. **No schema change.**

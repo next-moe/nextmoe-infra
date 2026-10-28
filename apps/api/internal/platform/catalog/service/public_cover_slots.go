@@ -191,7 +191,7 @@ type coverCandidates struct {
 	pinned                    *WorkCoverRow
 	portraitWide, portraitAny *WorkCoverRow
 	bannerWide, bannerAny     *WorkCoverRow
-	first                     *WorkCoverRow
+	sharpest, first           *WorkCoverRow
 }
 
 func (c coverCandidates) portrait() *WorkCoverRow {
@@ -202,6 +202,11 @@ func (c coverCandidates) portrait() *WorkCoverRow {
 		return c.portraitWide
 	case c.portraitAny != nil:
 		return c.portraitAny
+	// Without a portrait the first row by sort order took the slot, and rows
+	// share sort_order 0, so the hash decided: on 2026-10-28 work 30923 showed
+	// a 256x144 VNDB image over its 1668x940 Bangumi cover.
+	case c.sharpest != nil:
+		return c.sharpest
 	default:
 		return c.first
 	}
@@ -216,14 +221,14 @@ func (c coverCandidates) banner() *WorkCoverRow {
 
 func (c coverCandidates) complete() bool {
 	return c.pinned != nil && c.portraitWide != nil && c.portraitAny != nil &&
-		c.bannerWide != nil && c.bannerAny != nil && c.first != nil
+		c.bannerWide != nil && c.bannerAny != nil && c.sharpest != nil && c.first != nil
 }
 
 func (c *coverCandidates) fillFrom(other coverCandidates) {
 	for _, pair := range []struct{ dst, src **WorkCoverRow }{
 		{&c.pinned, &other.pinned}, {&c.portraitWide, &other.portraitWide},
 		{&c.portraitAny, &other.portraitAny}, {&c.bannerWide, &other.bannerWide},
-		{&c.bannerAny, &other.bannerAny}, {&c.first, &other.first},
+		{&c.bannerAny, &other.bannerAny}, {&c.sharpest, &other.sharpest}, {&c.first, &other.first},
 	} {
 		if *pair.dst == nil {
 			*pair.dst = *pair.src
@@ -259,6 +264,7 @@ func (s *PublicService) scanCovers(rows []WorkCoverRow, meta map[string]ImageMet
 		if !dimsKnown {
 			continue
 		}
+		out.sharpest = sharperCover(out.sharpest, c, meta)
 		switch {
 		case isPortraitDims(m.Width, m.Height):
 			out.portraitAny = sharperCover(out.portraitAny, c, meta)
