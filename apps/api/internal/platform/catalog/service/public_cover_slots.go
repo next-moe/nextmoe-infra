@@ -30,7 +30,7 @@ const (
 // the survivor's portrait and banner.
 func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *dto.PublicWorkCoverSlots {
 	chosen := s.chosenPortrait(rows, meta, allowSexual)
-	own, merged := splitMergedCovers(s.officialCoversFirst(rows))
+	own, merged := splitMergedCovers(s.coverPool(rows, allowSexual))
 	portraitRow, bannerRow := s.electSlotRows(own, meta, allowSexual)
 	if portraitRow == nil {
 		portraitRow, _ = s.electSlotRows(merged, meta, allowSexual)
@@ -106,6 +106,32 @@ func (s *PublicService) officialCoversFirst(rows []WorkCoverRow) []WorkCoverRow 
 	out := make([]WorkCoverRow, 0, len(rows))
 	for _, c := range rows {
 		if !model.IsUploadedCoverSource(c.SourceID) || c.HumanPinned {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// Bangumi serves the covers of adult games blurred or mosaicked, so a reader
+// allowed sexual art gets the work's VNDB cover in their place.
+func (s *PublicService) coverPool(rows []WorkCoverRow, allowSexual bool) []WorkCoverRow {
+	rows = s.officialCoversFirst(rows)
+	if !allowSexual {
+		return rows
+	}
+	vndb := false
+	for _, c := range rows {
+		if c.SourceID == model.SourceVNDB && model.IsCoverArt(c.Kind) && s.imageURL(c.ImageHash) != "" {
+			vndb = true
+			break
+		}
+	}
+	if !vndb {
+		return rows
+	}
+	out := make([]WorkCoverRow, 0, len(rows))
+	for _, c := range rows {
+		if c.SourceID != model.SourceBangumi || c.HumanPinned {
 			out = append(out, c)
 		}
 	}
@@ -304,7 +330,7 @@ func (s *PublicService) fillBannerFromScreenshots(
 	}
 	banner := s.bannerFromShots(ownShots, meta, allowSexual)
 	if banner == nil {
-		_, merged := splitMergedCovers(s.officialCoversFirst(covers))
+		_, merged := splitMergedCovers(s.coverPool(covers, allowSexual))
 		_, row := s.electSlotRows(merged, meta, allowSexual)
 		banner = s.coverSlot(row, meta)
 	}

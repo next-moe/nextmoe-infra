@@ -112,7 +112,7 @@ func candidateIDs(t *testing.T, reg registry, ids []int64) []int64 {
 	return out
 }
 
-func TestLoadCandidatesOfficialGap(t *testing.T) {
+func TestLoadCandidatesVNDBGap(t *testing.T) {
 	clean(t)
 	reg, err := resolveRegistry(context.Background(), testDB)
 	require.NoError(t, err)
@@ -143,16 +143,20 @@ func TestLoadCandidatesOfficialGap(t *testing.T) {
 	mkCover(t, hasBangumi, bangumi, "main", "hash-bgm")
 	mkCover(t, hasBangumi, curated, "main", "hash-cur3")
 
+	hasCensored := mkWork(t, reg, "censored-covered")
+	mkAnchor(t, reg, hasCensored, "v8", model.LinkKindExact)
+	mkCover(t, hasCensored, sourceID(t, "censored"), "main", "hash-cen")
+
 	probable := mkWork(t, reg, "probable-anchor")
 	mkAnchor(t, reg, probable, "v7", model.LinkKindProbable)
 
 	assert.ElementsMatch(t,
-		[]int64{coverless, curatedOnly, wikiLineage, pkgOnly},
+		[]int64{coverless, curatedOnly, wikiLineage, pkgOnly, hasBangumi, hasCensored},
 		candidateIDs(t, reg, nil))
 
 	assert.ElementsMatch(t, []int64{curatedOnly},
 		candidateIDs(t, reg, []int64{curatedOnly, hasVNDB}),
-		"--ids must not bypass the official-cover gate")
+		"--ids must not bypass the vndb-cover gate")
 }
 
 type stubUploader struct {

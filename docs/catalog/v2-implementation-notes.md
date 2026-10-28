@@ -2742,3 +2742,12 @@ Deploy:
 - One `reindex-catalog -recreate` for SchemaVersion 5. The daily `reindex-catalog` refuses schema-4 indexes until then, and catalog search is empty for the length of the rebuild.
 - One `embed-catalog` run (about 55 minutes for 110k works on Workers AI), plus `embed-catalog -entity characters` if the character vectors should be warm.
 - The catalog service reads `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` for the query embedder.
+
+## Adult covers come from VNDB, not Bangumi (spec 2.77.0, 2026-10-28)
+
+Bangumi serves the covers of adult games blurred or mosaicked, and the ladder picked them because they are usually the sharper portrait.
+
+- **Election.** When the response may carry sexual art (the viewer opted in and the work is on the nsfw shelf), a work that holds a VNDB cover-art row drops its Bangumi cover rows from the pool, for the portrait and the banner alike. An editor's pin and the vote leader still come first. Without a VNDB cover, Bangumi stays.
+- **Backfill gap.** `cmd/backfill-vndb-covers` skipped every work that already held a cover from any official source, so a work with a Bangumi cover or a `censored` stand-in never got its VNDB cover. On production 3,456 vndb-anchored works had none (1,756 of them behind a Bangumi cover; v2868 was the report). The candidate gate now counts only VNDB's own non-packaging rows.
+
+**Spec 2.77.0**: the `cover` description. **No schema change.**

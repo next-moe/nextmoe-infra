@@ -438,7 +438,7 @@ func (s *PublicService) pickListCover(rows []WorkCoverRow, allowSexual bool) str
 	if c := s.chosenPortrait(rows, nil, allowSexual); c != nil {
 		return s.imageURL(c.ImageHash)
 	}
-	own, merged := splitMergedCovers(s.officialCoversFirst(rows))
+	own, merged := splitMergedCovers(s.coverPool(rows, allowSexual))
 	if url := s.listCoverTier(own, allowSexual); url != "" {
 		return url
 	}
