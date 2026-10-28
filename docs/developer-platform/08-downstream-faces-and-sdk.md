@@ -71,7 +71,7 @@ traefik.http.services.<svc>-pub.loadbalancer.server.port: "<port>"
 
 sticker 面同一套,`PathPrefix(/v2/sticker)` + `face=sticker`(实测别名/端口:sticker-api:9421、moyu-api:5214、oauth:9277)。
 
-**letmoe 面**(2026-10-26 接入):`PathPrefix(/v2/letmoe)` + `face=letmoe`,letmoe-api:7001,契约镜像在 `docs/downstream/letmoe-openapi.yaml`。`/v2/letmoe/resources/{id}/file` 要运营发放的 `letmoe:files`,与 moyu `/file` 同一做法——它回 `dl.imoe.uk` 托管直链,那条链接不签名、长期有效,对自助密钥开放就等于允许整站导出。上线顺序:infra(注册表 + scope 常量)先,letmoe 的 compose 标签后;反过来时闸门对未注册 face 一律 500,不会越权。
+**letmoe 面**(2026-10-26 接入):`PathPrefix(/v2/letmoe)` + `face=letmoe`,letmoe-api:7001,契约镜像在 `docs/downstream/letmoe-openapi.yaml`。`/v2/letmoe/resources/{id}/file` 要 `letmoe:files`。上线时(2026-10-26)它与 moyu `/file` 同为运营发放;**2026-10-28 起按 letmoe 站长要求默认开放**:每把新密钥铸造时自动带上(`defaultKeyScopes`,不作为可勾选项),当时已有的密钥由运营一次性补发。它回的 `dl.imoe.uk` 托管直链不签名、长期有效,所以这个 scope 仍然保留——从单把密钥上摘掉它,是切断滥用应用的办法;轮换密钥沿用旧密钥的 scope,不会把摘掉的补回来。上线顺序:infra(注册表 + scope 常量)先,letmoe 的 compose 标签后;反过来时闸门对未注册 face 一律 500,不会越权。
 
 ForwardAuth 对所有方法生效,浏览器 `OPTIONS` 预检不带认证头 → 会被 401。**下游面不支持浏览器直连 fetch**——这是想要的(nmk_ key 不该出现在浏览器),门户文档须写明,免得第三方去查自己的 CORS。
 

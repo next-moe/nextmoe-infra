@@ -178,13 +178,23 @@ func TestHasScope(t *testing.T) {
 	}
 }
 
-func TestDownstreamFileScopesAreNotSelfService(t *testing.T) {
-	for _, sc := range []string{ScopeMoyuFiles, ScopeLetmoeFiles} {
-		if slices.Contains(selfServiceScopes, sc) {
-			t.Errorf("selfServiceScopes must NOT contain %q — it is granted by an operator", sc)
-		}
-		if err := checkMintScopes([]string{sc}); err != ErrScopeNotAllowed {
-			t.Errorf("self-service minting %s = %v, want ErrScopeNotAllowed", sc, err)
-		}
+func TestMoyuFilesIsNotSelfService(t *testing.T) {
+	if slices.Contains(selfServiceScopes, ScopeMoyuFiles) || slices.Contains(defaultKeyScopes, ScopeMoyuFiles) {
+		t.Errorf("moyu:files must stay operator-granted")
+	}
+	if err := checkMintScopes([]string{ScopeMoyuFiles}); err != ErrScopeNotAllowed {
+		t.Errorf("self-service minting moyu:files = %v, want ErrScopeNotAllowed", err)
+	}
+}
+
+func TestLetmoeFilesIsADefaultNotATick(t *testing.T) {
+	if slices.Contains(selfServiceScopes, ScopeLetmoeFiles) {
+		t.Errorf("letmoe:files is minted onto every key; offering it as a tick would suggest it can be left off")
+	}
+	if !slices.Contains(defaultKeyScopes, ScopeLetmoeFiles) {
+		t.Errorf("defaultKeyScopes = %v, want letmoe:files", defaultKeyScopes)
+	}
+	if err := checkMintScopes([]string{ScopeCatalogRead, ScopeLetmoeFiles}); err != nil {
+		t.Errorf("a request naming the default scope = %v, want accepted", err)
 	}
 }
