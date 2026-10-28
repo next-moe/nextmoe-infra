@@ -1,0 +1,100 @@
+# nextmoe-infra — NextMoe AI assistant (cmd/agent), STANDALONE.
+# Compose `name:` is frozen: volumes, networks and container names hang off it.
+#
+# Its own Dokploy "Compose" project, like docker-compose.mcp.yml. The main stack
+# recreates its containers on every deploy, and a recreated agent cuts every
+# conversation that is streaming at that moment; out here it is redeployed
+# (DOKPLOY_WEBHOOK_AGENT) only when infra-agent itself was rebuilt.
+#
+# Not public. The site backends (letmoe, kungal, moyu) call it over
+# dokploy-network at http://infra-agent:9287 with their oauth client
+# credentials and forward the user's access token; browsers never reach it.
+# Contract: docs/agent/README.md and docs/agent/openapi.yaml.
+#
+# It reuses the main stack's postgres, redis, oauth and catalog by their
+# dokploy-network names. The *_HOST overrides exist because a bare name that a
+# second project also claims resolves round-robin across both.
+#
+# Order on the FIRST deploy:
+#   1. `CREATE DATABASE kun_agent` on the main postgres (initdb never reruns).
+#   2. Deploy the main stack first: its migrate-ai job creates the llm_* tables
+#      in kun_ai that this service seeds and reads at startup. Until then the
+#      agent exits and restarts.
+#   3. Create the agent's oauth client (moemoepoint awarder) and set
+#      KUN_AGENT_CLIENT_ID / KUN_AGENT_CLIENT_SECRET below.
+#
+# Set in this project's Dokploy Environment:
+#   POSTGRES_PASSWORD  JWT_SECRET                          (same values as the main stack)
+#   KUN_AI_UPSTREAM_BASE_URL  KUN_AI_UPSTREAM_TOKEN        (Workers AI; seeds the first provider)
+#   KUN_LLM_KEK                                            (seals provider keys added from the admin)
+#   KUN_AGENT_CLIENT_ID  KUN_AGENT_CLIENT_SECRET           (moemoepoint charges)
+#   KUN_AGENT_POW_KEYS                                     (anonymous search proof of work)
+#   KUN_BRAVE_API_KEY                                      (web search; empty = off)
+name: kun-galgame-infra-agent
+
+x-agent-env: &agent-env
+  KUN_ENV: production
+  KUN_PG_HOST: ${KUN_AGENT_INFRA_PG_HOST:-postgres}
+  KUN_PG_PORT: "5432"
+  KUN_PG_USER: postgres
+  KUN_PG_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy Environment}
+  KUN_PG_DATABASE: kun_galgame_infra
+  KUN_PG_SSLMODE: disable
+  KUN_PG_TIMEZONE: Asia/Shanghai
+  KUN_AI_PG_DATABASE: kun_ai
+  KUN_AGENT_PG_DATABASE: kun_agent
+
+services:
+  migrate-agent:
+    image: ghcr.io/next-moe/infra-migrate:latest
+    command: ["agent"]
+    pull_policy: always
+    environment: { <<: *agent-env }
+    restart: "no"
+
+  agent:
+    image: ghcr.io/next-moe/infra-agent:latest
+    pull_policy: always
+    environment:
+      <<: *agent-env
+      KUN_AGENT_HOST: 0.0.0.0
+      KUN_AGENT_PORT: "9287"
+      REDIS_ENABLED: "true"
+      REDIS_HOST: ${KUN_AGENT_INFRA_REDIS_HOST:-redis}
+      REDIS_PORT: "6379"
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Dokploy Environment (same as the main stack)}
+      KUN_SITE_URL: https://account.nextmoe.com
+      KUN_OIDC_JWKS_URL: http://infra-oauth:9277/oauth/jwks
+      KUN_AGENT_OAUTH_BASE: http://infra-oauth:9277
+      KUN_AGENT_CATALOG_BASE: ${KUN_AGENT_CATALOG_BASE:-http://catalog:9281}
+      KUN_AGENT_CLIENT_ID: ${KUN_AGENT_CLIENT_ID:-}
+      KUN_AGENT_CLIENT_SECRET: ${KUN_AGENT_CLIENT_SECRET:-}
+      KUN_AGENT_POW_KEYS: ${KUN_AGENT_POW_KEYS:-}
+      KUN_AI_UPSTREAM_BASE_URL: ${KUN_AI_UPSTREAM_BASE_URL:-}
+      KUN_AI_UPSTREAM_TOKEN: ${KUN_AI_UPSTREAM_TOKEN:-}
+      KUN_LLM_KEK: ${KUN_LLM_KEK:-}
+      KUN_BRAVE_API_KEY: ${KUN_BRAVE_API_KEY:-}
+    expose: ["9287"]
+    depends_on:
+      migrate-agent: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    stop_grace_period: 60s
+    restart: unless-stopped
+    networks:
+      default:
+        aliases: [infra-agent]
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+networks:
+  default:
+    name: dokploy-network
+    external: true
