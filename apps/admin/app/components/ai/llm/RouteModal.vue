@@ -27,6 +27,8 @@ const upstreamId = ref('')
 const priority = ref(0)
 const weight = ref(1)
 const status = ref<LlmRouteStatus>('active')
+const maxInFlight = ref(0)
+const rpm = ref(0)
 const price = ref(llmPriceDraft())
 let initialPrice = ''
 const saving = ref(false)
@@ -48,6 +50,8 @@ watch(open, (v) => {
   priority.value = r?.priority ?? 0
   weight.value = r?.weight ?? 1
   status.value = r?.status ?? 'active'
+  maxInFlight.value = r?.max_in_flight ?? 0
+  rpm.value = r?.rpm ?? 0
   price.value = llmPriceDraft(r?.price)
   initialPrice = JSON.stringify(price.value)
   error.value = ''
@@ -73,6 +77,8 @@ const save = async () => {
     upstream_id: upstream,
     priority: priority.value,
     weight: weight.value,
+    max_in_flight: maxInFlight.value,
+    rpm: rpm.value,
     ...(statusChanged ? { status: status.value } : {}),
     ...(sendPrice ? { price: sendPrice } : {})
   }
@@ -141,6 +147,22 @@ const save = async () => {
           v-model="status"
           label="状态"
           :options="LLM_ROUTE_STATUS_OPTIONS"
+        />
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <KunNumberInput
+          :model-value="maxInFlight"
+          label="最大并发"
+          :min="0"
+          description="所有网关进程合计同时进行的调用数;0 = 不限"
+          @update:model-value="maxInFlight = $event ?? 0"
+        />
+        <KunNumberInput
+          :model-value="rpm"
+          label="每分钟调用上限 (RPM)"
+          :min="0"
+          description="所有网关进程合计;0 = 不限"
+          @update:model-value="rpm = $event ?? 0"
         />
       </div>
 

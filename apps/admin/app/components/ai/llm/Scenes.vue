@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { LLM_API, LLM_SCENE_CLASS_META } from '~/constants/llm'
+import {
+  LLM_API,
+  LLM_SCENE_CLASS_META,
+  LLM_SCENE_STRATEGY_META
+} from '~/constants/llm'
 import type { LlmModel, LlmScene } from '~~/shared/types/llm'
 
 const props = defineProps<{ scenes: LlmScene[]; models: LlmModel[] }>()
@@ -17,6 +21,19 @@ const openModal = (s: LlmScene | null) => {
   editing.value = s
   modalOpen.value = true
 }
+
+const planOpen = ref(false)
+const planning = ref<LlmScene | null>(null)
+const openPlan = (s: LlmScene) => {
+  planning.value = s
+  planOpen.value = true
+}
+
+const extraChains = (s: LlmScene) =>
+  [
+    { label: '超长时', ids: s.context_fallback_model_ids },
+    { label: '被过滤时', ids: s.content_fallback_model_ids }
+  ].filter((c) => c.ids.length)
 
 const remove = async (s: LlmScene) => {
   const confirmed = await useKunAlert({
@@ -48,7 +65,7 @@ const remove = async (s: LlmScene) => {
   <div class="space-y-3">
     <div class="flex items-center justify-between gap-3">
       <p class="text-default-500 text-sm">
-        调用方按场景请求;主模型的路由全部失败后,依次尝试备选模型。
+        调用方按场景请求;主模型的路由全部失败后,依次尝试备选模型;输入超长或被内容过滤时改走对应的链。
       </p>
       <KunButton
         color="primary"
@@ -66,7 +83,7 @@ const remove = async (s: LlmScene) => {
           <tr>
             <th class="px-3 py-2 text-left font-medium">场景</th>
             <th class="px-3 py-2 text-left font-medium">模型链</th>
-            <th class="px-3 py-2 text-left font-medium">类别</th>
+            <th class="px-3 py-2 text-left font-medium">类别 / 策略</th>
             <th class="px-3 py-2 text-right font-medium">温度 / 最大输出</th>
             <th class="px-3 py-2 text-right font-medium">
               超时 首字 / 空闲 / 总 (ms)
@@ -96,9 +113,29 @@ const remove = async (s: LlmScene) => {
                   </KunChip>
                 </template>
               </div>
+              <div
+                v-for="c in extraChains(s)"
+                :key="c.label"
+                class="mt-1 flex flex-wrap items-center gap-1"
+              >
+                <span class="text-default-400 text-xs">{{ c.label }}</span>
+                <template v-for="(id, i) in c.ids" :key="id">
+                  <KunIcon
+                    v-if="i"
+                    name="lucide:arrow-right"
+                    class="text-default-400 size-3"
+                  />
+                  <KunChip color="warning" variant="flat" size="xs">
+                    {{ modelKey(id) }}
+                  </KunChip>
+                </template>
+              </div>
             </td>
             <td class="px-3 py-2">
-              {{ LLM_SCENE_CLASS_META[s.class] ?? s.class }}
+              <p>{{ LLM_SCENE_CLASS_META[s.class] ?? s.class }}</p>
+              <p class="text-default-500 text-xs">
+                {{ LLM_SCENE_STRATEGY_META[s.strategy]?.label ?? s.strategy }}
+              </p>
             </td>
             <td class="px-3 py-2 text-right tabular-nums">
               {{ s.temperature ?? '默认' }} /
@@ -110,6 +147,9 @@ const remove = async (s: LlmScene) => {
               {{ s.total_ms.toLocaleString() }}
             </td>
             <td class="px-3 py-2 text-right whitespace-nowrap">
+              <KunButton size="sm" variant="flat" @click="openPlan(s)">
+                试运行
+              </KunButton>
               <KunButton size="sm" variant="light" @click="openModal(s)">
                 编辑
               </KunButton>
@@ -140,5 +180,6 @@ const remove = async (s: LlmScene) => {
       :taken-keys="scenes.map((s) => s.key)"
       @saved="emit('changed')"
     />
+    <AiLlmScenePlanModal v-model="planOpen" :scene="planning" />
   </div>
 </template>

@@ -1000,10 +1000,10 @@ export interface components {
             /** Format: int64 */
             route_id: number;
             /**
-             * @description forced: every route is cooling, so the one that recovers first is tried anyway.
+             * @description forced: every route is cooling, so the one that recovers first is tried anyway; cooling appears only among the skipped.
              * @enum {string}
              */
-            state: "ready" | "cooling" | "forced";
+            state: "ready" | "forced" | "cooling";
             upstream_id: string;
             /** Format: int64 */
             weight: number;
@@ -1256,7 +1256,8 @@ export interface components {
             /** @description Routes cooling down, not tried unless everything else is. */
             skipped: components["schemas"]["PlanStep"][];
             steps: components["schemas"]["PlanStep"][];
-            strategy: string;
+            /** @enum {string} */
+            strategy: "weighted" | "least_busy" | "latency" | "cost";
         };
         SceneView: {
             /** @enum {string} */

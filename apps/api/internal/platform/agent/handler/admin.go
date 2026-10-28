@@ -35,6 +35,9 @@ func siteToolView(t model.SiteTool) SiteToolView {
 	v := SiteToolView{ID: t.ID, SiteID: t.SiteID, Name: t.Name, URL: t.URL, Auth: t.Auth, CardPrefix: t.CardPrefix,
 		TimeoutMs: t.TimeoutMs, Enabled: t.Enabled, UpdatedAt: t.UpdatedAt, Allowed: []string{}}
 	_ = json.Unmarshal(t.Allowed, &v.Allowed)
+	if v.Allowed == nil {
+		v.Allowed = []string{}
+	}
 	return v
 }
 
@@ -85,7 +88,11 @@ func applySiteTool(row *model.SiteTool, in SiteToolInput) error {
 		row.CardPrefix = *in.CardPrefix
 	}
 	if in.Allowed != nil {
-		raw, _ := json.Marshal(*in.Allowed)
+		allowed := *in.Allowed
+		if allowed == nil {
+			allowed = []string{}
+		}
+		raw, _ := json.Marshal(allowed)
 		row.Allowed = datatypes.JSON(raw)
 	}
 	if in.TimeoutMs != nil {

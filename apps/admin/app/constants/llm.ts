@@ -4,10 +4,14 @@ import type {
   LlmCatalogKind,
   LlmCatalogKindSource,
   LlmModelKind,
+  LlmPlanStepState,
   LlmPriceKey,
+  LlmRouteHealthState,
   LlmRouteStatus,
+  LlmSceneChainKey,
   LlmScenePutRequest,
-  LlmSceneClass
+  LlmSceneClass,
+  LlmSceneStrategy
 } from '~~/shared/types/llm'
 
 export const LLM_API = '/admin/ai/llm'
@@ -17,6 +21,7 @@ export const LLM_TABS: KunTabItem[] = [
   { value: 'models', textValue: '模型' },
   { value: 'routes', textValue: '路由' },
   { value: 'scenes', textValue: '场景' },
+  { value: 'health', textValue: '健康' },
   { value: 'keys', textValue: '访问密钥' },
   { value: 'events', textValue: '事件' }
 ]
@@ -117,9 +122,64 @@ export const LLM_SCENE_CLASS_OPTIONS = (
   label: `${value} · ${LLM_SCENE_CLASS_META[value]}`
 }))
 
+export const LLM_SCENE_STRATEGY_META: Record<
+  LlmSceneStrategy,
+  { label: string; option: string; hint: string }
+> = {
+  weighted: {
+    label: '加权',
+    option: '加权（同一会话固定路由）',
+    hint: '同一档位内按权重分流;同一会话始终落在同一条路由,利于上游缓存'
+  },
+  least_busy: {
+    label: '最少在途',
+    option: '最少在途',
+    hint: '优先选本进程里进行中调用最少的路由'
+  },
+  latency: {
+    label: '最低延迟',
+    option: '最低延迟',
+    hint: '优先选近期首字最快的路由,约一成调用用于探索其它路由'
+  },
+  cost: {
+    label: '最低价格',
+    option: '最低价格',
+    hint: '优先选标价最便宜的路由'
+  }
+}
+
+export const LLM_SCENE_STRATEGY_OPTIONS = (
+  Object.keys(LLM_SCENE_STRATEGY_META) as LlmSceneStrategy[]
+).map((value) => ({ value, label: LLM_SCENE_STRATEGY_META[value].option }))
+
+export const LLM_SCENE_CHAINS: {
+  key: LlmSceneChainKey
+  label: string
+  hint: string
+}[] = [
+  {
+    key: 'fallback_model_ids',
+    label: '备选模型',
+    hint: '主模型的路由全部失败后按顺序尝试'
+  },
+  {
+    key: 'context_fallback_model_ids',
+    label: '上下文超长时改用',
+    hint: '模型以输入过长拒绝时按顺序改用'
+  },
+  {
+    key: 'content_fallback_model_ids',
+    label: '被内容过滤时改用',
+    hint: '模型的内容过滤拒绝请求(尚未输出)时按顺序改用'
+  }
+]
+
 export const LLM_SCENE_DEFAULTS: LlmScenePutRequest = {
   model_id: 0,
   fallback_model_ids: [],
+  context_fallback_model_ids: [],
+  content_fallback_model_ids: [],
+  strategy: 'weighted',
   class: 'interactive',
   temperature: null,
   max_output: 0,
@@ -127,6 +187,27 @@ export const LLM_SCENE_DEFAULTS: LlmScenePutRequest = {
   idle_ms: 30000,
   total_ms: 120000
 }
+
+export const LLM_PLAN_STATE_META: Record<
+  LlmPlanStepState,
+  { label: string; color: AiChipColor }
+> = {
+  ready: { label: '就绪', color: 'success' },
+  cooling: { label: '冷却中', color: 'warning' },
+  forced: { label: '强制尝试', color: 'danger' }
+}
+
+export const LLM_HEALTH_STATE_META: Record<
+  LlmRouteHealthState,
+  { label: string; color: AiChipColor }
+> = {
+  healthy: { label: '健康', color: 'success' },
+  cooling: { label: '冷却中', color: 'warning' },
+  limited: { label: '已限流', color: 'secondary' },
+  disabled: { label: '停用', color: 'default' }
+}
+
+export const LLM_HEALTH_REFRESH_MS = 10_000
 
 export const LLM_ACCESS_KEY_HINT =
   '内部调用方使用 base URL http://ai:9284/v1(生产内网),请求头带 Authorization: Bearer <secret>。'

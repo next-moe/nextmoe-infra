@@ -10,13 +10,14 @@ import {
 import type {
   LlmCatalogEntry,
   LlmCatalogKind,
+  LlmCatalogKindChoice,
   LlmCatalogSyncResult,
   LlmProvider
 } from '~~/shared/types/llm'
 
 const props = defineProps<{ provider: LlmProvider | null }>()
 const open = defineModel<boolean>({ required: true })
-const emit = defineEmits<{ adopted: [] }>()
+const emit = defineEmits<{ adopted: []; synced: [] }>()
 
 const api = useApi('ai')
 
@@ -58,12 +59,6 @@ watch(open, async (v) => {
   loading.value = false
 })
 
-const lastSeen = computed(() =>
-  entries.value.reduce<string | null>(
-    (max, e) => (!max || e.last_seen_at > max ? e.last_seen_at : max),
-    null
-  )
-)
 const listedCount = computed(() => entries.value.filter((e) => e.listed).length)
 
 const statusTabs = computed<KunTabItem[]>(() =>
@@ -133,13 +128,14 @@ const sync = async () => {
       syncSummary(res.data),
       orphaned.value.length ? 'warn' : 'success'
     )
+    emit('synced')
     await load()
   } finally {
     syncing.value = false
   }
 }
 
-const setKind = async (e: LlmCatalogEntry, next: LlmCatalogKind) => {
+const setKind = async (e: LlmCatalogEntry, next: LlmCatalogKindChoice) => {
   busy.value = `${e.id}:kind`
   try {
     const res = await api.patch<LlmCatalogEntry>(
@@ -151,7 +147,11 @@ const setKind = async (e: LlmCatalogEntry, next: LlmCatalogKind) => {
       return
     }
     replace(res.data)
-    useKunMessage(`已改为「${LLM_CATALOG_KIND_META[next].label}」`, 'success')
+    const label = LLM_CATALOG_KIND_META[res.data.kind].label
+    useKunMessage(
+      next === 'auto' ? `已恢复自动:「${label}」` : `已改为「${label}」`,
+      'success'
+    )
   } finally {
     busy.value = ''
   }
@@ -170,8 +170,7 @@ const probe = async (e: LlmCatalogEntry) => {
   busy.value = `${e.id}:probe`
   try {
     const res = await api.post<LlmCatalogEntry>(
-      `${LLM_API}/provider-models/${e.id}/probe`,
-      {}
+      `${LLM_API}/provider-models/${e.id}/probe`
     )
     if (res.code !== 0) {
       useKunMessage(res.message || '测试请求失败', 'error')
@@ -212,11 +211,13 @@ const onAdopted = async () => {
     <div class="space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <p class="text-default-500 text-sm">
-          <template v-if="entries.length">
-            上次同步 {{ llmTime(lastSeen) }} · 在列 {{ listedCount }} / 共
-            {{ entries.length }}
+          <template v-if="provider?.catalog_synced_at">
+            上次同步 {{ llmTime(provider.catalog_synced_at) }}
           </template>
           <template v-else-if="!loading">尚未同步</template>
+          <template v-if="entries.length">
+            · 在列 {{ listedCount }} / 共 {{ entries.length }}
+          </template>
         </p>
         <KunButton
           color="primary"

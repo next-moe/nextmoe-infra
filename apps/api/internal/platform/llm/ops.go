@@ -119,12 +119,12 @@ type PlanStep struct {
 	UpstreamID string `json:"upstream_id"`
 	Priority   int    `json:"priority"`
 	Weight     int    `json:"weight"`
-	State      string `json:"state" enum:"ready,cooling,forced" doc:"forced: every route is cooling, so the one that recovers first is tried anyway."`
+	State      string `json:"state" enum:"ready,forced,cooling" doc:"forced: every route is cooling, so the one that recovers first is tried anyway; cooling appears only among the skipped."`
 }
 
 type ScenePlan struct {
 	Scene    string     `json:"scene"`
-	Strategy string     `json:"strategy"`
+	Strategy string     `json:"strategy" enum:"weighted,least_busy,latency,cost"`
 	Steps    []PlanStep `json:"steps"`
 	Skipped  []PlanStep `json:"skipped" doc:"Routes cooling down, not tried unless everything else is."`
 }

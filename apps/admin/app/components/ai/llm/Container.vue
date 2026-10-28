@@ -120,6 +120,7 @@ onMounted(() => {
           :models="models"
           @changed="load('scenes')"
         />
+        <AiLlmHealth v-else-if="tab === 'health'" />
         <AiLlmAccessKeys
           v-else-if="tab === 'keys'"
           :access-keys="accessKeys"

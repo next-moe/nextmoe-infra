@@ -940,11 +940,11 @@ components:
           format: int64
           type: integer
         state:
-          description: "forced: every route is cooling, so the one that recovers first is tried anyway."
+          description: "forced: every route is cooling, so the one that recovers first is tried anyway; cooling appears only among the skipped."
           enum:
             - ready
-            - cooling
             - forced
+            - cooling
           type: string
         upstream_id:
           type: string
@@ -1524,6 +1524,11 @@ components:
             $ref: "#/components/schemas/PlanStep"
           type: array
         strategy:
+          enum:
+            - weighted
+            - least_busy
+            - latency
+            - cost
           type: string
       required:
         - scene

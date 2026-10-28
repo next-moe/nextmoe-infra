@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
-import type { KunDropdownItem } from '@kungal/ui-vue'
+import type { KunDropdownItem, KunMenuEntry } from '@kungal/ui-vue'
 import {
   LLM_CATALOG_KIND_META,
   LLM_CATALOG_KIND_SOURCE_LABEL,
@@ -10,12 +10,12 @@ import {
 import type {
   LlmCatalogEntry,
   LlmCatalogKind,
-  LlmRouteStatus
+  LlmCatalogKindChoice
 } from '~~/shared/types/llm'
 
 const props = defineProps<{ entry: LlmCatalogEntry; busy: string }>()
 const emit = defineEmits<{
-  kind: [LlmCatalogKind]
+  kind: [LlmCatalogKindChoice]
   probe: []
   adopt: []
 }>()
@@ -25,20 +25,29 @@ const kindMeta = (k: string) =>
     label: k,
     color: 'default' as const
   }
-const routeMeta = (s: string) =>
-  LLM_ROUTE_STATUS_META[s as LlmRouteStatus] ?? {
-    label: s,
-    color: 'default' as const
-  }
-
-const kindItems = computed<KunDropdownItem[]>(() =>
-  LLM_CATALOG_KINDS.map((k) => ({
+const isAutoKind = computed(
+  () =>
+    props.entry.kind_source === 'metadata' || props.entry.kind_source === 'name'
+)
+const kindItems = computed<KunMenuEntry[]>(() => [
+  ...LLM_CATALOG_KINDS.map((k) => ({
     key: k,
     label: `${k} · ${LLM_CATALOG_KIND_META[k].label}`,
     disabled: k === props.entry.kind
-  }))
-)
+  })),
+  { type: 'separator' },
+  {
+    key: 'auto',
+    label: '恢复自动',
+    icon: 'lucide:rotate-ccw',
+    disabled: isAutoKind.value
+  }
+])
 const pickKind = (item: KunDropdownItem) => {
+  if (item.key === 'auto') {
+    emit('kind', 'auto')
+    return
+  }
   const k = LLM_CATALOG_KINDS.find((x) => x === item.key)
   if (k) emit('kind', k)
 }
@@ -121,11 +130,12 @@ const isBusy = (what: string) => props.busy === `${props.entry.id}:${what}`
         <KunChip
           v-for="r in entry.routes"
           :key="r.route_id"
-          :color="routeMeta(r.status).color"
+          :color="LLM_ROUTE_STATUS_META[r.status].color"
           variant="flat"
           size="xs"
         >
-          #{{ r.route_id }} {{ r.model_key }} · {{ routeMeta(r.status).label }}
+          #{{ r.route_id }} {{ r.model_key }} ·
+          {{ LLM_ROUTE_STATUS_META[r.status].label }}
         </KunChip>
       </div>
     </div>

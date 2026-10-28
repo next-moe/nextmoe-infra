@@ -32,7 +32,23 @@ export type LlmRouteTestResult = Schemas['ProbeResult']
 
 export type LlmScene = Schemas['SceneView']
 export type LlmSceneClass = LlmScene['class']
-export type LlmScenePutRequest = Schemas['SceneInput']
+export type LlmSceneStrategy = LlmScene['strategy']
+export type LlmScenePutRequest = Required<
+  Omit<Schemas['SceneInput'], '$schema'>
+> & {
+  context_fallback_model_ids: number[]
+  content_fallback_model_ids: number[]
+}
+export type LlmSceneChainKey =
+  | 'fallback_model_ids'
+  | 'context_fallback_model_ids'
+  | 'content_fallback_model_ids'
+export type LlmScenePlan = Schemas['ScenePlan']
+export type LlmPlanStep = Schemas['PlanStep']
+export type LlmPlanStepState = LlmPlanStep['state']
+
+export type LlmRouteHealth = Schemas['RouteHealthView']
+export type LlmRouteHealthState = LlmRouteHealth['state']
 
 export type LlmAccessKey = Schemas['AccessKeyView']
 export type LlmAccessKeyCreateRequest = Schemas['AccessKeyInput'] & {
@@ -50,6 +66,8 @@ export type LlmRouteProtocol = LlmRoute['protocol']
 export type LlmCatalogEntry = Schemas['ProviderModelView']
 export type LlmCatalogKind = LlmCatalogEntry['kind']
 export type LlmCatalogKindSource = LlmCatalogEntry['kind_source']
+export type LlmCatalogKindChoice =
+  Schemas['UpdateLLMProviderModelRequest']['kind']
 export type LlmCatalogSyncResult = Schemas['SyncResult']
 export type LlmCatalogAdoptRequest = Omit<Schemas['AdoptInput'], '$schema'>
 export type LlmCatalogAdoptResult = Schemas['AdoptResult']

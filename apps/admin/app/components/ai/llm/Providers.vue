@@ -2,7 +2,10 @@
 import { LLM_API } from '~/constants/llm'
 import type { LlmProvider } from '~~/shared/types/llm'
 
-defineProps<{ providers: LlmProvider[]; kekConfigured: boolean }>()
+const props = defineProps<{
+  providers: LlmProvider[]
+  kekConfigured: boolean
+}>()
 const emit = defineEmits<{ changed: []; adopted: [] }>()
 
 const api = useApi('ai')
@@ -16,9 +19,12 @@ const openModal = (p: LlmProvider | null) => {
 }
 
 const catalogOpen = ref(false)
-const catalogFor = ref<LlmProvider | null>(null)
+const catalogId = ref(0)
+const catalogFor = computed(
+  () => props.providers.find((p) => p.id === catalogId.value) ?? null
+)
 const openCatalog = (p: LlmProvider) => {
-  catalogFor.value = p
+  catalogId.value = p.id
   catalogOpen.value = true
 }
 
@@ -155,6 +161,7 @@ const remove = async (p: LlmProvider) => {
       v-model="catalogOpen"
       :provider="catalogFor"
       @adopted="emit('adopted')"
+      @synced="emit('changed')"
     />
   </div>
 </template>

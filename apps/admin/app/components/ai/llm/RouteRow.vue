@@ -47,9 +47,22 @@ const isBusy = (what: string) => props.busy === `${props.route.id}:${what}`
       <p class="text-default-500 font-mono text-xs break-all">
         {{ route.upstream_id }}
       </p>
-      <KunChip color="default" variant="flat" size="xs" class-name="mt-1">
-        {{ route.protocol }}
-      </KunChip>
+      <div class="mt-1 flex flex-wrap gap-1">
+        <KunChip color="default" variant="flat" size="xs">
+          {{ route.protocol }}
+        </KunChip>
+        <KunChip
+          v-if="route.max_in_flight > 0"
+          color="info"
+          variant="flat"
+          size="xs"
+        >
+          并发 ≤ {{ route.max_in_flight }}
+        </KunChip>
+        <KunChip v-if="route.rpm > 0" color="info" variant="flat" size="xs">
+          {{ route.rpm }} 次/分
+        </KunChip>
+      </div>
     </td>
     <td class="px-3 py-2 text-right tabular-nums">{{ route.priority }}</td>
     <td class="px-3 py-2 text-right tabular-nums">{{ route.weight }}</td>
