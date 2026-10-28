@@ -17,6 +17,21 @@ components:
           additionalProperties: true
           description: "Setting key to its effective value. Every property is optional: an app falls back to its built-in default for a key that is missing, and ignores a key it does not know."
           properties:
+            agent.anon.enabled:
+              default: true
+              description: Allows signed-out visitors to use the search mode on this site.
+              type: boolean
+            agent.anon.verify_mode:
+              default: none
+              description: "Human check a signed-out search must pass: none, or pow (proof of work)."
+              enum:
+                - none
+                - pow
+              type: string
+            agent.enabled:
+              default: false
+              description: Turns the AI assistant on for a site. Off answers every agent request from that site with 403.
+              type: boolean
             app.kungal.home_rating_count:
               default: 6
               description: How many player ratings the kungal app shows on its home page; 0 hides the section.

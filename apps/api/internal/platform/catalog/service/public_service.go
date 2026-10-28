@@ -30,6 +30,7 @@ type PublicService struct {
 	metaCache    *imageMetaCache
 	totals       *totalsCache
 	worksSearch  *catsearch.Indexer
+	worksEmbed   catsearch.Embedder
 	traitCounts  *traitCountCache
 	engineRaters engineRatersCache
 }

@@ -1,0 +1,158 @@
+package tools
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+	"unicode/utf8"
+
+	"api/internal/platform/llm"
+)
+
+const (
+	modelOutputCap = 16000
+	toolTimeout    = 20 * time.Second
+)
+
+type Card struct {
+	ID   string          `json:"id"`
+	Data json.RawMessage `json:"data"`
+}
+
+type Source struct {
+	URL   string `json:"url"`
+	Title string `json:"title"`
+}
+
+type Output struct {
+	Text    string
+	Cards   []Card
+	Sources []Source
+}
+
+type Tool interface {
+	Spec() llm.Tool
+	Run(ctx context.Context, args json.RawMessage) (Output, error)
+}
+
+type Registry struct {
+	tools map[string]Tool
+	order []string
+}
+
+func NewRegistry(ts ...Tool) *Registry {
+	r := &Registry{tools: map[string]Tool{}}
+	for _, t := range ts {
+		if t == nil {
+			continue
+		}
+		name := t.Spec().Name
+		r.tools[name] = t
+		r.order = append(r.order, name)
+	}
+	return r
+}
+
+func (r *Registry) Specs(skip ...string) []llm.Tool {
+	out := make([]llm.Tool, 0, len(r.order))
+	for _, name := range r.order {
+		if !contains(skip, name) {
+			out = append(out, r.tools[name].Spec())
+		}
+	}
+	return out
+}
+
+func contains(xs []string, x string) bool {
+	for _, v := range xs {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
+type Run struct {
+	reg    *Registry
+	budget int
+	mu     sync.Mutex
+	calls  int
+	reuse  map[string]Output
+}
+
+func (r *Registry) NewRun(budget int) *Run {
+	return &Run{reg: r, budget: budget, reuse: map[string]Output{}}
+}
+
+func (r *Run) Exhausted() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.calls >= r.budget
+}
+
+func (r *Run) Call(ctx context.Context, name, rawArgs string) Output {
+	t := r.reg.tools[name]
+	if t == nil {
+		return Output{Text: fmt.Sprintf(`{"error":"unknown tool %q"}`, name)}
+	}
+	args := json.RawMessage(strings.TrimSpace(rawArgs))
+	if len(args) == 0 {
+		args = json.RawMessage("{}")
+	}
+	var probe map[string]any
+	if err := json.Unmarshal(args, &probe); err != nil {
+		return Output{Text: `{"error":"arguments must be a JSON object"}`}
+	}
+	key := name + "\x00" + canonical(probe)
+	r.mu.Lock()
+	if out, ok := r.reuse[key]; ok {
+		r.mu.Unlock()
+		return out
+	}
+	if r.calls >= r.budget {
+		r.mu.Unlock()
+		return Output{Text: `{"error":"tool budget spent; answer with what you have"}`}
+	}
+	r.calls++
+	r.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(ctx, toolTimeout)
+	defer cancel()
+	out, err := t.Run(ctx, args)
+	if err != nil {
+		msg := err.Error()
+		if errors.Is(err, context.DeadlineExceeded) {
+			msg = "tool timed out"
+		}
+		out = Output{Text: fmt.Sprintf(`{"error":%q}`, msg)}
+	}
+	out.Text = clip(out.Text, modelOutputCap)
+	r.mu.Lock()
+	r.reuse[key] = out
+	r.mu.Unlock()
+	return out
+}
+
+func canonical(v map[string]any) string {
+	raw, _ := json.Marshal(v)
+	return string(raw)
+}
+
+func clip(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n] + "…"
+}
+
+func schema(props map[string]any, required ...string) json.RawMessage {
+	raw, _ := json.Marshal(map[string]any{"type": "object", "properties": props, "required": required})
+	return raw
+}

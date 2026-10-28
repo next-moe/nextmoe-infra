@@ -614,11 +614,12 @@ type PublicEngine struct {
 }
 
 type PublicWorksSearchData struct {
-	Total  int64                       `json:"total"`
-	Page   int                         `json:"page"`
-	Limit  int                         `json:"limit"`
-	Items  []PublicWorkListItem        `json:"items"`
-	Facets map[string]map[string]int64 `json:"facets,omitempty"`
+	Total      int64                       `json:"total"`
+	Page       int                         `json:"page"`
+	Limit      int                         `json:"limit"`
+	Items      []PublicWorkListItem        `json:"items"`
+	Facets     map[string]map[string]int64 `json:"facets,omitempty"`
+	SearchMode string                      `json:"search_mode,omitempty"`
 }
 
 type PublicReleaseFeedItem struct {

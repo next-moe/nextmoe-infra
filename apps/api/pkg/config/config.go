@@ -18,6 +18,7 @@ type Config struct {
 	CommunityDatabase       DatabaseConfig
 	TrustDatabase           DatabaseConfig
 	AIDatabase              DatabaseConfig
+	AgentDatabase           DatabaseConfig
 	TelemetryDatabase       DatabaseConfig
 	NewsDatabase            DatabaseConfig
 	ImagesDatabase          DatabaseConfig
@@ -66,10 +67,13 @@ type Config struct {
 	ChatService  ChatServiceConfig
 
 	AIService        AIServiceConfig
+	AgentService     AIServiceConfig
+	LLM              LLMConfig
 	TelemetryService TelemetryServiceConfig
 	TelemetrySymbols TelemetrySymbolsConfig
 	TelemetryWorker  TelemetryWorkerConfig
 	AIUpstream       AIUpstreamConfig
+	LLMGateway       LLMGatewayConfig
 	AIOmni           AIOmniConfig
 
 	AIClient AIClientConfig
@@ -115,6 +119,16 @@ type AIServiceConfig struct {
 	Port int
 }
 
+type LLMConfig struct {
+	KEK          string
+	BraveAPIKey  string
+	CatalogBase  string
+	OAuthBase    string
+	ClientID     string
+	ClientSecret string
+	PowKeys      string
+}
+
 type TelemetryServiceConfig struct {
 	Host         string
 	Port         int
@@ -141,6 +155,25 @@ type AIUpstreamConfig struct {
 }
 
 const DefaultAIUpstreamModel = "@cf/zai-org/glm-5.2"
+
+type LLMGatewayConfig struct {
+	URL string
+	Key string
+}
+
+func LLMBaseURL() string {
+	if os.Getenv("KUN_LLM_GATEWAY_KEY") != "" {
+		return getEnv("KUN_LLM_GATEWAY_URL", "http://127.0.0.1:9284/v1")
+	}
+	return os.Getenv("KUN_AI_UPSTREAM_BASE_URL")
+}
+
+func LLMToken() string {
+	if k := os.Getenv("KUN_LLM_GATEWAY_KEY"); k != "" {
+		return k
+	}
+	return os.Getenv("KUN_AI_UPSTREAM_TOKEN")
+}
 
 type AIOmniConfig struct {
 	BaseURL string
@@ -394,6 +427,16 @@ func Load() (*Config, error) {
 		Timezone: getEnv("KUN_AI_PG_TIMEZONE", cfg.Database.Timezone),
 	}
 
+	cfg.AgentDatabase = DatabaseConfig{
+		Host:     getEnv("KUN_AGENT_PG_HOST", cfg.Database.Host),
+		Port:     getEnv("KUN_AGENT_PG_PORT", cfg.Database.Port),
+		User:     getEnv("KUN_AGENT_PG_USER", cfg.Database.User),
+		Password: getEnv("KUN_AGENT_PG_PASSWORD", cfg.Database.Password),
+		DBName:   getEnv("KUN_AGENT_PG_DATABASE", "kun_agent"),
+		SSLMode:  getEnv("KUN_AGENT_PG_SSLMODE", cfg.Database.SSLMode),
+		Timezone: getEnv("KUN_AGENT_PG_TIMEZONE", cfg.Database.Timezone),
+	}
+
 	cfg.TelemetryDatabase = DatabaseConfig{
 		Host:     getEnv("KUN_TELEMETRY_PG_HOST", cfg.Database.Host),
 		Port:     getEnv("KUN_TELEMETRY_PG_PORT", cfg.Database.Port),
@@ -562,7 +605,7 @@ func Load() (*Config, error) {
 	pool := loadPoolConfig()
 	for _, d := range []*DatabaseConfig{
 		&cfg.Database, &cfg.GalgameDatabase, &cfg.CatalogDatabase, &cfg.CommunityDatabase,
-		&cfg.ChatDatabase, &cfg.TrustDatabase, &cfg.AIDatabase, &cfg.TelemetryDatabase, &cfg.NewsDatabase, &cfg.ImagesDatabase,
+		&cfg.ChatDatabase, &cfg.TrustDatabase, &cfg.AIDatabase, &cfg.AgentDatabase, &cfg.TelemetryDatabase, &cfg.NewsDatabase, &cfg.ImagesDatabase,
 		&cfg.ArtifactsDatabase,
 	} {
 		d.Pool = pool
@@ -620,6 +663,21 @@ func Load() (*Config, error) {
 		Port: aiPort,
 	}
 
+	agentPort, _ := strconv.Atoi(getEnv("KUN_AGENT_PORT", "9287"))
+	cfg.AgentService = AIServiceConfig{
+		Host: getEnv("KUN_AGENT_HOST", "127.0.0.1"),
+		Port: agentPort,
+	}
+	cfg.LLM = LLMConfig{
+		KEK:          getEnv("KUN_LLM_KEK", ""),
+		BraveAPIKey:  getEnv("KUN_BRAVE_API_KEY", ""),
+		CatalogBase:  getEnv("KUN_AGENT_CATALOG_BASE", "http://127.0.0.1:9281"),
+		OAuthBase:    getEnv("KUN_AGENT_OAUTH_BASE", "http://127.0.0.1:9277"),
+		ClientID:     getEnv("KUN_AGENT_CLIENT_ID", ""),
+		ClientSecret: getEnv("KUN_AGENT_CLIENT_SECRET", ""),
+		PowKeys:      getEnv("KUN_AGENT_POW_KEYS", ""),
+	}
+
 	telemetryPort, _ := strconv.Atoi(getEnv("KUN_TELEMETRY_PORT", "9286"))
 	cfg.TelemetryService = TelemetryServiceConfig{
 		Host:         getEnv("KUN_TELEMETRY_HOST", "127.0.0.1"),
@@ -650,6 +708,8 @@ func Load() (*Config, error) {
 		BaseURL: getEnv("KUN_AI_UPSTREAM_BASE_URL", ""),
 		Token:   getEnv("KUN_AI_UPSTREAM_TOKEN", ""),
 	}
+
+	cfg.LLMGateway = LLMGatewayConfig{URL: LLMBaseURL(), Key: LLMToken()}
 
 	cfg.AIOmni = AIOmniConfig{
 		BaseURL: getEnv("KUN_AI_OMNI_BASE_URL", "https://api.openai.com"),

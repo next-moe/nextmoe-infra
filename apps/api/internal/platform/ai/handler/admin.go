@@ -9,6 +9,7 @@ import (
 	"api/internal/platform/ai/dto"
 	aiPerm "api/internal/platform/ai/perm"
 	"api/internal/platform/ai/service"
+	"api/internal/platform/llm"
 	"api/pkg/errors"
 	"api/pkg/wireshape"
 
@@ -38,7 +39,7 @@ type AdminServer struct {
 	budgets *service.BudgetService
 }
 
-func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.BudgetService) huma.API {
+func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.BudgetService, gateway *llm.Admin) huma.API {
 	InstallErrorEnvelope()
 
 	cfg := huma.DefaultConfig("KUN AI Admin API", "1.0.1")
@@ -51,6 +52,7 @@ func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.Bu
 
 	s := &AdminServer{stats: stats, budgets: budgets}
 	s.register(api)
+	(&llmAdmin{a: gateway}).register(api)
 	wireshape.Publish(api.OpenAPI())
 	return api
 }

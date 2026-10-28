@@ -31,7 +31,7 @@ func main() {
 	apply := flag.Bool("apply", false, "write suggestions (default: dry run — sample + print)")
 	limit := flag.Int("limit", 0, "cap items processed (0 = all); dry-run sample size")
 	conc := flag.Int("concurrency", 4, "parallel LLM calls (<=4)")
-	llmBase := flag.String("llm-base", "", "OpenAI-compatible base URL (default: $KUN_AI_UPSTREAM_BASE_URL)")
+	llmBase := flag.String("llm-base", "", "OpenAI-compatible base URL (default: the NextMoe LLM gateway when KUN_LLM_GATEWAY_KEY is set, else $KUN_AI_UPSTREAM_BASE_URL)")
 	model := flag.String("model", "@cf/deepseek-ai/deepseek-v4-flash", "model id")
 	goldPath := flag.String("goldset", defaultGoldSet, "gold set JSONL path")
 	egDSN := flag.String("eg-dsn", "", "erogamescape staging DSN (default: erogamescape on the catalog server)")
@@ -231,10 +231,10 @@ func needsLLM(task, families string) bool {
 
 func mustLLM(base, model string) *llmsuggest.Client {
 	if base == "" {
-		base = os.Getenv("KUN_AI_UPSTREAM_BASE_URL")
+		base = config.LLMBaseURL()
 	}
-	if base == "" || os.Getenv("KUN_AI_UPSTREAM_TOKEN") == "" {
-		fmt.Println("BLOCKED: LLM upstream not configured (need KUN_AI_UPSTREAM_BASE_URL or --llm-base, and KUN_AI_UPSTREAM_TOKEN).")
+	if base == "" || config.LLMToken() == "" {
+		fmt.Println("BLOCKED: LLM upstream not configured (need KUN_LLM_GATEWAY_KEY, or KUN_AI_UPSTREAM_BASE_URL/--llm-base with KUN_AI_UPSTREAM_TOKEN).")
 		os.Exit(3)
 	}
 	return llmsuggest.NewClient(base, model)

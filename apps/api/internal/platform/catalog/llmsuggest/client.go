@@ -1,13 +1,13 @@
 package llmsuggest
 
 import (
+	"api/pkg/config"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -23,7 +23,7 @@ func NewClient(baseURL, model string) *Client {
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		model:   model,
-		apiKey:  os.Getenv("KUN_AI_UPSTREAM_TOKEN"),
+		apiKey:  config.LLMToken(),
 		http:    &http.Client{Timeout: 180 * time.Second},
 	}
 }
