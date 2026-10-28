@@ -1,4 +1,4 @@
-import type { components } from './generated/ai-admin-api'
+import type { components, operations } from './generated/ai-admin-api'
 
 type Schemas = components['schemas']
 
@@ -71,3 +71,18 @@ export type LlmCatalogKindChoice =
 export type LlmCatalogSyncResult = Schemas['SyncResult']
 export type LlmCatalogAdoptRequest = Omit<Schemas['AdoptInput'], '$schema'>
 export type LlmCatalogAdoptResult = Schemas['AdoptResult']
+
+export type LlmUsageQuery = NonNullable<
+  operations['getLLMUsage']['parameters']['query']
+>
+export type LlmUsageDays = NonNullable<LlmUsageQuery['days']>
+export type LlmUsageGroup = NonNullable<LlmUsageQuery['group']>
+export type LlmUsageReport = Schemas['UsageReport']
+export type LlmUsageRow = Schemas['UsageRow']
+export type LlmUsageDay = Schemas['UsageDay']
+
+export type LlmGatewayConfig = Omit<Schemas['GatewayConfig'], '$schema'>
+export type LlmImportResult = Schemas['ImportResult']
+export type LlmImportChange = Schemas['ImportChange']
+export type LlmImportKind = LlmImportChange['kind']
+export type LlmImportAction = LlmImportChange['action']

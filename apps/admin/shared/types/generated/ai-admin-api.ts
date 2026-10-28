@@ -73,6 +73,46 @@ export interface paths {
         patch: operations["updateLLMAccessKey"];
         trace?: never;
     };
+    "/api/v1/admin/ai/llm/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The whole gateway configuration by name, without provider keys or access key secrets
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["exportLLMConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/config/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview, or with apply=true write, an exported configuration; upserts by name and never deletes
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["importLLMConfig"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/llm/events": {
         parameters: {
             query?: never;
@@ -481,6 +521,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/ai/llm/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calls, errors, tokens and cost by provider, route, scene, access key or model
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["getLLMUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/usage/daily": {
         parameters: {
             query?: never;
@@ -527,6 +587,8 @@ export interface components {
              */
             readonly $schema?: string;
             allowed_models?: string[];
+            /** Format: int64 */
+            daily_budget_micro?: number;
             enabled?: boolean;
             name?: string;
         };
@@ -534,6 +596,11 @@ export interface components {
             allowed_models: string[];
             /** Format: date-time */
             created_at: string;
+            /**
+             * Format: int64
+             * @description Micro-USD this key may spend per day (China Standard Time); 0 is unlimited.
+             */
+            daily_budget_micro: number;
             enabled: boolean;
             /** Format: int64 */
             id: number;
@@ -541,6 +608,8 @@ export interface components {
             last_used_at: string | null;
             name: string;
             prefix: string;
+            /** Format: int64 */
+            spent_today_nano: number;
         };
         AdoptInput: {
             /**
@@ -590,6 +659,71 @@ export interface components {
             route_id: number;
             /** @enum {string} */
             status: "active" | "disabled";
+        };
+        ConfigAccessKey: {
+            allowed_models: string[] | null;
+            /** Format: int64 */
+            daily_budget_micro: number;
+            enabled: boolean;
+            name: string;
+        };
+        ConfigModel: {
+            /** Format: int64 */
+            context_tokens: number;
+            enabled: boolean;
+            key: string;
+            kind: string;
+            /** Format: int64 */
+            max_output: number;
+            reasoning: boolean;
+            tool_call: boolean;
+            vision: boolean;
+        };
+        ConfigProvider: {
+            base_url: string;
+            enabled: boolean;
+            headers: {
+                [key: string]: string;
+            };
+            name: string;
+            /** Format: int64 */
+            price_multiplier_ppm: number;
+        };
+        ConfigRoute: {
+            /** Format: int64 */
+            max_in_flight: number;
+            model: string;
+            price: components["schemas"]["Price"] | null;
+            /** Format: int64 */
+            priority: number;
+            provider: string;
+            /** Format: int64 */
+            rpm: number;
+            status: string;
+            upstream_id: string;
+            /** Format: int64 */
+            weight: number;
+        };
+        ConfigScene: {
+            class: string;
+            content_fallback: string[] | null;
+            context_fallback: string[] | null;
+            /** Format: int64 */
+            daily_budget_micro: number;
+            fallbacks: string[] | null;
+            /** Format: int64 */
+            idle_ms: number;
+            key: string;
+            /** Format: int64 */
+            max_output: number;
+            model: string;
+            strategy: string;
+            /** Format: double */
+            temperature: number | null;
+            /** Format: int64 */
+            total_ms: number;
+            /** Format: int64 */
+            ttft_ms: number;
         };
         CreatedAccessKey: {
             key: components["schemas"]["AccessKeyView"];
@@ -680,6 +814,30 @@ export interface components {
             /** Format: int64 */
             code: number;
             data?: components["schemas"]["Empty"];
+            message: string;
+        };
+        EnvelopeGatewayConfig: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeGatewayConfig.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["GatewayConfig"];
+            message: string;
+        };
+        EnvelopeImportResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeImportResult.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ImportResult"];
             message: string;
         };
         EnvelopeListAccessKeyView: {
@@ -898,6 +1056,18 @@ export interface components {
             data?: components["schemas"]["SyncResult"];
             message: string;
         };
+        EnvelopeUsageReport: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeUsageReport.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["UsageReport"];
+            message: string;
+        };
         EnvelopeUsageSummary: {
             /**
              * Format: uri
@@ -911,6 +1081,8 @@ export interface components {
             message: string;
         };
         EventView: {
+            /** @description Who made the change; empty for the gateway's own events. */
+            actor: string;
             /** Format: date-time */
             created_at: string;
             detail: string;
@@ -921,6 +1093,24 @@ export interface components {
             provider_id: number;
             /** Format: int64 */
             route_id: number;
+        };
+        GatewayConfig: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/GatewayConfig.json
+             */
+            readonly $schema?: string;
+            /** @description Names, scopes and budgets only; an imported key that does not exist is created without a secret and must be re-issued. */
+            access_keys: components["schemas"]["ConfigAccessKey"][] | null;
+            /** Format: date-time */
+            exported_at: string;
+            models: components["schemas"]["ConfigModel"][] | null;
+            providers: components["schemas"]["ConfigProvider"][] | null;
+            routes: components["schemas"]["ConfigRoute"][] | null;
+            scenes: components["schemas"]["ConfigScene"][] | null;
+            /** Format: int64 */
+            version: number;
         };
         HealthState: {
             /** Format: date-time */
@@ -943,6 +1133,18 @@ export interface components {
             /** Format: int64 */
             code: number;
             message: string;
+        };
+        ImportChange: {
+            /** @enum {string} */
+            action: "create" | "update" | "unchanged";
+            /** @enum {string} */
+            kind: "provider" | "model" | "route" | "scene" | "access_key";
+            name: string;
+        };
+        ImportResult: {
+            applied: boolean;
+            changes: components["schemas"]["ImportChange"][];
+            warnings: string[];
         };
         LlmStatus: {
             kek_configured: boolean;
@@ -1232,6 +1434,8 @@ export interface components {
             class: "interactive" | "search" | "batch" | "moderation";
             content_fallback_model_ids?: number[] | null;
             context_fallback_model_ids?: number[] | null;
+            /** Format: int64 */
+            daily_budget_micro?: number;
             fallback_model_ids: number[];
             /** Format: int64 */
             idle_ms: number;
@@ -1266,6 +1470,11 @@ export interface components {
             content_fallback_model_ids: number[];
             /** @description Tried after a model rejects the input as too long. */
             context_fallback_model_ids: number[];
+            /**
+             * Format: int64
+             * @description Micro-USD calls through this scene may spend per day (China Standard Time); 0 is unlimited.
+             */
+            daily_budget_micro: number;
             fallback_model_ids: number[];
             /** Format: int64 */
             idle_ms: number;
@@ -1274,6 +1483,10 @@ export interface components {
             max_output: number;
             /** Format: int64 */
             model_id: number;
+            /** @description Whether any model of the main chain has an active route right now. */
+            ready: boolean;
+            /** Format: int64 */
+            spent_today_nano: number;
             /** @enum {string} */
             strategy: "weighted" | "least_busy" | "latency" | "cost";
             /** Format: double */
@@ -1350,6 +1563,16 @@ export interface components {
             /** @description tenant site; '' = the route-wide default scope */
             site: string;
         };
+        UsageDay: {
+            /** Format: int64 */
+            calls: number;
+            /** Format: int64 */
+            cost_nano: number;
+            /** @description YYYY-MM-DD in China Standard Time. */
+            day: string;
+            /** Format: int64 */
+            errors: number;
+        };
         UsageOverview: {
             /** Format: int64 */
             budget_denied: number;
@@ -1371,6 +1594,31 @@ export interface components {
             truncated: number;
             /** Format: int64 */
             upstream_error: number;
+        };
+        UsageReport: {
+            daily: components["schemas"]["UsageDay"][];
+            /** Format: int64 */
+            days: number;
+            group: string;
+            rows: components["schemas"]["UsageRow"][];
+            total: components["schemas"]["UsageRow"];
+        };
+        UsageRow: {
+            /** Format: int64 */
+            avg_ms: number;
+            /** Format: int64 */
+            calls: number;
+            /** Format: int64 */
+            cost_nano: number;
+            /** Format: int64 */
+            errors: number;
+            /** Format: int64 */
+            input_tokens: number;
+            /** @description The group value: a provider, route or access key id, a scene key or a model key. */
+            key: string;
+            label: string;
+            /** Format: int64 */
+            output_tokens: number;
         };
         UsageSummary: {
             overview: components["schemas"]["UsageOverview"];
@@ -1563,6 +1811,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeAccessKeyView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    exportLLMConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeGatewayConfig"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    importLLMConfig: {
+        parameters: {
+            query?: {
+                apply?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GatewayConfig"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportResult"];
                 };
             };
             /** @description Error */
@@ -2394,6 +2706,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeLlmStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    getLLMUsage: {
+        parameters: {
+            query?: {
+                days?: 1 | 7 | 30;
+                group?: "provider" | "route" | "scene" | "key" | "model";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUsageReport"];
                 };
             };
             /** @description Error */

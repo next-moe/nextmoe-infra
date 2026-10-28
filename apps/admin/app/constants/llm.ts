@@ -3,6 +3,8 @@ import type { AiChipColor } from '~/constants/ai'
 import type {
   LlmCatalogKind,
   LlmCatalogKindSource,
+  LlmImportAction,
+  LlmImportKind,
   LlmModelKind,
   LlmPlanStepState,
   LlmPriceKey,
@@ -11,7 +13,9 @@ import type {
   LlmSceneChainKey,
   LlmScenePutRequest,
   LlmSceneClass,
-  LlmSceneStrategy
+  LlmSceneStrategy,
+  LlmUsageDays,
+  LlmUsageGroup
 } from '~~/shared/types/llm'
 
 export const LLM_API = '/admin/ai/llm'
@@ -22,8 +26,10 @@ export const LLM_TABS: KunTabItem[] = [
   { value: 'routes', textValue: '路由' },
   { value: 'scenes', textValue: '场景' },
   { value: 'health', textValue: '健康' },
+  { value: 'usage', textValue: '用量' },
   { value: 'keys', textValue: '访问密钥' },
-  { value: 'events', textValue: '事件' }
+  { value: 'events', textValue: '事件' },
+  { value: 'config', textValue: '配置' }
 ]
 
 export const LLM_MODEL_KIND_META: Record<
@@ -180,6 +186,7 @@ export const LLM_SCENE_DEFAULTS: LlmScenePutRequest = {
   context_fallback_model_ids: [],
   content_fallback_model_ids: [],
   strategy: 'weighted',
+  daily_budget_micro: 0,
   class: 'interactive',
   temperature: null,
   max_output: 0,
@@ -208,6 +215,52 @@ export const LLM_HEALTH_STATE_META: Record<
 }
 
 export const LLM_HEALTH_REFRESH_MS = 10_000
+
+export const LLM_BUDGET_HINT =
+  '按北京时间每天重置;0 或留空 = 不限。超出后的调用返回 budget_exceeded(/v1 上是 HTTP 429)。'
+
+export const LLM_BUDGET_WARN_RATIO = 0.8
+
+export const LLM_USAGE_DAYS_TABS: KunTabItem[] = [
+  { value: '1', textValue: '今天' },
+  { value: '7', textValue: '7 天' },
+  { value: '30', textValue: '30 天' }
+]
+
+export const LLM_USAGE_DAYS: LlmUsageDays[] = [1, 7, 30]
+
+export const LLM_USAGE_GROUP_LABEL: Record<LlmUsageGroup, string> = {
+  provider: '供应商',
+  route: '路由',
+  scene: '场景',
+  key: '访问密钥',
+  model: '模型'
+}
+
+export const LLM_USAGE_GROUPS = Object.keys(
+  LLM_USAGE_GROUP_LABEL
+) as LlmUsageGroup[]
+
+export const LLM_USAGE_GROUP_TABS: KunTabItem[] = LLM_USAGE_GROUPS.map(
+  (value) => ({ value, textValue: `按${LLM_USAGE_GROUP_LABEL[value]}` })
+)
+
+export const LLM_IMPORT_KIND_LABEL: Record<LlmImportKind, string> = {
+  provider: '供应商',
+  model: '模型',
+  route: '路由',
+  scene: '场景',
+  access_key: '访问密钥'
+}
+
+export const LLM_IMPORT_ACTION_META: Record<
+  LlmImportAction,
+  { label: string; color: AiChipColor }
+> = {
+  create: { label: '新增', color: 'success' },
+  update: { label: '更新', color: 'warning' },
+  unchanged: { label: '不变', color: 'default' }
+}
 
 export const LLM_ACCESS_KEY_HINT =
   '内部调用方使用 base URL http://ai:9284/v1(生产内网),请求头带 Authorization: Bearer <secret>。'

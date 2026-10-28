@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { LLM_API } from '~/constants/llm'
+import { LLM_API, LLM_BUDGET_HINT } from '~/constants/llm'
 import type {
   LlmAccessKey,
   LlmAccessKeyCreated,
+  LlmAccessKeyPatchRequest,
   LlmModel,
   LlmScene
 } from '~~/shared/types/llm'
@@ -19,6 +20,7 @@ const api = useApi('ai')
 
 const name = ref('')
 const allowed = ref<string[]>([])
+const budget = ref('')
 const saving = ref(false)
 const error = ref('')
 
@@ -43,6 +45,7 @@ watch(open, (v) => {
   if (!v) return
   name.value = props.accessKey?.name ?? ''
   allowed.value = [...(props.accessKey?.allowed_models ?? [])]
+  budget.value = llmBudgetDraft(props.accessKey?.daily_budget_micro ?? 0)
   error.value = ''
 })
 
@@ -53,13 +56,22 @@ const save = async () => {
     error.value = '名称是必填的'
     return
   }
+  const dailyBudget = llmParseBudget(budget.value)
+  if (dailyBudget === 'invalid') {
+    error.value = '每日预算须为非负数(美元)'
+    return
+  }
   saving.value = true
   try {
-    const body = { name: n, allowed_models: allowed.value }
+    const body: LlmAccessKeyPatchRequest = {
+      name: n,
+      allowed_models: allowed.value,
+      daily_budget_micro: dailyBudget
+    }
     if (props.accessKey) {
       const res = await api.patch<LlmAccessKey>(
         `${LLM_API}/access-keys/${props.accessKey.id}`,
-        body
+        { ...body }
       )
       if (res.code !== 0) {
         error.value = res.message || '保存失败'
@@ -70,10 +82,9 @@ const save = async () => {
       emit('saved')
       return
     }
-    const res = await api.post<LlmAccessKeyCreated>(
-      `${LLM_API}/access-keys`,
-      body
-    )
+    const res = await api.post<LlmAccessKeyCreated>(`${LLM_API}/access-keys`, {
+      ...body
+    })
     if (res.code !== 0 || !res.data?.secret) {
       error.value = res.message || '创建失败'
       return
@@ -107,6 +118,15 @@ const save = async () => {
         multiple
         searchable
         placeholder="不选 = 全部允许"
+      />
+      <KunInput
+        v-model="budget"
+        label="每日预算（美元）"
+        type="number"
+        min="0"
+        step="0.01"
+        placeholder="不限"
+        :description="LLM_BUDGET_HINT"
       />
 
       <div v-if="error" class="bg-danger-50 text-danger rounded-lg p-3 text-sm">

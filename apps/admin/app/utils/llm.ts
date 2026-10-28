@@ -53,6 +53,33 @@ export const llmParsePrice = (
   return out
 }
 
+export const llmNanoUsd = (nano: number) => {
+  const usd = nano / 1e9
+  return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(4)}`
+}
+
+export const llmBudgetDraft = (micro: number) =>
+  micro > 0 ? String(micro / 1e6) : ''
+
+export const llmParseBudget = (draft: string): number | 'invalid' => {
+  const micro = llmUsdToMicro(draft)
+  if (Number.isNaN(micro)) return 'invalid'
+  return micro ?? 0
+}
+
+export const llmBudgetRatio = (spentNano: number, budgetMicro: number) =>
+  budgetMicro > 0 ? spentNano / 1e3 / budgetMicro : 0
+
+export const llmCstDays = (n: number) => {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai'
+  }).format(new Date())
+  const base = Date.parse(`${today}T00:00:00Z`)
+  return Array.from({ length: n }, (_, i) =>
+    new Date(base - (n - 1 - i) * 86_400_000).toISOString().slice(0, 10)
+  )
+}
+
 export const llmAdoptModelKey = (upstreamId: string) =>
   upstreamId
     .toLowerCase()

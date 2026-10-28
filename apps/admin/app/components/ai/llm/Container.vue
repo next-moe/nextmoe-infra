@@ -121,6 +121,8 @@ onMounted(() => {
           @changed="load('scenes')"
         />
         <AiLlmHealth v-else-if="tab === 'health'" />
+        <AiLlmUsage v-else-if="tab === 'usage'" />
+        <AiLlmConfig v-else-if="tab === 'config'" @applied="load()" />
         <AiLlmAccessKeys
           v-else-if="tab === 'keys'"
           :access-keys="accessKeys"

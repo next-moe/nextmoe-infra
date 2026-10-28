@@ -77,12 +77,13 @@ const remove = async (k: LlmAccessKey) => {
     </div>
 
     <div class="bg-content1 overflow-x-auto rounded-xl shadow-sm">
-      <table class="w-full min-w-[48rem] text-sm">
+      <table class="w-full min-w-[56rem] text-sm">
         <thead class="bg-content2 text-default-500">
           <tr>
             <th class="px-3 py-2 text-left font-medium">名称</th>
             <th class="px-3 py-2 text-left font-medium">前缀</th>
             <th class="px-3 py-2 text-left font-medium">允许的模型 / 场景</th>
+            <th class="px-3 py-2 text-left font-medium">今日花费</th>
             <th class="px-3 py-2 text-left font-medium">启用</th>
             <th class="px-3 py-2 text-left font-medium">最近使用</th>
             <th class="px-3 py-2 text-right font-medium">操作</th>
@@ -113,6 +114,12 @@ const remove = async (k: LlmAccessKey) => {
               <span v-else class="text-default-400">全部</span>
             </td>
             <td class="px-3 py-2">
+              <AiLlmBudgetUsage
+                :spent-nano="k.spent_today_nano"
+                :budget-micro="k.daily_budget_micro"
+              />
+            </td>
+            <td class="px-3 py-2">
               <KunSwitch
                 :model-value="k.enabled"
                 :disabled="busy === k.id"
@@ -138,7 +145,7 @@ const remove = async (k: LlmAccessKey) => {
             </td>
           </tr>
           <tr v-if="!accessKeys.length">
-            <td colspan="6" class="text-default-400 px-3 py-8 text-center">
+            <td colspan="7" class="text-default-400 px-3 py-8 text-center">
               还没有访问密钥
             </td>
           </tr>

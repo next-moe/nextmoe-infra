@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   LLM_API,
+  LLM_BUDGET_HINT,
   LLM_SCENE_CHAINS,
   LLM_SCENE_CLASS_OPTIONS,
   LLM_SCENE_DEFAULTS,
@@ -25,6 +26,7 @@ const api = useApi('ai')
 
 const key = ref('')
 const form = ref<LlmScenePutRequest>({ ...LLM_SCENE_DEFAULTS })
+const budget = ref('')
 const saving = ref(false)
 const error = ref('')
 
@@ -39,6 +41,7 @@ watch(open, (v) => {
         context_fallback_model_ids: [...s.context_fallback_model_ids],
         content_fallback_model_ids: [...s.content_fallback_model_ids],
         strategy: s.strategy,
+        daily_budget_micro: s.daily_budget_micro,
         class: s.class,
         temperature: s.temperature,
         max_output: s.max_output,
@@ -53,6 +56,7 @@ watch(open, (v) => {
         context_fallback_model_ids: [],
         content_fallback_model_ids: []
       }
+  budget.value = llmBudgetDraft(form.value.daily_budget_micro)
   error.value = ''
 })
 
@@ -92,11 +96,16 @@ const save = async () => {
     error.value = '已有同名场景,请直接编辑它'
     return
   }
+  const dailyBudget = llmParseBudget(budget.value)
+  if (dailyBudget === 'invalid') {
+    error.value = '每日预算须为非负数(美元)'
+    return
+  }
   saving.value = true
   try {
     const res = await api.put<LlmScene>(
       `${LLM_API}/scenes/${encodeURIComponent(k)}`,
-      { ...form.value }
+      { ...form.value, daily_budget_micro: dailyBudget }
     )
     if (res.code !== 0) {
       error.value = res.message || '保存失败'
@@ -178,6 +187,15 @@ const save = async () => {
           :description="f.hint"
           :min="0"
           @update:model-value="form[f.key] = $event ?? 0"
+        />
+        <KunInput
+          v-model="budget"
+          label="每日预算（美元）"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="不限"
+          :description="LLM_BUDGET_HINT"
         />
       </div>
 
