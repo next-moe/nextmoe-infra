@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"api/internal/platform/llm"
@@ -84,6 +85,34 @@ func (w work) brief() map[string]any {
 	return m
 }
 
+func (c *CatalogClient) searchWorks(ctx context.Context, query string, limit int) ([]work, string, error) {
+	var list struct {
+		Items      []work  `json:"items"`
+		SearchMode *string `json:"search_mode"`
+	}
+	q := url.Values{"q": {query}, "search_mode": {"hybrid"}, "limit": {strconv.Itoa(limit)}}
+	if err := c.get(ctx, "/v2/catalog/works", q, &list); err != nil {
+		return nil, "", err
+	}
+	mode := "lexical"
+	if list.SearchMode != nil {
+		mode = *list.SearchMode
+	}
+	return list.Items, mode, nil
+}
+
+func (c *CatalogClient) SearchWorks(ctx context.Context, query string, limit int) ([]Card, string, error) {
+	works, mode, err := c.searchWorks(ctx, query, limit)
+	if err != nil {
+		return nil, "", err
+	}
+	cards := make([]Card, len(works))
+	for i, w := range works {
+		cards[i] = w.card()
+	}
+	return cards, mode, nil
+}
+
 type SearchCatalog struct{ Client *CatalogClient }
 
 func (t *SearchCatalog) Spec() llm.Tool {
@@ -103,17 +132,13 @@ func (t *SearchCatalog) Run(ctx context.Context, args json.RawMessage) (Output, 
 	if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Query) == "" {
 		return Output{Text: `{"error":"query is required"}`}, nil
 	}
-	var list struct {
-		Items      []work  `json:"items"`
-		SearchMode *string `json:"search_mode"`
-	}
-	q := url.Values{"q": {in.Query}, "search_mode": {"hybrid"}, "limit": {"8"}, "include": {"titles"}}
-	if err := t.Client.get(ctx, "/v2/catalog/works", q, &list); err != nil {
+	works, _, err := t.Client.searchWorks(ctx, in.Query, 8)
+	if err != nil {
 		return Output{}, err
 	}
 	out := Output{}
-	briefs := make([]map[string]any, 0, len(list.Items))
-	for _, w := range list.Items {
+	briefs := make([]map[string]any, 0, len(works))
+	for _, w := range works {
 		briefs = append(briefs, w.brief())
 		out.Cards = append(out.Cards, w.card())
 	}

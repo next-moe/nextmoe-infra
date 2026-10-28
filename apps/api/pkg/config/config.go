@@ -125,6 +125,7 @@ type LLMConfig struct {
 	OAuthBase    string
 	ClientID     string
 	ClientSecret string
+	PowKeys      string
 }
 
 type TelemetryServiceConfig struct {
@@ -654,6 +655,7 @@ func Load() (*Config, error) {
 		OAuthBase:    getEnv("KUN_AGENT_OAUTH_BASE", "http://127.0.0.1:9277"),
 		ClientID:     getEnv("KUN_AGENT_CLIENT_ID", ""),
 		ClientSecret: getEnv("KUN_AGENT_CLIENT_SECRET", ""),
+		PowKeys:      getEnv("KUN_AGENT_POW_KEYS", ""),
 	}
 
 	telemetryPort, _ := strconv.Atoi(getEnv("KUN_TELEMETRY_PORT", "9286"))

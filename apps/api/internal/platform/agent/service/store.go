@@ -89,6 +89,38 @@ func (s *Store) Branch(ctx context.Context, head *int64) ([]model.Message, error
 	return out, err
 }
 
+func (s *Store) Leaf(ctx context.Context, conversationID, messageID int64) (int64, error) {
+	var n int64
+	if err := s.db.WithContext(ctx).Model(&model.Message{}).Where("id = ? AND conversation_id = ?", messageID, conversationID).Count(&n).Error; err != nil {
+		return 0, err
+	}
+	if n == 0 {
+		return 0, ErrNotFound
+	}
+	cur := messageID
+	for range 10000 {
+		var next []int64
+		if err := s.db.WithContext(ctx).Model(&model.Message{}).Where("parent_id = ?", cur).
+			Order("id DESC").Limit(1).Pluck("id", &next).Error; err != nil {
+			return 0, err
+		}
+		if len(next) == 0 {
+			return cur, nil
+		}
+		cur = next[0]
+	}
+	return cur, nil
+}
+
+func (s *Store) RunByIdem(ctx context.Context, userID int64, key string) (*model.Run, error) {
+	var r model.Run
+	err := s.db.WithContext(ctx).Where("user_id = ? AND idem_key = ?", userID, key).Take(&r).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	return &r, err
+}
+
 func (s *Store) SiblingCounts(ctx context.Context, conversationID int64) (map[int64]int, error) {
 	var rows []struct {
 		ParentID int64
@@ -113,7 +145,7 @@ type StartRequest struct {
 	Price        int
 }
 
-func requestHash(r StartRequest) string {
+func RequestHash(r StartRequest) string {
 	raw, _ := json.Marshal(struct {
 		C  int64
 		P  *int64
@@ -126,7 +158,7 @@ func requestHash(r StartRequest) string {
 }
 
 func (s *Store) StartRun(ctx context.Context, r StartRequest) (*model.Run, bool, error) {
-	hash := requestHash(r)
+	hash := RequestHash(r)
 	var existing model.Run
 	err := s.db.WithContext(ctx).Where("user_id = ? AND idem_key = ?", r.Conversation.UserID, r.IdemKey).Take(&existing).Error
 	if err == nil {

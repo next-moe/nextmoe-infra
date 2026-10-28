@@ -48,6 +48,12 @@ func (b *Broker) Open(runID string) *Writer {
 	return &Writer{run: r, now: b.now}
 }
 
+func (b *Broker) Known(runID string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.runs[runID] != nil
+}
+
 func (b *Broker) Active(runID string) bool {
 	b.mu.Lock()
 	r := b.runs[runID]
