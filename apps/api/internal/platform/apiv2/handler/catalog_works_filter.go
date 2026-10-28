@@ -35,6 +35,7 @@ type worksFilter struct {
 	ReleasedAfter  int64
 	ReleasedBefore int64
 	OLang          catsvc.PublicOLang
+	SearchMode     string
 }
 
 var publicClaimStates = []string{
@@ -196,32 +197,65 @@ func parseWorksFilter(in *listWorksInput, moderationAllowed bool) (worksFilter, 
 		return worksFilter{}, err
 	}
 	f.OLang = olang
+	if in.SearchMode != "" {
+		if !slices.Contains(catsvc.SearchModeTokens, in.SearchMode) {
+			return worksFilter{}, closedParam("search_mode", strings.Join(catsvc.SearchModeTokens, ", "))
+		}
+		f.SearchMode = in.SearchMode
+	}
 	return f, nil
 }
 
-func (c *Catalog) ListWorksFiltered(ctx context.Context, q collect.Query, f worksFilter) (repr.List[repr.Work], error) {
+func hybridSearchConflict(q collect.Query, f worksFilter) *problem.Problem {
+	if f.SearchMode != catsvc.SearchModeHybrid {
+		return nil
+	}
+	conflict := func(param, detail string) *problem.Problem {
+		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", "search_mode=hybrid cannot be combined with "+param+"=.")
+		p.Errors = []problem.FieldError{{Parameter: param, Reason: problem.ReasonNotAllowedValue, Detail: detail}}
+		return p
+	}
+	switch {
+	case f.Q == "":
+		p := problem.New(problem.CodeValidationFailed, "", "", "search_mode=hybrid requires q=.")
+		p.Errors = []problem.FieldError{{Parameter: "q", Reason: problem.ReasonRequired, Detail: "hybrid ranks q= by title and by meaning"}}
+		return p
+	case q.Batch:
+		return conflict("ids", "ids=/refs= is a batch lane")
+	case len(q.Facets) > 0:
+		return conflict("facets", "hybrid ranks a fused list of at most 100 hits, which has no facet distribution")
+	case q.Sort != "" && q.Sort != "id" && q.Sort != "relevance":
+		return conflict("sort", "hybrid ranks by relevance only")
+	}
+	return nil
+}
+
+func (c *Catalog) ListWorksFiltered(ctx context.Context, q collect.Query, f worksFilter) (repr.ListWork, error) {
 	if c == nil || c.Public == nil {
-		return repr.List[repr.Work]{}, problem.New(problem.CodeServiceUnavailable, "", "", "works collection is not bound.")
+		return repr.ListWork{}, problem.New(problem.CodeServiceUnavailable, "", "", "works collection is not bound.")
 	}
 	if f.ContentRating != nil && *f.ContentRating == catmodel.ContentRatingR18 && !q.NSFW {
 		p := problem.New(problem.CodeInvalidParameter, "", "", "content_rating=r18 requires nsfw=true.")
 		p.Errors = []problem.FieldError{{Parameter: "content_rating", Reason: problem.ReasonNotAllowedValue, Detail: "nsfw=true is required"}}
-		return repr.List[repr.Work]{}, p
+		return repr.ListWork{}, p
 	}
 	if q.Sort == "relevance" && f.Q == "" && !q.Batch {
 		p := problem.New(problem.CodeInvalidParameter, "", "", "sort=relevance requires q=.")
 		p.Errors = []problem.FieldError{{Parameter: "sort", Reason: problem.ReasonNotAllowedValue, Detail: "pass q="}}
-		return repr.List[repr.Work]{}, p
+		return repr.ListWork{}, p
+	}
+	if p := hybridSearchConflict(q, f); p != nil {
+		return repr.ListWork{}, p
 	}
 	if q.Batch && f.Q != "" {
 		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", "q= cannot be combined with ids= or refs=.")
 		p.Errors = []problem.FieldError{{Parameter: "q", Reason: problem.ReasonNotAllowedValue, Detail: "ids=/refs= is a batch lane"}}
-		return repr.List[repr.Work]{}, p
+		return repr.ListWork{}, p
 	}
 	if len(f.ExcludeTagIDs) > 0 || len(f.ExcludeTrees) > 0 {
 		excl, err := c.Public.TagExclusion(ctx, f.ExcludeTagIDs, f.ExcludeTrees)
 		if err != nil {
-			return repr.List[repr.Work]{}, err
+			return repr.ListWork{}, err
 		}
 		f.ExcludeTagIDs, f.ExcludeTrees = excl, nil
 	}
@@ -232,7 +266,7 @@ func (c *Catalog) ListWorksFiltered(ctx context.Context, q collect.Query, f work
 	if f.OwnerUID > 0 {
 		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", "owner_uid= cannot be combined with q=, page= or search sorts.")
 		p.Errors = []problem.FieldError{{Parameter: "owner_uid", Reason: problem.ReasonNotAllowedValue, Detail: "the search index carries no claim owner"}}
-		return repr.List[repr.Work]{}, p
+		return repr.ListWork{}, p
 	}
 	// WorksSearchFilter has no Site and no Platform member, so these two were
 	// accepted, dropped on the way to the search engine and answered with the
@@ -249,7 +283,7 @@ func (c *Catalog) ListWorksFiltered(ctx context.Context, q collect.Query, f work
 		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", name+"= cannot be combined with q=, facets=, page= or a search sort.")
 		p.Errors = []problem.FieldError{{Parameter: name, Reason: problem.ReasonNotAllowedValue,
 			Detail: "the search index carries neither the claiming site nor the platform; drop q=/facets=/page=/the search sort to filter on it"}}
-		return repr.List[repr.Work]{}, p
+		return repr.ListWork{}, p
 	}
 	return c.listWorksSearch(ctx, q, f, inc)
 }
@@ -261,7 +295,7 @@ func searchWorksRequested(q collect.Query, f worksFilter) bool {
 	return len(q.Facets) > 0
 }
 
-func (c *Catalog) listWorksSQL(ctx context.Context, q collect.Query, f worksFilter, inc catsvc.WorksListInclude) (repr.List[repr.Work], error) {
+func (c *Catalog) listWorksSQL(ctx context.Context, q collect.Query, f worksFilter, inc catsvc.WorksListInclude) (repr.ListWork, error) {
 	lf := catsvc.WorksListFilter{
 		ContentRating: f.ContentRating, Claimed: f.Claimed, ClaimStates: f.ClaimStates,
 		DisplayLimits: f.DisplayLimits, Site: f.Site, OwnerUID: f.OwnerUID,
@@ -277,7 +311,7 @@ func (c *Catalog) listWorksSQL(ctx context.Context, q collect.Query, f worksFilt
 	if q.Batch {
 		ids, miss, err := c.batchWorkIDs(ctx, q)
 		if err != nil {
-			return repr.List[repr.Work]{}, err
+			return repr.ListWork{}, err
 		}
 		lf.IDs = ids
 		missing = miss
@@ -291,7 +325,7 @@ func (c *Catalog) listWorksSQL(ctx context.Context, q collect.Query, f worksFilt
 		if len(q.Facets) > 0 {
 			out.Facets = emptyFacets(q.Facets)
 		}
-		return out, nil
+		return repr.ListWork{List: out}, nil
 	}
 	limit := q.Limit
 	if q.Batch {
@@ -300,9 +334,9 @@ func (c *Catalog) listWorksSQL(ctx context.Context, q collect.Query, f worksFilt
 	data, err := c.Public.WorksList(ctx, lf, q.Cursor, limit)
 	if err != nil {
 		if errors.Is(err, catsvc.ErrBadCursor) {
-			return repr.List[repr.Work]{}, collectInvalidCursor()
+			return repr.ListWork{}, collectInvalidCursor()
 		}
-		return repr.List[repr.Work]{}, err
+		return repr.ListWork{}, err
 	}
 	items := make([]repr.Work, 0, len(data.Items))
 	seen := map[int64]bool{}
@@ -321,13 +355,13 @@ func (c *Catalog) listWorksSQL(ctx context.Context, q collect.Query, f worksFilt
 	if len(q.Facets) > 0 {
 		out.Facets = emptyFacets(q.Facets)
 	}
-	return out, nil
+	return repr.ListWork{List: out}, nil
 }
 
-func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksFilter, inc catsvc.WorksListInclude) (repr.List[repr.Work], error) {
+func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksFilter, inc catsvc.WorksListInclude) (repr.ListWork, error) {
 	page, perr := searchPage(q)
 	if perr != nil {
-		return repr.List[repr.Work]{}, perr
+		return repr.ListWork{}, perr
 	}
 	sort := q.Sort
 	if f.Q != "" && (sort == "" || sort == "id") {
@@ -338,25 +372,29 @@ func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksF
 		DisplayLimits: f.DisplayLimits, LabelID: f.CompanyID, TagIDs: f.TagIDs, ExcludeTagIDs: f.ExcludeTagIDs, EngineID: f.EngineID,
 		SeriesID: f.SeriesID, ReleasedAfter: f.ReleasedAfter, ReleasedBefore: f.ReleasedBefore,
 		OLang: f.OLang, NSFW: q.NSFW, Sort: sort, Facets: searchFacetTokens(q.Facets),
-		Page: page, Limit: q.Limit, Include: inc,
+		Page: page, Limit: q.Limit, Include: inc, SearchMode: f.SearchMode,
 	}
 	data, err := searchWorks(c, ctx, sf)
 	if err != nil {
 		if errors.Is(err, catsvc.ErrSearchUnavailable) {
-			return repr.List[repr.Work]{}, problem.New(problem.CodeServiceUnavailable, "", "", "works search is not bound.")
+			return repr.ListWork{}, problem.New(problem.CodeServiceUnavailable, "", "", "works search is not bound.")
 		}
-		return repr.List[repr.Work]{}, err
+		return repr.ListWork{}, err
 	}
 	items := make([]repr.Work, 0, len(data.Items))
 	for _, it := range data.Items {
 		items = append(items, workFromListItem(it, q.Include, c.imageURL))
+	}
+	var mode *string
+	if data.SearchMode != "" {
+		mode = &data.SearchMode
 	}
 	if q.Page > 0 {
 		out := finishPageList(items, data.Total)
 		if len(q.Facets) > 0 {
 			out.Facets = mapSearchFacets(q.Facets, data.Facets)
 		}
-		return out, nil
+		return repr.ListWork{List: out, SearchMode: mode}, nil
 	}
 	var next *string
 	if int64(page)*int64(data.Limit) < data.Total && len(data.Items) > 0 {
@@ -371,7 +409,7 @@ func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksF
 	if len(q.Facets) > 0 {
 		out.Facets = mapSearchFacets(q.Facets, data.Facets)
 	}
-	return out, nil
+	return repr.ListWork{List: out, SearchMode: mode}, nil
 }
 
 var searchWorks = func(c *Catalog, ctx context.Context, sf catsvc.WorksSearchFilter) (dto.PublicWorksSearchData, error) {

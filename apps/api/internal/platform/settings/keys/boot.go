@@ -2,7 +2,6 @@ package keys
 
 import (
 	"api/internal/platform/settings"
-	"api/pkg/config"
 )
 
 var ImageGCColdAfterDays = settings.Int(settings.Meta{
@@ -91,19 +90,3 @@ var StorePriceFreshForHours = settings.Int(settings.Meta{
 	Min:    settings.F(1),
 	Max:    settings.F(168),
 }, 6)
-
-var AIUpstreamModel = settings.String(settings.Meta{
-	Name:    "ai.upstream_model",
-	EnvVar:  "KUN_AI_UPSTREAM_MODEL",
-	DescEN:  "Model id the Tier2 LLM lane requests from the upstream gateway; read live on every call.",
-	DescZH:  "Tier2 LLM 线向上游网关请求的模型 id,每次调用实时读取。",
-	Pattern: `^\S{1,200}$`,
-}, config.DefaultAIUpstreamModel)
-
-var AIOmniModel = settings.String(settings.Meta{
-	Name:    "ai.omni_model",
-	EnvVar:  "KUN_AI_OMNI_MODEL",
-	DescEN:  "Model id the Tier1 omni-moderation lane requests; read live on every call.",
-	DescZH:  "Tier1 omni 审核线请求的模型 id,每次调用实时读取。",
-	Pattern: `^\S{1,200}$`,
-}, "omni-moderation-latest")

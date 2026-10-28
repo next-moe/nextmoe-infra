@@ -66,17 +66,22 @@ func Reindex(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, uid s
 }
 
 func Sync(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, uid string, ids []int64) error {
+	_, err := syncFamily(ctx, db, idx, uid, ids)
+	return err
+}
+
+func syncFamily(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, uid string, ids []int64) ([]string, error) {
 	f, ok := families[uid]
 	if !ok {
-		return fmt.Errorf("docsync: unknown index %q", uid)
+		return nil, fmt.Errorf("docsync: unknown index %q", uid)
 	}
 	ids = slices.Compact(slices.Sorted(slices.Values(ids)))
 	if len(ids) == 0 {
-		return nil
+		return nil, nil
 	}
 	indexed, err := f.run(ctx, db, idx, len(ids), scope(ids))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var gone []string
 	for _, id := range ids {
@@ -85,7 +90,7 @@ func Sync(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, uid stri
 		}
 	}
 	if len(gone) > 0 {
-		return idx.DeleteBatch(ctx, uid, gone)
+		return gone, idx.DeleteBatch(ctx, uid, gone)
 	}
-	return nil
+	return nil, nil
 }

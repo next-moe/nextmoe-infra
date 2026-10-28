@@ -9,6 +9,9 @@ const (
 	IndexSeries      = "catalog_series"
 	IndexEngines     = "catalog_engines"
 	IndexTraits      = "catalog_traits"
+
+	IndexWorkVectors      = "catalog_work_vectors"
+	IndexCharacterVectors = "catalog_character_vectors"
 )
 
 var WorksFilterableAttributes = []string{

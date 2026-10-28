@@ -59,7 +59,8 @@ type Catalog struct {
 }
 
 func (c *Catalog) ListWorks(ctx context.Context, q collect.Query) (repr.List[repr.Work], error) {
-	return c.ListWorksFiltered(ctx, q, worksFilter{OLang: catsvc.PublicOLang{All: true}})
+	out, err := c.ListWorksFiltered(ctx, q, worksFilter{OLang: catsvc.PublicOLang{All: true}})
+	return out.List, err
 }
 
 func (c *Catalog) imageURL(hash string) string {

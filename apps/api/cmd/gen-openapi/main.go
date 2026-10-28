@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	agentHandler "api/internal/platform/agent/handler"
 	aiHandler "api/internal/platform/ai/handler"
 	v2handler "api/internal/platform/apiv2/handler"
 	artHandler "api/internal/platform/artifact/handler"
@@ -34,6 +35,7 @@ func main() {
 	ai := flag.Bool("ai", false, "emit the AI-gateway S2S spec (/api/v1/ai/*)")
 	aiAdmin := flag.Bool("ai-admin", false, "emit the AI-gateway usage-dashboard spec (/api/v1/admin/ai/*)")
 	telemetryAdmin := flag.Bool("telemetry-admin", false, "emit the telemetry admin spec (/api/v1/admin/telemetry/*)")
+	agent := flag.Bool("agent", false, "emit the AI assistant spec (/v2/agent/*)")
 	flag.Parse()
 
 	app := fiber.New()
@@ -57,9 +59,11 @@ func main() {
 	case *ai:
 		api = aiHandler.Setup(app, nil)
 	case *aiAdmin:
-		api = aiHandler.SetupAdmin(app, nil, nil)
+		api = aiHandler.SetupAdmin(app, nil, nil, nil)
 	case *telemetryAdmin:
 		api = telemetryHandler.SetupAdmin(app, nil, nil, nil)
+	case *agent:
+		api = agentHandler.Setup(app, &agentHandler.Server{}, nil, nil, nil)
 	case *admin:
 		api = artHandler.SetupAdmin(app, artHandler.NewAdmin(nil, nil, nil))
 	default:

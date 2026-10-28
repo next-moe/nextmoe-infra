@@ -12,6 +12,7 @@ import (
 	aiModel "api/internal/platform/ai/model"
 	"api/internal/platform/ai/service"
 	"api/internal/platform/ai/upstream"
+	"api/internal/platform/llm"
 	siteModel "api/internal/platform/site/model"
 	siteRepo "api/internal/platform/site/repository"
 	"api/internal/testsupport/dbtest"
@@ -95,7 +96,7 @@ func buildApp() *fiber.App {
 	app := fiber.New()
 	repo := siteRepo.NewOAuthClientRepository(testDB)
 	app.Use("/api/v1/ai", S2SAuth(repo))
-	svc := service.NewModerationService(testDB, upstream.NewOmniClient("", "", ""), upstream.NewClient("", "", ""), service.ModerationOptions{})
+	svc := service.NewModerationService(testDB, upstream.NewOmniClient(llm.New(nil, nil), llm.SceneModerationOmni), upstream.NewClient(llm.New(nil, nil), llm.SceneModerationLLM), service.ModerationOptions{})
 	Setup(app, svc)
 	return app
 }

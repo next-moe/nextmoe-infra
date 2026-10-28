@@ -265,8 +265,6 @@ var live = settings.NewRegistry(
 			AINegativeSampleRate,
 			AIForceEscalate,
 			AIModerateMaxTokens,
-			AIUpstreamModel,
-			AIOmniModel,
 		},
 	},
 	settings.Domain{
@@ -283,6 +281,7 @@ var live = settings.NewRegistry(
 		},
 	},
 	apiv2Domain,
+	agentDomain,
 	catalogDomain,
 	communityDomain,
 	developerDomain,

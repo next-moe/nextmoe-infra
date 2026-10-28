@@ -510,11 +510,12 @@ services:
       # from kun_galgame_infra for S2S Basic auth + admin JWT identities.
       KUN_CATALOG_HOST: 0.0.0.0
       KUN_CATALOG_PORT: "9281"
-      # POST /v2/me/walkthrough-drafts turns a pasted walkthrough into a draft
-      # chart with the same model gateway the ai service uses: the same Dokploy
-      # vars, so no new secret. Empty base URL answers that face with 503.
-      KUN_AI_UPSTREAM_BASE_URL: ${KUN_AI_UPSTREAM_BASE_URL:-}
-      KUN_AI_UPSTREAM_TOKEN: ${KUN_AI_UPSTREAM_TOKEN:-}
+      # Hybrid-search embeddings and POST /v2/me/walkthrough-drafts go through
+      # the ai service's LLM gateway with an access key ren creates in the admin
+      # console (LLM 网关配置 → 访问密钥). No provider key lives here. An empty
+      # key answers hybrid search lexically and the draft face with 503.
+      KUN_LLM_GATEWAY_URL: http://ai:9284/v1
+      KUN_LLM_GATEWAY_KEY: ${KUN_LLM_GATEWAY_KEY_CATALOG:-}
       KUN_AI_UPSTREAM_MODEL: ${KUN_AI_UPSTREAM_MODEL:-@cf/zai-org/glm-5.2}
       # W2 (wiki retirement): this process also co-hosts the full galgame HTTP
       # surface via galgameapp.Mount, so it needs the SAME image-service +
@@ -890,18 +891,17 @@ services:
       # fall back to KUN_PG_*.
       KUN_AI_HOST: 0.0.0.0
       KUN_AI_PORT: "9284"
-      # Tier2 LLM upstream: Cloudflare Workers AI's OpenAI-compatible endpoint
-      # (https://api.cloudflare.com/client/v4/accounts/<account id>/ai/v1) and a
-      # Workers AI API token, both set in Dokploy. Empty = that tier off
-      # (fail-open, no upstream dialled). KUN_AI_UPSTREAM_MODEL is the
-      # moderate-text route→model mapping.
+      # The LLM gateway (providers, keys, models, routes, scenes, access keys)
+      # lives in kun_ai and is managed by ren in the admin console. KUN_LLM_KEK
+      # (base64 of 32 random bytes) seals the provider keys; the agent project
+      # must carry the same value. Losing it means re-entering every key.
+      KUN_LLM_KEK: ${KUN_LLM_KEK:-}
+      # Seed only: read once, on the first start with an empty llm_provider, to
+      # carry the Workers AI and omni-moderation config into the gateway. Delete
+      # them from Dokploy after that first start.
       KUN_AI_UPSTREAM_BASE_URL: ${KUN_AI_UPSTREAM_BASE_URL:-}
       KUN_AI_UPSTREAM_TOKEN: ${KUN_AI_UPSTREAM_TOKEN:-}
       KUN_AI_UPSTREAM_MODEL: ${KUN_AI_UPSTREAM_MODEL:-@cf/zai-org/glm-5.2}
-      # Tier1 omni-moderation coarse pass (spec 09). KUN_AI_OMNI_TOKEN empty (the
-      # default) = Tier1 off: moderate-text runs the Tier2 LLM path only. Fill the
-      # token in Dokploy (plaintext staged at kungal-neo:/root/openai-omni-api-key.txt)
-      # to light Tier1 up; base URL / model default to OpenAI's public API.
       KUN_AI_OMNI_BASE_URL: ${KUN_AI_OMNI_BASE_URL:-https://api.openai.com}
       KUN_AI_OMNI_TOKEN: ${KUN_AI_OMNI_TOKEN:-}
       KUN_AI_OMNI_MODEL: ${KUN_AI_OMNI_MODEL:-omni-moderation-latest}

@@ -6593,6 +6593,13 @@ components:
             - list
           type: string
           x-vocabulary-closed: true
+        search_mode:
+          description: "Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable."
+          enum:
+            - lexical
+            - hybrid
+          type: string
+          x-vocabulary-closed: true
         total:
           description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
@@ -13982,7 +13989,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.75.0
+  version: 2.76.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -19565,6 +19572,18 @@ paths:
             description: Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate.
             maxLength: 64
             type: string
+        - description: "lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable."
+          explode: false
+          in: query
+          name: search_mode
+          schema:
+            description: "lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable."
+            enum:
+              - lexical
+              - hybrid
+            maxLength: 16
+            type: string
+            x-vocabulary-closed: true
         - description: "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
           explode: false
           in: query

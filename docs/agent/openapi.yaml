@@ -1,0 +1,722 @@
+components:
+  schemas:
+    AgentSearchRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/AgentSearchRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        pow:
+          description: Solution to a challenge from /v2/agent/pow/challenge, when the site requires one.
+          maxLength: 4096
+          type: string
+        q:
+          maxLength: 300
+          minLength: 1
+          type: string
+      required:
+        - q
+      type: object
+    ConvOutBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ConvOutBody.json
+          format: uri
+          readOnly: true
+          type: string
+        active_run_id:
+          description: A run still streaming into this conversation; resume it on /v2/agent/runs/{id}/stream.
+          type:
+            - string
+            - "null"
+        conversation:
+          $ref: "#/components/schemas/ConversationBody"
+        messages:
+          description: The current branch, oldest first.
+          items:
+            $ref: "#/components/schemas/MessageBody"
+          type:
+            - array
+            - "null"
+      required:
+        - conversation
+        - messages
+        - active_run_id
+      type: object
+    ConversationBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ConversationBody.json
+          format: uri
+          readOnly: true
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        id:
+          type: string
+        mode:
+          enum:
+            - assistant
+            - search
+          type: string
+        title:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - title
+        - mode
+        - updated_at
+        - created_at
+      type: object
+    CreateAgentConversationRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateAgentConversationRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        mode:
+          enum:
+            - assistant
+          type: string
+      type: object
+    ErrorDetail:
+      additionalProperties: false
+      properties:
+        location:
+          description: Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
+          type: string
+        message:
+          description: Error message text
+          type: string
+        value:
+          description: The value at the given location
+      type: object
+    GetAgentPowChallengeResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/GetAgentPowChallengeResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        token:
+          type: string
+      required:
+        - token
+      type: object
+    ListOutBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListOutBody.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/ConversationBody"
+          type:
+            - array
+            - "null"
+        next_cursor:
+          type:
+            - string
+            - "null"
+      required:
+        - items
+        - next_cursor
+      type: object
+    MessageBody:
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        parent_id:
+          type:
+            - string
+            - "null"
+        parts: {}
+        role:
+          enum:
+            - user
+            - assistant
+          type: string
+        run_id:
+          type: string
+        siblings:
+          description: How many messages share this message's parent, itself included. Above 1 the UI offers to switch branches.
+          format: int64
+          type: integer
+        status:
+          enum:
+            - complete
+            - streaming
+            - failed
+            - canceled
+          type: string
+      required:
+        - id
+        - parent_id
+        - role
+        - parts
+        - status
+        - run_id
+        - siblings
+      type: object
+    Part:
+      additionalProperties: false
+      properties:
+        data: {}
+        filename:
+          type: string
+        id:
+          type: string
+        mediaType:
+          type: string
+        sourceId:
+          type: string
+        text:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+      required:
+        - type
+      type: object
+    PersonaBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PersonaBody.json
+          format: uri
+          readOnly: true
+          type: string
+        avatar:
+          type: string
+        greetings:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        name:
+          type: string
+      required:
+        - name
+        - avatar
+        - greetings
+      type: object
+    Problem:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/Problem.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          description: Machine-readable reason; branch on this, not on detail.
+          pattern: ^[A-Z][A-Z0-9_]*[A-Z0-9]$
+          type: string
+        detail:
+          description: A human-readable explanation specific to this occurrence of the problem.
+          examples:
+            - Property foo is required but is missing.
+          type: string
+        errors:
+          description: Optional list of individual error details
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+          type:
+            - array
+            - "null"
+        instance:
+          description: A URI reference that identifies the specific occurrence of the problem.
+          examples:
+            - https://example.com/error-log/abc123
+          format: uri
+          type: string
+        status:
+          description: HTTP status code
+          examples:
+            - 400
+          format: int64
+          type: integer
+        title:
+          description: A short, human-readable summary of the problem type. This value should not change between occurrences of the error.
+          examples:
+            - Bad Request
+          type: string
+        type:
+          default: about:blank
+          description: A URI reference to human-readable documentation for the error.
+          examples:
+            - https://example.com/errors/example
+          format: uri
+          type: string
+      required:
+        - code
+      type: object
+    QuotaBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/QuotaBody.json
+          format: uri
+          readOnly: true
+          type: string
+        free_left:
+          format: int64
+          type: integer
+        free_per_day:
+          format: int64
+          type: integer
+        moemoepoint_balance:
+          description: The user's NextMoe moemoepoint balance; null when it could not be read.
+          format: int64
+          type:
+            - integer
+            - "null"
+        paid_enabled:
+          type: boolean
+        price_assistant:
+          format: int64
+          type: integer
+        price_search:
+          format: int64
+          type: integer
+        price_web_surcharge:
+          format: int64
+          type: integer
+      required:
+        - free_left
+        - free_per_day
+        - price_assistant
+        - price_web_surcharge
+        - price_search
+        - paid_enabled
+        - moemoepoint_balance
+      type: object
+    RenameAgentConversationRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/RenameAgentConversationRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        title:
+          maxLength: 100
+          minLength: 1
+          type: string
+      required:
+        - title
+      type: object
+    SearchHit:
+      additionalProperties: false
+      properties:
+        card: {}
+        id:
+          type: string
+      required:
+        - id
+        - card
+      type: object
+    SearchOutBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SearchOutBody.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/SearchHit"
+          type:
+            - array
+            - "null"
+        search_mode:
+          enum:
+            - lexical
+            - hybrid
+          type: string
+      required:
+        - items
+        - search_mode
+      type: object
+    SendInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SendInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        parent_id:
+          description: Message to answer. Absent continues from the conversation head; "0" starts a new root branch; a user message's parent regenerates or edits.
+          type: string
+        parts:
+          items:
+            $ref: "#/components/schemas/Part"
+          maxItems: 6
+          minItems: 1
+          type:
+            - array
+            - "null"
+        web_search:
+          type: boolean
+      required:
+        - parts
+      type: object
+    SendOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SendOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        assistant_message_id:
+          type: string
+        run_id:
+          type: string
+        user_message_id:
+          type: string
+      required:
+        - run_id
+        - user_message_id
+        - assistant_message_id
+      type: object
+info:
+  description: "The NextMoe AI assistant: conversations, streamed replies and search. Called by a site's backend with the user's access token (or the site's client credentials for signed-out search). Replies stream as the AI SDK UI message stream protocol (SSE) from GET /v2/agent/runs/{id}/stream, which honours Last-Event-ID and answers 204 when the run has no live stream."
+  title: NextMoe Agent API
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /v2/agent/conversations:
+    get:
+      operationId: listAgentConversations
+      parameters:
+        - explode: false
+          in: query
+          name: cursor
+          schema:
+            maxLength: 64
+            type: string
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 30
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOutBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: The caller's conversations on this site, newest first
+      tags:
+        - agent
+    post:
+      operationId: createAgentConversation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentConversationRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationBody"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Start a conversation
+      tags:
+        - agent
+  /v2/agent/conversations/{id}:
+    delete:
+      operationId: deleteAgentConversation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Delete a conversation and its messages
+      tags:
+        - agent
+    get:
+      operationId: getAgentConversation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - description: Show the branch ending at this message instead of the conversation head.
+          explode: false
+          in: query
+          name: head
+          schema:
+            description: Show the branch ending at this message instead of the conversation head.
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConvOutBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: A conversation and its current branch
+      tags:
+        - agent
+    patch:
+      operationId: renameAgentConversation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenameAgentConversationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Rename a conversation
+      tags:
+        - agent
+  /v2/agent/conversations/{id}/messages:
+    post:
+      description: Stores the user message, reserves its price and starts a run. Stream the reply from /v2/agent/runs/{run_id}/stream. Replaying the same Idempotency-Key with the same body returns the same run.
+      operationId: sendAgentMessage
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            maxLength: 128
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendInputBody"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendOutputBody"
+          description: Accepted
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Send a message and start the reply
+      tags:
+        - agent
+  /v2/agent/persona:
+    get:
+      operationId: getAgentPersona
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonaBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: The site's mascot
+      tags:
+        - agent
+  /v2/agent/pow/challenge:
+    get:
+      operationId: getAgentPowChallenge
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAgentPowChallengeResponse"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: A proof-of-work challenge for a signed-out search
+      tags:
+        - agent
+  /v2/agent/quota:
+    get:
+      operationId: getAgentQuota
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuotaBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: The caller's free units and prices
+      tags:
+        - agent
+  /v2/agent/runs/{id}/cancel:
+    post:
+      operationId: cancelAgentRun
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Stop a streaming reply
+      tags:
+        - agent
+  /v2/agent/search:
+    post:
+      description: Ranks catalog works for a title or a free-text description. Signed-out callers (client credentials, the visitor's address in CF-Connecting-IP) are limited per address and may have to solve a proof-of-work challenge from /v2/agent/pow/challenge.
+      operationId: agentSearch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentSearchRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchOutBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: "Search mode: find works from a description"
+      tags:
+        - agent

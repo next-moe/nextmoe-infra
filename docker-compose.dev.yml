@@ -313,6 +313,14 @@ services:
     environment: { <<: *dev-env }
     restart: "no"
 
+  migrate-agent:
+    image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
+    command: ["agent"]
+    profiles: ["full"]
+    network_mode: host
+    environment: { <<: *dev-env }
+    restart: "no"
+
   # telemetry is not in the default stack either: run `go run ./cmd/telemetry`
   # (and ./cmd/telemetry-worker) when working on it.
   migrate-telemetry:
@@ -535,11 +543,13 @@ services:
       <<: *dev-env
       KUN_AI_HOST: 0.0.0.0
       KUN_AI_PORT: "9284"
-      # Tier2 LLM upstream — empty = that tier off (moderate-text fail-open, no
-      # upstream dialled). The platform starts fine without it; point these at a
-      # local OpenAI-compatible server only when exercising real scoring.
-      KUN_AI_UPSTREAM_BASE_URL: ""
-      KUN_AI_UPSTREAM_TOKEN: ""
+      # The LLM gateway is configured in the admin console (/ai/llm, ren only);
+      # KUN_LLM_KEK lets it store provider keys. KUN_AI_UPSTREAM_* only seed an
+      # empty gateway on its first start. Without either, moderate-text fails
+      # open and nothing upstream is dialled.
+      KUN_LLM_KEK: ${KUN_LLM_KEK:-}
+      KUN_AI_UPSTREAM_BASE_URL: ${KUN_AI_UPSTREAM_BASE_URL:-}
+      KUN_AI_UPSTREAM_TOKEN: ${KUN_AI_UPSTREAM_TOKEN:-}
       # Tier1 omni-moderation coarse pass (spec 09). Empty token = Tier1 off: the
       # dev stack runs the Tier2 LLM path only unless you set KUN_AI_OMNI_TOKEN in
       # the host env (base URL / model default to OpenAI's public API).
@@ -553,6 +563,32 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }     # reads oauth_clients
       migrate-ai: { condition: service_completed_successfully }  # kun_ai schema
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      <<: *svc-health
+    restart: unless-stopped
+
+  # The AI assistant the product repos' backends proxy (/v2/agent/*). It seeds
+  # its first LLM provider from KUN_AI_UPSTREAM_* in the host env; without them
+  # it starts, but every run fails with no route.
+  agent:
+    image: ghcr.io/next-moe/infra-agent:${INFRA_IMAGE_TAG:-latest}
+    profiles: ["full"]
+    network_mode: host
+    environment:
+      <<: *dev-env
+      KUN_AGENT_HOST: 0.0.0.0
+      KUN_AGENT_PORT: "9287"
+      KUN_AI_UPSTREAM_BASE_URL: ${KUN_AI_UPSTREAM_BASE_URL:-}
+      KUN_AI_UPSTREAM_TOKEN: ${KUN_AI_UPSTREAM_TOKEN:-}
+      KUN_AGENT_CLIENT_ID: ${KUN_AGENT_CLIENT_ID:-}
+      KUN_AGENT_CLIENT_SECRET: ${KUN_AGENT_CLIENT_SECRET:-}
+      KUN_AGENT_POW_KEYS: ${KUN_AGENT_POW_KEYS:-}
+      KUN_BRAVE_API_KEY: ${KUN_BRAVE_API_KEY:-}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      migrate-ai: { condition: service_completed_successfully }     # llm_* routing tables
+      migrate-agent: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD", "/app", "healthcheck"]
       <<: *svc-health

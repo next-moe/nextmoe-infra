@@ -27,7 +27,7 @@ func publishedSpec(t *testing.T) *wireshapetest.Spec {
 func publishedAdminSpec(t *testing.T) *wireshapetest.Spec {
 	t.Helper()
 	adminOnce.Do(func() {
-		adminSpec = wireshapetest.Compile(t, SetupAdmin(fiber.New(), nil, nil).OpenAPI(), "HouseError")
+		adminSpec = wireshapetest.Compile(t, SetupAdmin(fiber.New(), nil, nil, nil).OpenAPI(), "HouseError")
 	})
 	return adminSpec
 }

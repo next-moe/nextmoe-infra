@@ -25,6 +25,11 @@ type List[T any] struct {
 	Facets        *map[string][]FacetValue `json:"facets,omitempty" doc:"Named facet buckets. Present only when facets= is requested."`
 }
 
+type ListWork struct {
+	List[Work]
+	SearchMode *string `json:"search_mode,omitempty" enum:"lexical,hybrid" doc:"Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable."`
+}
+
 type FacetValue struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
 	Value       string   `json:"value" maxLength:"256" doc:"Token to pass back to the same filter. Must not be used as a discriminant."`

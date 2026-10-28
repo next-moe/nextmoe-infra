@@ -11,6 +11,12 @@
       "replacement": " "
     }
   },
+  "filter": {
+    "t2s": {
+      "type": "icu_transform",
+      "id": "Traditional-Simplified"
+    }
+  },
   "tokenizer": {
     "ja_search": {
       "type": "kuromoji_tokenizer",
@@ -50,7 +56,7 @@
       "type": "custom",
       "char_filter": ["icu_nfc", "title_sep"],
       "tokenizer": "icu_tokenizer",
-      "filter": ["cjk_width", "lowercase"]
+      "filter": ["cjk_width", "t2s", "lowercase"]
     },
     "mixed": {
       "type": "custom",
@@ -74,7 +80,7 @@
       "type": "custom",
       "char_filter": ["icu_nfc", "title_sep"],
       "tokenizer": "cjk_ngram_tok",
-      "filter": ["cjk_width", "lowercase"]
+      "filter": ["cjk_width", "t2s", "lowercase"]
     }
   },
   "normalizer": {

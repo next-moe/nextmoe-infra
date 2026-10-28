@@ -204,6 +204,8 @@ github.com/molecule-man/go-brrr v1.1.0 h1:rLBGSXA393y+5ttCBLkW34CHESop5tahrOFxVv
 github.com/molecule-man/go-brrr v1.1.0/go.mod h1:7ybW6/7gA3oKY45jOfVNjSJDtrr6ea4tzbsTkjmQDC4=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
+github.com/next-moe/nextmoe-pow/go v0.0.0-20261028093851-f1803370d63d h1:26G8/GUF0DAjGXpsBrShqLWZZGiQwW+k9rYRUBtIH5c=
+github.com/next-moe/nextmoe-pow/go v0.0.0-20261028093851-f1803370d63d/go.mod h1:amMEBCDPZ9PDehdriKHcJ/HIhBcYZHScjeHASwtjQTE=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=

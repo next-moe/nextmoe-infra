@@ -919,6 +919,7 @@ export const mcpTools = [
       "released_after",
       "released_before",
       "olang",
+      "search_mode",
       "page"
     ]
   },

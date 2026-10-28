@@ -32,8 +32,8 @@ func main() {
 	limit := flag.Int("limit", 0, "rehearsal cap — classify: names judged; apply: write operations (0 = no cap)")
 
 	model := flag.String("model", envOr("KUN_TAG_PAIR_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
-	llmBase := flag.String("llm-base", envOr("KUN_TAG_PAIR_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
-	llmToken := flag.String("llm-token", envOr("KUN_TAG_PAIR_LLM_TOKEN", envOr("KUN_AI_UPSTREAM_KEY", os.Getenv("KUN_AI_UPSTREAM_TOKEN"))), "gateway bearer token")
+	llmBase := flag.String("llm-base", envOr("KUN_TAG_PAIR_LLM_BASE", config.LLMBaseURL()), "OpenAI-compatible gateway base URL (…/v1)")
+	llmToken := flag.String("llm-token", envOr("KUN_TAG_PAIR_LLM_TOKEN", envOr("KUN_AI_UPSTREAM_KEY", config.LLMToken())), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 4096, "LLM max_tokens per batch")
 	mock := flag.Bool("mock", false, "classify: REHEARSAL ONLY offline deterministic classifier (no network)")
 	flag.Parse()
@@ -118,7 +118,7 @@ func selectClassifier(mock bool, base, token, model string, maxTokens int) tagsa
 	}
 	ht := tagsafety.NewHTTPClassifier(base, token, model, maxTokens)
 	if !ht.Configured() {
-		fmt.Printf("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_TAG_PAIR_LLM_* / KUN_AI_UPSTREAM_*).\n" +
+		fmt.Printf("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_TAG_PAIR_LLM_* / KUN_LLM_GATEWAY_KEY / KUN_AI_UPSTREAM_*).\n" +
 			"This is a designed precondition for a real classify, not a failure. Use --mock for the offline rehearsal.\n")
 		os.Exit(3)
 	}

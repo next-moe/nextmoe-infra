@@ -5,8 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
-	"api/internal/platform/ai/upstream"
 )
 
 func main() {
@@ -50,7 +48,7 @@ func main() {
 		outPath: *out,
 		topN:    *topN,
 	}
-	client := upstream.NewClient(cfg.baseURL, cfg.token, cfg.model)
+	client := newClient(cfg.baseURL, cfg.token, cfg.model)
 
 	res, err := run(context.Background(), cfg, client, inFile, os.Stdout)
 	if err != nil {

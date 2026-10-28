@@ -21,6 +21,18 @@ func (s *PublicService) WithWorksSearch(idx *catsearch.Indexer) *PublicService {
 	return s
 }
 
+func (s *PublicService) WithWorksEmbedder(emb catsearch.Embedder) *PublicService {
+	s.worksEmbed = emb
+	return s
+}
+
+const (
+	SearchModeLexical = "lexical"
+	SearchModeHybrid  = "hybrid"
+)
+
+var SearchModeTokens = []string{SearchModeLexical, SearchModeHybrid}
+
 type WorksSearchFilter struct {
 	Q              string
 	ContentRating  *int16
@@ -43,6 +55,7 @@ type WorksSearchFilter struct {
 	Include        WorksListInclude
 	Fields         PublicFields
 	SearchIntro    bool
+	SearchMode     string
 }
 
 var worksSearchFacetAttr = map[string]string{
@@ -125,6 +138,9 @@ func (s *PublicService) WorksSearch(ctx context.Context, f WorksSearchFilter) (d
 		}
 		text, docID = "", catsearch.WorkDocID(workID)
 	}
+	if f.SearchMode == SearchModeHybrid && text != "" {
+		return s.hybridWorksSearch(ctx, f, text, page, limit)
+	}
 
 	rule, _ := WorksSearchSortRule(f.Sort)
 	res, err := s.worksSearch.SearchWorks(ctx, spec.WorksQuery{
@@ -144,9 +160,32 @@ func (s *PublicService) WorksSearch(ctx context.Context, f WorksSearchFilter) (d
 	if err != nil {
 		return dto.PublicWorksSearchData{}, err
 	}
-	return dto.PublicWorksSearchData{
+	out := dto.PublicWorksSearchData{
 		Total: res.Total, Page: page, Limit: limit, Items: items,
 		Facets: projectWorksSearchFacets(f.Facets, res.Facets),
+	}
+	if f.SearchMode != "" {
+		out.SearchMode = SearchModeLexical
+	}
+	return out, nil
+}
+
+func (s *PublicService) hybridWorksSearch(ctx context.Context, f WorksSearchFilter, text string, page, limit int) (dto.PublicWorksSearchData, error) {
+	res, err := s.worksSearch.HybridWorks(ctx, s.worksEmbed, text, f.worksFilter(""))
+	if err != nil {
+		return dto.PublicWorksSearchData{}, err
+	}
+	start := min((page-1)*limit, len(res.IDs))
+	items, err := s.hydrateWorkIDs(ctx, res.IDs[start:min(start+limit, len(res.IDs))], f.NSFW, f.Include, f.Fields)
+	if err != nil {
+		return dto.PublicWorksSearchData{}, err
+	}
+	mode := SearchModeLexical
+	if res.Hybrid {
+		mode = SearchModeHybrid
+	}
+	return dto.PublicWorksSearchData{
+		Total: int64(len(res.IDs)), Page: page, Limit: limit, Items: items, SearchMode: mode,
 	}, nil
 }
 

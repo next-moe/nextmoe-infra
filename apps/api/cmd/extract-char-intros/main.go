@@ -54,8 +54,8 @@ func main() {
 	workIDs := flag.String("work-ids", "", "comma-separated work ids to run instead of the whole bucket — the retry lane for works a batch failed on")
 	gateway := flag.String("gateway", "openai", "openai (chat/completions) or cursor (agent runs, batched)")
 	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
-	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
-	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
+	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", config.LLMBaseURL()), "OpenAI-compatible gateway base URL (…/v1)")
+	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", config.LLMToken()), "gateway bearer token")
 	cursorKeyFile := flag.String("cursor-key-file", "", "file holding the Cursor API key (or set CURSOR_API_KEY) — never pass a key on the command line")
 	effort := flag.String("effort", "", "reasoning effort: low | medium | high (empty = the gateway's own default; the cursor lane needs one and falls back to low)")
 	runTimeout := flag.Duration("run-timeout", 20*time.Minute, "how long one Cursor agent run may take")
@@ -100,7 +100,7 @@ func main() {
 	case "openai":
 		http := newHTTPExtractor(*llmBase, *llmToken, *model, *effort, *maxTokens)
 		if !http.Configured() {
-			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_AI_UPSTREAM_*).")
+			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_LLM_GATEWAY_KEY / KUN_AI_UPSTREAM_*).")
 			os.Exit(3)
 		}
 		ex, judge = http, http

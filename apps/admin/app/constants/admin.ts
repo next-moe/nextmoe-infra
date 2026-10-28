@@ -38,6 +38,12 @@ export const SIDEBAR_MENU: SidebarItem[] = [
   },
   { icon: 'lucide:store', label: '萌萌点商店', to: '/shop', renOnly: true },
   {
+    icon: 'lucide:bot',
+    label: 'LLM 网关配置',
+    to: '/ai/llm',
+    renOnly: true
+  },
+  {
     icon: 'lucide:heart-pulse',
     label: '应用监测',
     renOnly: true,

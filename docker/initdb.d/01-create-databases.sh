@@ -19,6 +19,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-'
 	CREATE DATABASE kun_trust;
 	-- AI-gateway semantic layer (usage ledger + budget fuse), see cmd/migrate ai.
 	CREATE DATABASE kun_ai;
+	-- AI assistant conversations and runs, see cmd/migrate agent.
+	CREATE DATABASE kun_agent;
 	-- Galgame news feed republished from partner sites, see cmd/migrate news.
 	CREATE DATABASE kun_news;
 	-- App telemetry (events, sessions, symbols, issues, alerts), see cmd/migrate telemetry.

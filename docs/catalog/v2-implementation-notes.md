@@ -2720,3 +2720,25 @@ The portrait a work showed ignored its cover votes, and works the legacy wiki ha
 - **Editor saves kept no votes.** Saving `catalog.work.covers` deleted the whole curated lane and inserted it again. Every kept cover got a new row id, and `catalog_cover_vote.cover_id` cascades on delete, so each save erased the votes on every curated cover it kept. The save now deletes only the hashes that left the list and updates the rest in place.
 
 **Spec 2.75.0**: the `cover`, `Cover.vote_count` and `Cover.portrait_pinned` descriptions. `portrait_pinned` no longer names the portrait; read `cover`. **No schema change**; the trigger function is replaced by the catalog migration.
+
+## Hybrid works search (spec 2.76.0, 2026-10-28)
+
+Users describe a game they half remember ("魔王被逐后为解咒寻四宝石") as often as they type its title. Lexical ranking finds almost none of those. `GET /v2/catalog/works?q=…&search_mode=hybrid` also ranks `q` by meaning.
+
+- **Vectors.** `catalog_work_vectors` is its own kNN index (faiss HNSW, `on_disk` with 16x compression, cosine) with one 1024-dim `@cf/qwen/qwen3-embedding-0.6b` vector per live work. It also copies the works index's filter fields, so every filter `works?` accepts, plus the nsfw and ban gates, applies inside the kNN search. The vectors live outside `catalog_works` because that index's bulk upserts replace whole documents. A work's card is its titles, its tag names and one intro per language bucket. `cmd/embed-catalog` embeds only cards whose text hash changed. The catalog service's `docsync.Syncer` re-embeds edited works and deletes the vectors of works that left the population. `catalog_character_vectors` is built the same way but is not exposed yet: its ranking has no goldset.
+- **Ranking.** The lexical query (intros included) and the kNN query each fetch 100 candidates, fused by reciprocal rank fusion (k = 60, equal weights). Works whose compacted title equals `q` (`titles_kw`) are pinned first, so a title query ranks as it did. A query embedding carries Qwen3's retrieval instruction.
+- **Measured.** On a 238-query goldset over the local 110,276 works (`cmd/eval-search`, `search/testdata/goldset_nl.jsonl`):
+  - describe-style recall@20 is 0.083 lexical against 0.400 hybrid;
+  - title MRR@10 is 0.996 lexical against 0.985 fused without the pin;
+  - the retrieval instruction lifts kNN describe recall@20 from 0.242 to 0.367;
+  - 8x and 16x compression rank the same; the kNN graph takes 44 MB at 16x.
+- **Degrading.** The query embedding has a 3 s budget. When the embedder is unconfigured, slow or failing (Workers AI answered `3048 Unknown internal error` for minutes on 2026-10-27), the list is the lexical ranking and the response's `search_mode` says `lexical`.
+- **Contract.** `search_mode=lexical|hybrid` (default lexical). hybrid requires `q=`, ranks at most 100 hits (`total` ≤ 100), and is refused with `facets=`, `ids=`/`refs=` or a sort other than relevance. `ListWork.search_mode` is present only when the parameter is.
+- **Script folding (SchemaVersion 5).** The `zh` and `cjk_ngram` analyzers gain ICU `Traditional-Simplified` on both index and query sides, so 秋葉/秋叶 and 戀愛/恋爱 produce the same ngram tokens. The `ja` analyzer is unchanged. Only the ngram lane folds reliably: `icu_tokenizer` segments by dictionary before any token filter, so 秋葉 is one word and 秋叶 two characters. `TestChineseAnalyzersFoldTraditionalOntoSimplified` asks a live `_analyze` and fails without the filter.
+
+**Spec 2.76.0**, additive. **Zero migrations.**
+
+Deploy:
+- One `reindex-catalog -recreate` for SchemaVersion 5. The daily `reindex-catalog` refuses schema-4 indexes until then, and catalog search is empty for the length of the rebuild.
+- One `embed-catalog` run (about 55 minutes for 110k works on Workers AI), plus `embed-catalog -entity characters` if the character vectors should be warm.
+- The catalog service reads `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` for the query embedder.

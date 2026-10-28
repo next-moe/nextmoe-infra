@@ -82206,6 +82206,17 @@ export const docsModel: DocsModel = {
                   "doc": "Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate."
                 },
                 {
+                  "name": "search_mode",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable.",
+                  "enum": [
+                    "lexical",
+                    "hybrid"
+                  ]
+                },
+                {
                   "name": "page",
                   "in": "query",
                   "required": false,
@@ -84363,6 +84374,15 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always list.",
                         "enum": [
                           "list"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "search_mode",
+                        "doc": "Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable.",
+                        "enum": [
+                          "lexical",
+                          "hybrid"
                         ],
                         "type": "string"
                       },

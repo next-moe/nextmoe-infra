@@ -71,12 +71,20 @@ was starting a second copy of one that was already up.
   up -d ai`. community (:9282) is **not** in that group — it is hot-reloaded
   from source like the other six, and a bare `up` migrates `kun_community` for
   it.
+- **agent (:9287, the AI assistant) is `full`-profile too**; from source it is
+  `go run ./cmd/migrate agent && go run ./cmd/agent`. Prod runs it as its own
+  Dokploy project (`docker-compose.agent.yml`); site contract: `docs/agent/`.
+- **LLM provider keys live in the gateway, not in env.** Providers, models,
+  routes, scenes and internal access keys are in `kun_ai`, managed by ren at
+  admin `/ai/llm`; services and CLIs reach models through the ai service's
+  OpenAI-compatible `/v1` with `KUN_LLM_GATEWAY_URL` / `KUN_LLM_GATEWAY_KEY`.
+  Only `KUN_LLM_KEK` stays in env. Model: `docs/ai/llm-gateway.md`.
 - `pnpm dev:full` = the whole platform from images with no source build (for
   developing a **product** repo, not infra). `pnpm dev:down` tears the base down.
 - Ports match prod (9277-9284); Postgres is the box's own `127.0.0.1:5432`, not
   a compose service — its host/port/user/password are `${VAR:-default}` in the
   dev compose, so override them from a root `.env` instead of editing the file.
-  Create the 13 databases with `pnpm dev:db` (idempotent): `docker/initdb.d` runs
+  Create the 15 databases with `pnpm dev:db` (idempotent): `docker/initdb.d` runs
   only when Postgres itself initialises an empty data dir, which on the box's own
   server is never. Full model: `docs/dev-environment.md`.
 - `pnpm dev` preflights with `pnpm dev:doctor` (read-only, ~2s; `SKIP_DOCTOR=1`

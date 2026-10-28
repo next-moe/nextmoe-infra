@@ -7016,6 +7016,11 @@ export interface components {
              */
             object: "list";
             /**
+             * @description Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable.
+             * @enum {string}
+             */
+            search_mode?: "lexical" | "hybrid";
+            /**
              * Format: int64
              * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
              */
@@ -15692,6 +15697,8 @@ export interface operations {
                 released_before?: string;
                 /** @description Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate. */
                 olang?: string;
+                /** @description lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable. */
+                search_mode?: "lexical" | "hybrid";
                 /** @description 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. */
                 page?: string;
             };

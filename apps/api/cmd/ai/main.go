@@ -14,6 +14,8 @@ import (
 	aiPerm "api/internal/platform/ai/perm"
 	"api/internal/platform/ai/service"
 	"api/internal/platform/ai/upstream"
+	"api/internal/platform/llm"
+	"api/internal/platform/llm/proxy"
 	"api/internal/platform/permissions"
 	"api/internal/platform/settings"
 	"api/internal/platform/settings/keys"
@@ -53,19 +55,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	up := upstream.NewClient(cfg.AIUpstream.BaseURL, cfg.AIUpstream.Token, "")
+	kek, err := llm.ParseKEK(cfg.LLM.KEK)
+	if err != nil {
+		slog.Error("llm kek", "error", err)
+		os.Exit(1)
+	}
+	if kek == nil {
+		slog.Warn("KUN_LLM_KEK is not set — provider API keys cannot be saved from the admin console")
+	}
+	if err := llm.SeedDefaults(permCtx, aiDB.DB(), kek, llm.BootstrapFromConfig(cfg)); err != nil {
+		slog.Error("llm seed", "error", err)
+		os.Exit(1)
+	}
+	gw := llm.New(aiDB.DB(), kek)
+	if err := gw.Refresh(permCtx); err != nil {
+		slog.Error("llm gateway snapshot", "error", err)
+		os.Exit(1)
+	}
+	gw.Start(permCtx)
+
+	up := upstream.NewClient(gw, llm.SceneModerationLLM)
 	if up.Configured() {
-		slog.Info("ai llm (tier2) configured", "base_url", cfg.AIUpstream.BaseURL, "model", up.Model())
+		slog.Info("ai llm (tier2) configured", "scene", llm.SceneModerationLLM, "model", up.Model())
 	} else {
-		slog.Warn("ai llm (tier2) NOT configured — moderate-text runs Tier1 alone / degraded")
+		slog.Warn("ai llm (tier2) NOT configured — moderate-text runs Tier1 alone / degraded", "scene", llm.SceneModerationLLM)
 	}
 
-	omni := upstream.NewOmniClient(cfg.AIOmni.BaseURL, cfg.AIOmni.Token, "")
+	omni := upstream.NewOmniClient(gw, llm.SceneModerationOmni)
 	if omni.Configured() {
-		slog.Info("ai omni (tier1) configured", "base_url", cfg.AIOmni.BaseURL, "model", omni.Model(),
+		slog.Info("ai omni (tier1) configured", "scene", llm.SceneModerationOmni, "model", omni.Model(),
 			"escalate_threshold", keys.AIEscalateThreshold.Get(), "negative_sample_rate", keys.AINegativeSampleRate.Get())
 	} else {
-		slog.Warn("ai omni (tier1) NOT configured — moderate-text runs the Tier2 LLM path only")
+		slog.Warn("ai omni (tier1) NOT configured — moderate-text runs the Tier2 LLM path only", "scene", llm.SceneModerationOmni)
 	}
 
 	moderationSvc := service.NewModerationService(aiDB.DB(), omni, up, service.ModerationOptions{})
@@ -88,9 +109,11 @@ func main() {
 	tokenVerifier := oidctoken.NewVerifierWithJWKS(cfg.JWT.Secret, cfg.OIDC.JWKSURL)
 	application.Fiber.Use("/api/v1/admin/ai",
 		middleware.JWTAuth(tokenVerifier), middleware.RequirePermission(aiPerm.Resolver, aiPerm.UsageView))
+	application.Fiber.Use("/api/v1/admin/ai/llm", middleware.RequirePermission(aiPerm.Resolver, aiPerm.LLMManage))
 
 	s2sAPI := aiHandler.Setup(application.Fiber, moderationSvc)
-	aiHandler.SetupAdmin(application.Fiber, statsSvc, budgetSvc)
+	aiHandler.SetupAdmin(application.Fiber, statsSvc, budgetSvc, llm.NewAdmin(aiDB.DB(), kek, gw))
+	proxy.Mount(application.Fiber, &proxy.Server{GW: gw})
 
 	application.Fiber.Get("/openapi.json", func(c fiber.Ctx) error {
 		b, err := json.Marshal(s2sAPI.OpenAPI())
