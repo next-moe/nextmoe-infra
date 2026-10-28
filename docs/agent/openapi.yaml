@@ -60,6 +60,11 @@ components:
           format: uri
           readOnly: true
           type: string
+        active_run_id:
+          description: A reply still streaming in this conversation.
+          type:
+            - string
+            - "null"
         created_at:
           format: date-time
           type: string
@@ -70,6 +75,8 @@ components:
             - assistant
             - search
           type: string
+        starred:
+          type: boolean
         title:
           type: string
         updated_at:
@@ -79,6 +86,8 @@ components:
         - id
         - title
         - mode
+        - starred
+        - active_run_id
         - updated_at
         - created_at
       type: object
@@ -151,6 +160,14 @@ components:
     MessageBody:
       additionalProperties: false
       properties:
+        feedback:
+          description: The user's rating of an assistant reply.
+          enum:
+            - up
+            - down
+          type:
+            - string
+            - "null"
         id:
           type: string
         parent_id:
@@ -165,8 +182,15 @@ components:
           type: string
         run_id:
           type: string
+        sibling_ids:
+          description: Every message under this message's parent, itself included, oldest first. Its position is the n of an n/m switcher; fetch ?head=<sibling> to show another one.
+          items:
+            type: string
+          type:
+            - array
+            - "null"
         siblings:
-          description: How many messages share this message's parent, itself included. Above 1 the UI offers to switch branches.
+          description: len(sibling_ids).
           format: int64
           type: integer
         status:
@@ -184,6 +208,8 @@ components:
         - status
         - run_id
         - siblings
+        - sibling_ids
+        - feedback
       type: object
     Part:
       additionalProperties: false
@@ -193,13 +219,19 @@ components:
           type: string
         id:
           type: string
+        input: {}
         mediaType:
           type: string
+        output: {}
         sourceId:
+          type: string
+        state:
           type: string
         text:
           type: string
         title:
+          type: string
+        toolCallId:
           type: string
         type:
           type: string
@@ -228,10 +260,22 @@ components:
             - "null"
         name:
           type: string
+        suggestions:
+          description: Starter prompts for an empty conversation, grouped like the mode chips of a composer.
+          items:
+            $ref: "#/components/schemas/SuggestionGroup"
+          type:
+            - array
+            - "null"
+        web_search_available:
+          description: Whether web_search can do anything; hide the toggle when false.
+          type: boolean
       required:
         - name
         - avatar
         - greetings
+        - suggestions
+        - web_search_available
       type: object
     Problem:
       additionalProperties: false
@@ -328,6 +372,24 @@ components:
         - paid_enabled
         - moemoepoint_balance
       type: object
+    RegenerateInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/RegenerateInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        message_id:
+          description: The user message to answer again. From an assistant message, pass its parent_id.
+          type: string
+        web_search:
+          type: boolean
+      required:
+        - message_id
+      type: object
     RenameAgentConversationRequest:
       additionalProperties: false
       properties:
@@ -338,12 +400,14 @@ components:
           format: uri
           readOnly: true
           type: string
+        head_message_id:
+          type: string
+        starred:
+          type: boolean
         title:
           maxLength: 100
           minLength: 1
           type: string
-      required:
-        - title
       type: object
     SearchHit:
       additionalProperties: false
@@ -427,6 +491,49 @@ components:
         - user_message_id
         - assistant_message_id
       type: object
+    SetAgentFeedbackRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SetAgentFeedbackRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        rating:
+          enum:
+            - up
+            - down
+            - none
+          type: string
+      required:
+        - rating
+      type: object
+    SuggestionGroup:
+      additionalProperties: false
+      properties:
+        icon:
+          description: A lucide icon name.
+          type: string
+        label:
+          type: string
+        prompts:
+          description: More than a screenful; show a few and rotate.
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        web_search:
+          description: Send this group's prompts with web_search on.
+          type: boolean
+      required:
+        - label
+        - icon
+        - web_search
+        - prompts
+      type: object
 info:
   description: "The NextMoe AI assistant: conversations, streamed replies and search. Called by a site's backend with the user's access token (or the site's client credentials for signed-out search). Replies stream as the AI SDK UI message stream protocol (SSE) from GET /v2/agent/runs/{id}/stream, which honours Last-Event-ID and answers 204 when the run has no live stream."
   title: NextMoe Agent API
@@ -452,6 +559,16 @@ paths:
             maximum: 100
             minimum: 1
             type: integer
+        - description: Only starred (true) or only unstarred (false) conversations; absent lists both.
+          explode: false
+          in: query
+          name: starred
+          schema:
+            description: Only starred (true) or only unstarred (false) conversations; absent lists both.
+            enum:
+              - "true"
+              - "false"
+            type: string
       responses:
         "200":
           content:
@@ -545,6 +662,7 @@ paths:
       tags:
         - agent
     patch:
+      description: Only the fields present change. head_message_id makes the branch through that message current, down to its newest reply, so a reload shows the branch the user last chose.
       operationId: renameAgentConversation
       parameters:
         - in: path
@@ -571,7 +689,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: Error
-      summary: Rename a conversation
+      summary: Rename, star or switch the branch of a conversation
       tags:
         - agent
   /v2/agent/conversations/{id}/messages:
@@ -610,6 +728,71 @@ paths:
                 $ref: "#/components/schemas/Problem"
           description: Error
       summary: Send a message and start the reply
+      tags:
+        - agent
+  /v2/agent/conversations/{id}/regenerate:
+    post:
+      description: Adds another assistant reply under the same user message, so the replies become siblings the UI can switch between; no user message is added. Priced and streamed like sending a message.
+      operationId: regenerateAgentReply
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            maxLength: 128
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegenerateInputBody"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendOutputBody"
+          description: Accepted
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Answer a user message again
+      tags:
+        - agent
+  /v2/agent/messages/{id}/feedback:
+    put:
+      operationId: setAgentFeedback
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAgentFeedbackRequest"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Rate an assistant reply
       tags:
         - agent
   /v2/agent/persona:

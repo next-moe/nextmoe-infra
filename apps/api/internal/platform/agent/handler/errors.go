@@ -24,6 +24,7 @@ const (
 	CodeRunActive             = "RUN_ACTIVE"
 	CodeIdempotencyKeyReused  = "IDEMPOTENCY_KEY_REUSED"
 	CodeBadParent             = "BAD_PARENT"
+	CodeNotRegenerable        = "NOT_REGENERABLE"
 	CodeEmptyMessage          = "EMPTY_MESSAGE"
 	CodeUnsupportedAttachment = "UNSUPPORTED_ATTACHMENT"
 	CodeInputTooLong          = "INPUT_TOO_LONG"

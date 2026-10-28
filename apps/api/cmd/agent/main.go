@@ -115,7 +115,7 @@ func main() {
 	}
 	server := &agentHandler.Server{
 		Store: store, Runner: runner, Broker: broker, Quota: quota,
-		Limits: agentHandler.NewLimiter(rdb), Search: &agentHandler.Searcher{Catalog: catalogFor},
+		Limits: agentHandler.NewLimiter(rdb), Search: &agentHandler.Searcher{Catalog: catalogFor}, WebSearch: web != nil,
 	}
 	if powVerifier != nil {
 		server.Verify = powVerifier

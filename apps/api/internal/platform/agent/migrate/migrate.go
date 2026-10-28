@@ -6,6 +6,11 @@
 // second submission while a reply streams is refused by the database rather
 // than by a check-then-insert race. The default mascot (site 0) is seeded only
 // when no persona exists; sites get their own mascot from operators.
+//
+// 2026-10-29, chat UX: agent_conversation.starred (default false),
+// agent_message.feedback (empty, up or down) and agent_persona.suggestions (jsonb,
+// default '[]'; empty means the built-in suggestion groups). All additive with
+// defaults, so existing rows need no backfill.
 package migrate
 
 import (
