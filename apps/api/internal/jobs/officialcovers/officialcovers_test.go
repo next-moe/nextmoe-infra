@@ -184,3 +184,53 @@ func TestApplyAddsTheCoversAndLiftsOnlyMachinePins(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, again.Candidates, "a rerun finds both lanes filled")
 }
+
+func TestALegacyUploadIdenticalToTheOfficialCoverIsResourced(t *testing.T) {
+	clean(t)
+	legacy := work(t, "", "81")
+	cover(t, legacy, model.SourceCurated, "", "c", false)
+	cover(t, legacy, model.SourceUpscale, "", "u", true)
+	pinned := work(t, "", "82")
+	cover(t, pinned, model.SourceCurated, "", "p", true)
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/healthz", r.URL.Path == "/image/reference-ping":
+			_, _ = rw.Write([]byte(`{"code":0}`))
+		case strings.HasPrefix(r.URL.Path, "/v0/subjects/"):
+			id := strings.TrimPrefix(r.URL.Path, "/v0/subjects/")
+			_ = json.NewEncoder(rw).Encode(map[string]any{"images": map[string]any{"large": srv.URL + "/" + id + ".jpg"}})
+		case r.URL.Path == "/image/upload":
+			require.NoError(t, r.ParseMultipartForm(1<<20))
+			_, fh, err := r.FormFile("file")
+			require.NoError(t, err)
+			seed := map[string]string{"81.jpg": "c", "82.jpg": "p"}[fh.Filename]
+			_ = json.NewEncoder(rw).Encode(map[string]any{"code": 0, "data": map[string]any{
+				"hash": strings.Repeat(seed, 64), "width": 700, "height": 1000}})
+		default:
+			_, _ = rw.Write([]byte("jpeg-bytes"))
+		}
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{}
+	cfg.CatalogImageClient.ClientID, cfg.CatalogImageClient.ClientSecret = "id", "secret"
+	stats, err := Run(context.Background(), cfg, Opts{DSN: testDSN, Apply: true,
+		ImageBaseURL: srv.URL, VNDBBase: srv.URL, BgmBase: srv.URL})
+	require.NoError(t, err)
+	assert.Equal(t, 1, stats.Relabeled, stats.String())
+	assert.Equal(t, 1, stats.Dedup, "the editor-pinned identical row is left alone")
+
+	var got model.CatalogWorkCover
+	require.NoError(t, testDB.Where("work_id = ? AND image_hash = ?", legacy, strings.Repeat("c", 64)).Take(&got).Error)
+	assert.Equal(t, model.SourceBangumi, got.SourceID)
+	assert.Equal(t, "main", got.Kind)
+	var upscalePinned bool
+	require.NoError(t, testDB.Raw(`SELECT portrait_pinned FROM catalog_work_cover WHERE work_id = ? AND source_id = ?`,
+		legacy, model.SourceUpscale).Scan(&upscalePinned).Error)
+	assert.False(t, upscalePinned, "the upscale's machine pin is lifted once an official portrait exists")
+	var kept model.CatalogWorkCover
+	require.NoError(t, testDB.Where("work_id = ? AND image_hash = ?", pinned, strings.Repeat("p", 64)).Take(&kept).Error)
+	assert.Equal(t, model.SourceCurated, kept.SourceID)
+}
