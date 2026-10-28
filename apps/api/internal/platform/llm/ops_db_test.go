@@ -87,7 +87,7 @@ func TestBudgetsStopSpendAndRaiseAlerts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Total.Calls != 4 || report.Total.CostNano != 4*1_020_000 || len(report.Daily) == 0 {
+	if report.Total.Calls != 4 || report.Total.CostNano != 4*1_020_000 || len(report.Daily) == 0 || report.Total.AvgMs <= 0 && report.Rows[0].AvgMs > 0 {
 		t.Fatalf("rolled-up hours plus the live hour give every successful call once: %+v", report.Total)
 	}
 	byKey, _ := a.Usage(ctx, 7, "key")

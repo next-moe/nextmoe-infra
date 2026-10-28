@@ -92,7 +92,7 @@ type UsageReport struct {
 
 var usageGroups = map[string][2]string{
 	"provider": {"u.provider_id::text", "coalesce(p.name, u.provider_id::text)"},
-	"route":    {"u.route_id::text", "coalesce(u.model_key || ' · ' || p.name, u.route_id::text)"},
+	"route":    {"u.route_id::text", "CASE WHEN u.route_id = 0 THEN '目录探测：' || u.model_key ELSE coalesce(u.model_key || ' · ' || p.name, u.route_id::text) END"},
 	"scene":    {"u.scene", "u.scene"},
 	"key":      {"u.access_key_id::text", "CASE WHEN u.access_key_id = 0 THEN '内部调用（ai / agent）' ELSE coalesce(k.name, u.access_key_id::text) END"},
 	"model":    {"u.model_key", "u.model_key"},
@@ -129,12 +129,17 @@ func (a *Admin) Usage(ctx context.Context, days int, group string) (UsageReport,
 		FROM `+usageSource+` GROUP BY 1 ORDER BY 1`, since, since).Scan(&out.Daily).Error; err != nil {
 		return out, err
 	}
+	var durationMs int64
 	for _, r := range out.Rows {
+		durationMs += r.AvgMs * r.Calls
 		out.Total.Calls += r.Calls
 		out.Total.Errors += r.Errors
 		out.Total.InputTokens += r.InputTokens
 		out.Total.OutputTokens += r.OutputTokens
 		out.Total.CostNano += r.CostNano
+	}
+	if out.Total.Calls > 0 {
+		out.Total.AvgMs = durationMs / out.Total.Calls
 	}
 	out.Total.Key, out.Total.Label = "total", "合计"
 	return out, nil
