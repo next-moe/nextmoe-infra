@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"api/internal/platform/ai/model"
+	"api/internal/platform/llm"
 
 	"gorm.io/gorm"
 )
@@ -21,6 +22,14 @@ func Run(db *gorm.DB) error {
 		&model.AIRouteBudget{},
 	); err != nil {
 		return fmt.Errorf("ai automigrate: %w", err)
+	}
+	// 2026-10-28: the LLM gateway tables (provider / model / route / price
+	// revision / scene / attempt / event) for the agent platform. All new and
+	// additive; no existing row changes. The gateway seeds its first provider
+	// from KUN_AI_UPSTREAM_* at startup when llm_provider is empty, so this
+	// migration writes no rows.
+	if err := db.AutoMigrate(llm.Tables()...); err != nil {
+		return fmt.Errorf("llm gateway automigrate: %w", err)
 	}
 	return rawSQL(db)
 }
