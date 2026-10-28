@@ -56,7 +56,7 @@ type listProblemsOutput struct {
 	Body repr.List[problemType]
 }
 type listWorksOutput struct {
-	Body repr.List[repr.Work]
+	Body repr.ListWork
 }
 
 // The 500 here is redundant, not authoritative: huma.Register appends
@@ -102,6 +102,7 @@ type listWorksInput struct {
 	ReleasedAfter  string `query:"released_after" maxLength:"10" doc:"YYYY-MM-DD inclusive, on each work's release_date."`
 	ReleasedBefore string `query:"released_before" maxLength:"10" doc:"YYYY-MM-DD inclusive, on each work's release_date."`
 	OLang          string `query:"olang" maxLength:"64" doc:"Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate."`
+	SearchMode     string `query:"search_mode" maxLength:"16" enum:"lexical,hybrid" doc:"lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable."`
 	PageInput
 }
 
@@ -245,7 +246,7 @@ func listWorks(src WorksFunc, cat *Catalog) func(context.Context, *listWorksInpu
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}
-		return &listWorksOutput{Body: page}, nil
+		return &listWorksOutput{Body: repr.ListWork{List: page}}, nil
 	}
 }
 

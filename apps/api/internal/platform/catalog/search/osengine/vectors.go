@@ -161,6 +161,27 @@ type VectorHit struct {
 	Score     float64
 }
 
+func (e *Engine) ExactTitleWorks(ctx context.Context, q string, limit int, f spec.WorksFilter) ([]string, error) {
+	kw := CompactKeyword(spec.SanitizeQuery(q))
+	if kw == "" {
+		return nil, nil
+	}
+	body := map[string]any{
+		"size":    limit,
+		"_source": false,
+		"query":   popularityBoosted(map[string]any{"bool": map[string]any{"filter": append(filterClauses(f), termClause("titles_kw", kw))}}),
+	}
+	var resp osSearchResponse
+	if err := e.client.Do(ctx, http.MethodPost, "/"+e.client.IndexName(IndexWorks)+"/_search", body, &resp); err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(resp.Hits.Hits))
+	for _, h := range resp.Hits.Hits {
+		ids = append(ids, h.ID)
+	}
+	return ids, nil
+}
+
 func (e *Engine) SearchWorkVectors(ctx context.Context, uid string, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error) {
 	return e.searchVectors(ctx, uid, vector, k, filterClauses(f))
 }

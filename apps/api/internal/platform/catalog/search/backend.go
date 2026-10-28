@@ -29,6 +29,7 @@ type Engine interface {
 	VectorStamps(ctx context.Context, uid string, ids []string) (map[string]VectorStamp, error)
 	SearchWorkVectors(ctx context.Context, uid string, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error)
 	SearchCharacterVectors(ctx context.Context, uid string, vector []float32, k int, q spec.CharacterQuery) ([]VectorHit, error)
+	ExactTitleWorks(ctx context.Context, q string, limit int, f spec.WorksFilter) ([]int64, error)
 }
 
 type Indexer struct{ engine Engine }

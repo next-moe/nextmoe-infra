@@ -3,10 +3,12 @@ package docsync
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	catalogSearch "api/internal/platform/catalog/search"
 	"api/internal/platform/catalog/search/spec"
@@ -91,6 +93,87 @@ func TestEmbedWorksReembedsOnlyChangedCards(t *testing.T) {
 	}
 	if len(hits) != 2 || (hits[0].CatalogID != a && hits[0].CatalogID != b) {
 		t.Fatalf("knn hits = %+v", hits)
+	}
+}
+
+func TestHybridWorksPinsTheExactTitleAndDegradesToLexical(t *testing.T) {
+	truncateFacetTables(t)
+	idx, _ := syncTestIndex(t, "hybrid")
+	ctx := context.Background()
+	if err := idx.EnsureVectorIndex(ctx, catalogSearch.IndexWorkVectors, 4); err != nil {
+		t.Fatalf("ensure vector index: %v", err)
+	}
+	exact := mkWork(t, "Senren Banka", model.WorkStatusLive, galgameMedium)
+	mkWork(t, "Senren Banka Fandisc", model.WorkStatusLive, galgameMedium)
+	mkWork(t, "Riddle Joker", model.WorkStatusLive, galgameMedium)
+	if err := Reindex(ctx, facetTestDB, idx, catalogSearch.IndexWorks, 100); err != nil {
+		t.Fatalf("reindex works: %v", err)
+	}
+	if _, err := EmbedWorks(ctx, facetTestDB, idx, &fakeEmbedder{}, EmbedOptions{Batch: 100, EmbedBatch: 4, Concurrency: 1}); err != nil {
+		t.Fatalf("embed works: %v", err)
+	}
+	for _, uid := range []string{catalogSearch.IndexWorks, catalogSearch.IndexWorkVectors} {
+		if err := idx.Refresh(ctx, uid); err != nil {
+			t.Fatalf("refresh %s: %v", uid, err)
+		}
+	}
+	filter := spec.WorksFilter{OLang: spec.OLang{All: true}}
+
+	got, err := idx.HybridWorks(ctx, &fakeEmbedder{}, "Senren Banka", filter)
+	if err != nil {
+		t.Fatalf("hybrid: %v", err)
+	}
+	if !got.Hybrid || len(got.IDs) != 3 || got.IDs[0] != exact {
+		t.Fatalf("hybrid = %+v, want all three works fused with the exact title first", got)
+	}
+
+	lexical, err := idx.SearchWorks(ctx, spec.WorksQuery{Q: "Senren Banka", Filter: filter, Page: 1, Limit: catalogSearch.HybridDepth, SearchIntro: true})
+	if err != nil {
+		t.Fatalf("lexical: %v", err)
+	}
+	got, err = idx.HybridWorks(ctx, &fakeEmbedder{failOn: "Senren"}, "Senren Banka", filter)
+	if err != nil {
+		t.Fatalf("degraded hybrid: %v", err)
+	}
+	if got.Hybrid || !slices.Equal(got.IDs, lexical.IDs) {
+		t.Fatalf("degraded = %+v, want the lexical ranking %v", got, lexical.IDs)
+	}
+}
+
+func TestSyncerEmbedsEditedWorksAndDropsDepartedVectors(t *testing.T) {
+	truncateFacetTables(t)
+	idx, client := syncTestIndex(t, "syncvec")
+	ctx := context.Background()
+	if err := idx.EnsureVectorIndex(ctx, catalogSearch.IndexWorkVectors, 4); err != nil {
+		t.Fatalf("ensure vector index: %v", err)
+	}
+	kept := mkWork(t, "Riddle Joker", model.WorkStatusLive, galgameMedium)
+	gone := mkWork(t, "Senren Banka", model.WorkStatusLive, galgameMedium)
+	s := NewSyncer(facetTestDB, idx).WithEmbedder(&fakeEmbedder{})
+	s.Enqueue(editspec.TypeWork, kept, gone)
+	s.Flush(ctx)
+	if err := idx.Refresh(ctx, catalogSearch.IndexWorkVectors); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	for _, id := range []int64{kept, gone} {
+		if _, ok := docSource(t, client, catalogSearch.IndexWorkVectors, catalogSearch.WorkDocID(id)); !ok {
+			t.Fatalf("work %d has no vector after the edit sync", id)
+		}
+	}
+
+	if err := facetTestDB.Exec(`UPDATE catalog_work SET deleted_at = now() WHERE id = ?`, gone).Error; err != nil {
+		t.Fatalf("soft-delete: %v", err)
+	}
+	s.Enqueue(editspec.TypeWork, gone)
+	s.Flush(ctx)
+	if err := idx.Refresh(ctx, catalogSearch.IndexWorkVectors); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if _, ok := docSource(t, client, catalogSearch.IndexWorkVectors, catalogSearch.WorkDocID(gone)); ok {
+		t.Fatal("a work that left the population must leave the vector index too")
+	}
+	if _, ok := docSource(t, client, catalogSearch.IndexWorkVectors, catalogSearch.WorkDocID(kept)); !ok {
+		t.Fatal("the untouched work lost its vector")
 	}
 }
 

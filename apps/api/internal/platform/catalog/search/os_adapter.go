@@ -158,6 +158,20 @@ func (a *osAdapter) SearchWorkVectors(ctx context.Context, uid string, vector []
 	return a.eng.SearchWorkVectors(ctx, uid, vector, k, f)
 }
 
+func (a *osAdapter) ExactTitleWorks(ctx context.Context, q string, limit int, f spec.WorksFilter) ([]int64, error) {
+	docIDs, err := a.eng.ExactTitleWorks(ctx, q, limit, f)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, 0, len(docIDs))
+	for _, docID := range docIDs {
+		if id, ok := WorkDocIDToWorkID(docID); ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
+}
+
 func (a *osAdapter) SearchCharacterVectors(ctx context.Context, uid string, vector []float32, k int, q spec.CharacterQuery) ([]VectorHit, error) {
 	return a.eng.SearchCharacterVectors(ctx, uid, vector, k, q)
 }
