@@ -89,6 +89,9 @@ const handleSubmit = async () => {
             @update:model-value="toggleScope(s)"
           />
         </div>
+        <p class="mt-1 text-xs text-default-400">
+          — 每把密钥都会自动带上 letmoe:files（letmoe 下载直链），无需勾选。
+        </p>
       </div>
 
       <div class="rounded-lg border border-default-200 p-3">
