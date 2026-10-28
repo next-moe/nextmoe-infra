@@ -9,11 +9,16 @@ import (
 const (
 	KindCompatible = "compatible"
 
-	ProtocolChat = "chat"
+	ModelChat       = "chat"
+	ModelEmbedding  = "embedding"
+	ModelModeration = "moderation"
 
-	RouteActive    = "active"
-	RouteDisabled  = "disabled"
-	RouteSuspended = "suspended"
+	ProtocolChat        = "chat"
+	ProtocolEmbeddings  = "embeddings"
+	ProtocolModerations = "moderations"
+
+	RouteActive   = "active"
+	RouteDisabled = "disabled"
 
 	ClassModeration  = "moderation"
 	ClassInteractive = "interactive"
@@ -28,6 +33,7 @@ type Provider struct {
 	BaseURL            string         `gorm:"size:512;not null"`
 	KeyEnv             string         `gorm:"size:64;not null;default:''"`
 	KeyCipher          []byte         `gorm:"type:bytea"`
+	KeyHint            string         `gorm:"size:16;not null;default:''"`
 	Headers            datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'"`
 	PriceMultiplierPPM int64          `gorm:"not null;default:1000000"`
 	Enabled            bool           `gorm:"not null;default:true"`
@@ -40,6 +46,7 @@ func (Provider) TableName() string { return "llm_provider" }
 type Model struct {
 	ID            int64  `gorm:"primaryKey"`
 	Key           string `gorm:"size:64;not null;uniqueIndex"`
+	Kind          string `gorm:"size:16;not null;default:'chat'"`
 	ContextTokens int    `gorm:"not null;default:0"`
 	MaxOutput     int    `gorm:"not null;default:0"`
 	ToolCall      bool   `gorm:"not null;default:false"`
@@ -51,6 +58,13 @@ type Model struct {
 }
 
 func (Model) TableName() string { return "llm_model" }
+
+func (m *Model) kind() string {
+	if m.Kind == "" {
+		return ModelChat
+	}
+	return m.Kind
+}
 
 type Route struct {
 	ID             int64  `gorm:"primaryKey"`
@@ -137,6 +151,20 @@ type RouteEvent struct {
 
 func (RouteEvent) TableName() string { return "llm_event" }
 
+type AccessKey struct {
+	ID            int64          `gorm:"primaryKey"`
+	Name          string         `gorm:"size:64;not null;uniqueIndex"`
+	Prefix        string         `gorm:"size:16;not null"`
+	Hash          string         `gorm:"size:64;not null;uniqueIndex"`
+	AllowedModels datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	Enabled       bool           `gorm:"not null;default:true"`
+	LastUsedAt    *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+func (AccessKey) TableName() string { return "llm_access_key" }
+
 func Tables() []any {
-	return []any{&Provider{}, &Model{}, &Route{}, &PriceRevision{}, &Scene{}, &Attempt{}, &RouteEvent{}}
+	return []any{&Provider{}, &Model{}, &Route{}, &PriceRevision{}, &Scene{}, &Attempt{}, &RouteEvent{}, &AccessKey{}}
 }

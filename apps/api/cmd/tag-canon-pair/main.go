@@ -36,8 +36,8 @@ func main() {
 	spotCheck := flag.Int("spot-check", 30, "review: high-confidence spot-check sample size")
 
 	model := flag.String("model", envOr("KUN_TAG_PAIR_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
-	llmBase := flag.String("llm-base", envOr("KUN_TAG_PAIR_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
-	llmToken := flag.String("llm-token", envOr("KUN_TAG_PAIR_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
+	llmBase := flag.String("llm-base", envOr("KUN_TAG_PAIR_LLM_BASE", config.LLMBaseURL()), "OpenAI-compatible gateway base URL (…/v1)")
+	llmToken := flag.String("llm-token", envOr("KUN_TAG_PAIR_LLM_TOKEN", config.LLMToken()), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 1024, "LLM max_tokens per judgment")
 	tagMapPath := flag.String("tagmap", os.Getenv("KUN_VNDB_TAGMAP_PATH"), "propose: override of the embedded VNDB tag map (vndb EN originals)")
 	mock := flag.Bool("mock", false, "propose: REHEARSAL ONLY offline deterministic matcher (no network)")
@@ -127,7 +127,7 @@ func selectMatcher(_ bool, mock bool, base, token, model string, maxTokens int) 
 	}
 	ht := tagcanon.NewHTTPMatcher(base, token, model, maxTokens)
 	if !ht.Configured() {
-		fmt.Printf("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_TAG_PAIR_LLM_* / KUN_AI_UPSTREAM_*).\n" +
+		fmt.Printf("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_TAG_PAIR_LLM_* / KUN_LLM_GATEWAY_KEY / KUN_AI_UPSTREAM_*).\n" +
 			"This is a designed precondition for a real propose, not a failure. Use --mock for the offline rehearsal.\n")
 		os.Exit(3)
 	}

@@ -23,7 +23,7 @@ import (
 const adminTestSecret = "ai-admin-test-secret"
 
 func TestSetupAdmin_RegistersOperations(t *testing.T) {
-	api := SetupAdmin(fiber.New(), nil, nil)
+	api := SetupAdmin(fiber.New(), nil, nil, nil)
 	paths := api.OpenAPI().Paths
 	for _, p := range []string{
 		"/api/v1/admin/ai/usage/summary",
@@ -40,7 +40,7 @@ func buildAdminApp() *fiber.App {
 	app.Use("/api/v1/admin/ai",
 		middleware.JWTAuth(verifier),
 		middleware.RequirePermission(aiPerm.Resolver, aiPerm.UsageView))
-	SetupAdmin(app, service.NewStatsService(testDB), service.NewBudgetService(testDB))
+	SetupAdmin(app, service.NewStatsService(testDB), service.NewBudgetService(testDB), nil)
 	return app
 }
 

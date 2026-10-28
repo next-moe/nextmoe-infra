@@ -200,8 +200,18 @@ func TestBreakerOpensAndSuspends(t *testing.T) {
 	if _, blocked := h.blockedUntil(1); blocked {
 		t.Fatal("success closes the breaker")
 	}
-	if h.failure(2, ErrKindAuth) || h.failure(2, ErrKindAuth) || !h.failure(2, ErrKindAuth) {
-		t.Fatal("the third auth failure in a row suspends the route")
+	if h.failure(2, ErrKindAuth) || h.failure(2, ErrKindAuth) || !h.failure(2, ErrKindAuth) || h.failure(2, ErrKindAuth) {
+		t.Fatal("the third auth failure in a row raises one alert")
+	}
+	until, blocked := h.blockedUntil(2)
+	if !blocked || until.Sub(now) != 8*time.Minute {
+		t.Fatalf("four auth failures back the route off 8m, got %v", until.Sub(now))
+	}
+	for range 10 {
+		h.failure(2, ErrKindAuth)
+	}
+	if until, _ := h.blockedUntil(2); until.Sub(now) != 30*time.Minute {
+		t.Fatalf("the auth backoff caps at 30m, got %v", until.Sub(now))
 	}
 }
 

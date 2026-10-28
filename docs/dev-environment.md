@@ -51,8 +51,12 @@ therefore starts neither group. This gives two modes:
   `docker compose -f docker-compose.dev.yml --profile full up -d ai`
   (or hot-reload it with `go run ./cmd/ai` — Replace mode, below). The AI
   assistant (agent, :9287) is the same: `--profile full up -d agent`, or
-  `go run ./cmd/migrate agent && go run ./cmd/agent`; set `KUN_AI_UPSTREAM_BASE_URL`
-  / `KUN_AI_UPSTREAM_TOKEN` in `apps/api/.env` or every run fails with no route.
+  `go run ./cmd/migrate agent && go run ./cmd/agent`. Its models come from the
+  LLM gateway in `kun_ai` (admin console `/ai/llm`, ren only; see
+  `docs/ai/llm-gateway.md`). An empty gateway is seeded once from
+  `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` in `apps/api/.env`; set
+  `KUN_LLM_KEK` (base64 of 32 random bytes, same value for ai and agent) to
+  store keys sealed instead of read from the environment.
 - **Developing a product repo** (letmoe / forum / moyu / …) → you want the WHOLE
   platform from images, no source build. Use `--profile full`:
   `docker compose -f docker-compose.dev.yml --profile full up -d` (or, from the

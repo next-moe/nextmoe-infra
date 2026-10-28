@@ -54,8 +54,6 @@ var goldenNames = []string{
 	"ai.negative_sample_rate",
 	"ai.force_escalate",
 	"ai.moderate_max_tokens",
-	"ai.upstream_model",
-	"ai.omni_model",
 	"store.link_quota_per_client",
 	"store.price_enabled",
 	"store.price_user_agent",

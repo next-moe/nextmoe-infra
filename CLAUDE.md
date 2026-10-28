@@ -74,6 +74,11 @@ was starting a second copy of one that was already up.
 - **agent (:9287, the AI assistant) is `full`-profile too**; from source it is
   `go run ./cmd/migrate agent && go run ./cmd/agent`. Prod runs it as its own
   Dokploy project (`docker-compose.agent.yml`); site contract: `docs/agent/`.
+- **LLM provider keys live in the gateway, not in env.** Providers, models,
+  routes, scenes and internal access keys are in `kun_ai`, managed by ren at
+  admin `/ai/llm`; services and CLIs reach models through the ai service's
+  OpenAI-compatible `/v1` with `KUN_LLM_GATEWAY_URL` / `KUN_LLM_GATEWAY_KEY`.
+  Only `KUN_LLM_KEK` stays in env. Model: `docs/ai/llm-gateway.md`.
 - `pnpm dev:full` = the whole platform from images with no source build (for
   developing a **product** repo, not infra). `pnpm dev:down` tears the base down.
 - Ports match prod (9277-9284); Postgres is the box's own `127.0.0.1:5432`, not

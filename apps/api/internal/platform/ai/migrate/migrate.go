@@ -24,9 +24,11 @@ func Run(db *gorm.DB) error {
 		return fmt.Errorf("ai automigrate: %w", err)
 	}
 	// 2026-10-28: the LLM gateway tables (provider / model / route / price
-	// revision / scene / attempt / event) for the agent platform. All new and
-	// additive; no existing row changes. The gateway seeds its first provider
-	// from KUN_AI_UPSTREAM_* at startup when llm_provider is empty, so this
+	// revision / scene / attempt / event / access key). All new and additive;
+	// no existing row changes. Provider API keys are stored sealed with
+	// KUN_LLM_KEK and managed from the admin console; on its first start the
+	// ai service seeds the providers, models, routes and scenes from the legacy
+	// KUN_AI_UPSTREAM_* / KUN_AI_OMNI_* env when llm_provider is empty, so this
 	// migration writes no rows.
 	if err := db.AutoMigrate(llm.Tables()...); err != nil {
 		return fmt.Errorf("llm gateway automigrate: %w", err)

@@ -11,7 +11,8 @@ const (
 	breakCap            = 10 * time.Minute
 	breakNotFound       = 5 * time.Minute
 	breakAuth           = time.Minute
-	suspendAfterAuth    = 3
+	breakAuthCap        = 30 * time.Minute
+	alertAfterAuth      = 3
 )
 
 type routeHealth struct {
@@ -55,7 +56,7 @@ func (h *health) success(id int64) {
 	delete(h.m, id)
 }
 
-func (h *health) failure(id int64, kind ErrorKind) (suspend bool) {
+func (h *health) failure(id int64, kind ErrorKind) (alert bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	r := h.get(id)
@@ -69,10 +70,13 @@ func (h *health) failure(id int64, kind ErrorKind) (suspend bool) {
 		}
 	case kind == ErrKindNotFound:
 		r.openUntil = now.Add(breakNotFound)
+	// Cloudflare has answered 401 when merely overloaded, so an auth failure
+	// backs the route off instead of disabling it: a permanent suspension
+	// turned a burst of those into an outage that waited for a human.
 	case kind == ErrKindAuth || kind == ErrKindQuota:
 		r.authStrikes++
-		r.openUntil = now.Add(breakAuth)
-		return r.authStrikes >= suspendAfterAuth
+		r.openUntil = now.Add(min(breakAuth<<min(r.authStrikes-1, 5), breakAuthCap))
+		return r.authStrikes == alertAfterAuth
 	}
 	return false
 }

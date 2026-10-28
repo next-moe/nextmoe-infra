@@ -146,6 +146,6 @@ go run ./cmd/migrate ai         # kun_ai 里的 llm_* 路由表
 go run ./cmd/agent              # :9287
 ```
 
-`apps/api/.env` 里至少要有 `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN`（Workers AI 的 OpenAI 兼容端点和 token），启动时会把它种成第一个供应商；没有它每一轮都会因为没有可用路由而失败。其余可选：`KUN_AGENT_CLIENT_ID` / `KUN_AGENT_CLIENT_SECRET`（不填只有免费次数）、`KUN_AGENT_POW_KEYS`、`KUN_BRAVE_API_KEY`（不填就没有联网搜索）。
+模型、供应商和 key 都在 LLM 网关里配置（管理端「LLM 网关配置」，仅 ren，见 `docs/ai/llm-gateway.md`）。本地网关为空时，`apps/api/.env` 里的 `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` 会在第一次启动时被种成第一个供应商；网关里没有可用路由时，每一轮都会失败。`KUN_LLM_KEK` 要和 ai 服务用同一个值。其余可选：`KUN_AGENT_CLIENT_ID` / `KUN_AGENT_CLIENT_SECRET`（不填只有免费次数）、`KUN_AGENT_POW_KEYS`、`KUN_BRAVE_API_KEY`（不填就没有联网搜索）。
 
 本地还要在设置中心给你的站点打开 `agent.enabled`。

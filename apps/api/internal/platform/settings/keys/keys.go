@@ -265,8 +265,6 @@ var live = settings.NewRegistry(
 			AINegativeSampleRate,
 			AIForceEscalate,
 			AIModerateMaxTokens,
-			AIUpstreamModel,
-			AIOmniModel,
 		},
 	},
 	settings.Domain{

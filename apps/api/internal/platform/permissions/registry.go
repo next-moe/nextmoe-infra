@@ -195,6 +195,7 @@ var live = NewRegistry(
 		Keys: []Key{
 			{aiPerm.UsageView, "Reach the AI-gateway usage / cost / budget dashboard.", "查看 AI 网关用量/成本/预算看板"},
 			{aiPerm.BudgetManage, "Set or clear a route's daily cost cap.", "设置/清除路由每日成本上限(预算保险丝)"},
+			{aiPerm.LLMManage, "Read and change LLM providers, API keys, models, routes, scenes and gateway access keys.", "查看与修改 LLM 供应商、API key、模型、路由、场景和网关访问密钥"},
 		},
 	},
 	Domain{

@@ -27,8 +27,8 @@ func main() {
 	applyDescCSV := flag.String("apply-desc-csv", "", "write back a REVIEWED description CSV")
 	limit := flag.Int("limit", 0, "--mt / --mt-desc: propose at most N candidates (0 = all)")
 	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
-	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
-	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
+	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", config.LLMBaseURL()), "OpenAI-compatible gateway base URL (…/v1)")
+	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", config.LLMToken()), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 256, "--mt: max_tokens (a trait name is a handful of characters)")
 	descMaxTokens := flag.Int("desc-max-tokens", 4096, "--mt-desc: max_tokens")
 	delayMS := flag.Int("delay-ms", 0, "--mt / --mt-desc: delay between gateway calls (ms)")
@@ -62,7 +62,7 @@ func main() {
 		}
 		tr := newDescHTTPTranslator(*llmBase, *llmToken, *model, *descMaxTokens)
 		if !tr.Configured() {
-			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_AI_UPSTREAM_*).\n" +
+			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_LLM_GATEWAY_KEY / KUN_AI_UPSTREAM_*).\n" +
 				"This is a designed precondition for --mt-desc, not a failure.")
 			os.Exit(3)
 		}
@@ -74,7 +74,7 @@ func main() {
 		}
 		tr := newHTTPTranslator(*llmBase, *llmToken, *model, *maxTokens)
 		if !tr.Configured() {
-			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_AI_UPSTREAM_*).\n" +
+			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_LLM_GATEWAY_KEY / KUN_AI_UPSTREAM_*).\n" +
 				"This is a designed precondition for --mt, not a failure.")
 			os.Exit(3)
 		}

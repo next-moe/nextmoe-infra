@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"api/internal/jobs/personadj"
+	"api/pkg/config"
 	"api/pkg/logger"
 )
 
@@ -45,9 +46,9 @@ func main() {
 		if m == "" {
 			m = os.Getenv("KUN_AI_UPSTREAM_MODEL")
 		}
-		h := personadj.NewHTTPJudge(os.Getenv("KUN_AI_UPSTREAM_BASE_URL"), os.Getenv("KUN_AI_UPSTREAM_TOKEN"), m, *maxTokens, *rpm)
+		h := personadj.NewHTTPJudge(config.LLMBaseURL(), config.LLMToken(), m, *maxTokens, *rpm)
 		if !h.Configured() {
-			fmt.Fprintln(os.Stderr, "gateway not configured: set KUN_AI_UPSTREAM_BASE_URL and KUN_AI_UPSTREAM_TOKEN (or pass -mock)")
+			fmt.Fprintln(os.Stderr, "gateway not configured: set KUN_LLM_GATEWAY_KEY (or the legacy KUN_AI_UPSTREAM_BASE_URL/TOKEN), or pass -mock")
 			os.Exit(2)
 		}
 		judge = h.WithRequestTimeout(*requestTimeout)

@@ -23,6 +23,9 @@ type snapshot struct {
 	prices    map[int64]*PriceRevision
 	keys      map[int64]string
 	headers   map[int64]map[string]string
+	byKey     map[string]*Model
+	aliases   map[string]int64
+	access    map[string]*AccessKey
 	loadedAt  time.Time
 }
 
@@ -34,11 +37,12 @@ func loadSnapshot(ctx context.Context, db *gorm.DB, kek []byte) (*snapshot, erro
 		routes    []*Route
 		scenes    []*Scene
 		prices    []*PriceRevision
+		access    []*AccessKey
 	)
 	for _, q := range []struct {
 		dst  any
 		name string
-	}{{&providers, "providers"}, {&models, "models"}, {&routes, "routes"}, {&scenes, "scenes"}} {
+	}{{&providers, "providers"}, {&models, "models"}, {&routes, "routes"}, {&scenes, "scenes"}, {&access, "access keys"}} {
 		if err := db.Find(q.dst).Error; err != nil {
 			return nil, fmt.Errorf("llm snapshot %s: %w", q.name, err)
 		}
@@ -49,7 +53,8 @@ func loadSnapshot(ctx context.Context, db *gorm.DB, kek []byte) (*snapshot, erro
 	s := &snapshot{
 		providers: map[int64]*Provider{}, models: map[int64]*Model{}, routes: map[int64][]*Route{},
 		scenes: map[string]*Scene{}, prices: map[int64]*PriceRevision{},
-		keys: map[int64]string{}, headers: map[int64]map[string]string{}, loadedAt: time.Now(),
+		keys: map[int64]string{}, headers: map[int64]map[string]string{},
+		byKey: map[string]*Model{}, aliases: map[string]int64{}, access: map[string]*AccessKey{}, loadedAt: time.Now(),
 	}
 	for _, p := range providers {
 		if !p.Enabled {
@@ -70,12 +75,20 @@ func loadSnapshot(ctx context.Context, db *gorm.DB, kek []byte) (*snapshot, erro
 	}
 	for _, m := range models {
 		if m.Enabled {
-			s.models[m.ID] = m
+			s.models[m.ID], s.byKey[m.Key] = m, m
 		}
 	}
 	for _, r := range routes {
 		if r.Status == RouteActive && s.providers[r.ProviderID] != nil && s.models[r.ModelID] != nil {
 			s.routes[r.ModelID] = append(s.routes[r.ModelID], r)
+			if _, taken := s.aliases[r.UpstreamID]; !taken {
+				s.aliases[r.UpstreamID] = r.ModelID
+			}
+		}
+	}
+	for _, k := range access {
+		if k.Enabled {
+			s.access[k.Hash] = k
 		}
 	}
 	for _, sc := range scenes {
@@ -85,6 +98,30 @@ func loadSnapshot(ctx context.Context, db *gorm.DB, kek []byte) (*snapshot, erro
 		s.prices[p.ID] = p
 	}
 	return s, nil
+}
+
+func (s *snapshot) target(scene, model string) (*Scene, *Model, error) {
+	if scene != "" {
+		sc := s.scenes[scene]
+		if sc == nil {
+			return nil, nil, fmt.Errorf("%w %q", ErrUnknownScene, scene)
+		}
+		return sc, s.models[sc.ModelID], nil
+	}
+	if sc := s.scenes[model]; sc != nil {
+		return sc, s.models[sc.ModelID], nil
+	}
+	m := s.byKey[model]
+	if m == nil {
+		if id, ok := s.aliases[model]; ok {
+			m = s.models[id]
+		}
+	}
+	if m == nil {
+		return nil, nil, fmt.Errorf("%w %q", ErrUnknownModel, model)
+	}
+	return &Scene{Key: "model:" + m.Key, ModelID: m.ID, FallbackModelIDs: []byte("[]"), Class: ClassBatch,
+		TTFTMs: 60_000, IdleMs: 60_000, TotalMs: 600_000}, m, nil
 }
 
 func providerKey(p *Provider, kek []byte) (string, error) {

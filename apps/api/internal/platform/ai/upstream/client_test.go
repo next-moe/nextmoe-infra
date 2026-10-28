@@ -3,93 +3,88 @@ package upstream
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"api/internal/platform/llm"
 )
 
-func TestConfigured(t *testing.T) {
-	cases := []struct {
-		base, token string
-		want        bool
-	}{
-		{"", "", false},
-		{"http://x/v1", "", false},
-		{"", "tok", false},
-		{"http://x/v1", "tok", true},
+type fakeGateway struct {
+	ready    bool
+	streamFn func(llm.Call) (llm.Result, error)
+	modBody  string
+	modErr   error
+	lastCall llm.Call
+	lastReq  llm.Request
+}
+
+func (f *fakeGateway) Ready(string) (string, bool) { return "glm-5.2", f.ready }
+
+func (f *fakeGateway) Stream(_ context.Context, call llm.Call, _ func(llm.Event)) (llm.Result, error) {
+	f.lastCall = call
+	return f.streamFn(call)
+}
+
+func (f *fakeGateway) Moderate(_ context.Context, r llm.Request) (llm.Response, error) {
+	f.lastReq = r
+	return llm.Response{Body: []byte(f.modBody)}, f.modErr
+}
+
+func TestChatJSONGoesThroughTheSceneAsBufferedJSON(t *testing.T) {
+	gw := &fakeGateway{ready: true, streamFn: func(llm.Call) (llm.Result, error) {
+		return llm.Result{Text: " {\"label\":\"safe\"} ", Model: "@cf/zai-org/glm-5.2", Usage: llm.Usage{InputTokens: 9, OutputTokens: 4}}, nil
+	}}
+	c := NewClient(gw, llm.SceneModerationLLM)
+	if !c.Configured() || c.Model() != "glm-5.2" {
+		t.Fatal("a ready scene is configured and reports its primary model")
 	}
-	for _, c := range cases {
-		if got := NewClient(c.base, c.token, "m").Configured(); got != c.want {
-			t.Errorf("Configured(base=%q token=%q) = %v, want %v", c.base, c.token, got, c.want)
-		}
+	res, err := c.ChatJSON(context.Background(), "sys", "user", 64)
+	if err != nil || res.Content != `{"label":"safe"}` || res.Channel != "@cf/zai-org/glm-5.2" || res.PromptTokens != 9 || res.CompletionTokens != 4 {
+		t.Fatalf("res=%+v err=%v", res, err)
+	}
+	if call := gw.lastCall; call.Scene != llm.SceneModerationLLM || !call.Buffered || !call.JSON || call.MaxTokens != 64 || string(call.Extra["temperature"]) != "0" {
+		t.Fatalf("call = %+v", call)
 	}
 }
 
-func TestChatJSONNormal(t *testing.T) {
-	var gotAuth, gotPath string
-	var gotBody map[string]any
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotAuth = r.Header.Get("Authorization")
-		gotPath = r.URL.Path
-		b, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(b, &gotBody)
-		_, _ = io.WriteString(w, `{
-			"model": "deepseek-chat",
-			"choices": [{"message": {"role": "assistant", "content": "{\"flagged\": true, \"score\": 0.8}"}}],
-			"usage": {"prompt_tokens": 11, "completion_tokens": 5}
-		}`)
-	}))
-	defer srv.Close()
-
-	c := NewClient(srv.URL, "sekret", "deepseek-chat")
-	res, err := c.ChatJSON(context.Background(), "system", "user text", 128)
-	if err != nil {
-		t.Fatalf("ChatJSON: %v", err)
-	}
-	if gotAuth != "Bearer sekret" {
-		t.Errorf("Authorization = %q, want Bearer sekret", gotAuth)
-	}
-	if gotPath != "/chat/completions" {
-		t.Errorf("path = %q, want /chat/completions", gotPath)
-	}
-	if rf, _ := gotBody["response_format"].(map[string]any); rf["type"] != "json_object" {
-		t.Errorf("response_format not json_object: %v", gotBody["response_format"])
-	}
-	if !strings.Contains(res.Content, `"flagged": true`) {
-		t.Errorf("content not passed through: %q", res.Content)
-	}
-	if res.Channel != "deepseek-chat" || res.PromptTokens != 11 || res.CompletionTokens != 5 {
-		t.Errorf("parsed fields wrong: channel=%q prompt=%d completion=%d", res.Channel, res.PromptTokens, res.CompletionTokens)
+func TestChatJSONRateLimitIsTyped(t *testing.T) {
+	gw := &fakeGateway{ready: true, streamFn: func(llm.Call) (llm.Result, error) {
+		return llm.Result{}, &llm.Error{Kind: llm.ErrKindRateLimit, Status: 429, Msg: `{"errors":[{"code":3021}]}`}
+	}}
+	_, err := NewClient(gw, llm.SceneModerationLLM).ChatJSON(context.Background(), "s", "u", 8)
+	if !IsRateLimited(err) || !strings.HasPrefix(err.Error(), "upstream http 429: ") {
+		t.Fatalf("a 429 must stay typed and keep its log text: %v", err)
 	}
 }
 
-func TestChatJSON5xx(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusBadGateway)
-		_, _ = io.WriteString(w, `upstream exploded`)
-	}))
-	defer srv.Close()
-
-	c := NewClient(srv.URL, "sekret", "deepseek-chat")
-	if _, err := c.ChatJSON(context.Background(), "s", "u", 64); err == nil {
-		t.Fatal("want error on 5xx, got nil")
+func TestChatJSONOtherStatusIsNotRateLimited(t *testing.T) {
+	gw := &fakeGateway{ready: true, streamFn: func(llm.Call) (llm.Result, error) {
+		return llm.Result{}, &llm.Error{Kind: llm.ErrKindAuth, Status: 401, Msg: "unauthorized"}
+	}}
+	_, err := NewClient(gw, llm.SceneModerationLLM).ChatJSON(context.Background(), "s", "u", 8)
+	// Cloudflare has been seen answering 401 when merely overloaded. Retrying
+	// that would mask a genuine credential failure, so it must not be retried.
+	if err == nil || IsRateLimited(err) {
+		t.Fatalf("401 must not count as rate limited: %v", err)
 	}
 }
 
-func TestChatJSONChannelFallback(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = io.WriteString(w, `{"choices":[{"message":{"content":"{}"}}],"usage":{}}`)
-	}))
-	defer srv.Close()
-
-	c := NewClient(srv.URL, "sekret", "mimo-7b")
-	res, err := c.ChatJSON(context.Background(), "s", "u", 64)
-	if err != nil {
-		t.Fatalf("ChatJSON: %v", err)
+func TestOmniParsesTheFirstResult(t *testing.T) {
+	gw := &fakeGateway{ready: true, modBody: `{"model":"omni-moderation-2024-09-26","results":[{"flagged":true,"categories":{"sexual":true},"category_scores":{"sexual":0.91}}]}`}
+	c := NewOmniClient(gw, llm.SceneModerationOmni)
+	res, err := c.Moderate(context.Background(), "text")
+	if err != nil || !res.Flagged || !res.Categories["sexual"] || res.CategoryScores["sexual"] != 0.91 || res.Channel != "omni-moderation-2024-09-26" {
+		t.Fatalf("res=%+v err=%v", res, err)
 	}
-	if res.Channel != "mimo-7b" {
-		t.Errorf("channel fallback = %q, want mimo-7b", res.Channel)
+	var input string
+	if json.Unmarshal(gw.lastReq.Body["input"], &input) != nil || input != "text" || gw.lastReq.Scene != llm.SceneModerationOmni {
+		t.Fatalf("request = %+v", gw.lastReq)
+	}
+	gw.modBody = `{"results":[]}`
+	if _, err := c.Moderate(context.Background(), "x"); err == nil {
+		t.Fatal("no results must be an error")
+	}
+	if (&OmniClient{gw: &fakeGateway{}, scene: "x"}).Configured() {
+		t.Fatal("a scene without routes is not configured")
 	}
 }

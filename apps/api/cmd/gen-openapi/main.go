@@ -59,7 +59,7 @@ func main() {
 	case *ai:
 		api = aiHandler.Setup(app, nil)
 	case *aiAdmin:
-		api = aiHandler.SetupAdmin(app, nil, nil)
+		api = aiHandler.SetupAdmin(app, nil, nil, nil)
 	case *telemetryAdmin:
 		api = telemetryHandler.SetupAdmin(app, nil, nil, nil)
 	case *agent:

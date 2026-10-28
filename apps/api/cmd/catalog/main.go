@@ -138,7 +138,7 @@ func main() {
 	}
 	worksEmbedder := worksEmbedderFrom(cfg)
 	if worksEmbedder == nil {
-		slog.Warn("works search: no AI upstream configured — search_mode=hybrid answers with the lexical ranking and edits do not refresh vectors (set KUN_AI_UPSTREAM_BASE_URL/TOKEN)")
+		slog.Warn("works search: no AI upstream configured — search_mode=hybrid answers with the lexical ranking and edits do not refresh vectors (set KUN_LLM_GATEWAY_KEY to a gateway access key)")
 	}
 	searchSync := docsync.NewSyncer(catalogDB.DB(), searcher).WithEmbedder(worksEmbedder)
 	editRegistry.Observe(searchSync.Observe)
@@ -232,10 +232,10 @@ func main() {
 }
 
 func worksEmbedderFrom(cfg *config.Config) catalogSearch.Embedder {
-	if cfg.AIUpstream.BaseURL == "" || cfg.AIUpstream.Token == "" {
+	if cfg.LLMGateway.URL == "" || cfg.LLMGateway.Key == "" {
 		return nil
 	}
-	return catalogSearch.NewOpenAIEmbedder(cfg.AIUpstream.BaseURL, cfg.AIUpstream.Token, catalogSearch.DefaultEmbedModel)
+	return catalogSearch.NewOpenAIEmbedder(cfg.LLMGateway.URL, cfg.LLMGateway.Key, catalogSearch.DefaultEmbedModel)
 }
 
 func setupPublicCatalog(
@@ -417,7 +417,7 @@ func setupPublicCatalog(
 		},
 		LookupSite: bindingOfClient,
 		Catalog: &v2handler.Catalog{
-			WalkthroughDrafts: walkthroughdraft.NewService(catalogDB.DB(), cfg.AIUpstream.BaseURL, draftModel),
+			WalkthroughDrafts: walkthroughdraft.NewService(catalogDB.DB(), cfg.LLMGateway.URL, draftModel),
 			Public:            publicSvc,
 			Resolve:           resolveSvc,
 			StatsSvc:          statsSvc,

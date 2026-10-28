@@ -15,8 +15,6 @@ import (
 	"sync"
 	"testing"
 	"unicode/utf8"
-
-	"api/internal/platform/ai/upstream"
 )
 
 type stubServer struct {
@@ -171,7 +169,7 @@ func byID(rows []scoredRow) map[string]scoredRow {
 
 func TestRunScoresCountsHistogramTop(t *testing.T) {
 	stub := newStub(t)
-	client := upstream.NewClient(stub.URL, "", "stub-model")
+	client := newClient(stub.URL, "", "stub-model")
 
 	longBody := "score=0.95 flag=1 cats=abuse " + strings.Repeat("あ", 400)
 	lines := []string{
@@ -240,7 +238,7 @@ func TestRunScoresCountsHistogramTop(t *testing.T) {
 
 func TestRunResumeIdempotentWithLimit(t *testing.T) {
 	stub := newStub(t)
-	client := upstream.NewClient(stub.URL, "", "stub-model")
+	client := newClient(stub.URL, "", "stub-model")
 	lines := []string{
 		recLine("a", "s", "k", "score=0.1 alpha"),
 		recLine("b", "s", "k", "score=0.2 beta"),
@@ -289,7 +287,7 @@ func TestRunResumeIdempotentWithLimit(t *testing.T) {
 
 func TestRunRetryAndErrorRows(t *testing.T) {
 	stub := newStub(t)
-	client := upstream.NewClient(stub.URL, "", "stub-model")
+	client := newClient(stub.URL, "", "stub-model")
 	flakyText := "score=0.4 FLAKY needs one retry"
 	deadText := "score=0.9 HTTPFAIL always down"
 	lines := []string{
@@ -331,7 +329,7 @@ func TestRunRetryAndErrorRows(t *testing.T) {
 
 func TestRunDupInputIds(t *testing.T) {
 	stub := newStub(t)
-	client := upstream.NewClient(stub.URL, "", "stub-model")
+	client := newClient(stub.URL, "", "stub-model")
 	lines := []string{
 		recLine("x", "s", "k", "score=0.5 first"),
 		recLine("x", "s", "k", "score=0.9 dup same id"),

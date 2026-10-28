@@ -60,7 +60,7 @@ func main() {
 		slog.Error("llm kek", "error", err)
 		os.Exit(1)
 	}
-	if err := llm.SeedFromEnv(ctx, aiDB.DB(), cfg.AIUpstream.BaseURL, "KUN_AI_UPSTREAM_TOKEN"); err != nil {
+	if err := llm.SeedDefaults(ctx, aiDB.DB(), kek, llm.BootstrapFromConfig(cfg)); err != nil {
 		slog.Error("llm seed", "error", err)
 		os.Exit(1)
 	}

@@ -42,8 +42,8 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Init(cfg.Server.Env)
-	if cfg.AIUpstream.BaseURL == "" || cfg.AIUpstream.Token == "" {
-		slog.Error("KUN_AI_UPSTREAM_BASE_URL and KUN_AI_UPSTREAM_TOKEN are required")
+	if cfg.LLMGateway.URL == "" || cfg.LLMGateway.Key == "" {
+		slog.Error("KUN_LLM_GATEWAY_KEY (a gateway access key, with KUN_LLM_GATEWAY_URL) is required")
 		os.Exit(1)
 	}
 	var ids []int64
@@ -74,7 +74,7 @@ func main() {
 		slog.Error("vector index", "error", err)
 		os.Exit(1)
 	}
-	emb := catalogSearch.NewOpenAIEmbedder(cfg.AIUpstream.BaseURL, cfg.AIUpstream.Token, *model)
+	emb := catalogSearch.NewOpenAIEmbedder(cfg.LLMGateway.URL, cfg.LLMGateway.Key, *model)
 	start := time.Now()
 	stats, err := embed(ctx, db.DB(), idx, emb, docsync.EmbedOptions{
 		Batch: *batch, EmbedBatch: *embedBatch, Concurrency: *concurrency, IDs: ids,

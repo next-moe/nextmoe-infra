@@ -20,6 +20,7 @@ type ToolCall struct {
 type Message struct {
 	Role       Role
 	Content    string
+	Raw        json.RawMessage
 	ToolCalls  []ToolCall
 	ToolCallID string
 }
@@ -37,6 +38,7 @@ const (
 
 type Call struct {
 	Scene       string
+	Model       string
 	AffinityKey string
 	Messages    []Message
 	Tools       []Tool
@@ -44,8 +46,10 @@ type Call struct {
 	MaxTokens   int
 	JSON        bool
 	Buffered    bool
+	Extra       map[string]json.RawMessage
 	Site        string
 	UserID      int64
+	probe       bool
 }
 
 type EventKind int

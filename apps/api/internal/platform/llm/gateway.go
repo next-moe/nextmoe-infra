@@ -19,7 +19,10 @@ const (
 	refreshInterval = 30 * time.Second
 )
 
-var ErrUnknownScene = errors.New("llm: unknown scene")
+var (
+	ErrUnknownScene = errors.New("llm: unknown scene")
+	ErrUnknownModel = errors.New("llm: unknown model")
+)
 
 type Gateway struct {
 	db     *gorm.DB
@@ -27,6 +30,7 @@ type Gateway struct {
 	client *http.Client
 	health *health
 	snap   atomic.Pointer[snapshot]
+	used   usageMarker
 	now    func() time.Time
 }
 
@@ -37,7 +41,8 @@ func New(db *gorm.DB, kek []byte) *Gateway {
 		client: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		}},
-		now: time.Now,
+		now:  time.Now,
+		used: usageMarker{last: map[int64]time.Time{}},
 	}
 	g.health = newHealth(func() time.Time { return g.now() })
 	return g
@@ -79,9 +84,12 @@ func (g *Gateway) Stream(ctx context.Context, call Call, onEvent func(Event)) (R
 	if s == nil {
 		return Result{}, &Error{Kind: ErrKindNoRoute, Msg: "gateway has no snapshot"}
 	}
-	sc := s.scenes[call.Scene]
-	if sc == nil {
-		return Result{}, fmt.Errorf("%w %q", ErrUnknownScene, call.Scene)
+	sc, m, err := s.target(call.Scene, call.Model)
+	if err != nil {
+		return Result{}, err
+	}
+	if m != nil && m.kind() != ModelChat {
+		return Result{}, &Error{Kind: ErrKindBadRequest, Msg: fmt.Sprintf("model %s is a %s model, not chat", m.Key, m.Kind)}
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(sc.TotalMs)*time.Millisecond)
 	defer cancel()
@@ -166,9 +174,12 @@ func (g *Gateway) attempt(ctx context.Context, s *snapshot, sc *Scene, c candida
 		flush()
 	}
 	g.record(s, sc, c, call, callID, started, out, err)
+	if call.probe {
+		return out.result, committed, err
+	}
 	if err != nil {
 		if g.health.failure(c.route.ID, KindOf(err)) {
-			g.suspend(c.route, err)
+			g.alert(c.route, err)
 		}
 		return out.result, committed, err
 	}
@@ -211,27 +222,10 @@ func costNano(u Usage, p *PriceRevision, multiplierPPM int64) int64 {
 	return micro * multiplierPPM / 1_000_000 / 1000
 }
 
-func (g *Gateway) suspend(r *Route, cause error) {
-	slog.Warn("llm gateway: suspending route after repeated auth/quota failures", "route", r.ID, "err", cause)
+func (g *Gateway) alert(r *Route, cause error) {
+	slog.Warn("llm gateway: route keeps failing auth/quota; check its provider key or balance", "route", r.ID, "err", cause)
 	if g.db == nil {
 		return
 	}
-	reason := truncate(cause.Error(), 250)
-	if err := g.db.Model(&Route{}).Where("id = ?", r.ID).Updates(map[string]any{"status": RouteSuspended, "status_reason": reason}).Error; err != nil {
-		slog.Warn("llm gateway: suspend route", "route", r.ID, "err", err)
-		return
-	}
-	_ = g.db.Create(&RouteEvent{RouteID: r.ID, ProviderID: r.ProviderID, Kind: "suspended", Detail: reason, CreatedAt: g.now()}).Error
-	if s := g.snap.Load(); s != nil {
-		next := *s
-		next.routes = map[int64][]*Route{}
-		for mid, rs := range s.routes {
-			for _, x := range rs {
-				if x.ID != r.ID {
-					next.routes[mid] = append(next.routes[mid], x)
-				}
-			}
-		}
-		g.snap.Store(&next)
-	}
+	_ = g.db.Create(&RouteEvent{RouteID: r.ID, ProviderID: r.ProviderID, Kind: "auth_failing", Detail: truncate(cause.Error(), 250), CreatedAt: g.now()}).Error
 }

@@ -74,7 +74,8 @@ func TestRunnerAnswersWithToolsStreamsAndSettles(t *testing.T) {
 		testDB.Exec("TRUNCATE " + tbl + " RESTART IDENTITY CASCADE")
 	}
 	llmSrv := scriptedLLM(t)
-	if err := llm.SeedFromEnv(ctx, testDB, llmSrv.URL, "NO_SUCH_KEY_ENV"); err != nil {
+	t.Setenv("AGENT_TEST_LLM_KEY", "sk-test")
+	if err := llm.SeedDefaults(ctx, testDB, nil, llm.Bootstrap{UpstreamBaseURL: llmSrv.URL, UpstreamKeyEnv: "AGENT_TEST_LLM_KEY"}); err != nil {
 		t.Fatal(err)
 	}
 	gw := llm.New(testDB, nil)

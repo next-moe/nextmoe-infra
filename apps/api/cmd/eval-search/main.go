@@ -98,7 +98,7 @@ func main() {
 		slog.Error("search indexer", "error", err)
 		os.Exit(1)
 	}
-	emb := catalogSearch.NewOpenAIEmbedder(cfg.AIUpstream.BaseURL, cfg.AIUpstream.Token, *model)
+	emb := catalogSearch.NewOpenAIEmbedder(cfg.LLMGateway.URL, cfg.LLMGateway.Key, *model)
 	ctx := context.Background()
 	filter := spec.WorksFilter{OLang: spec.OLang{All: true}}
 

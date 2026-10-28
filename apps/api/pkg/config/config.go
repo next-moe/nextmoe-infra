@@ -73,6 +73,7 @@ type Config struct {
 	TelemetrySymbols TelemetrySymbolsConfig
 	TelemetryWorker  TelemetryWorkerConfig
 	AIUpstream       AIUpstreamConfig
+	LLMGateway       LLMGatewayConfig
 	AIOmni           AIOmniConfig
 
 	AIClient AIClientConfig
@@ -154,6 +155,25 @@ type AIUpstreamConfig struct {
 }
 
 const DefaultAIUpstreamModel = "@cf/zai-org/glm-5.2"
+
+type LLMGatewayConfig struct {
+	URL string
+	Key string
+}
+
+func LLMBaseURL() string {
+	if os.Getenv("KUN_LLM_GATEWAY_KEY") != "" {
+		return getEnv("KUN_LLM_GATEWAY_URL", "http://127.0.0.1:9284/v1")
+	}
+	return os.Getenv("KUN_AI_UPSTREAM_BASE_URL")
+}
+
+func LLMToken() string {
+	if k := os.Getenv("KUN_LLM_GATEWAY_KEY"); k != "" {
+		return k
+	}
+	return os.Getenv("KUN_AI_UPSTREAM_TOKEN")
+}
 
 type AIOmniConfig struct {
 	BaseURL string
@@ -688,6 +708,8 @@ func Load() (*Config, error) {
 		BaseURL: getEnv("KUN_AI_UPSTREAM_BASE_URL", ""),
 		Token:   getEnv("KUN_AI_UPSTREAM_TOKEN", ""),
 	}
+
+	cfg.LLMGateway = LLMGatewayConfig{URL: LLMBaseURL(), Key: LLMToken()}
 
 	cfg.AIOmni = AIOmniConfig{
 		BaseURL: getEnv("KUN_AI_OMNI_BASE_URL", "https://api.openai.com"),

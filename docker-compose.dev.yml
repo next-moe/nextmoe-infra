@@ -543,11 +543,13 @@ services:
       <<: *dev-env
       KUN_AI_HOST: 0.0.0.0
       KUN_AI_PORT: "9284"
-      # Tier2 LLM upstream — empty = that tier off (moderate-text fail-open, no
-      # upstream dialled). The platform starts fine without it; point these at a
-      # local OpenAI-compatible server only when exercising real scoring.
-      KUN_AI_UPSTREAM_BASE_URL: ""
-      KUN_AI_UPSTREAM_TOKEN: ""
+      # The LLM gateway is configured in the admin console (/ai/llm, ren only);
+      # KUN_LLM_KEK lets it store provider keys. KUN_AI_UPSTREAM_* only seed an
+      # empty gateway on its first start. Without either, moderate-text fails
+      # open and nothing upstream is dialled.
+      KUN_LLM_KEK: ${KUN_LLM_KEK:-}
+      KUN_AI_UPSTREAM_BASE_URL: ${KUN_AI_UPSTREAM_BASE_URL:-}
+      KUN_AI_UPSTREAM_TOKEN: ${KUN_AI_UPSTREAM_TOKEN:-}
       # Tier1 omni-moderation coarse pass (spec 09). Empty token = Tier1 off: the
       # dev stack runs the Tier2 LLM path only unless you set KUN_AI_OMNI_TOKEN in
       # the host env (base URL / model default to OpenAI's public API).

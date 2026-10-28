@@ -48,8 +48,8 @@ func main() {
 	openccBin := flag.String("opencc", "", "--mode kanji: path to the opencc binary; without it the worklist carries no conversion")
 	openccCfg := flag.String("opencc-config", "jp2s.json", "--mode kanji: opencc config name")
 	modelName := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
-	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
-	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
+	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", config.LLMBaseURL()), "OpenAI-compatible gateway base URL (…/v1)")
+	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", config.LLMToken()), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 4096, "--mode auto: max_tokens (thinking models spend most of it before the title)")
 	delayMS := flag.Int("delay-ms", 0, "--mode auto: delay between gateway calls (ms)")
 	flag.Parse()
@@ -109,7 +109,7 @@ func main() {
 		}
 		tr := newHTTPTranslator(*llmBase, *llmToken, *modelName, *maxTokens)
 		if !tr.Configured() {
-			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_AI_UPSTREAM_*).\n" +
+			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_LLM_GATEWAY_KEY / KUN_AI_UPSTREAM_*).\n" +
 				"This is a designed precondition for --mode auto, not a failure.")
 			os.Exit(3)
 		}

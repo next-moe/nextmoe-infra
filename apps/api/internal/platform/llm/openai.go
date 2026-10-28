@@ -52,14 +52,18 @@ func chatRequestBody(c Call, upstream string, temperature *float64, maxTokens in
 		Function fn     `json:"function"`
 	}
 	type msg struct {
-		Role       string `json:"role"`
-		Content    string `json:"content"`
-		ToolCalls  []tc   `json:"tool_calls,omitempty"`
-		ToolCallID string `json:"tool_call_id,omitempty"`
+		Role       string          `json:"role"`
+		Content    json.RawMessage `json:"content"`
+		ToolCalls  []tc            `json:"tool_calls,omitempty"`
+		ToolCallID string          `json:"tool_call_id,omitempty"`
 	}
 	msgs := make([]msg, len(c.Messages))
 	for i, m := range c.Messages {
-		msgs[i] = msg{Role: string(m.Role), Content: m.Content, ToolCallID: m.ToolCallID}
+		content := m.Raw
+		if len(content) == 0 {
+			content, _ = json.Marshal(m.Content)
+		}
+		msgs[i] = msg{Role: string(m.Role), Content: content, ToolCallID: m.ToolCallID}
 		for _, call := range m.ToolCalls {
 			msgs[i].ToolCalls = append(msgs[i].ToolCalls, tc{ID: call.ID, Type: "function", Function: fn{Name: call.Name, Arguments: call.Arguments}})
 		}
@@ -95,8 +99,15 @@ func chatRequestBody(c Call, upstream string, temperature *float64, maxTokens in
 	if c.JSON {
 		body["response_format"] = map[string]any{"type": "json_object"}
 	}
+	for k, v := range c.Extra {
+		if !reservedBodyKeys[k] {
+			body[k] = v
+		}
+	}
 	return json.Marshal(body)
 }
+
+var reservedBodyKeys = map[string]bool{"model": true, "messages": true, "stream": true, "stream_options": true, "tools": true, "input": true}
 
 type chunk struct {
 	ID      string `json:"id"`
