@@ -77,7 +77,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 ```
 
 - `parent_id` 省略 = 接在当前分支末尾；`"0"` = 新开一个根分支；传某条 assistant 消息 = 在它后面续问。**前端正在看别的分支时，一定要显式传 `parent_id`（当前显示的最后一条消息）**，否则会接到服务端记住的分支上。
-- 附件先传到 `POST /v2/agent/uploads`，再在 parts 里写 `{"type":"file","uploadId":"…"}`，见 §3.6。旧的写法（文本附件把内容直接放进 `text`）仍然可用。文字和附件总长受 `agent.turn.max_input_chars` 限制（413）。
+- 附件先传到 `POST /v2/agent/uploads`，再在 parts 里写 `{"type":"file","uploadId":"…"}`，见 §3.6。旧的写法（文本附件把内容直接放进 `text`）仍然可用。用户输入的文字、附件里的文字分别受 `agent.turn.max_input_chars` 限制（413）。
 - 同一个 `Idempotency-Key` 换了请求体返回 422；同一对话已有回复在生成时返回 409。
 - 免费次数用完且萌萌点不足返回 402。
 
