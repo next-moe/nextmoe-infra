@@ -203,7 +203,10 @@ func (g *Gateway) record(s *snapshot, sc *Scene, c candidate, call Call, callID 
 	if err != nil {
 		a.ErrorKind = string(KindOf(err))
 	}
-	if c.route.PriceID != nil {
+	switch {
+	case u.ReportedNano > 0:
+		a.CostNano = scaled(u.ReportedNano, c.provider.PriceMultiplierPPM)
+	case c.route.PriceID != nil:
 		if p := s.prices[*c.route.PriceID]; p != nil {
 			a.CostNano = costNano(u, p, c.provider.PriceMultiplierPPM)
 		}
@@ -216,10 +219,15 @@ func (g *Gateway) record(s *snapshot, sc *Scene, c candidate, call Call, callID 
 func costNano(u Usage, p *PriceRevision, multiplierPPM int64) int64 {
 	uncached := max(u.InputTokens-u.CachedTokens, 0)
 	micro := int64(uncached)*p.InputMicro + int64(u.CachedTokens)*p.CachedMicro + int64(u.OutputTokens)*p.OutputMicro
+	micro += p.PerCallMicro * int64(max(u.Units, 1)) * 1_000_000
+	return scaled(micro, multiplierPPM) / 1000
+}
+
+func scaled(v, multiplierPPM int64) int64 {
 	if multiplierPPM <= 0 {
 		multiplierPPM = 1_000_000
 	}
-	return micro * multiplierPPM / 1_000_000 / 1000
+	return v * multiplierPPM / 1_000_000
 }
 
 func (g *Gateway) alert(r *Route, cause error) {

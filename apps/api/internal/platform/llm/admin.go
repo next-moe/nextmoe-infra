@@ -200,7 +200,7 @@ func (a *Admin) DeleteProvider(ctx context.Context, id int64) error {
 type ModelView struct {
 	ID            int64     `json:"id"`
 	Key           string    `json:"key"`
-	Kind          string    `json:"kind" enum:"chat,embedding,moderation,search"`
+	Kind          string    `json:"kind" enum:"chat,embedding,moderation,search,image"`
 	ContextTokens int       `json:"context_tokens"`
 	MaxOutput     int       `json:"max_output"`
 	ToolCall      bool      `json:"tool_call"`
@@ -218,7 +218,7 @@ func modelView(m Model) ModelView {
 
 type ModelInput struct {
 	Key           *string `json:"key,omitempty" maxLength:"64"`
-	Kind          *string `json:"kind,omitempty" enum:"chat,embedding,moderation,search"`
+	Kind          *string `json:"kind,omitempty" enum:"chat,embedding,moderation,search,image"`
 	ContextTokens *int    `json:"context_tokens,omitempty" minimum:"0"`
 	MaxOutput     *int    `json:"max_output,omitempty" minimum:"0"`
 	ToolCall      *bool   `json:"tool_call,omitempty"`
@@ -327,9 +327,10 @@ func (a *Admin) DeleteModel(ctx context.Context, id int64) error {
 }
 
 type Price struct {
-	InputMicro  int64 `json:"input_micro" minimum:"0"`
-	CachedMicro int64 `json:"cached_micro" minimum:"0"`
-	OutputMicro int64 `json:"output_micro" minimum:"0"`
+	InputMicro   int64 `json:"input_micro" minimum:"0"`
+	CachedMicro  int64 `json:"cached_micro" minimum:"0"`
+	OutputMicro  int64 `json:"output_micro" minimum:"0"`
+	PerCallMicro int64 `json:"per_call_micro,omitempty" minimum:"0" doc:"Micro-USD per call, or per picture for an image route. A cost the upstream reports in its usage block wins over every price here."`
 }
 
 type RouteStats struct {
@@ -344,6 +345,7 @@ type RouteView struct {
 	ModelID      int64      `json:"model_id"`
 	ProviderID   int64      `json:"provider_id"`
 	UpstreamID   string     `json:"upstream_id"`
+	Protocol     string     `json:"protocol" enum:"chat,embeddings,moderations,responses,images"`
 	Priority     int        `json:"priority"`
 	Weight       int        `json:"weight"`
 	Status       string     `json:"status" enum:"active,disabled"`
@@ -394,11 +396,11 @@ func (a *Admin) Routes(ctx context.Context) ([]RouteView, error) {
 	}
 	out := make([]RouteView, len(rows))
 	for i, r := range rows {
-		out[i] = RouteView{ID: r.ID, ModelID: r.ModelID, ProviderID: r.ProviderID, UpstreamID: r.UpstreamID, Priority: r.Priority,
+		out[i] = RouteView{ID: r.ID, ModelID: r.ModelID, ProviderID: r.ProviderID, UpstreamID: r.UpstreamID, Protocol: r.Protocol, Priority: r.Priority,
 			Weight: r.Weight, Status: r.Status, StatusReason: r.StatusReason, Stats24h: byRoute[r.ID]}
 		if r.PriceID != nil {
 			if p, ok := byPrice[*r.PriceID]; ok {
-				out[i].Price = &Price{InputMicro: p.InputMicro, CachedMicro: p.CachedMicro, OutputMicro: p.OutputMicro}
+				out[i].Price = &Price{InputMicro: p.InputMicro, CachedMicro: p.CachedMicro, OutputMicro: p.OutputMicro, PerCallMicro: p.PerCallMicro}
 			}
 		}
 	}
@@ -460,7 +462,7 @@ func (a *Admin) saveRoute(ctx context.Context, r *Route, in RouteInput, creating
 			return uniqueOr(err, "this model already has a route to this provider with that upstream id")
 		}
 		if in.Price != nil {
-			p := PriceRevision{RouteID: r.ID, InputMicro: in.Price.InputMicro, CachedMicro: in.Price.CachedMicro, OutputMicro: in.Price.OutputMicro, Source: "manual", CreatedAt: a.now()}
+			p := PriceRevision{RouteID: r.ID, InputMicro: in.Price.InputMicro, CachedMicro: in.Price.CachedMicro, OutputMicro: in.Price.OutputMicro, PerCallMicro: in.Price.PerCallMicro, Source: "manual", CreatedAt: a.now()}
 			if err := tx.Create(&p).Error; err != nil {
 				return err
 			}
@@ -481,6 +483,8 @@ func protocolFor(kind string) string {
 		return ProtocolModerations
 	case ModelSearch:
 		return ProtocolResponses
+	case ModelImage:
+		return ProtocolImages
 	}
 	return ProtocolChat
 }

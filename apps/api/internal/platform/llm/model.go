@@ -13,11 +13,13 @@ const (
 	ModelEmbedding  = "embedding"
 	ModelModeration = "moderation"
 	ModelSearch     = "search"
+	ModelImage      = "image"
 
 	ProtocolChat        = "chat"
 	ProtocolEmbeddings  = "embeddings"
 	ProtocolModerations = "moderations"
 	ProtocolResponses   = "responses"
+	ProtocolImages      = "images"
 
 	RouteActive   = "active"
 	RouteDisabled = "disabled"
@@ -87,16 +89,37 @@ type Route struct {
 func (Route) TableName() string { return "llm_route" }
 
 type PriceRevision struct {
-	ID          int64  `gorm:"primaryKey"`
-	RouteID     int64  `gorm:"not null;index"`
-	InputMicro  int64  `gorm:"not null"`
-	CachedMicro int64  `gorm:"not null"`
-	OutputMicro int64  `gorm:"not null"`
-	Source      string `gorm:"size:16;not null;default:'manual'"`
-	CreatedAt   time.Time
+	ID           int64  `gorm:"primaryKey"`
+	RouteID      int64  `gorm:"not null;index"`
+	InputMicro   int64  `gorm:"not null"`
+	CachedMicro  int64  `gorm:"not null"`
+	OutputMicro  int64  `gorm:"not null"`
+	PerCallMicro int64  `gorm:"not null;default:0"`
+	Source       string `gorm:"size:16;not null;default:'manual'"`
+	CreatedAt    time.Time
 }
 
 func (PriceRevision) TableName() string { return "llm_price_revision" }
+
+type ProviderModel struct {
+	ID               int64          `gorm:"primaryKey"`
+	ProviderID       int64          `gorm:"not null;uniqueIndex:uq_llm_provider_model,priority:1"`
+	UpstreamID       string         `gorm:"size:200;not null;uniqueIndex:uq_llm_provider_model,priority:2"`
+	Kind             string         `gorm:"size:16;not null"`
+	KindSource       string         `gorm:"size:16;not null"`
+	InputModalities  datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	OutputModalities datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	ContextTokens    int            `gorm:"not null;default:0"`
+	OwnedBy          string         `gorm:"size:100;not null;default:''"`
+	Raw              datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'"`
+	Probe            datatypes.JSON `gorm:"type:jsonb"`
+	Listed           bool           `gorm:"not null;default:true"`
+	FirstSeenAt      time.Time      `gorm:"not null"`
+	LastSeenAt       time.Time      `gorm:"not null"`
+	DelistedAt       *time.Time
+}
+
+func (ProviderModel) TableName() string { return "llm_provider_model" }
 
 type Scene struct {
 	Key              string         `gorm:"primaryKey;size:64"`
@@ -168,5 +191,5 @@ type AccessKey struct {
 func (AccessKey) TableName() string { return "llm_access_key" }
 
 func Tables() []any {
-	return []any{&Provider{}, &Model{}, &Route{}, &PriceRevision{}, &Scene{}, &Attempt{}, &RouteEvent{}, &AccessKey{}}
+	return []any{&Provider{}, &Model{}, &Route{}, &PriceRevision{}, &Scene{}, &Attempt{}, &RouteEvent{}, &AccessKey{}, &ProviderModel{}}
 }

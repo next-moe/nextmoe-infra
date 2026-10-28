@@ -141,6 +141,66 @@ export interface paths {
         patch: operations["updateLLMModel"];
         trace?: never;
     };
+    "/api/v1/admin/ai/llm/provider-models/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set a catalog entry's kind by hand
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        patch: operations["updateLLMProviderModel"];
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/provider-models/{id}/adopt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Route a catalog entry: create the gateway model if needed, then the route
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["adoptLLMProviderModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/provider-models/{id}/probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Call the upstream model once as the given kind; a success records the kind
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["probeLLMProviderModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/llm/providers": {
         parameters: {
             query?: never;
@@ -187,6 +247,46 @@ export interface paths {
          * @description Requires ai.llm_manage (ren) for reading and writing.
          */
         patch: operations["updateLLMProvider"];
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/providers/{id}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The provider's model catalog from its last sync
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["listLLMProviderModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/providers/{id}/models/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read the provider's /models now and update its catalog
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["syncLLMProviderModels"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/ai/llm/routes": {
@@ -382,12 +482,53 @@ export interface components {
             name: string;
             prefix: string;
         };
+        AdoptInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/AdoptInput.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Defaults to the catalog kind.
+             * @enum {string}
+             */
+            kind?: "chat" | "embedding" | "moderation" | "search" | "image";
+            /** @description Gateway model to attach the route to; created when missing. Defaults to the upstream id, lower-cased with / turned into -. */
+            model_key?: string;
+            price?: components["schemas"]["Price"];
+            /** Format: int64 */
+            priority?: number;
+            /** Format: int64 */
+            weight?: number;
+        };
+        AdoptResult: {
+            model: components["schemas"]["ModelView"];
+            model_created: boolean;
+            route: components["schemas"]["RouteView"];
+        };
         BudgetView: {
             /** Format: int64 */
             daily_cost_cap_micro: number | null;
             route: string;
             site: string;
             updated_at: string;
+        };
+        CatalogProbe: {
+            /** Format: date-time */
+            at: string;
+            error_kind: string;
+            kind: string;
+            /** Format: int64 */
+            latency_ms: number;
+            message: string;
+            ok: boolean;
+        };
+        CatalogRoute: {
+            model_key: string;
+            /** Format: int64 */
+            route_id: number;
+            status: string;
         };
         CreatedAccessKey: {
             key: components["schemas"]["AccessKeyView"];
@@ -418,6 +559,18 @@ export interface components {
             /** Format: int64 */
             code: number;
             data?: components["schemas"]["AccessKeyView"];
+            message: string;
+        };
+        EnvelopeAdoptResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeAdoptResult.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["AdoptResult"];
             message: string;
         };
         EnvelopeBudgetView: {
@@ -516,6 +669,18 @@ export interface components {
             data?: components["schemas"]["ModelView"][];
             message: string;
         };
+        EnvelopeListProviderModelView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListProviderModelView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ProviderModelView"][];
+            message: string;
+        };
         EnvelopeListProviderView: {
             /**
              * Format: uri
@@ -588,6 +753,18 @@ export interface components {
             data?: components["schemas"]["ProbeResult"];
             message: string;
         };
+        EnvelopeProviderModelView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeProviderModelView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ProviderModelView"];
+            message: string;
+        };
         EnvelopeProviderView: {
             /**
              * Format: uri
@@ -622,6 +799,18 @@ export interface components {
             /** Format: int64 */
             code: number;
             data?: components["schemas"]["SceneView"];
+            message: string;
+        };
+        EnvelopeSyncResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeSyncResult.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["SyncResult"];
             message: string;
         };
         EnvelopeUsageSummary: {
@@ -674,7 +863,7 @@ export interface components {
             enabled?: boolean;
             key?: string;
             /** @enum {string} */
-            kind?: "chat" | "embedding" | "moderation" | "search";
+            kind?: "chat" | "embedding" | "moderation" | "search" | "image";
             /** Format: int64 */
             max_output?: number;
             reasoning?: boolean;
@@ -691,7 +880,7 @@ export interface components {
             id: number;
             key: string;
             /** @enum {string} */
-            kind: "chat" | "embedding" | "moderation" | "search";
+            kind: "chat" | "embedding" | "moderation" | "search" | "image";
             /** Format: int64 */
             max_output: number;
             reasoning: boolean;
@@ -707,6 +896,24 @@ export interface components {
             input_micro: number;
             /** Format: int64 */
             output_micro: number;
+            /**
+             * Format: int64
+             * @description Micro-USD per call, or per picture for an image route. A cost the upstream reports in its usage block wins over every price here.
+             */
+            per_call_micro?: number;
+        };
+        ProbeLLMProviderModelRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ProbeLLMProviderModelRequest.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Defaults to the entry's kind. image generates one picture and is billed.
+             * @enum {string}
+             */
+            kind?: "chat" | "embedding" | "moderation" | "search" | "image";
         };
         ProbeResult: {
             error_kind: string;
@@ -733,6 +940,38 @@ export interface components {
             name?: string;
             /** Format: int64 */
             price_multiplier_ppm?: number;
+        };
+        ProviderModelView: {
+            /** Format: int64 */
+            context_tokens: number;
+            /** Format: date-time */
+            delisted_at: string | null;
+            /** Format: date-time */
+            first_seen_at: string;
+            /** Format: int64 */
+            id: number;
+            input_modalities: string[];
+            /** @enum {string} */
+            kind: "chat" | "embedding" | "moderation" | "search" | "image" | "video" | "speech" | "transcription" | "rerank";
+            /**
+             * @description Where the kind came from: the provider's metadata, a guess from the name, an admin, or a successful probe.
+             * @enum {string}
+             */
+            kind_source: "metadata" | "name" | "admin" | "probe";
+            /** Format: date-time */
+            last_seen_at: string;
+            /** @description False once the provider stopped listing it. */
+            listed: boolean;
+            output_modalities: string[];
+            owned_by: string;
+            probe: components["schemas"]["CatalogProbe"] | null;
+            /** Format: int64 */
+            provider_id: number;
+            /** @description Gateway routes already using this upstream id on this provider. */
+            routes: components["schemas"]["CatalogRoute"][];
+            /** @description Whether the gateway can call this kind yet. */
+            supported: boolean;
+            upstream_id: string;
         };
         ProviderView: {
             base_url: string;
@@ -790,6 +1029,8 @@ export interface components {
             price: components["schemas"]["Price"] | null;
             /** Format: int64 */
             priority: number;
+            /** @enum {string} */
+            protocol: "chat" | "embeddings" | "moderations" | "responses" | "images";
             /** Format: int64 */
             provider_id: number;
             stats_24h: components["schemas"]["RouteStats"];
@@ -865,6 +1106,28 @@ export interface components {
             truncated: number;
             /** Format: int64 */
             upstream_error: number;
+        };
+        SyncResult: {
+            /** Format: int64 */
+            added: number;
+            /** Format: int64 */
+            delisted: number;
+            /** Format: int64 */
+            listed: number;
+            /** @description Routes whose upstream id the provider no longer lists. */
+            orphaned_routes: number[];
+            /** Format: int64 */
+            relisted: number;
+        };
+        UpdateLLMProviderModelRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/UpdateLLMProviderModelRequest.json
+             */
+            readonly $schema?: string;
+            /** @enum {string} */
+            kind: "chat" | "embedding" | "moderation" | "search" | "image" | "video" | "speech" | "transcription" | "rerank";
         };
         UpsertBudgetRequest: {
             /**
@@ -1268,6 +1531,111 @@ export interface operations {
             };
         };
     };
+    updateLLMProviderModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLLMProviderModelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProviderModelView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    adoptLLMProviderModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdoptInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAdoptResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    probeLLMProviderModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProbeLLMProviderModelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProviderModelView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
     listLLMProviders: {
         parameters: {
             query?: never;
@@ -1383,6 +1751,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeProviderView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listLLMProviderModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListProviderModelView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    syncLLMProviderModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSyncResult"];
                 };
             };
             /** @description Error */

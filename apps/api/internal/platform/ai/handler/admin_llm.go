@@ -28,8 +28,10 @@ func mapLLMErr(op string, err error) *houseError {
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
 	case stderrors.Is(err, llm.ErrInUse):
 		return apiErrMsg(http.StatusConflict, errors.ErrValidationFailed, err.Error())
-	case stderrors.Is(err, llm.ErrInvalid), stderrors.Is(err, llm.ErrNoKEK):
+	case stderrors.Is(err, llm.ErrInvalid), stderrors.Is(err, llm.ErrNoKEK), stderrors.Is(err, llm.ErrCatalogUnsupported):
 		return apiErrMsg(http.StatusBadRequest, errors.ErrValidationFailed, err.Error())
+	case stderrors.As(err, new(*llm.Error)):
+		return apiErrMsg(http.StatusBadGateway, errors.ErrValidationFailed, err.Error())
 	default:
 		slog.Error("ai llm admin "+op, "err", err)
 		return apiErr(http.StatusInternalServerError, errors.ErrInternalServer)
@@ -104,6 +106,40 @@ func (s *llmAdmin) register(api huma.API) {
 		}))
 	huma.Register(api, op("deleteLLMProvider", http.MethodDelete, "/providers/{id}", "Delete a provider no route uses"),
 		guard("delete provider", func(ctx context.Context, in *IDPath) (*empty, error) { return nil, s.a.DeleteProvider(ctx, in.ID) }))
+
+	huma.Register(api, op("listLLMProviderModels", http.MethodGet, "/providers/{id}/models", "The provider's model catalog from its last sync"),
+		guard("list provider models", func(ctx context.Context, in *IDPath) ([]llm.ProviderModelView, error) {
+			return s.a.ProviderModels(ctx, in.ID)
+		}))
+	huma.Register(api, op("syncLLMProviderModels", http.MethodPost, "/providers/{id}/models/sync", "Read the provider's /models now and update its catalog"),
+		guard("sync provider models", func(ctx context.Context, in *IDPath) (llm.SyncResult, error) {
+			return s.a.SyncProviderModels(ctx, in.ID)
+		}))
+	huma.Register(api, op("updateLLMProviderModel", http.MethodPatch, "/provider-models/{id}", "Set a catalog entry's kind by hand"),
+		guard("update provider model", func(ctx context.Context, in *struct {
+			IDPath
+			Body struct {
+				Kind string `json:"kind" enum:"chat,embedding,moderation,search,image,video,speech,transcription,rerank"`
+			}
+		}) (llm.ProviderModelView, error) {
+			return s.a.SetProviderModelKind(ctx, in.ID, in.Body.Kind)
+		}))
+	huma.Register(api, op("probeLLMProviderModel", http.MethodPost, "/provider-models/{id}/probe", "Call the upstream model once as the given kind; a success records the kind"),
+		guard("probe provider model", func(ctx context.Context, in *struct {
+			IDPath
+			Body struct {
+				Kind string `json:"kind,omitempty" enum:"chat,embedding,moderation,search,image" doc:"Defaults to the entry's kind. image generates one picture and is billed."`
+			}
+		}) (llm.ProviderModelView, error) {
+			return s.a.ProbeProviderModel(ctx, in.ID, in.Body.Kind)
+		}))
+	huma.Register(api, op("adoptLLMProviderModel", http.MethodPost, "/provider-models/{id}/adopt", "Route a catalog entry: create the gateway model if needed, then the route"),
+		guard("adopt provider model", func(ctx context.Context, in *struct {
+			IDPath
+			Body llm.AdoptInput
+		}) (llm.AdoptResult, error) {
+			return s.a.AdoptProviderModel(ctx, in.ID, in.Body)
+		}))
 
 	huma.Register(api, op("listLLMModels", http.MethodGet, "/models", "List models"),
 		guard("list models", func(ctx context.Context, _ *struct{}) ([]llm.ModelView, error) { return s.a.Models(ctx) }))

@@ -54,6 +54,54 @@ components:
         - last_used_at
         - created_at
       type: object
+    AdoptInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/AdoptInput.json
+          format: uri
+          readOnly: true
+          type: string
+        kind:
+          description: Defaults to the catalog kind.
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+          type: string
+        model_key:
+          description: Gateway model to attach the route to; created when missing. Defaults to the upstream id, lower-cased with / turned into -.
+          maxLength: 64
+          type: string
+        price:
+          $ref: "#/components/schemas/Price"
+        priority:
+          format: int64
+          type: integer
+        weight:
+          format: int64
+          maximum: 10000
+          minimum: 1
+          type: integer
+      type: object
+    AdoptResult:
+      additionalProperties: false
+      properties:
+        model:
+          $ref: "#/components/schemas/ModelView"
+        model_created:
+          type: boolean
+        route:
+          $ref: "#/components/schemas/RouteView"
+      required:
+        - model
+        - route
+        - model_created
+      type: object
     BudgetView:
       additionalProperties: false
       properties:
@@ -73,6 +121,46 @@ components:
         - site
         - daily_cost_cap_micro
         - updated_at
+      type: object
+    CatalogProbe:
+      additionalProperties: false
+      properties:
+        at:
+          format: date-time
+          type: string
+        error_kind:
+          type: string
+        kind:
+          type: string
+        latency_ms:
+          format: int64
+          type: integer
+        message:
+          type: string
+        ok:
+          type: boolean
+      required:
+        - kind
+        - ok
+        - latency_ms
+        - error_kind
+        - message
+        - at
+      type: object
+    CatalogRoute:
+      additionalProperties: false
+      properties:
+        model_key:
+          type: string
+        route_id:
+          format: int64
+          type: integer
+        status:
+          type: string
+      required:
+        - route_id
+        - model_key
+        - status
       type: object
     CreatedAccessKey:
       additionalProperties: false
@@ -137,6 +225,27 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/AccessKeyView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeAdoptResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAdoptResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AdoptResult"
         message:
           type: string
       required:
@@ -319,6 +428,29 @@ components:
         - code
         - message
       type: object
+    EnvelopeListProviderModelView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListProviderModelView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/ProviderModelView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeListProviderView:
       additionalProperties: false
       properties:
@@ -451,6 +583,27 @@ components:
         - code
         - message
       type: object
+    EnvelopeProviderModelView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeProviderModelView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ProviderModelView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeProviderView:
       additionalProperties: false
       properties:
@@ -508,6 +661,27 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/SceneView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeSyncResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeSyncResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/SyncResult"
         message:
           type: string
       required:
@@ -614,6 +788,7 @@ components:
             - embedding
             - moderation
             - search
+            - image
           type: string
         max_output:
           format: int64
@@ -648,6 +823,7 @@ components:
             - embedding
             - moderation
             - search
+            - image
           type: string
         max_output:
           format: int64
@@ -689,10 +865,35 @@ components:
           format: int64
           minimum: 0
           type: integer
+        per_call_micro:
+          description: Micro-USD per call, or per picture for an image route. A cost the upstream reports in its usage block wins over every price here.
+          format: int64
+          minimum: 0
+          type: integer
       required:
         - input_micro
         - cached_micro
         - output_micro
+      type: object
+    ProbeLLMProviderModelRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ProbeLLMProviderModelRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        kind:
+          description: Defaults to the entry's kind. image generates one picture and is billed.
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+          type: string
       type: object
     ProbeResult:
       additionalProperties: false
@@ -746,6 +947,94 @@ components:
           format: int64
           minimum: 0
           type: integer
+      type: object
+    ProviderModelView:
+      additionalProperties: false
+      properties:
+        context_tokens:
+          format: int64
+          type: integer
+        delisted_at:
+          format: date-time
+          type:
+            - string
+            - "null"
+        first_seen_at:
+          format: date-time
+          type: string
+        id:
+          format: int64
+          type: integer
+        input_modalities:
+          items:
+            type: string
+          type: array
+        kind:
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+            - video
+            - speech
+            - transcription
+            - rerank
+          type: string
+        kind_source:
+          description: "Where the kind came from: the provider's metadata, a guess from the name, an admin, or a successful probe."
+          enum:
+            - metadata
+            - name
+            - admin
+            - probe
+          type: string
+        last_seen_at:
+          format: date-time
+          type: string
+        listed:
+          description: False once the provider stopped listing it.
+          type: boolean
+        output_modalities:
+          items:
+            type: string
+          type: array
+        owned_by:
+          type: string
+        probe:
+          anyOf:
+            - $ref: "#/components/schemas/CatalogProbe"
+            - type: "null"
+        provider_id:
+          format: int64
+          type: integer
+        routes:
+          description: Gateway routes already using this upstream id on this provider.
+          items:
+            $ref: "#/components/schemas/CatalogRoute"
+          type: array
+        supported:
+          description: Whether the gateway can call this kind yet.
+          type: boolean
+        upstream_id:
+          type: string
+      required:
+        - id
+        - provider_id
+        - upstream_id
+        - kind
+        - kind_source
+        - supported
+        - input_modalities
+        - output_modalities
+        - context_tokens
+        - owned_by
+        - listed
+        - first_seen_at
+        - last_seen_at
+        - delisted_at
+        - probe
+        - routes
       type: object
     ProviderView:
       additionalProperties: false
@@ -860,6 +1149,14 @@ components:
         priority:
           format: int64
           type: integer
+        protocol:
+          enum:
+            - chat
+            - embeddings
+            - moderations
+            - responses
+            - images
+          type: string
         provider_id:
           format: int64
           type: integer
@@ -882,6 +1179,7 @@ components:
         - model_id
         - provider_id
         - upstream_id
+        - protocol
         - priority
         - weight
         - status
@@ -1052,6 +1350,59 @@ components:
         - budget_denied
         - degraded
         - truncated
+      type: object
+    SyncResult:
+      additionalProperties: false
+      properties:
+        added:
+          format: int64
+          type: integer
+        delisted:
+          format: int64
+          type: integer
+        listed:
+          format: int64
+          type: integer
+        orphaned_routes:
+          description: Routes whose upstream id the provider no longer lists.
+          items:
+            format: int64
+            type: integer
+          type: array
+        relisted:
+          format: int64
+          type: integer
+      required:
+        - listed
+        - added
+        - delisted
+        - relisted
+        - orphaned_routes
+      type: object
+    UpdateLLMProviderModelRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/UpdateLLMProviderModelRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        kind:
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+            - video
+            - speech
+            - transcription
+            - rerank
+          type: string
+      required:
+        - kind
       type: object
     UpsertBudgetRequest:
       additionalProperties: false
@@ -1429,6 +1780,108 @@ paths:
       summary: Update a model
       tags:
         - ai-admin-llm
+  /api/v1/admin/ai/llm/provider-models/{id}:
+    patch:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: updateLLMProviderModel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLLMProviderModelRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProviderModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Set a catalog entry's kind by hand
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/provider-models/{id}/adopt:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: adoptLLMProviderModel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdoptInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAdoptResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: "Route a catalog entry: create the gateway model if needed, then the route"
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/provider-models/{id}/probe:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: probeLLMProviderModel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProbeLLMProviderModelRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProviderModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Call the upstream model once as the given kind; a success records the kind
+      tags:
+        - ai-admin-llm
   /api/v1/admin/ai/llm/providers:
     get:
       description: Requires ai.llm_manage (ren) for reading and writing.
@@ -1533,6 +1986,62 @@ paths:
                 $ref: "#/components/schemas/HouseError"
           description: Error
       summary: Update a provider; a non-empty api_key replaces the stored key
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/providers/{id}/models:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: listLLMProviderModels
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListProviderModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: The provider's model catalog from its last sync
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/providers/{id}/models/sync:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: syncLLMProviderModels
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSyncResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Read the provider's /models now and update its catalog
       tags:
         - ai-admin-llm
   /api/v1/admin/ai/llm/routes:

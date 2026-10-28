@@ -25,6 +25,7 @@ func Mount(app *fiber.App, s *Server) {
 	v1.Post("/chat/completions", s.chat)
 	v1.Post("/embeddings", s.embeddings)
 	v1.Post("/moderations", s.moderations)
+	v1.Post("/images/generations", s.images)
 }
 
 const localKey = "llm_access_key"
@@ -130,6 +131,8 @@ func (sv *Server) unary(c fiber.Ctx, call func(context.Context, llm.Request) (ll
 func (sv *Server) embeddings(c fiber.Ctx) error { return sv.unary(c, sv.GW.Embed) }
 
 func (sv *Server) moderations(c fiber.Ctx) error { return sv.unary(c, sv.GW.Moderate) }
+
+func (sv *Server) images(c fiber.Ctx) error { return sv.unary(c, sv.GW.GenerateImages) }
 
 var chatKeys = map[string]bool{"model": true, "messages": true, "stream": true, "stream_options": true, "tools": true,
 	"tool_choice": true, "max_tokens": true, "max_completion_tokens": true, "user": true}

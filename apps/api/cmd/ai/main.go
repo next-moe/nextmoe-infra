@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"api/internal/app"
 	"api/internal/infrastructure/database"
@@ -112,7 +113,15 @@ func main() {
 	application.Fiber.Use("/api/v1/admin/ai/llm", middleware.RequirePermission(aiPerm.Resolver, aiPerm.LLMManage))
 
 	s2sAPI := aiHandler.Setup(application.Fiber, moderationSvc)
-	aiHandler.SetupAdmin(application.Fiber, statsSvc, budgetSvc, llm.NewAdmin(aiDB.DB(), kek, gw))
+	llmAdmin := llm.NewAdmin(aiDB.DB(), kek, gw)
+	aiHandler.SetupAdmin(application.Fiber, statsSvc, budgetSvc, llmAdmin)
+	go func() {
+		time.Sleep(5 * time.Minute)
+		for {
+			llmAdmin.SyncAllProviders(permCtx)
+			time.Sleep(24 * time.Hour)
+		}
+	}()
 	proxy.Mount(application.Fiber, &proxy.Server{GW: gw})
 
 	application.Fiber.Get("/openapi.json", func(c fiber.Ctx) error {

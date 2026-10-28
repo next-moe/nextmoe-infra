@@ -30,6 +30,11 @@ func Run(db *gorm.DB) error {
 	// ai service seeds the providers, models, routes and scenes from the legacy
 	// KUN_AI_UPSTREAM_* / KUN_AI_OMNI_* env when llm_provider is empty, so this
 	// migration writes no rows.
+	//
+	// 2026-10-29: llm_provider_model (the per-provider catalog filled by the
+	// admin "sync models" action and a daily sync) and
+	// llm_price_revision.per_call_micro (per call / per picture, default 0, so
+	// every existing revision keeps its token-only price). Additive.
 	if err := db.AutoMigrate(llm.Tables()...); err != nil {
 		return fmt.Errorf("llm gateway automigrate: %w", err)
 	}

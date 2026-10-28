@@ -41,6 +41,10 @@ func (g *Gateway) Moderate(ctx context.Context, r Request) (Response, error) {
 	return g.unary(ctx, r, ModelModeration, "/moderations")
 }
 
+func (g *Gateway) GenerateImages(ctx context.Context, r Request) (Response, error) {
+	return g.unary(ctx, r, ModelImage, "/images/generations")
+}
+
 func (g *Gateway) unary(ctx context.Context, r Request, kind, path string) (Response, error) {
 	s := g.snap.Load()
 	if s == nil {
@@ -138,17 +142,21 @@ func postJSON(ctx context.Context, client *http.Client, url, key string, headers
 	var meta struct {
 		Model string `json:"model"`
 		Usage struct {
-			PromptTokens int `json:"prompt_tokens"`
-			InputTokens  int `json:"input_tokens"`
-			OutputTokens int `json:"output_tokens"`
-			TotalTokens  int `json:"total_tokens"`
+			PromptTokens   int   `json:"prompt_tokens"`
+			InputTokens    int   `json:"input_tokens"`
+			OutputTokens   int   `json:"output_tokens"`
+			TotalTokens    int   `json:"total_tokens"`
+			CostInUSDTicks int64 `json:"cost_in_usd_ticks"`
+			CostInNanoUSD  int64 `json:"cost_in_nano_usd"`
 		} `json:"usage"`
+		Data []json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return out, Response{}, &Error{Kind: ErrKindMalformed, Status: resp.StatusCode, Msg: truncate(string(data), 300)}
 	}
 	in := cmp.Or(meta.Usage.PromptTokens, meta.Usage.InputTokens, meta.Usage.TotalTokens)
-	out.result = Result{Model: meta.Model, Usage: Usage{InputTokens: in, OutputTokens: meta.Usage.OutputTokens}}
+	out.result = Result{Model: meta.Model, Usage: Usage{InputTokens: in, OutputTokens: meta.Usage.OutputTokens,
+		Units: len(meta.Data), ReportedNano: reportedNano(meta.Usage.CostInUSDTicks, meta.Usage.CostInNanoUSD)}}
 	return out, Response{Body: data, Model: meta.Model, Usage: out.result.Usage}, nil
 }
 
@@ -175,15 +183,19 @@ func (g *Gateway) Probe(ctx context.Context, routeID int64) (ProbeResult, error)
 	if err := g.db.WithContext(ctx).First(&m, r.ModelID).Error; err != nil {
 		return ProbeResult{}, err
 	}
-	key, err := providerKey(&p, g.kek)
+	return g.probeUpstream(ctx, &p, &r, &m), nil
+}
+
+func (g *Gateway) probeUpstream(ctx context.Context, p *Provider, r *Route, m *Model) ProbeResult {
+	key, err := providerKey(p, g.kek)
 	if err != nil {
-		return ProbeResult{ErrorKind: string(ErrKindAuth), Message: err.Error()}, nil
+		return ProbeResult{ErrorKind: string(ErrKindAuth), Message: err.Error()}
 	}
 	var headers map[string]string
 	_ = json.Unmarshal(p.Headers, &headers)
 	s := &snapshot{keys: map[int64]string{p.ID: key}, headers: map[int64]map[string]string{p.ID: headers}, prices: map[int64]*PriceRevision{}}
 	sc := &Scene{Key: "admin.test", ModelID: m.ID, Class: ClassBatch, TTFTMs: 20_000, IdleMs: 20_000, TotalMs: 30_000}
-	c := candidate{route: &r, model: &m, provider: &p}
+	c := candidate{route: r, model: m, provider: p}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	started := g.now()
@@ -201,6 +213,10 @@ func (g *Gateway) Probe(ctx context.Context, routeID int64) (ProbeResult, error)
 		var res Response
 		res, err = g.unaryAttempt(ctx, s, sc, c, Request{Body: map[string]json.RawMessage{"input": json.RawMessage(`"ping"`)}, Site: "admin"}, "/responses", uuid.NewString(), false)
 		served = res.Model
+	case ModelImage:
+		var res Response
+		res, err = g.unaryAttempt(ctx, s, sc, c, Request{Body: map[string]json.RawMessage{"prompt": json.RawMessage(`"a small red circle on a white background"`), "n": json.RawMessage(`1`)}, Site: "admin"}, "/images/generations", uuid.NewString(), false)
+		served = res.Model
 	default:
 		var res Result
 		res, _, err = g.attempt(ctx, s, sc, c, Call{Messages: []Message{{Role: RoleUser, Content: "ping"}}, MaxTokens: 16, Buffered: true, Site: "admin", probe: true}, uuid.NewString(), nil)
@@ -210,7 +226,7 @@ func (g *Gateway) Probe(ctx context.Context, routeID int64) (ProbeResult, error)
 	if err != nil {
 		out.ErrorKind, out.Message = string(KindOf(err)), err.Error()
 	}
-	return out, nil
+	return out
 }
 
 func HashAccessKey(secret string) string {
