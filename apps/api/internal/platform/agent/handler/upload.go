@@ -133,27 +133,27 @@ func (s *Server) registerUploads(api huma.API) {
 }
 
 func (s *Server) validateParts(ctx context.Context, c *caller, conv *model.Conversation, in []service.Part) ([]service.Part, error) {
-	total, files := 0, 0
+	typed, attached, files := 0, 0, 0
 	out := make([]service.Part, 0, len(in))
 	for _, p := range in {
 		switch {
 		case p.Type == "text":
 			out = append(out, service.Part{Type: "text", Text: strings.Clone(p.Text)})
-			total += len([]rune(p.Text))
+			typed += len([]rune(p.Text))
 		case p.Type == "file" && p.UploadID != "":
 			u, err := s.Store.Upload(ctx, c.UserID, c.SiteID, p.UploadID)
 			if err != nil || (u.ConversationID != nil && *u.ConversationID != conv.ID) {
 				return nil, fail(http.StatusBadRequest, CodeBadUpload, "uploadId is not an upload of yours for this conversation")
 			}
 			files++
-			total += len([]rune(u.Text))
+			attached += len([]rune(u.Text))
 			out = append(out, service.Part{Type: "file", UploadID: u.ID, MediaType: u.MediaType, Filename: u.Filename, URL: "/v2/agent/uploads/" + u.ID})
 		case p.Type == "file":
 			if !strings.HasPrefix(p.MediaType, "text/") && p.MediaType != "application/json" && p.MediaType != "application/x-yaml" {
 				return nil, fail(http.StatusUnsupportedMediaType, CodeUnsupportedAttachment, "upload the file to /v2/agent/uploads and send its uploadId")
 			}
 			files++
-			total += len([]rune(p.Text))
+			attached += len([]rune(p.Text))
 			out = append(out, service.Part{Type: "file", Text: strings.Clone(p.Text), MediaType: strings.Clone(p.MediaType), Filename: strings.Clone(p.Filename)})
 		default:
 			return nil, huma.Error400BadRequest("unsupported part type " + p.Type)
@@ -162,11 +162,18 @@ func (s *Server) validateParts(ctx context.Context, c *caller, conv *model.Conve
 	if limit := int(keys.AgentUploadMaxFiles.ForSite(uint(c.SiteID))); files > limit {
 		return nil, fail(http.StatusBadRequest, CodeTooManyFiles, "too many files in one message")
 	}
-	if total == 0 && files == 0 {
+	if typed == 0 && files == 0 {
 		return nil, fail(http.StatusBadRequest, CodeEmptyMessage, "the message is empty")
 	}
-	if total > int(keys.AgentTurnMaxInputChars.Get()) {
-		return nil, fail(http.StatusRequestEntityTooLarge, CodeInputTooLong, "the message and its attachments are too long")
+	// The typed text and the attachments are capped separately: an upload is cut
+	// to the whole cap, so one shared budget refused every question sent with a
+	// cut file (letmoe local e2e, a 390 KB .txt).
+	limit := int(keys.AgentTurnMaxInputChars.Get())
+	if typed > limit {
+		return nil, fail(http.StatusRequestEntityTooLarge, CodeInputTooLong, "the message is too long")
+	}
+	if attached > limit {
+		return nil, fail(http.StatusRequestEntityTooLarge, CodeInputTooLong, "the attachments together are too long")
 	}
 	return out, nil
 }

@@ -146,7 +146,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		r.wg.Add(1)
 		go func() {
 			defer r.wg.Done()
-			titled <- r.titleConversation(t, nil, w)
+			titled <- r.titleConversation(t, w)
 		}()
 	} else {
 		titled <- true
@@ -238,7 +238,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		slog.Error("agent: persist finished run", "run", run.ID, "err", err)
 	}
 	if ok := <-titled; !ok && fin.Status == model.RunCompleted {
-		r.titleConversation(t, fin.Parts, nil)
+		r.titleConversation(t, nil)
 	}
 }
 
@@ -287,7 +287,7 @@ func contains(xs []string, x string) bool {
 	return false
 }
 
-func (r *Runner) titleConversation(t Turn, reply []Part, w *stream.Writer) bool {
+func (r *Runner) titleConversation(t Turn, w *stream.Writer) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	var user string
@@ -295,13 +295,10 @@ func (r *Runner) titleConversation(t Turn, reply []Part, w *stream.Writer) bool 
 		user = messageText(t.History[n-1], t.Uploads)
 	}
 	content := clipRunes(user, 500)
-	if answer := partsText(reply); answer != "" {
-		content += "\n\n" + clipRunes(answer, 500)
-	}
 	res, err := r.gw.Stream(ctx, llm.Call{
 		Scene: llm.SceneTitle, Buffered: true, MaxTokens: 512, Site: t.SiteName, UserID: t.Run.UserID,
 		Messages: []llm.Message{
-			{Role: llm.RoleSystem, Content: "用不超过 16 个字概括这段对话的主题，作为标题。只输出标题本身，不要引号、不要句号。"},
+			{Role: llm.RoleSystem, Content: "用不超过 16 个字概括用户这个问题的主题，作为标题。不要回答问题，不要写出任何答案、数字或结论。只输出标题本身，不要引号、不要句号。"},
 			{Role: llm.RoleUser, Content: content + "\n/no_think"},
 		},
 	}, nil)
