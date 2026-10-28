@@ -2707,3 +2707,16 @@ A user pointed out that Ren'Py (about 17k works) and TyranoScript (about 4.9k) o
 - **Cost.** One aggregate over every engine edge, about 60–110 ms on the local copy (273k works), cached in process for an hour per nsfw population. No table, no job. On local data the nsfw ranking reads KiriKiri 582,656 / Unity 369,181 / Ren'Py 302,277.
 
 **Spec 2.74.0**, additive. **Zero migrations.**
+
+## The portrait follows votes and prefers official art (spec 2.75.0, 2026-10-28)
+
+The portrait a work showed ignored its cover votes, and works the legacy wiki had covered kept a user upload in front of the VNDB or Bangumi art they already held. On the 2026-10-24 local copy, 342 of the 400 works with votes did not show their top-voted cover, and 275 works showed an upload.
+
+- **Election order.** The `cover` slot (works detail, list, relation briefs) is now: an editor's pin (a pinned row in the curated lane, or an upstream row whose `portrait_pinned` carries human provenance; a measured landscape pin is still refused) → the cover row with strictly the most votes among the rows the reader may see (a tie elects neither, so the old ladder decides) → the existing ladder. Pins written by importers and `repin-portrait-covers` no longer beat a vote. The vote leader is taken whatever its shape or kind: the readers chose it.
+- **Official art first.** Covers from `user`, `curated` and `upscale` take part only while the work owns no official cover art (a non-packaging, non-censored row from any other source). An editor's pin keeps an upload in. The banner follows the same rule.
+- **Shelf.** `cover_art_all_explicit` grades the same set, so a work whose official art is all explicit stops resting on the sfw shelf behind a hand-censored upload. The `migrate-catalog` job replaces the trigger function, and its backfill flips the stored column (locally 53 works, 8 of them change shelf; those 8 get an `updated_at` bump so mirrors re-read `content_limit`).
+- **Backfill.** `cmd/backfill-official-covers` fetches, for live works that hold an upload, the largest portrait digital-edition (`dig`) release image from VNDB (Kana `/release`) and the Bangumi subject cover. It writes them as `vndb`/`dig` and `bangumi`/`main` rows, then lifts the machine pins of a work that gained a portrait, so the sharpest official portrait wins. Dry run by default; `KUN_BANGUMI_TOKEN` is needed for NSFW subjects (52 of 72 came back 404 without it). Locally: 123 works, 42 VNDB `dig` covers, 72 Bangumi covers.
+
+- **Editor saves kept no votes.** Saving `catalog.work.covers` deleted the whole curated lane and inserted it again. Every kept cover got a new row id, and `catalog_cover_vote.cover_id` cascades on delete, so each save erased the votes on every curated cover it kept. The save now deletes only the hashes that left the list and updates the rest in place.
+
+**Spec 2.75.0**: the `cover`, `Cover.vote_count` and `Cover.portrait_pinned` descriptions. `portrait_pinned` no longer names the portrait; read `cover`. **No schema change**; the trigger function is replaced by the catalog migration.

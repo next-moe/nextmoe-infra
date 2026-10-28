@@ -1204,7 +1204,7 @@ components:
           maxLength: 256
           type: string
         portrait_pinned:
-          description: Whether this row is pinned as the portrait cover.
+          description: Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.
           type: boolean
         sexual:
           description: Sexual depiction. null means not assessed.
@@ -1247,7 +1247,7 @@ components:
             - "null"
           x-vocabulary-closed: true
         vote_count:
-          description: Net votes on this cover row.
+          description: Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.
           format: int64
           minimum: 0
           type: integer
@@ -13231,7 +13231,7 @@ components:
           anyOf:
             - $ref: "#/components/schemas/CoverSlot"
             - type: "null"
-          description: Selected portrait image. null if none.
+          description: Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none.
         covers:
           description: Present when include=covers. Empty array if none.
           items:
@@ -13982,7 +13982,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.74.0
+  version: 2.75.0
   x-stability: stable
 openapi: 3.1.0
 paths:

@@ -110,9 +110,18 @@ func applyCovers(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 	if err := rejectUpstreamCoverCollisions(ctx, tx, entityID, covers); err != nil {
 		return err
 	}
-	if err := tx.WithContext(ctx).
-		Where("work_id = ? AND source_id = ?", entityID, curatedSourceID).
-		Delete(&catmodel.CatalogWorkCover{}).Error; err != nil {
+	hashes := make([]string, len(covers))
+	for i, c := range covers {
+		hashes[i] = c.ImageHash
+	}
+	// Deleting and re-inserting the whole lane gave every kept cover a new id,
+	// and catalog_cover_vote.cover_id cascades on delete: each editor save
+	// erased the votes on the covers it kept.
+	drop := tx.WithContext(ctx).Where("work_id = ? AND source_id = ?", entityID, curatedSourceID)
+	if len(hashes) > 0 {
+		drop = drop.Where("image_hash NOT IN ?", hashes)
+	}
+	if err := drop.Delete(&catmodel.CatalogWorkCover{}).Error; err != nil {
 		return err
 	}
 	if len(covers) == 0 {
@@ -126,7 +135,13 @@ func applyCovers(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 			Sexual: c.Sexual, Violence: c.Violence, SourceID: curatedSourceID,
 		})
 	}
-	return tx.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error
+	return tx.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "work_id"}, {Name: "image_hash"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"sort_order", "kind", "portrait_pinned", "sexual", "violence", "updated_at"}),
+		Where: clause.Where{Exprs: []clause.Expression{clause.Expr{
+			SQL: "catalog_work_cover.source_id = ?", Vars: []any{curatedSourceID}}}},
+	}).Create(&rows).Error
 }
 
 // rejectUpstreamCoverCollisions makes an unwinnable insert an explicit 422.
