@@ -25,6 +25,302 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/ai/llm/access-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List gateway access keys
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["listLLMAccessKeys"];
+        put?: never;
+        /**
+         * Create an access key; the secret is returned once
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["createLLMAccessKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/access-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke an access key
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        delete: operations["deleteLLMAccessKey"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename, re-scope, enable or disable an access key
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        patch: operations["updateLLMAccessKey"];
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent gateway events, newest first
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["listLLMEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List models
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["listLLMModels"];
+        put?: never;
+        /**
+         * Create a model
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["createLLMModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/models/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a model no route or scene uses
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        delete: operations["deleteLLMModel"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a model
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        patch: operations["updateLLMModel"];
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List providers (keys are never returned)
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["listLLMProviders"];
+        put?: never;
+        /**
+         * Create a provider
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["createLLMProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/providers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a provider no route uses
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        delete: operations["deleteLLMProvider"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a provider; a non-empty api_key replaces the stored key
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        patch: operations["updateLLMProvider"];
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List routes with their price and last-24h stats
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["listLLMRoutes"];
+        put?: never;
+        /**
+         * Create a route (model × provider)
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["createLLMRoute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/routes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a route
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        delete: operations["deleteLLMRoute"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a route; status active also lifts a suspension; price adds a revision
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        patch: operations["updateLLMRoute"];
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/routes/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send one tiny real request through exactly this route
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["testLLMRoute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/scenes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List scenes
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["listLLMScenes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/scenes/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Create or replace a scene
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        put: operations["putLLMScene"];
+        post?: never;
+        /**
+         * Delete a scene
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        delete: operations["deleteLLMScene"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether the server can store provider API keys
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["getLLMStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/usage/daily": {
         parameters: {
             query?: never;
@@ -63,12 +359,40 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccessKeyInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/AccessKeyInput.json
+             */
+            readonly $schema?: string;
+            allowed_models?: string[];
+            enabled?: boolean;
+            name?: string;
+        };
+        AccessKeyView: {
+            allowed_models: string[];
+            /** Format: date-time */
+            created_at: string;
+            enabled: boolean;
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            last_used_at: string | null;
+            name: string;
+            prefix: string;
+        };
         BudgetView: {
             /** Format: int64 */
             daily_cost_cap_micro: number | null;
             route: string;
             site: string;
             updated_at: string;
+        };
+        CreatedAccessKey: {
+            key: components["schemas"]["AccessKeyView"];
+            /** @description Shown once; only its hash is stored. */
+            secret: string;
         };
         DailyPoint: {
             /** Format: int64 */
@@ -83,6 +407,19 @@ export interface components {
             days: number;
             points: components["schemas"]["DailyPoint"][];
         };
+        Empty: Record<string, never>;
+        EnvelopeAccessKeyView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeAccessKeyView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["AccessKeyView"];
+            message: string;
+        };
         EnvelopeBudgetView: {
             /**
              * Format: uri
@@ -93,6 +430,18 @@ export interface components {
             /** Format: int64 */
             code: number;
             data?: components["schemas"]["BudgetView"];
+            message: string;
+        };
+        EnvelopeCreatedAccessKey: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeCreatedAccessKey.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["CreatedAccessKey"];
             message: string;
         };
         EnvelopeDailySeries: {
@@ -107,6 +456,30 @@ export interface components {
             data?: components["schemas"]["DailySeries"];
             message: string;
         };
+        EnvelopeEmpty: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeEmpty.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["Empty"];
+            message: string;
+        };
+        EnvelopeListAccessKeyView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListAccessKeyView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["AccessKeyView"][];
+            message: string;
+        };
         EnvelopeListBudgetView: {
             /**
              * Format: uri
@@ -117,6 +490,138 @@ export interface components {
             /** Format: int64 */
             code: number;
             data?: components["schemas"]["BudgetView"][];
+            message: string;
+        };
+        EnvelopeListEventView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListEventView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["EventView"][];
+            message: string;
+        };
+        EnvelopeListModelView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListModelView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ModelView"][];
+            message: string;
+        };
+        EnvelopeListProviderView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListProviderView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ProviderView"][];
+            message: string;
+        };
+        EnvelopeListRouteView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListRouteView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["RouteView"][];
+            message: string;
+        };
+        EnvelopeListSceneView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListSceneView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["SceneView"][];
+            message: string;
+        };
+        EnvelopeLlmStatus: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeLlmStatus.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["LlmStatus"];
+            message: string;
+        };
+        EnvelopeModelView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeModelView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ModelView"];
+            message: string;
+        };
+        EnvelopeProbeResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeProbeResult.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ProbeResult"];
+            message: string;
+        };
+        EnvelopeProviderView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeProviderView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ProviderView"];
+            message: string;
+        };
+        EnvelopeRouteView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeRouteView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["RouteView"];
+            message: string;
+        };
+        EnvelopeSceneView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeSceneView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["SceneView"];
             message: string;
         };
         EnvelopeUsageSummary: {
@@ -131,6 +636,18 @@ export interface components {
             data?: components["schemas"]["UsageSummary"];
             message: string;
         };
+        EventView: {
+            /** Format: date-time */
+            created_at: string;
+            detail: string;
+            /** Format: int64 */
+            id: number;
+            kind: string;
+            /** Format: int64 */
+            provider_id: number;
+            /** Format: int64 */
+            route_id: number;
+        };
         HouseError: {
             /**
              * Format: uri
@@ -141,6 +658,190 @@ export interface components {
             /** Format: int64 */
             code: number;
             message: string;
+        };
+        LlmStatus: {
+            kek_configured: boolean;
+        };
+        ModelInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ModelInput.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            context_tokens?: number;
+            enabled?: boolean;
+            key?: string;
+            /** @enum {string} */
+            kind?: "chat" | "embedding" | "moderation";
+            /** Format: int64 */
+            max_output?: number;
+            reasoning?: boolean;
+            tool_call?: boolean;
+            vision?: boolean;
+        };
+        ModelView: {
+            /** Format: int64 */
+            context_tokens: number;
+            /** Format: date-time */
+            created_at: string;
+            enabled: boolean;
+            /** Format: int64 */
+            id: number;
+            key: string;
+            /** @enum {string} */
+            kind: "chat" | "embedding" | "moderation";
+            /** Format: int64 */
+            max_output: number;
+            reasoning: boolean;
+            tool_call: boolean;
+            /** Format: date-time */
+            updated_at: string;
+            vision: boolean;
+        };
+        Price: {
+            /** Format: int64 */
+            cached_micro: number;
+            /** Format: int64 */
+            input_micro: number;
+            /** Format: int64 */
+            output_micro: number;
+        };
+        ProbeResult: {
+            error_kind: string;
+            /** Format: int64 */
+            latency_ms: number;
+            message: string;
+            ok: boolean;
+            served_model: string;
+        };
+        ProviderInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ProviderInput.json
+             */
+            readonly $schema?: string;
+            api_key?: string;
+            base_url?: string;
+            clear_key?: boolean;
+            enabled?: boolean;
+            headers?: {
+                [key: string]: string;
+            };
+            name?: string;
+            /** Format: int64 */
+            price_multiplier_ppm?: number;
+        };
+        ProviderView: {
+            base_url: string;
+            /** Format: date-time */
+            created_at: string;
+            enabled: boolean;
+            headers: {
+                [key: string]: string;
+            };
+            /** Format: int64 */
+            id: number;
+            key_configured: boolean;
+            key_hint: string;
+            name: string;
+            /** Format: int64 */
+            price_multiplier_ppm: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        RouteInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/RouteInput.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            model_id?: number;
+            price?: components["schemas"]["Price"];
+            /** Format: int64 */
+            priority?: number;
+            /** Format: int64 */
+            provider_id?: number;
+            /** @enum {string} */
+            status?: "active" | "disabled";
+            upstream_id?: string;
+            /** Format: int64 */
+            weight?: number;
+        };
+        RouteStats: {
+            /** Format: int64 */
+            avg_ms: number;
+            /** Format: int64 */
+            calls: number;
+            /** Format: int64 */
+            cost_nano: number;
+            /** Format: int64 */
+            errors: number;
+        };
+        RouteView: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            model_id: number;
+            price: components["schemas"]["Price"] | null;
+            /** Format: int64 */
+            priority: number;
+            /** Format: int64 */
+            provider_id: number;
+            stats_24h: components["schemas"]["RouteStats"];
+            /** @enum {string} */
+            status: "active" | "disabled";
+            status_reason: string;
+            upstream_id: string;
+            /** Format: int64 */
+            weight: number;
+        };
+        SceneInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/SceneInput.json
+             */
+            readonly $schema?: string;
+            /** @enum {string} */
+            class: "interactive" | "search" | "batch" | "moderation";
+            fallback_model_ids: number[];
+            /** Format: int64 */
+            idle_ms: number;
+            /** Format: int64 */
+            max_output: number;
+            /** Format: int64 */
+            model_id: number;
+            /** Format: double */
+            temperature: number | null;
+            /** Format: int64 */
+            total_ms: number;
+            /** Format: int64 */
+            ttft_ms: number;
+        };
+        SceneView: {
+            /** @enum {string} */
+            class: "interactive" | "search" | "batch" | "moderation";
+            fallback_model_ids: number[];
+            /** Format: int64 */
+            idle_ms: number;
+            key: string;
+            /** Format: int64 */
+            max_output: number;
+            /** Format: int64 */
+            model_id: number;
+            /** Format: double */
+            temperature: number | null;
+            /** Format: int64 */
+            total_ms: number;
+            /** Format: int64 */
+            ttft_ms: number;
+            /** Format: date-time */
+            updated_at: string;
         };
         SummaryRow: {
             /** Format: int64 */
@@ -267,6 +968,704 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeBudgetView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listLLMAccessKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListAccessKeyView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    createLLMAccessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessKeyInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCreatedAccessKey"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    deleteLLMAccessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeEmpty"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    updateLLMAccessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessKeyInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAccessKeyView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listLLMEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListEventView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listLLMModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListModelView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    createLLMModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeModelView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    deleteLLMModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeEmpty"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    updateLLMModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeModelView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listLLMProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListProviderView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    createLLMProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProviderView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    deleteLLMProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeEmpty"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    updateLLMProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProviderView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listLLMRoutes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListRouteView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    createLLMRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeRouteView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    deleteLLMRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeEmpty"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    updateLLMRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeRouteView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    testLLMRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProbeResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listLLMScenes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListSceneView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    putLLMScene: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SceneInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSceneView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    deleteLLMScene: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeEmpty"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    getLLMStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLlmStatus"];
                 };
             };
             /** @description Error */
