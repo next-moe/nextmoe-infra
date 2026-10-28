@@ -20,7 +20,6 @@ import (
 	"api/pkg/imageshrink"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -47,6 +46,7 @@ type Stats struct {
 	Bgm        int
 	BgmNone    int
 	Uploaded   int
+	Relabeled  int
 	Dedup      int
 	Unpinned   int
 	Errors     int
@@ -54,8 +54,8 @@ type Stats struct {
 }
 
 func (s Stats) String() string {
-	return fmt.Sprintf("candidates=%d vndb_dig=%d vndb_none=%d bgm=%d bgm_none=%d uploaded=%d dedup=%d unpinned=%d errors=%d quota=%t",
-		s.Candidates, s.VNDBDig, s.VNDBNone, s.Bgm, s.BgmNone, s.Uploaded, s.Dedup, s.Unpinned, s.Errors, s.Quota)
+	return fmt.Sprintf("candidates=%d vndb_dig=%d vndb_none=%d bgm=%d bgm_none=%d uploaded=%d relabeled=%d dedup=%d unpinned=%d errors=%d quota=%t",
+		s.Candidates, s.VNDBDig, s.VNDBNone, s.Bgm, s.BgmNone, s.Uploaded, s.Relabeled, s.Dedup, s.Unpinned, s.Errors, s.Quota)
 }
 
 type planned struct {
@@ -224,17 +224,32 @@ func (w *writer) write(ctx context.Context, p planned, body []byte, name string)
 	}
 	w.hashes = append(w.hashes, res.Hash)
 	return w.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		ins := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&model.CatalogWorkCover{
-			WorkID: p.WorkID, ImageHash: res.Hash, Kind: p.Kind, Sexual: p.Sexual, Violence: p.Violence, SourceID: p.Source,
-		})
-		if ins.Error != nil {
-			return ins.Error
+		var held []model.CatalogWorkCover
+		if err := tx.Where("work_id = ? AND image_hash = ?", p.WorkID, res.Hash).Find(&held).Error; err != nil {
+			return err
 		}
-		if ins.RowsAffected == 0 {
+		switch {
+		case len(held) == 0:
+			if err := tx.Create(&model.CatalogWorkCover{
+				WorkID: p.WorkID, ImageHash: res.Hash, Kind: p.Kind, Sexual: p.Sexual, Violence: p.Violence, SourceID: p.Source,
+			}).Error; err != nil {
+				return err
+			}
+			w.stats.Uploaded++
+		// The first production run ended dedup=31: the legacy upload was the
+		// official image byte for byte, so the insert hit uq_catalog_work_cover
+		// and the work kept no official row — and its machine-pinned upscale.
+		// Such a row is re-sourced; one an editor pinned is theirs and stays.
+		case model.IsUploadedCoverSource(held[0].SourceID) &&
+			!(held[0].SourceID == model.SourceCurated && held[0].PortraitPinned):
+			if err := tx.Model(&held[0]).Updates(map[string]any{"source_id": p.Source, "kind": p.Kind}).Error; err != nil {
+				return err
+			}
+			w.stats.Relabeled++
+		default:
 			w.stats.Dedup++
 			return nil
 		}
-		w.stats.Uploaded++
 		w.touched = append(w.touched, p.WorkID)
 		if res.Width <= 0 || !isPortrait(res.Width, res.Height) {
 			return nil
