@@ -2707,3 +2707,15 @@ A user pointed out that Ren'Py (about 17k works) and TyranoScript (about 4.9k) o
 - **Cost.** One aggregate over every engine edge, about 60–110 ms on the local copy (273k works), cached in process for an hour per nsfw population. No table, no job. On local data the nsfw ranking reads KiriKiri 582,656 / Unity 369,181 / Ren'Py 302,277.
 
 **Spec 2.74.0**, additive. **Zero migrations.**
+
+## Browsing history (spec 2.75.0, 2026-10-27)
+
+Users asked for a "recently viewed" list. History is personal and can be sensitive (adult works), so it is kept per app by default and the account can switch it off entirely.
+
+- **Faces.** `PUT /v2/me/history/works/{work_id}` records a visit for the bearer in the calling app (204; visits less than a minute apart count once). `GET /v2/me/history` lists the app's entries newest first, with `content_limit=` so an sfw site never shows a work the account opened on an adult one. `DELETE /v2/me/history` and `DELETE /v2/me/history/works/{work_id}` clear one app's entries, or every app's with `scope=all`. Items carry ids only.
+- **Cross-app reads.** `GET /v2/me/history?scope=all` merges every app's rows per work. It needs the new `history:read` scope (gate in `identity.go`, `historyScopedPrefixes`) and the account's `browsing_history_sharing` set to `shared`; otherwise 403 `SCOPE_REQUIRED` or the new 403 `BROWSING_HISTORY_NOT_SHARED`.
+- **Switches.** `/v2/me/privacy` gains `browsing_history` (`on`/`off`) and `browsing_history_sharing` (`per_app`/`shared`). `off` deletes every app's rows in the same transaction, and recording while off stores nothing; recording and switching serialize on a per-user advisory lock. A third-party app may only move a switch towards private (422 `NOT_PERMITTED` otherwise), so no app can grant itself every app's history.
+- **Retention.** 90 days and the newest 500 entries per app. The cap is enforced on insert, expiry by an hourly sweep in the catalog process; reads also hide expired rows.
+- **Merges, deletions, purge.** The table is excluded from merge rehang, because a moved row is copied into `catalog_merge_movement` and that copy would outlive "clear" and "off"; a merged-away work drops out of reads and its rows age out. A deleted work cascades. Account purge deletes the rows.
+
+**Spec 2.75.0**, additive. **Migration:** `go run ./cmd/migrate catalog` creates `catalog_user_work_view` (empty) and adds two `NOT NULL DEFAULT false` columns to `catalog_user_privacy`; the `migrate-catalog` deploy job runs it.

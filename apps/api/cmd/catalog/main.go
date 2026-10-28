@@ -146,6 +146,8 @@ func main() {
 	coverVoteSvc := service.NewCoverVoteService(catalogDB.DB())
 	playtimeSvc := service.NewUserPlaytimeService(catalogDB.DB())
 	workStateSvc := service.NewUserWorkStateService(catalogDB.DB())
+	browsingHistorySvc := service.NewBrowsingHistoryService(catalogDB.DB())
+	browsingHistorySvc.StartSweeper(permCtx, time.Hour)
 	companyFollowSvc := service.NewUserEntityFollowService(catalogDB.DB())
 	folderSvc := service.NewUserFolderService(catalogDB.DB())
 	accountpurge.Start(permCtx, &accountpurge.Consumer{
@@ -198,7 +200,7 @@ func main() {
 	adminNews.Post("/items/:id/decision", newsAdminH.Decide)
 
 	setupPublicCatalog(application, cfg, catalogDB, readSvc, resolveSvc, searcher, statsSvc,
-		clientRepo, tokenVerifier, devStore, devCache, newsSvc, newsWriteSvc, editRegistry, playtimeSvc, workStateSvc, companyFollowSvc, folderSvc, coverVoteSvc, claimSvc, editEngine)
+		clientRepo, tokenVerifier, devStore, devCache, newsSvc, newsWriteSvc, editRegistry, playtimeSvc, workStateSvc, browsingHistorySvc, companyFollowSvc, folderSvc, coverVoteSvc, claimSvc, editEngine)
 
 	galgameapp.MountRetiredPublic(application)
 	// Wave R3 (2026-08-27): every v1 face this binary served is gone, so the
@@ -244,6 +246,7 @@ func setupPublicCatalog(
 	editRegistry *editing.Registry,
 	playtimeSvc *service.UserPlaytimeService,
 	workStateSvc *service.UserWorkStateService,
+	browsingHistorySvc *service.BrowsingHistoryService,
 	companyFollowSvc *service.UserEntityFollowService,
 	folderSvc *service.UserFolderService,
 	coverVoteSvc *service.CoverVoteService,
@@ -416,6 +419,7 @@ func setupPublicCatalog(
 			EditTypes:         editRegistry,
 			Playtime:          playtimeSvc,
 			WorkStates:        workStateSvc,
+			BrowsingHistory:   browsingHistorySvc,
 			Ratings:           service.NewUserRatingService(catalogDB.DB()),
 			WorkRecords:       service.NewUserWorkRecordService(catalogDB.DB()),
 			CompanyFollows:    companyFollowSvc,

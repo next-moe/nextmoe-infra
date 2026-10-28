@@ -129,6 +129,7 @@ var liveReadPaths = []string{
 	"/v2/work-records",
 	"/v2/me/work-records",
 	"/v2/me/privacy",
+	"/v2/me/history",
 	"/v2/me/calendar",
 	"/v2/me/folders",
 	"/v2/me/folders/holdings",

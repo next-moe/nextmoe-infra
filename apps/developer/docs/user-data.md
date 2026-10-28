@@ -27,6 +27,7 @@ description: 用 OAuth 用户访问令牌接入 /v2/me。游玩记录与收藏�
 | 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读）               | [本页](#works)                               |
 | 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                                     | [本页](#followed-companies)                  |
 | 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                                     | [本页](#blocked-tags)                        |
+| 浏览记录                       | `/v2/me/history`                                                                  | 用户令牌，无 scope；`scope=all` 读要 `history:read`    | [本页](#history)                             |
 | 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                                     | [本页](#calendar)                            |
 | 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                                         | [本页](#edit-capabilities)                   |
 | 编辑配额                       | `/v2/me/edit-quota`                                                               | `catalog:edit`                                         | [本页](#edit-quota)                          |
@@ -83,6 +84,23 @@ DELETE /v2/me/blocked-tags/{tag_id}
 `PUT` 的 body 可选，`mode` 是 `tree`（缺省）或 `exact`。已经屏蔽过的再 PUT，只改模式，除此之外不再写。未知标签是 404。超出 100 条是 422。
 
 `DELETE` 是 204，没有 body，本来就没屏蔽也是 204。单条 GET 在没屏蔽时是 404。
+
+## 浏览记录 {#history}
+
+```http
+GET    /v2/me/history
+PUT    /v2/me/history/works/{work_id}
+DELETE /v2/me/history/works/{work_id}
+DELETE /v2/me/history
+```
+
+只要用户令牌，不需要 scope。浏览记录**按应用分开**：每个应用只读、只删自己记下的。用户在作品页真正停留之后再 `PUT`，不要在预取或服务端渲染时发；一分钟内重复的访问只算一次。`PUT` 和两个 `DELETE` 都是 204，没有 body。作品不在上线状态时 `PUT` 是 404。
+
+列表按最近一次访问排序，最新的在前，每一项只带 id，用 `/v2/catalog/works?ids=` 获取作品信息。全年龄站点要带 `content_limit=sfw`，这样用户在成人站看过的作品不会出现在它的页面上。记录保留 **90 天**，每个应用最多 **500** 条，超出的旧记录会被删掉。
+
+`scope=all` 按作品合并所有应用的记录。读要同时满足两件事：令牌带 `history:read`，并且用户在 `/v2/me/privacy` 把 `browsing_history_sharing` 设成了 `shared`。缺前者是 `403 SCOPE_REQUIRED`，缺后者是 `403 BROWSING_HISTORY_NOT_SHARED`。删除带 `scope=all` 时两者都不需要。
+
+用户在 `/v2/me/privacy` 把 `browsing_history` 设成 `off`，会立刻删掉所有应用的浏览记录；之后 `PUT` 仍然是 204，但服务器上什么都不存。站点可以读 `/v2/me/privacy` 来决定要不要显示「最近浏览」。第三方应用只能把这两个开关往更私密的方向改（关闭记录、取消共享），反过来改是 `422`，reason 为 `NOT_PERMITTED`。
 
 ## 我的发售月历 {#calendar}
 

@@ -58,7 +58,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.74.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.75.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -135,6 +135,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	registerPublicRatings(api, opt.Catalog)
 	registerPublicWorkRecords(api, opt.Catalog)
 	registerMePrivacy(api, opt.Catalog)
+	registerMeHistory(api, opt.Catalog)
 	registerModerationRatings(api, opt.Catalog)
 	registerMeNews(api, opt.Catalog)
 	registerStore(api, opt.Catalog)
@@ -177,7 +178,7 @@ func annotateSpec(doc *huma.OpenAPI) {
 			repr.ObjectSchema{}, repr.SchemaField{},
 			repr.Person{}, repr.Trait{}, repr.TraitRef{}, repr.TraitPath{}, repr.Measurements{}, repr.NameCredit{}, repr.NameCreditRole{}, repr.Appearance{},
 			repr.CharacterTrait{}, repr.WorkEngineRef{},
-			repr.UserPlaytime{}, repr.UserWorkState{}, repr.CoverVote{}, repr.ClaimRecord{},
+			repr.UserPlaytime{}, repr.UserWorkState{}, repr.BrowsingHistoryEntry{}, repr.CoverVote{}, repr.ClaimRecord{},
 			repr.UserFolder{}, repr.UserFolderItem{}, repr.FolderItemBatchItem{},
 			repr.FolderHolding{}, repr.FolderHolder{},
 			repr.PlaytimeBatchItem{}, repr.WorkStateBatchItem{}, repr.ProposalRecord{}, repr.ClaimDecisionRecord{}, repr.ProposalDecisionRecord{}, repr.SnapshotRecord{},
