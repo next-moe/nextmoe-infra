@@ -71,19 +71,24 @@ func main() {
 	}
 	gw.Start(ctx)
 
-	store := service.NewStore(agentDB.DB())
-	if n, err := store.InterruptOrphans(ctx); err != nil {
-		slog.Error("interrupt orphaned runs", "error", err)
-		os.Exit(1)
-	} else if n > 0 {
-		slog.Warn("marked runs left by the previous process as interrupted", "runs", n)
-	}
-
 	ledger := service.NewLedgerClient(cfg.LLM.OAuthBase, cfg.LLM.ClientID, cfg.LLM.ClientSecret)
 	if ledger == nil {
 		slog.Warn("agent: KUN_AGENT_CLIENT_ID/SECRET not set — users get the daily free units only")
 	}
 	quota := service.NewQuota(rdb, ledger)
+
+	store := service.NewStore(agentDB.DB())
+	orphans, err := store.InterruptOrphans(ctx)
+	if err != nil {
+		slog.Error("interrupt orphaned runs", "error", err)
+		os.Exit(1)
+	}
+	for _, run := range orphans {
+		quota.ReleaseInterrupted(ctx, run)
+	}
+	if len(orphans) > 0 {
+		slog.Warn("marked runs left by the previous process as interrupted", "runs", len(orphans))
+	}
 
 	catalogHTTP := &http.Client{Timeout: 15 * time.Second}
 	catalogFor := func(siteID int64) *tools.CatalogClient {

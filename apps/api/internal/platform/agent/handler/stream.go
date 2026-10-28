@@ -34,6 +34,7 @@ func Setup(app *fiber.App, s *Server, verifier *oidctoken.Verifier, clients *sit
 	})
 	app.Get("/v2/agent/runs/:id/stream", s.stream)
 
+	useProblems()
 	cfg := huma.DefaultConfig("NextMoe Agent API", "0.1.0")
 	cfg.OpenAPIPath, cfg.DocsPath, cfg.SchemasPath = "", "", ""
 	cfg.Info.Description = "The NextMoe AI assistant: conversations, streamed replies and search. Called by a site's backend with the user's access token (or the site's client credentials for signed-out search). Replies stream as the AI SDK UI message stream protocol (SSE) from GET /v2/agent/runs/{id}/stream, which honours Last-Event-ID and answers 204 when the run has no live stream."
@@ -45,11 +46,11 @@ func Setup(app *fiber.App, s *Server, verifier *oidctoken.Verifier, clients *sit
 func (s *Server) stream(c fiber.Ctx) error {
 	who := callerOf(c)
 	if who == nil || who.UserID == 0 {
-		return problem(c, fiber.StatusUnauthorized, "a user access token is required")
+		return problem(c, fiber.StatusUnauthorized, CodeLoginRequired, "a user access token is required")
 	}
 	runID := strings.Clone(c.Params("id"))
 	if _, err := s.Store.Run(c.Context(), who.UserID, runID); err != nil {
-		return problem(c, fiber.StatusNotFound, "no such run")
+		return problem(c, fiber.StatusNotFound, CodeNotFound, "no such run")
 	}
 	after := 0
 	if v := c.Get("Last-Event-ID"); v != "" {
@@ -70,6 +71,7 @@ func (s *Server) stream(c fiber.Ctx) error {
 		defer cancel()
 		frames := make(chan stream.Frame, 64)
 		done := make(chan error, 1)
+		// ast-grep-ignore: no-goroutine-in-fiber-handler
 		go func() {
 			done <- broker.Subscribe(ctx, runID, after, func(f stream.Frame) error {
 				select {

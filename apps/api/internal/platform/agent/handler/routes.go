@@ -49,7 +49,7 @@ func from(ctx context.Context) *caller {
 
 func siteEnabled(c *caller) error {
 	if c == nil || !keys.AgentEnabled.ForSite(uint(c.SiteID)) {
-		return huma.Error403Forbidden("the assistant is not enabled for this site")
+		return fail(http.StatusForbidden, CodeAssistantDisabled, "the assistant is not enabled for this site")
 	}
 	return nil
 }
@@ -60,7 +60,7 @@ func requireUser(ctx context.Context) (*caller, error) {
 		return nil, err
 	}
 	if c.UserID == 0 {
-		return nil, huma.Error401Unauthorized("a user access token is required")
+		return nil, fail(http.StatusUnauthorized, CodeLoginRequired, "a user access token is required")
 	}
 	return c, nil
 }
@@ -362,7 +362,7 @@ func (s *Server) send(ctx context.Context, in *sendInput) (*sendOutput, error) {
 		return nil, perr
 	}
 	if !s.Limits.Allow(ctx, "user:"+strconv.FormatInt(c.UserID, 10), keys.AgentUserRatePerMinute.Get(), time.Minute) {
-		return nil, huma.Error429TooManyRequests("too many messages; wait a minute")
+		return nil, fail(http.StatusTooManyRequests, CodeRateLimited, "too many messages; wait a minute")
 	}
 	var parent *int64
 	if in.Body.ParentID != nil {
@@ -380,30 +380,31 @@ func (s *Server) send(ctx context.Context, in *sendInput) (*sendOutput, error) {
 		WebSearch: in.Body.WebSearch, IdemKey: strings.Clone(in.IdempotencyKey), Price: price}
 	if existing, err := s.Store.RunByIdem(ctx, c.UserID, req.IdemKey); err == nil {
 		if existing.IdemHash != service.RequestHash(req) {
-			return nil, huma.NewError(http.StatusUnprocessableEntity, "Idempotency-Key was used with a different request")
+			return nil, fail(http.StatusUnprocessableEntity, CodeIdempotencyKeyReused, "Idempotency-Key was used with a different request")
 		}
 		return sent(existing), nil
 	}
 	res, err := s.Quota.Reserve(ctx, c.UserID, price)
 	switch {
 	case errors.Is(err, service.ErrQuotaExhausted):
-		return nil, huma.NewError(http.StatusPaymentRequired, "today's free units are used up")
+		return nil, fail(http.StatusPaymentRequired, CodeFreeUnitsExhausted, "today's free units are used up")
 	case errors.Is(err, service.ErrInsufficientPoints):
-		return nil, huma.NewError(http.StatusPaymentRequired, "not enough moemoepoints for this question")
+		return nil, fail(http.StatusPaymentRequired, CodeInsufficientPoints, "not enough moemoepoints for this question")
 	case err != nil:
 		return nil, err
 	}
+	req.FreeHeld = res.Free
 	run, created, err := s.Store.StartRun(ctx, req)
 	if err != nil || !created {
 		s.Quota.Release(context.WithoutCancel(ctx), c.UserID, res)
 	}
 	switch {
 	case errors.Is(err, service.ErrRunActive):
-		return nil, huma.Error409Conflict("a reply is still streaming in this conversation")
+		return nil, fail(http.StatusConflict, CodeRunActive, "a reply is still streaming in this conversation")
 	case errors.Is(err, service.ErrIdempotencyUsed):
-		return nil, huma.NewError(http.StatusUnprocessableEntity, "Idempotency-Key was used with a different request")
+		return nil, fail(http.StatusUnprocessableEntity, CodeIdempotencyKeyReused, "Idempotency-Key was used with a different request")
 	case errors.Is(err, service.ErrBadParent):
-		return nil, huma.Error400BadRequest("parent_id is not a message of this conversation")
+		return nil, fail(http.StatusBadRequest, CodeBadParent, "parent_id is not a message of this conversation")
 	case err != nil:
 		return nil, err
 	}
@@ -449,7 +450,7 @@ func validateParts(in []service.Part) ([]service.Part, error) {
 		case "text":
 		case "file":
 			if !strings.HasPrefix(p.MediaType, "text/") && p.MediaType != "application/json" && p.MediaType != "application/x-yaml" {
-				return nil, huma.NewError(http.StatusUnsupportedMediaType, "only text files can be attached for now")
+				return nil, fail(http.StatusUnsupportedMediaType, CodeUnsupportedAttachment, "only text files can be attached for now")
 			}
 		default:
 			return nil, huma.Error400BadRequest("unsupported part type " + p.Type)
@@ -458,10 +459,10 @@ func validateParts(in []service.Part) ([]service.Part, error) {
 		out = append(out, service.Part{Type: p.Type, Text: strings.Clone(p.Text), MediaType: strings.Clone(p.MediaType), Filename: strings.Clone(p.Filename)})
 	}
 	if total == 0 {
-		return nil, huma.Error400BadRequest("the message is empty")
+		return nil, fail(http.StatusBadRequest, CodeEmptyMessage, "the message is empty")
 	}
 	if total > int(keys.AgentTurnMaxInputChars.Get()) {
-		return nil, huma.NewError(http.StatusRequestEntityTooLarge, "the message and its attachments are too long")
+		return nil, fail(http.StatusRequestEntityTooLarge, CodeInputTooLong, "the message and its attachments are too long")
 	}
 	return out, nil
 }

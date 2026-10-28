@@ -90,8 +90,8 @@ func TestStartRunIsIdempotentAndSingleFlight(t *testing.T) {
 	if counts[0] != 2 {
 		t.Fatalf("two root user messages expected, counts=%v", counts)
 	}
-	if n, err := s.InterruptOrphans(ctx); err != nil || n != 1 {
-		t.Fatalf("interrupt orphans: n=%d err=%v", n, err)
+	if runs, err := s.InterruptOrphans(ctx); err != nil || len(runs) != 1 || runs[0].Status != model.RunInterrupted {
+		t.Fatalf("interrupt orphans: runs=%+v err=%v", runs, err)
 	}
 	if _, err := s.Conversation(ctx, 8, 14, c.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatal("another user must not see the conversation")

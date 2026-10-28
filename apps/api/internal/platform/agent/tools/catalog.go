@@ -47,6 +47,7 @@ type work struct {
 	DisplayName   string          `json:"display_name"`
 	ReleaseDate   *string         `json:"release_date"`
 	ContentRating string          `json:"content_rating"`
+	ContentLimit  string          `json:"content_limit"`
 	Cover         json.RawMessage `json:"cover"`
 	Localized     map[string]struct {
 		Value string `json:"value"`
@@ -67,7 +68,7 @@ type work struct {
 func (w work) card() Card {
 	raw, _ := json.Marshal(map[string]any{
 		"kind": "work", "id": w.ID, "title": w.DisplayName, "localized": w.Localized,
-		"release_date": w.ReleaseDate, "content_rating": w.ContentRating, "cover": w.Cover,
+		"release_date": w.ReleaseDate, "content_rating": w.ContentRating, "content_limit": w.ContentLimit, "cover": w.Cover,
 	})
 	return Card{ID: "work-" + w.ID, Data: raw}
 }

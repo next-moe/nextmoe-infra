@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -25,9 +26,13 @@ var (
 
 type Part struct {
 	Type      string          `json:"type"`
+	ID        string          `json:"id,omitempty"`
 	Text      string          `json:"text,omitempty"`
 	MediaType string          `json:"mediaType,omitempty"`
 	Filename  string          `json:"filename,omitempty"`
+	SourceID  string          `json:"sourceId,omitempty"`
+	URL       string          `json:"url,omitempty"`
+	Title     string          `json:"title,omitempty"`
 	Data      json.RawMessage `json:"data,omitempty"`
 }
 
@@ -143,6 +148,7 @@ type StartRequest struct {
 	WebSearch    bool
 	IdemKey      string
 	Price        int
+	FreeHeld     int
 }
 
 func RequestHash(r StartRequest) string {
@@ -180,7 +186,7 @@ func (s *Store) StartRun(ctx context.Context, r StartRequest) (*model.Run, bool,
 	run := &model.Run{
 		ID: uuid.NewString(), ConversationID: r.Conversation.ID, UserID: r.Conversation.UserID, SiteID: r.Conversation.SiteID,
 		Mode: r.Mode, WebSearch: r.WebSearch, Status: model.RunRunning, IdemKey: r.IdemKey, IdemHash: hash,
-		Price: r.Price, Settle: model.SettleNone, CreatedAt: s.now(),
+		Price: r.Price, FreeUnits: r.FreeHeld, Settle: model.SettleNone, CreatedAt: s.now(),
 	}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if parent != nil {
@@ -271,15 +277,16 @@ func (s *Store) Run(ctx context.Context, userID int64, id string) (*model.Run, e
 	return &r, err
 }
 
-func (s *Store) InterruptOrphans(ctx context.Context) (int64, error) {
-	res := s.db.WithContext(ctx).Model(&model.Run{}).Where("status = ?", model.RunRunning).
-		Updates(map[string]any{"status": model.RunInterrupted, "finished_at": s.now()})
-	if res.Error != nil {
-		return 0, res.Error
+func (s *Store) InterruptOrphans(ctx context.Context) ([]model.Run, error) {
+	var runs []model.Run
+	err := s.db.WithContext(ctx).Model(&runs).Clauses(clause.Returning{}).Where("status = ?", model.RunRunning).
+		Updates(map[string]any{"status": model.RunInterrupted, "finished_at": s.now()}).Error
+	if err != nil {
+		return nil, err
 	}
-	err := s.db.WithContext(ctx).Model(&model.Message{}).Where("status = ?", model.MessageStreaming).
+	err = s.db.WithContext(ctx).Model(&model.Message{}).Where("status = ?", model.MessageStreaming).
 		Update("status", model.MessageFailed).Error
-	return res.RowsAffected, err
+	return runs, err
 }
 
 func (s *Store) Persona(ctx context.Context, siteID int64) (*model.Persona, error) {

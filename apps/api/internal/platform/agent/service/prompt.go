@@ -66,13 +66,11 @@ func partsText(parts []Part) string {
 			fmt.Fprintf(&b, "\n\n[附件 %s]\n%s", p.Filename, p.Text)
 		case "data-entity-card":
 			var c struct {
-				Data struct {
-					ID    string `json:"id"`
-					Title string `json:"title"`
-				} `json:"data"`
+				ID    string `json:"id"`
+				Title string `json:"title"`
 			}
-			if json.Unmarshal(p.Data, &c) == nil && c.Data.ID != "" {
-				cards = append(cards, fmt.Sprintf("%s(id %s)", c.Data.Title, c.Data.ID))
+			if json.Unmarshal(p.Data, &c) == nil && c.ID != "" {
+				cards = append(cards, fmt.Sprintf("%s(id %s)", c.Title, c.ID))
 			}
 		}
 	}

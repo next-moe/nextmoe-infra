@@ -183,11 +183,11 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": map[string]any{"cards": len(out.Cards), "sources": len(out.Sources)}})
 			for _, c := range out.Cards {
 				w.Emit(map[string]any{"type": "data-entity-card", "id": c.ID, "data": c.Data})
-				parts = append(parts, Part{Type: "data-entity-card", Data: cardPart(c)})
+				parts = append(parts, Part{Type: "data-entity-card", ID: c.ID, Data: c.Data})
 			}
 			for _, s := range out.Sources {
 				w.Emit(map[string]any{"type": "source-url", "sourceId": s.URL, "url": s.URL, "title": s.Title})
-				parts = append(parts, Part{Type: "source-url", Text: s.URL, Filename: s.Title})
+				parts = append(parts, Part{Type: "source-url", SourceID: s.URL, URL: s.URL, Title: s.Title})
 			}
 			msgs = append(msgs, llm.Message{Role: llm.RoleTool, ToolCallID: tc.ID, Content: out.Text})
 		}
@@ -235,17 +235,12 @@ func userFacingError(kind string) string {
 	}
 }
 
-func cardPart(c tools.Card) json.RawMessage {
-	raw, _ := json.Marshal(map[string]any{"id": c.ID, "data": c.Data})
-	return raw
-}
-
 func dedupeCards(parts []Part) []Part {
 	seen := map[string]bool{}
 	out := parts[:0:0]
 	for _, p := range parts {
 		if p.Type == "data-entity-card" || p.Type == "source-url" {
-			key := p.Type + string(p.Data) + p.Text
+			key := p.Type + p.ID + p.URL
 			if seen[key] {
 				continue
 			}

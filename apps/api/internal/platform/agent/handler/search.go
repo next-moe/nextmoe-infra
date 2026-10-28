@@ -129,7 +129,7 @@ func (s *Server) registerSearch(api huma.API) {
 				return nil, err
 			}
 			if s.Verify == nil {
-				return nil, huma.Error503ServiceUnavailable("proof of work is not configured")
+				return nil, fail(http.StatusServiceUnavailable, CodePowUnavailable, "proof of work is not configured")
 			}
 			tok, err := s.Verify.Challenge(c.SiteID)
 			if err != nil {
@@ -170,7 +170,7 @@ func (s *Server) registerSearch(api huma.API) {
 			cat := s.Search.Catalog(c.SiteID)
 			hits, mode, err := cat.SearchWorks(ctx, strings.TrimSpace(in.Body.Q), 20)
 			if err != nil {
-				return nil, huma.Error502BadGateway("catalog search failed")
+				return nil, fail(http.StatusBadGateway, CodeCatalogUnavailable, "catalog search failed")
 			}
 			out := &searchOut{}
 			out.Body.SearchMode = mode
@@ -190,17 +190,17 @@ func (s *Server) admitSearch(ctx context.Context, c *caller, solution string) er
 		return nil
 	}
 	if !keys.AgentAnonEnabled.ForSite(uint(c.SiteID)) {
-		return huma.Error401Unauthorized("sign in to search")
+		return fail(http.StatusUnauthorized, CodeLoginRequired, "sign in to search")
 	}
 	if keys.AgentAnonVerifyMode.ForSite(uint(c.SiteID)) == "pow" {
 		if s.Verify == nil {
-			return huma.Error503ServiceUnavailable("proof of work is not configured")
+			return fail(http.StatusServiceUnavailable, CodePowUnavailable, "proof of work is not configured")
 		}
 		if solution == "" {
-			return huma.NewError(http.StatusForbidden, "pow_required")
+			return fail(http.StatusForbidden, CodePowRequired, "this site requires a proof-of-work solution")
 		}
 		if err := s.Verify.Verify(ctx, c.SiteID, solution); err != nil {
-			return huma.NewError(http.StatusForbidden, "pow_rejected: "+err.Error())
+			return fail(http.StatusForbidden, CodePowRejected, err.Error())
 		}
 	}
 	ip := "ip:" + ipBucket(c.IP)
@@ -209,9 +209,9 @@ func (s *Server) admitSearch(ctx context.Context, c *caller, solution string) er
 	case !s.Limits.Allow(ctx, ip, keys.AgentAnonRatePerMinute.Get(), time.Minute):
 		return huma.Error429TooManyRequests("too many searches from this address; wait a minute")
 	case !s.Limits.Allow(ctx, ip, keys.AgentAnonQuotaPerDay.Get(), day):
-		return huma.Error429TooManyRequests("this address used up today's searches; sign in for more")
+		return fail(http.StatusTooManyRequests, CodeAnonDailyLimit, "this address used up today's searches; sign in for more")
 	case !s.Limits.Allow(ctx, "anon-global", keys.AgentAnonGlobalQuotaPerDay.Get(), day):
-		return huma.Error429TooManyRequests("signed-out search is busy today; sign in to continue")
+		return fail(http.StatusTooManyRequests, CodeAnonGlobalLimit, "signed-out search is busy today; sign in to continue")
 	}
 	return nil
 }

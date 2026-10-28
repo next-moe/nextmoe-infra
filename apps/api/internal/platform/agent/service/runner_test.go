@@ -40,7 +40,7 @@ func scriptedLLM(t *testing.T) *httptest.Server {
 			hasTool = hasTool || m.Role == "tool"
 		}
 		switch {
-		case strings.Contains(body.Messages[0].Content, "标题"):
+		case strings.Contains(body.Messages[0].Content, "作为标题"):
 			send(`{"choices":[{"delta":{"content":"猫耳妹妹推荐"},"finish_reason":"stop"}]}`, "[DONE]")
 		case hasTool:
 			send(`{"choices":[{"delta":{"content":"推荐《千恋＊万花》。"},"finish_reason":"stop"}],"usage":{"prompt_tokens":50,"completion_tokens":8}}`, "[DONE]")
@@ -58,7 +58,7 @@ func fakeCatalog(t *testing.T) *httptest.Server {
 		if r.URL.Query().Get("search_mode") != "hybrid" {
 			t.Errorf("search_catalog must ask for hybrid, got %s", r.URL.RawQuery)
 		}
-		_, _ = w.Write([]byte(`{"items":[{"id":"15","display_name":"千恋＊万花","release_date":"2016-07-29","content_rating":"sensitive","localized":{"zh-Hans":{"value":"千恋万花"}}}],"search_mode":"hybrid"}`))
+		_, _ = w.Write([]byte(`{"items":[{"id":"15","display_name":"千恋＊万花","release_date":"2016-07-29","content_rating":"sensitive","content_limit":"sfw","localized":{"zh-Hans":{"value":"千恋万花"}}}],"search_mode":"hybrid"}`))
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -139,6 +139,14 @@ func TestRunnerAnswersWithToolsStreamsAndSettles(t *testing.T) {
 	reply := decodeParts(branch[len(branch)-1])
 	if len(reply) != 2 || reply[0].Type != "data-entity-card" || reply[1].Text != "推荐《千恋＊万花》。" {
 		t.Fatalf("persisted reply parts = %+v", reply)
+	}
+	var card struct {
+		ID           string `json:"id"`
+		Title        string `json:"title"`
+		ContentLimit string `json:"content_limit"`
+	}
+	if err := json.Unmarshal(reply[0].Data, &card); err != nil || reply[0].ID != "work-15" || card.ID != "15" || card.Title != "千恋＊万花" || card.ContentLimit != "sfw" {
+		t.Fatalf("a stored card must match the streamed frame {type, id, data}: id=%q data=%s", reply[0].ID, reply[0].Data)
 	}
 	if conv.Title != "猫耳妹妹推荐" {
 		t.Fatalf("title = %q", conv.Title)

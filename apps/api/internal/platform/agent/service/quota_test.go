@@ -93,6 +93,28 @@ func TestQuotaSpendsFreeUnitsThenMoemoepoints(t *testing.T) {
 	}
 }
 
+func TestQuotaReturnsAnInterruptedRunsFreeUnitsToItsDay(t *testing.T) {
+	rdb := testRedis(t)
+	settings.Override(t, keys.AgentFreeUnitsPerDay, int64(3))
+	day := time.Date(2026, 10, 28, 23, 59, 0, 0, time.UTC)
+	q := NewQuota(rdb, nil)
+	q.now = func() time.Time { return day }
+	ctx := context.Background()
+	user := time.Now().UnixNano()
+	defer rdb.Del(ctx, q.freeKey(user))
+
+	r, err := q.Reserve(ctx, user, 2)
+	if err != nil || r.Free != 2 {
+		t.Fatalf("reserve = %+v err=%v", r, err)
+	}
+	q.now = func() time.Time { return day.Add(2 * time.Minute) }
+	q.ReleaseInterrupted(ctx, model.Run{ID: "run-x", UserID: user, FreeUnits: r.Free, CreatedAt: day})
+	q.now = func() time.Time { return day }
+	if left := q.FreeLeft(ctx, user); left != 3 {
+		t.Fatalf("free units left = %d, want 3", left)
+	}
+}
+
 func TestQuotaMarksARaceLostChargeUnpaid(t *testing.T) {
 	rdb := testRedis(t)
 	settings.Override(t, keys.AgentFreeUnitsPerDay, int64(0))

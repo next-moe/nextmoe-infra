@@ -45,7 +45,20 @@ type Reservation struct {
 }
 
 func (q *Quota) freeKey(userID int64) string {
-	return fmt.Sprintf("agent:free:%d:%s", userID, q.now().UTC().Format("20060102"))
+	return freeKeyAt(userID, q.now())
+}
+
+func freeKeyAt(userID int64, t time.Time) string {
+	return fmt.Sprintf("agent:free:%d:%s", userID, t.UTC().Format("20060102"))
+}
+
+func (q *Quota) ReleaseInterrupted(ctx context.Context, run model.Run) {
+	if run.FreeUnits <= 0 {
+		return
+	}
+	if err := q.rdb.DecrBy(ctx, freeKeyAt(run.UserID, run.CreatedAt), int64(run.FreeUnits)).Err(); err != nil {
+		slog.Warn("agent quota: release an interrupted run's free units", "run", run.ID, "err", err)
+	}
 }
 
 func (q *Quota) FreeLeft(ctx context.Context, userID int64) int {

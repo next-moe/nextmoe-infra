@@ -89,56 +89,32 @@ func authenticate(verifier *oidctoken.Verifier, clients *siteRepo.OAuthClientRep
 		case strings.HasPrefix(auth, "Bearer "):
 			claims, err := verifier.Parse(c.Context(), strings.TrimPrefix(auth, "Bearer "))
 			if err != nil || claims.ID == 0 || claims.ClientID == "" {
-				return problem(c, fiber.StatusUnauthorized, "invalid or expired access token")
+				return problem(c, fiber.StatusUnauthorized, CodeInvalidToken, "invalid or expired access token")
 			}
 			who.UserID, who.ClientID = int64(claims.ID), strings.Clone(claims.ClientID)
 		case strings.HasPrefix(auth, "Basic ") && !requireUser:
 			raw, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(auth, "Basic "))
 			id, secret, ok := strings.Cut(string(raw), ":")
 			if err != nil || !ok {
-				return problem(c, fiber.StatusUnauthorized, "malformed client credentials")
+				return problem(c, fiber.StatusUnauthorized, CodeInvalidClient, "malformed client credentials")
 			}
 			client, err := clients.FindByClientID(c.Context(), id)
 			if err != nil || client == nil || !client.VerifySecret(secret) {
-				return problem(c, fiber.StatusUnauthorized, "invalid client credentials")
+				return problem(c, fiber.StatusUnauthorized, CodeInvalidClient, "invalid client credentials")
 			}
 			who.ClientID = strings.Clone(client.ID)
 		default:
 			if requireUser {
-				return problem(c, fiber.StatusUnauthorized, "a user access token is required")
+				return problem(c, fiber.StatusUnauthorized, CodeLoginRequired, "a user access token is required")
 			}
-			return problem(c, fiber.StatusUnauthorized, "a user access token or client credentials are required")
+			return problem(c, fiber.StatusUnauthorized, CodeLoginRequired, "a user access token or client credentials are required")
 		}
 		site, ok := sites.lookup(c.Context(), who.ClientID)
 		if !ok {
-			return problem(c, fiber.StatusForbidden, "this client is not bound to a site")
+			return problem(c, fiber.StatusForbidden, CodeClientNotBound, "this client is not bound to a site")
 		}
 		who.SiteID, who.SiteName = site.id, site.name
 		c.Locals(localCaller, who)
 		return c.Next()
-	}
-}
-
-func problem(c fiber.Ctx, status int, detail string) error {
-	c.Set("Content-Type", "application/problem+json")
-	return c.Status(status).JSON(fiber.Map{"status": status, "title": strings.ToLower(httpStatusText(status)), "detail": detail})
-}
-
-func httpStatusText(status int) string {
-	switch status {
-	case fiber.StatusUnauthorized:
-		return "Unauthorized"
-	case fiber.StatusForbidden:
-		return "Forbidden"
-	case fiber.StatusTooManyRequests:
-		return "Too Many Requests"
-	case fiber.StatusPaymentRequired:
-		return "Payment Required"
-	case fiber.StatusConflict:
-		return "Conflict"
-	case fiber.StatusNotFound:
-		return "Not Found"
-	default:
-		return "Bad Request"
 	}
 }
