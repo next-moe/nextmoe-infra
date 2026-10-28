@@ -37,6 +37,10 @@ const (
 // there is nothing left to tick. No key was ever minted with either string.
 var selfServiceScopes = []string{ScopeCatalogRead, ScopeStoreRead}
 
+// Every key is minted with these whatever the request names; they are not
+// offered as ticks because there is nothing to choose.
+var defaultKeyScopes = []string{ScopeLetmoeFiles}
+
 var (
 	ErrAppLimitReached = errors.New("devapi: application limit reached")
 	ErrKeyLimitReached = errors.New("devapi: active key limit reached")
@@ -362,7 +366,7 @@ func (s *SelfServiceService) DeleteKey(ctx context.Context, ownerUserID uint, cl
 
 func checkMintScopes(scopes []string) error {
 	for _, sc := range scopes {
-		if !slices.Contains(selfServiceScopes, sc) {
+		if !slices.Contains(selfServiceScopes, sc) && !slices.Contains(defaultKeyScopes, sc) {
 			return ErrScopeNotAllowed
 		}
 	}

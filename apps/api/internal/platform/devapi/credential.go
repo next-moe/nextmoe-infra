@@ -26,9 +26,10 @@ const (
 	// patch's artifact link and archive password, the bulk export the rest of
 	// that face exists to withhold.
 	ScopeMoyuFiles = "moyu:files"
-	// The same arrangement for letmoe's /v2/letmoe/resources/{id}/file: its
-	// hosted links on dl.imoe.uk are unsigned and long-lived, so on a
-	// self-service key the face would export the whole site.
+	// Checked by letmoe on /v2/letmoe/resources/{id}/file. Every key is minted
+	// with it since 2026-10-28 (defaultKeyScopes); its dl.imoe.uk links are
+	// unsigned and long-lived, so removing it from one key is how an abusive
+	// app is cut off.
 	ScopeLetmoeFiles = "letmoe:files"
 	// Retired 2026-08-25 with the grant-only application machinery: no route
 	// checks it any more. Kept because live keys still carry the string in

@@ -115,7 +115,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \
 
 返回的数据和匿名请求逐字节相同，只是额度记在你的应用上。
 
-自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（[DLsite 分销链接](/docs/store)）。[`/v2/moyu/*`](/docs/moyu-patches)、[`/v2/sticker/*`](/docs/sticker-packs) 与 [`/v2/letmoe/*`](/docs/letmoe) 三个下游面不需要任何 scope，任意有效密钥都能调（两条 `/file` 下载路由除外，要运营发放的 `moyu:files` / `letmoe:files`）。`claim_events:read` 由运营方按需授予，不能自助勾选。
+自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（[DLsite 分销链接](/docs/store)）。[`/v2/moyu/*`](/docs/moyu-patches)、[`/v2/sticker/*`](/docs/sticker-packs) 与 [`/v2/letmoe/*`](/docs/letmoe) 三个下游面不需要任何 scope，任意有效密钥都能调（两条 `/file` 下载路由除外：moyu 的要运营发放的 `moyu:files`；letmoe 的要 `letmoe:files`，每把密钥创建时自动带上，不用勾选）。`claim_events:read` 由运营方按需授予，不能自助勾选。
 
 分发出去的桌面客户端没有服务端可放密钥：要么继续匿名（每个用户各自按自己的 IP 计额度），要么改用用户访问令牌——见[原生桌面应用接入](/docs/native-app)。
 
