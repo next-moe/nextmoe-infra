@@ -89,3 +89,24 @@ func TestShrinkRefitsOpaquePictures(t *testing.T) {
 		t.Errorf("name = %q, want the extension to follow the re-encode", name)
 	}
 }
+
+func TestShrinkRefitsAPictureOverThePixelLimitEvenWhenItIsSmall(t *testing.T) {
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewGray(image.Rect(0, 0, 7200, 7000))); err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() > UploadLimitB {
+		t.Fatalf("fixture is %d bytes; it must pass the byte check to test the pixel one", buf.Len())
+	}
+	out, _, err := Shrink(buf.Bytes(), "big.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int64(cfg.Width)*int64(cfg.Height) > MaxPixels || cfg.Height > fitH {
+		t.Fatalf("out = %dx%d, want it refit into the display box", cfg.Width, cfg.Height)
+	}
+}

@@ -134,6 +134,10 @@ func respondUploadError(c fiber.Ctx, site, presetName, clientID string, err erro
 		resultLabel = "rejected_moderation"
 		metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
 		return response.Error(c, fiber.StatusUnprocessableEntity, errors.ErrModerationRejected, errors.GetMessage(errors.ErrModerationRejected))
+	case stderrors.Is(err, processor.ErrTooLarge):
+		resultLabel = "too_many_pixels"
+		metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
+		return response.Error(c, fiber.StatusRequestEntityTooLarge, errors.ErrImageFileTooLarge, errors.GetMessage(errors.ErrImageFileTooLarge))
 	case stderrors.Is(err, processor.ErrInvalidInput):
 		resultLabel = "decode_failed"
 		metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
