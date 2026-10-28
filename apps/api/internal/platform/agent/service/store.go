@@ -88,7 +88,16 @@ func (s *Store) SetHead(ctx context.Context, c *model.Conversation, messageID in
 	if err != nil {
 		return 0, err
 	}
-	return leaf, s.db.WithContext(ctx).Model(c).Update("head_message_id", leaf).Error
+	return leaf, s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`WITH RECURSIVE chain AS (
+				SELECT id, parent_id FROM agent_message WHERE id = ?
+				UNION ALL
+				SELECT m.id, m.parent_id FROM agent_message m JOIN chain ON m.id = chain.parent_id
+			) UPDATE agent_message SET chosen_at = ? WHERE id IN (SELECT id FROM chain)`, leaf, s.now()).Error; err != nil {
+			return err
+		}
+		return tx.Model(c).Update("head_message_id", leaf).Error
+	})
 }
 
 func (s *Store) ActiveRuns(ctx context.Context, conversationIDs []int64) (map[int64]string, error) {
@@ -139,7 +148,7 @@ func (s *Store) Branch(ctx context.Context, head *int64) ([]model.Message, error
 			SELECT * , 0 AS depth FROM agent_message WHERE id = ?
 			UNION ALL
 			SELECT m.*, chain.depth + 1 FROM agent_message m JOIN chain ON m.id = chain.parent_id
-		) SELECT id, conversation_id, parent_id, role, parts, status, run_id, feedback, created_at FROM chain ORDER BY depth DESC`, *head).Scan(&out).Error
+		) SELECT id, conversation_id, parent_id, role, parts, status, run_id, feedback, chosen_at, created_at FROM chain ORDER BY depth DESC`, *head).Scan(&out).Error
 	return out, err
 }
 
@@ -155,7 +164,7 @@ func (s *Store) Leaf(ctx context.Context, conversationID, messageID int64) (int6
 	for range 10000 {
 		var next []int64
 		if err := s.db.WithContext(ctx).Model(&model.Message{}).Where("parent_id = ?", cur).
-			Order("id DESC").Limit(1).Pluck("id", &next).Error; err != nil {
+			Order("greatest(chosen_at, created_at) DESC, id DESC").Limit(1).Pluck("id", &next).Error; err != nil {
 			return 0, err
 		}
 		if len(next) == 0 {

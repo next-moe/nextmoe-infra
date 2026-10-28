@@ -9,8 +9,11 @@
 //
 // 2026-10-29, chat UX: agent_conversation.starred (default false),
 // agent_message.feedback (empty, up or down) and agent_persona.suggestions (jsonb,
-// default '[]'; empty means the built-in suggestion groups). All additive with
-// defaults, so existing rows need no backfill.
+// default '[]'; empty means the built-in suggestion groups), and
+// agent_message.chosen_at (nullable): switching to a branch stamps every message
+// on it, and walking down to a leaf prefers the child chosen or created last,
+// so returning to a question restores the reply the user last picked under it.
+// All additive; existing rows need no backfill (null falls back to created_at).
 package migrate
 
 import (

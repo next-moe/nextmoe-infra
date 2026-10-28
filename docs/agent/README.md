@@ -90,7 +90,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | 编辑用户消息后重发 | `POST …/messages`，`parent_id` = 被编辑消息的 `parent_id`（第一条消息是 `"0"`），`parts` = 新内容 | 新的用户消息和原消息互为兄弟，切换器出现在**用户消息**上 |
 | 重新生成回答 | `POST …/regenerate` `{"message_id": 回答的 parent_id}` | 新回答和旧回答互为兄弟，切换器出现在**回答**上；不新增用户消息 |
 | 重试某条用户消息 | `POST …/regenerate` `{"message_id": 这条用户消息的 id}` | 同上 |
-| 切换到另一个版本 | `GET /conversations/{id}?head=<兄弟消息 id>` 渲染；再 `PATCH {"head_message_id": 同一个 id}` 记住选择 | 返回经过那条消息、一直到它最新回答的整条分支；刷新后停在用户最后选的版本 |
+| 切换到另一个版本 | `GET /conversations/{id}?head=<兄弟消息 id>` 渲染；再 `PATCH {"head_message_id": 同一个 id}` 记住选择 | 返回经过那条消息的整条分支，往下每一层都取用户上次在那里选过的版本（没选过就取最新的）；刷新后、或切回之前的问题时，都停在用户最后选的版本 |
 
 重新生成和发消息一样需要 `Idempotency-Key`、一样计费、一样返回 `run_id`。
 

@@ -73,6 +73,19 @@ func TestRegenerateEditSwitchStarAndFeedback(t *testing.T) {
 		t.Fatalf("branch after switching: %+v", branch)
 	}
 
+	if leaf, err := s.SetHead(ctx, c, first.AssistantMessageID); err != nil || leaf != first.AssistantMessageID {
+		t.Fatalf("pick the first reply: leaf=%d err=%v", leaf, err)
+	}
+	c, _ = s.Conversation(ctx, 7, 14, c.ID)
+	later, _, err := s.StartRun(ctx, StartRequest{Conversation: c, ParentID: &root, Parts: []Part{{Type: "text", Text: "推荐兽耳纯爱作"}}, Mode: model.ModeAssistant, IdemKey: "d2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	finish(later, "兽耳回答")
+	if leaf, _ := s.SetHead(ctx, c, user); leaf != first.AssistantMessageID {
+		t.Fatalf("returning to a question restores the reply last picked under it: leaf=%d want %d", leaf, first.AssistantMessageID)
+	}
+
 	if err := s.StarConversation(ctx, c, true); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +106,7 @@ func TestRegenerateEditSwitchStarAndFeedback(t *testing.T) {
 	if err := s.SetFeedback(ctx, 8, 14, again.AssistantMessageID, model.FeedbackUp); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("feedback on another user's message: err = %v", err)
 	}
-	branch, _ = s.Branch(ctx, c.HeadMessageID)
+	branch, _ = s.Branch(ctx, &again.AssistantMessageID)
 	if branch[1].Feedback != model.FeedbackDown {
 		t.Fatalf("feedback is read back with the branch: %+v", branch[1])
 	}

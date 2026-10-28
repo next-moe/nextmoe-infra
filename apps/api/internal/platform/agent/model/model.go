@@ -60,6 +60,7 @@ type Message struct {
 	Status         string         `gorm:"size:16;not null;default:'complete'"`
 	RunID          string         `gorm:"size:36;not null;default:''"`
 	Feedback       string         `gorm:"size:8;not null;default:''"`
+	ChosenAt       *time.Time
 	CreatedAt      time.Time
 }
 

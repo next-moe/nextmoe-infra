@@ -662,7 +662,7 @@ paths:
       tags:
         - agent
     patch:
-      description: Only the fields present change. head_message_id makes the branch through that message current, down to its newest reply, so a reload shows the branch the user last chose.
+      description: Only the fields present change. head_message_id makes the branch through that message current, down to the reply last chosen (or else last created) under each message, so a reload and a return to an earlier question both show what the user last picked.
       operationId: renameAgentConversation
       parameters:
         - in: path

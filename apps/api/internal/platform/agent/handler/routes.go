@@ -313,7 +313,7 @@ func (s *Server) Register(api huma.API) {
 
 	huma.Register(api, huma.Operation{OperationID: "renameAgentConversation", Method: http.MethodPatch, Path: "/v2/agent/conversations/{id}",
 		Summary: "Rename, star or switch the branch of a conversation", Tags: []string{"agent"},
-		Description: "Only the fields present change. head_message_id makes the branch through that message current, down to its newest reply, so a reload shows the branch the user last chose."},
+		Description: "Only the fields present change. head_message_id makes the branch through that message current, down to the reply last chosen (or else last created) under each message, so a reload and a return to an earlier question both show what the user last picked."},
 		func(ctx context.Context, in *struct {
 			ID   string `path:"id"`
 			Body struct {
