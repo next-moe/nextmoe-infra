@@ -26,6 +26,7 @@ type snapshot struct {
 	byKey     map[string]*Model
 	aliases   map[string]int64
 	access    map[string]*AccessKey
+	keyByID   map[int64]*AccessKey
 	loadedAt  time.Time
 }
 
@@ -54,7 +55,7 @@ func loadSnapshot(ctx context.Context, db *gorm.DB, kek []byte) (*snapshot, erro
 		providers: map[int64]*Provider{}, models: map[int64]*Model{}, routes: map[int64][]*Route{},
 		scenes: map[string]*Scene{}, prices: map[int64]*PriceRevision{},
 		keys: map[int64]string{}, headers: map[int64]map[string]string{},
-		byKey: map[string]*Model{}, aliases: map[string]int64{}, access: map[string]*AccessKey{}, loadedAt: time.Now(),
+		byKey: map[string]*Model{}, aliases: map[string]int64{}, access: map[string]*AccessKey{}, keyByID: map[int64]*AccessKey{}, loadedAt: time.Now(),
 	}
 	for _, p := range providers {
 		if !p.Enabled {
@@ -89,6 +90,7 @@ func loadSnapshot(ctx context.Context, db *gorm.DB, kek []byte) (*snapshot, erro
 	for _, k := range access {
 		if k.Enabled {
 			s.access[k.Hash] = k
+			s.keyByID[k.ID] = k
 		}
 	}
 	for _, sc := range scenes {

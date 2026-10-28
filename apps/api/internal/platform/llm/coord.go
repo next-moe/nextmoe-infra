@@ -24,6 +24,9 @@ type Coordinator interface {
 	Cooling(ctx context.Context) (map[int64]time.Time, error)
 	Acquire(ctx context.Context, routeID int64, maxConcurrent, rpm int) (release func(), ok bool)
 	Load(ctx context.Context, routeIDs []int64) map[int64]RouteLoad
+	AddSpend(ctx context.Context, key string, nano int64) int64
+	Spend(ctx context.Context, keys []string) map[string]int64
+	Once(ctx context.Context, key string, ttl time.Duration) bool
 }
 
 type localCoord struct {
@@ -31,11 +34,41 @@ type localCoord struct {
 	cool     map[int64]time.Time
 	inflight map[int64]int
 	minute   map[int64][2]int64
+	spend    map[string]int64
+	once     map[string]time.Time
 	now      func() time.Time
 }
 
 func newLocalCoord(now func() time.Time) *localCoord {
-	return &localCoord{cool: map[int64]time.Time{}, inflight: map[int64]int{}, minute: map[int64][2]int64{}, now: now}
+	return &localCoord{cool: map[int64]time.Time{}, inflight: map[int64]int{}, minute: map[int64][2]int64{},
+		spend: map[string]int64{}, once: map[string]time.Time{}, now: now}
+}
+
+func (l *localCoord) AddSpend(_ context.Context, key string, nano int64) int64 {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.spend[key] += nano
+	return l.spend[key]
+}
+
+func (l *localCoord) Spend(_ context.Context, keys []string) map[string]int64 {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := map[string]int64{}
+	for _, k := range keys {
+		out[k] = l.spend[k]
+	}
+	return out
+}
+
+func (l *localCoord) Once(_ context.Context, key string, ttl time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if t, ok := l.once[key]; ok && l.now().Before(t) {
+		return false
+	}
+	l.once[key] = l.now().Add(ttl)
+	return true
 }
 
 func (l *localCoord) PublishCool(_ context.Context, id int64, until time.Time) {
@@ -204,4 +237,41 @@ func (r *RedisCoord) Load(ctx context.Context, ids []int64) map[int64]RouteLoad 
 		out[id] = RouteLoad{InFlight: max(a, 0), RPMUsed: b}
 	}
 	return out
+}
+
+func (r *RedisCoord) AddSpend(ctx context.Context, key string, nano int64) int64 {
+	k := "llm:spend:" + key
+	n, err := r.rdb.IncrBy(ctx, k, nano).Result()
+	if err != nil {
+		return 0
+	}
+	_ = r.rdb.Expire(ctx, k, 48*time.Hour).Err()
+	return n
+}
+
+func (r *RedisCoord) Spend(ctx context.Context, keys []string) map[string]int64 {
+	out := map[string]int64{}
+	if len(keys) == 0 {
+		return out
+	}
+	full := make([]string, len(keys))
+	for i, k := range keys {
+		full[i] = "llm:spend:" + k
+	}
+	vals, err := r.rdb.MGet(ctx, full...).Result()
+	if err != nil {
+		return out
+	}
+	for i, v := range vals {
+		if s, ok := v.(string); ok {
+			n, _ := strconv.ParseInt(s, 10, 64)
+			out[keys[i]] = n
+		}
+	}
+	return out
+}
+
+func (r *RedisCoord) Once(ctx context.Context, key string, ttl time.Duration) bool {
+	ok, err := r.rdb.SetNX(ctx, "llm:once:"+key, 1, ttl).Result()
+	return err == nil && ok
 }

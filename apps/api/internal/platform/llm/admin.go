@@ -44,7 +44,7 @@ func NewAdmin(db *gorm.DB, kek []byte, gw *Gateway) *Admin {
 func (a *Admin) KEKConfigured() bool { return len(a.kek) > 0 }
 
 func (a *Admin) changed(ctx context.Context, kind, detail string, routeID, providerID int64) {
-	_ = a.db.WithContext(ctx).Create(&RouteEvent{RouteID: routeID, ProviderID: providerID, Kind: kind, Detail: detail, CreatedAt: a.now()}).Error
+	_ = a.db.WithContext(ctx).Create(&RouteEvent{RouteID: routeID, ProviderID: providerID, Kind: kind, Detail: detail, Actor: ActorFrom(ctx), CreatedAt: a.now()}).Error
 	if a.gw != nil {
 		_ = a.gw.Refresh(context.WithoutCancel(ctx))
 	}
@@ -550,6 +550,9 @@ type SceneView struct {
 	ContextFallback  []int64   `json:"context_fallback_model_ids" nullable:"false" doc:"Tried after a model rejects the input as too long."`
 	ContentFallback  []int64   `json:"content_fallback_model_ids" nullable:"false" doc:"Tried after a model's content filter refuses the request, before anything streamed."`
 	Strategy         string    `json:"strategy" enum:"weighted,least_busy,latency,cost"`
+	DailyBudgetMicro int64     `json:"daily_budget_micro" doc:"Micro-USD calls through this scene may spend per day (China Standard Time); 0 is unlimited."`
+	SpentTodayNano   int64     `json:"spent_today_nano"`
+	Ready            bool      `json:"ready" doc:"Whether any model of the main chain has an active route right now."`
 	Class            string    `json:"class" enum:"interactive,search,batch,moderation"`
 	Temperature      *float64  `json:"temperature" nullable:"true"`
 	MaxOutput        int       `json:"max_output"`
@@ -564,6 +567,7 @@ type SceneInput struct {
 	FallbackModelIDs []int64  `json:"fallback_model_ids" maxItems:"8" nullable:"false"`
 	ContextFallback  []int64  `json:"context_fallback_model_ids,omitempty" maxItems:"4"`
 	ContentFallback  []int64  `json:"content_fallback_model_ids,omitempty" maxItems:"4"`
+	DailyBudgetMicro int64    `json:"daily_budget_micro,omitempty" minimum:"0"`
 	Strategy         string   `json:"strategy,omitempty" enum:"weighted,least_busy,latency,cost" doc:"How routes of one priority tier are ordered: weighted keeps a conversation on one route (rendezvous on its key), least_busy prefers fewer calls in flight in this process, latency the lowest recent first-byte time (with a tenth of calls exploring), cost the cheapest price."`
 	Class            string   `json:"class" enum:"interactive,search,batch,moderation"`
 	Temperature      *float64 `json:"temperature" minimum:"0" maximum:"2" nullable:"true"`
@@ -582,7 +586,7 @@ func sceneView(s Scene) SceneView {
 	if strategy == "" {
 		strategy = StrategyWeighted
 	}
-	return SceneView{Key: s.Key, ModelID: s.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, Class: s.Class, Temperature: s.Temperature,
+	return SceneView{Key: s.Key, ModelID: s.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, DailyBudgetMicro: s.DailyBudgetMicro, Class: s.Class, Temperature: s.Temperature,
 		MaxOutput: s.MaxOutput, TTFTMs: s.TTFTMs, IdleMs: s.IdleMs, TotalMs: s.TotalMs, UpdatedAt: s.UpdatedAt}
 }
 
@@ -592,8 +596,21 @@ func (a *Admin) Scenes(ctx context.Context) ([]SceneView, error) {
 		return nil, err
 	}
 	out := make([]SceneView, len(rows))
+	day := budgetDay(a.now())
+	keys := make([]string, len(rows))
+	for i, s := range rows {
+		keys[i] = SceneSpendKey(s.Key, day)
+	}
+	spent := a.spend(ctx, keys)
+	if a.gw != nil {
+		_ = a.gw.Refresh(ctx)
+	}
 	for i, s := range rows {
 		out[i] = sceneView(s)
+		out[i].SpentTodayNano = spent[keys[i]]
+		if a.gw != nil {
+			_, out[i].Ready = a.gw.Ready(s.Key)
+		}
 	}
 	return out, nil
 }
@@ -632,7 +649,7 @@ func (a *Admin) PutScene(ctx context.Context, key string, in SceneInput) (SceneV
 	if strategy == "" {
 		strategy = StrategyWeighted
 	}
-	s := Scene{Key: key, ModelID: in.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, Class: in.Class, Temperature: in.Temperature,
+	s := Scene{Key: key, ModelID: in.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, DailyBudgetMicro: in.DailyBudgetMicro, Class: in.Class, Temperature: in.Temperature,
 		MaxOutput: in.MaxOutput, TTFTMs: in.TTFTMs, IdleMs: in.IdleMs, TotalMs: in.TotalMs, UpdatedAt: a.now()}
 	if s.Class == "" {
 		s.Class = ClassInteractive
@@ -673,25 +690,28 @@ func (a *Admin) DeleteScene(ctx context.Context, key string) error {
 }
 
 type AccessKeyView struct {
-	ID            int64      `json:"id"`
-	Name          string     `json:"name"`
-	Prefix        string     `json:"prefix"`
-	AllowedModels []string   `json:"allowed_models"`
-	Enabled       bool       `json:"enabled"`
-	LastUsedAt    *time.Time `json:"last_used_at"`
-	CreatedAt     time.Time  `json:"created_at"`
+	ID               int64      `json:"id"`
+	Name             string     `json:"name"`
+	Prefix           string     `json:"prefix"`
+	AllowedModels    []string   `json:"allowed_models"`
+	Enabled          bool       `json:"enabled"`
+	DailyBudgetMicro int64      `json:"daily_budget_micro" doc:"Micro-USD this key may spend per day (China Standard Time); 0 is unlimited."`
+	SpentTodayNano   int64      `json:"spent_today_nano"`
+	LastUsedAt       *time.Time `json:"last_used_at"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 type AccessKeyInput struct {
-	Name          *string   `json:"name,omitempty" maxLength:"64"`
-	AllowedModels *[]string `json:"allowed_models,omitempty" maxItems:"64"`
-	Enabled       *bool     `json:"enabled,omitempty"`
+	Name             *string   `json:"name,omitempty" maxLength:"64"`
+	AllowedModels    *[]string `json:"allowed_models,omitempty" maxItems:"64"`
+	Enabled          *bool     `json:"enabled,omitempty"`
+	DailyBudgetMicro *int64    `json:"daily_budget_micro,omitempty" minimum:"0"`
 }
 
 func accessKeyView(k AccessKey) AccessKeyView {
 	allowed := []string{}
 	_ = json.Unmarshal(k.AllowedModels, &allowed)
-	return AccessKeyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, AllowedModels: allowed, Enabled: k.Enabled, LastUsedAt: k.LastUsedAt, CreatedAt: k.CreatedAt}
+	return AccessKeyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, AllowedModels: allowed, Enabled: k.Enabled, DailyBudgetMicro: k.DailyBudgetMicro, LastUsedAt: k.LastUsedAt, CreatedAt: k.CreatedAt}
 }
 
 func (a *Admin) AccessKeys(ctx context.Context) ([]AccessKeyView, error) {
@@ -700,10 +720,24 @@ func (a *Admin) AccessKeys(ctx context.Context) ([]AccessKeyView, error) {
 		return nil, err
 	}
 	out := make([]AccessKeyView, len(rows))
+	day := budgetDay(a.now())
+	keys := make([]string, len(rows))
+	for i, k := range rows {
+		keys[i] = KeySpendKey(k.ID, day)
+	}
+	spent := a.spend(ctx, keys)
 	for i, k := range rows {
 		out[i] = accessKeyView(k)
+		out[i].SpentTodayNano = spent[keys[i]]
 	}
 	return out, nil
+}
+
+func (a *Admin) spend(ctx context.Context, keys []string) map[string]int64 {
+	if a.gw == nil || a.gw.coord == nil {
+		return map[string]int64{}
+	}
+	return a.gw.coord.Spend(ctx, keys)
 }
 
 const accessKeyPrefix = "nmk_"
@@ -725,6 +759,9 @@ func (a *Admin) CreateAccessKey(ctx context.Context, in AccessKeyInput) (AccessK
 	k := AccessKey{Name: strings.TrimSpace(*in.Name), Prefix: secret[:len(accessKeyPrefix)+4], Hash: HashAccessKey(secret), AllowedModels: raw, Enabled: true}
 	if in.Enabled != nil {
 		k.Enabled = *in.Enabled
+	}
+	if in.DailyBudgetMicro != nil {
+		k.DailyBudgetMicro = *in.DailyBudgetMicro
 	}
 	if err := a.db.WithContext(ctx).Create(&k).Error; err != nil {
 		return AccessKeyView{}, "", uniqueOr(err, "an access key with this name exists")
@@ -749,6 +786,9 @@ func (a *Admin) UpdateAccessKey(ctx context.Context, id int64, in AccessKeyInput
 	}
 	if in.Enabled != nil {
 		k.Enabled = *in.Enabled
+	}
+	if in.DailyBudgetMicro != nil {
+		k.DailyBudgetMicro = *in.DailyBudgetMicro
 	}
 	if err := a.db.WithContext(ctx).Save(&k).Error; err != nil {
 		return AccessKeyView{}, uniqueOr(err, "an access key with this name exists")
@@ -775,6 +815,7 @@ type EventView struct {
 	ProviderID int64     `json:"provider_id"`
 	Kind       string    `json:"kind"`
 	Detail     string    `json:"detail"`
+	Actor      string    `json:"actor" doc:"Who made the change; empty for the gateway's own events."`
 	CreatedAt  time.Time `json:"created_at"`
 }
 
@@ -785,7 +826,7 @@ func (a *Admin) Events(ctx context.Context, limit int) ([]EventView, error) {
 	}
 	out := make([]EventView, len(rows))
 	for i, e := range rows {
-		out[i] = EventView{ID: e.ID, RouteID: e.RouteID, ProviderID: e.ProviderID, Kind: e.Kind, Detail: e.Detail, CreatedAt: e.CreatedAt}
+		out[i] = EventView{ID: e.ID, RouteID: e.RouteID, ProviderID: e.ProviderID, Kind: e.Kind, Detail: e.Detail, Actor: e.Actor, CreatedAt: e.CreatedAt}
 	}
 	return out, nil
 }

@@ -74,7 +74,7 @@ func statusFor(k llm.ErrorKind) int {
 		return http.StatusServiceUnavailable
 	case llm.ErrKindBadRequest, llm.ErrKindContextLength, llm.ErrKindContentFiltered:
 		return http.StatusBadRequest
-	case llm.ErrKindRateLimit:
+	case llm.ErrKindRateLimit, llm.ErrKindBudget:
 		return http.StatusTooManyRequests
 	case llm.ErrKindTimeout:
 		return http.StatusGatewayTimeout
@@ -120,7 +120,7 @@ func (sv *Server) unary(c fiber.Ctx, call func(context.Context, llm.Request) (ll
 		return err
 	}
 	delete(body, "model")
-	res, err := call(c.Context(), llm.Request{Model: model, Body: body, Site: site(c)})
+	res, err := call(c.Context(), llm.Request{Model: model, Body: body, Site: site(c), AccessKeyID: keyOf(c).ID})
 	if err != nil {
 		return failErr(c, err)
 	}
@@ -219,6 +219,7 @@ func (sv *Server) chat(c fiber.Ctx) error {
 	if err != nil {
 		return fail(c, http.StatusBadRequest, "invalid_messages", err.Error())
 	}
+	call.AccessKeyID = keyOf(c).ID
 	id := fmt.Sprintf("chatcmpl-%d", time.Now().UnixNano())
 	created := time.Now().Unix()
 	if !stream {

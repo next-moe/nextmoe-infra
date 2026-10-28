@@ -20,11 +20,12 @@ import (
 )
 
 type Request struct {
-	Scene  string
-	Model  string
-	Body   map[string]json.RawMessage
-	Site   string
-	UserID int64
+	Scene       string
+	Model       string
+	Body        map[string]json.RawMessage
+	Site        string
+	UserID      int64
+	AccessKeyID int64
 }
 
 type Response struct {
@@ -61,6 +62,9 @@ func (g *Gateway) unary(ctx context.Context, r Request, kind, path string) (Resp
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(sc.TotalMs)*time.Millisecond)
 	defer cancel()
 	callID := uuid.NewString()
+	if err := g.checkBudget(ctx, s, sc, r.AccessKeyID); err != nil {
+		return Response{}, err
+	}
 	plan := s.plan(sc, "", g.health, g.stats)
 	if len(plan) == 0 {
 		return Response{}, &Error{Kind: ErrKindNoRoute, Msg: "no active route for " + sc.Key}
@@ -126,7 +130,7 @@ func (g *Gateway) unaryAttempt(ctx context.Context, s *snapshot, sc *Scene, c ca
 	started := g.now()
 	out, resp, err := postJSON(ctx, g.client, c.provider.BaseURL+path, s.keys[c.provider.ID], s.headers[c.provider.ID], raw)
 	out.firstByte = g.now().Sub(started)
-	g.record(s, sc, c, Call{Site: r.Site, UserID: r.UserID}, callID, started, out, err)
+	g.record(s, sc, c, Call{Site: r.Site, UserID: r.UserID, AccessKeyID: r.AccessKeyID, probe: !track}, callID, started, out, err)
 	if !track {
 		return resp, err
 	}

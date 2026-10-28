@@ -119,6 +119,9 @@ func (g *Gateway) Stream(ctx context.Context, call Call, onEvent func(Event)) (R
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(sc.TotalMs)*time.Millisecond)
 	defer cancel()
 	callID := uuid.NewString()
+	if err := g.checkBudget(ctx, s, sc, call.AccessKeyID); err != nil {
+		return Result{}, err
+	}
 	queue := s.plan(sc, call.AffinityKey, g.health, g.stats)
 	if len(queue) == 0 {
 		return Result{}, &Error{Kind: ErrKindNoRoute, Msg: "no active route for scene " + call.Scene}
@@ -257,7 +260,7 @@ func (g *Gateway) record(s *snapshot, sc *Scene, c candidate, call Call, callID 
 	}
 	u := out.result.Usage
 	a := Attempt{
-		CallID: callID, Scene: sc.Key, RouteID: c.route.ID, ProviderID: c.provider.ID, ModelKey: c.model.Key,
+		CallID: callID, Scene: sc.Key, RouteID: c.route.ID, ProviderID: c.provider.ID, ModelKey: c.model.Key, AccessKeyID: call.AccessKeyID,
 		ServedModel: out.result.Model, UpstreamRequestID: out.requestID, Site: call.Site, UserID: call.UserID,
 		OK: err == nil, HTTPStatus: out.status, TTFTMs: int(out.firstByte / time.Millisecond),
 		DurationMs: int(g.now().Sub(started) / time.Millisecond), InputTokens: u.InputTokens, CachedTokens: u.CachedTokens,
@@ -277,6 +280,9 @@ func (g *Gateway) record(s *snapshot, sc *Scene, c candidate, call Call, callID 
 	}
 	if dbErr := g.db.Create(&a).Error; dbErr != nil {
 		slog.Warn("llm gateway: record attempt", "err", dbErr)
+	}
+	if !call.probe {
+		g.addSpend(s, sc, call.AccessKeyID, a.CostNano)
 	}
 }
 

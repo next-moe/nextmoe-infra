@@ -29,6 +29,7 @@ const (
 	ErrKindCanceled        ErrorKind = "canceled"
 	ErrKindNoRoute         ErrorKind = "no_route"
 	ErrKindLimited         ErrorKind = "limited"
+	ErrKindBudget          ErrorKind = "budget_exceeded"
 )
 
 type Error struct {
@@ -62,7 +63,7 @@ func (k ErrorKind) transient() bool {
 }
 
 func (k ErrorKind) failsOver() bool {
-	return k != ErrKindContentFiltered && k != ErrKindCanceled && k != ErrKindBadRequest
+	return k != ErrKindContentFiltered && k != ErrKindCanceled && k != ErrKindBadRequest && k != ErrKindBudget
 }
 
 var (

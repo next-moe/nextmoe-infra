@@ -41,6 +41,12 @@ func Run(db *gorm.DB) error {
 	// llm_scene.context_fallback / content_fallback (default '[]', none) and
 	// llm_provider.catalog_synced_at (null until the first sync). Additive;
 	// every existing route and scene keeps behaving as before.
+	//
+	// Same day, budgets and usage: llm_access_key.daily_budget_micro and
+	// llm_scene.daily_budget_micro (0 = unlimited), llm_attempt.access_key_id
+	// (0 for in-process callers; older rows read as 0), llm_event.actor, and
+	// llm_usage_hourly, which the ai service fills from llm_attempt every ten
+	// minutes; raw attempts older than 30 days are then pruned. Additive.
 	if err := db.AutoMigrate(llm.Tables()...); err != nil {
 		return fmt.Errorf("llm gateway automigrate: %w", err)
 	}

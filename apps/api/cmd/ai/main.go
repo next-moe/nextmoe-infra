@@ -122,6 +122,7 @@ func main() {
 	s2sAPI := aiHandler.Setup(application.Fiber, moderationSvc)
 	llmAdmin := llm.NewAdmin(aiDB.DB(), kek, gw)
 	aiHandler.SetupAdmin(application.Fiber, statsSvc, budgetSvc, llmAdmin)
+	go llmAdmin.RunUsageJobs(permCtx)
 	go func() {
 		time.Sleep(5 * time.Minute)
 		for {

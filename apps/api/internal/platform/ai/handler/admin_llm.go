@@ -63,6 +63,9 @@ func guard[I, T any](op string, fn func(context.Context, *I) (T, error)) func(co
 		if he := requireLLMManage(ctx); he != nil {
 			return nil, he
 		}
+		if actor, ok := ctx.Value(actorCtxKey).(string); ok {
+			ctx = llm.WithActor(ctx, actor)
+		}
 		v, err := fn(ctx, in)
 		if err != nil {
 			return nil, mapLLMErr(op, err)
@@ -147,6 +150,22 @@ func (s *llmAdmin) register(api huma.API) {
 			return s.a.AdoptProviderModel(ctx, in.ID, in.Body)
 		}))
 
+	huma.Register(api, op("getLLMUsage", http.MethodGet, "/usage", "Calls, errors, tokens and cost by provider, route, scene, access key or model"),
+		guard("usage", func(ctx context.Context, in *struct {
+			Days  int    `query:"days" enum:"1,7,30" default:"7"`
+			Group string `query:"group" enum:"provider,route,scene,key,model" default:"scene"`
+		}) (llm.UsageReport, error) {
+			return s.a.Usage(ctx, in.Days, in.Group)
+		}))
+	huma.Register(api, op("exportLLMConfig", http.MethodGet, "/config", "The whole gateway configuration by name, without provider keys or access key secrets"),
+		guard("export config", func(ctx context.Context, _ *struct{}) (llm.GatewayConfig, error) { return s.a.ExportConfig(ctx) }))
+	huma.Register(api, op("importLLMConfig", http.MethodPost, "/config/import", "Preview, or with apply=true write, an exported configuration; upserts by name and never deletes"),
+		guard("import config", func(ctx context.Context, in *struct {
+			Apply bool `query:"apply"`
+			Body  llm.GatewayConfig
+		}) (llm.ImportResult, error) {
+			return s.a.ImportConfig(ctx, in.Body, in.Apply)
+		}))
 	huma.Register(api, op("getLLMHealth", http.MethodGet, "/health", "Every route's breaker, load, limits and last-hour numbers"),
 		guard("health", func(ctx context.Context, _ *struct{}) ([]llm.RouteHealthView, error) { return s.a.Health(ctx) }))
 	huma.Register(api, op("resetLLMRouteCooldown", http.MethodPost, "/routes/{id}/reset-cooldown", "End a route's cooldown in every gateway process"),
