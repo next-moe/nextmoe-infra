@@ -236,7 +236,7 @@ B 波删掉的四件(**均为 breaking,逐条声明在 `public-openapi-breaking-
 
 票的语义(读侧仍然成立):
 
-- 票只写 `catalog_cover_vote` 一张表——**绝不写 `sort_order`/`portrait_pinned`**;读面在选竖版封面时读它:编辑的钉子 → 票数严格第一 → 官方封面阶梯(spec 2.75.0,见 §2.4 `covers` 块)。NSFW 裁剪仍在读面按既有 `catalog_work_cover.sexual`/`violence` 走,票数第一按读者可见的封面计。仅**封面**有票(截图/立绘无,也无通用 `entity_type` 列)。
+- 票只写 `catalog_cover_vote` 一张表——**绝不写 `sort_order`/`portrait_pinned`**;读面在选竖版封面时读它:编辑的钉子 → 票数严格第一 → 官方封面阶梯(spec 2.75.0,见 §2.4 `covers` 块);可带色情图的响应里,有 VNDB 封面就不用 Bangumi 封面(Bangumi 给成人游戏封面打码,spec 2.77.0)。NSFW 裁剪仍在读面按既有 `catalog_work_cover.sexual`/`violence` 走,票数第一按读者可见的封面计。仅**封面**有票(截图/立绘无,也无通用 `entity_type` 列)。
 - 读回:票数挂在 §2.4 的 `covers[]` 的 `vote_count` 上。**S2S 读面不再有 `voted`**——它需要一个「问的人」,而 S2S 面没有已验的人;`voted` 只在用户面(§4.4 `listCatalogWorkCoversUser`)出现。
 - **级联**:`catalog_cover_vote.cover_id` 带 `ON DELETE CASCADE` 外键——封面行一删,其票自动消失,无需任何 Go 代码记得这件事。
 - **已知副作用(诚实记录)**:编辑面的 covers 字段是**整行集替换**(`editspec` 先删该作品全部 `source=curated` 封面行再重建,行 id 随之换新),因此**一次封面编辑会连带清空这些封面上的票**(非 curated 源的 vndb/bangumi/dlsite 行不受影响)。票是参考数据、重投成本低,故按级联语义如实接受;若日后要让票熬过编辑,正解是把编辑面改成**按 image_hash 就地 upsert**(保 id),而不是给票表加旁路。
