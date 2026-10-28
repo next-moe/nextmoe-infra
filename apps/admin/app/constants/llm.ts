@@ -1,7 +1,10 @@
 import type { KunTabItem } from '@kungal/ui-vue'
 import type { AiChipColor } from '~/constants/ai'
 import type {
+  LlmCatalogKind,
+  LlmCatalogKindSource,
   LlmModelKind,
+  LlmPriceKey,
   LlmRouteStatus,
   LlmScenePutRequest,
   LlmSceneClass
@@ -35,6 +38,46 @@ export const LLM_MODEL_KIND_OPTIONS = (
   value,
   label: `${value} · ${LLM_MODEL_KIND_META[value].label}`
 }))
+
+export const LLM_CATALOG_KIND_META: Record<
+  LlmCatalogKind,
+  { label: string; color: AiChipColor }
+> = {
+  ...LLM_MODEL_KIND_META,
+  video: { label: '视频生成', color: 'danger' },
+  speech: { label: '语音合成', color: 'default' },
+  transcription: { label: '语音转写', color: 'default' },
+  rerank: { label: '重排序', color: 'default' }
+}
+
+export const LLM_CATALOG_KINDS = Object.keys(
+  LLM_CATALOG_KIND_META
+) as LlmCatalogKind[]
+
+export const LLM_CATALOG_KIND_SOURCE_LABEL: Record<
+  LlmCatalogKindSource,
+  string
+> = {
+  metadata: '元数据',
+  name: '按名称推断',
+  admin: '手动设置',
+  probe: '探测确认'
+}
+
+export const LLM_CATALOG_STATUS_TABS = [
+  { value: 'listed', label: '在列' },
+  { value: 'delisted', label: '已下架' },
+  { value: 'all', label: '全部' }
+] as const
+
+export const LLM_CATALOG_IMAGE_PROBE_COST = '约 $0.02'
+
+export const LLM_PRICE_FIELDS: { key: LlmPriceKey; label: string }[] = [
+  { key: 'input_micro', label: '输入 / 1M tokens' },
+  { key: 'cached_micro', label: '缓存命中输入 / 1M tokens' },
+  { key: 'output_micro', label: '输出 / 1M tokens' },
+  { key: 'per_call_micro', label: '每次调用' }
+]
 
 export const LLM_MODEL_CAPABILITIES = [
   { key: 'tool_call', label: '工具调用' },

@@ -136,7 +136,7 @@ const remove = async (r: LlmRoute) => {
               <th class="px-3 py-2 text-right font-medium">权重</th>
               <th class="px-3 py-2 text-left font-medium">状态</th>
               <th class="px-3 py-2 text-left font-medium">
-                价格 (每 1M tokens)
+                价格 (每 1M tokens / 每次)
               </th>
               <th class="px-3 py-2 text-left font-medium">近 24 小时</th>
               <th class="px-3 py-2 text-right font-medium">操作</th>

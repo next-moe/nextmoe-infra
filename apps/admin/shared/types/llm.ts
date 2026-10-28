@@ -42,3 +42,14 @@ export type LlmAccessKeyCreated = Schemas['CreatedAccessKey']
 export type LlmAccessKeyPatchRequest = Schemas['AccessKeyInput']
 
 export type LlmEvent = Schemas['EventView']
+
+export type LlmPriceKey = keyof LlmPrice
+export type LlmPriceDraft = Record<LlmPriceKey, string>
+export type LlmRouteProtocol = LlmRoute['protocol']
+
+export type LlmCatalogEntry = Schemas['ProviderModelView']
+export type LlmCatalogKind = LlmCatalogEntry['kind']
+export type LlmCatalogKindSource = LlmCatalogEntry['kind_source']
+export type LlmCatalogSyncResult = Schemas['SyncResult']
+export type LlmCatalogAdoptRequest = Omit<Schemas['AdoptInput'], '$schema'>
+export type LlmCatalogAdoptResult = Schemas['AdoptResult']

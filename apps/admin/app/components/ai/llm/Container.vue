@@ -100,6 +100,7 @@ onMounted(() => {
           :providers="providers"
           :kek-configured="kekConfigured"
           @changed="load('providers')"
+          @adopted="load('models', 'routes')"
         />
         <AiLlmModels
           v-else-if="tab === 'models'"

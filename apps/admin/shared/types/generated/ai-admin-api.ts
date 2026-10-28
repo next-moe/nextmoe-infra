@@ -93,6 +93,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/ai/llm/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every route's breaker, load, limits and last-hour numbers
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["getLLMHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/llm/models": {
         parameters: {
             query?: never;
@@ -337,6 +357,26 @@ export interface paths {
         patch: operations["updateLLMRoute"];
         trace?: never;
     };
+    "/api/v1/admin/ai/llm/routes/{id}/reset-cooldown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End a route's cooldown in every gateway process
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        post: operations["resetLLMRouteCooldown"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/llm/routes/{id}/test": {
         parameters: {
             query?: never;
@@ -396,6 +436,26 @@ export interface paths {
          * @description Requires ai.llm_manage (ren) for reading and writing.
          */
         delete: operations["deleteLLMScene"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/llm/scenes/{key}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The order a call to this scene would try routes in, right now
+         * @description Requires ai.llm_manage (ren) for reading and writing.
+         */
+        get: operations["planLLMScene"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -528,7 +588,8 @@ export interface components {
             model_key: string;
             /** Format: int64 */
             route_id: number;
-            status: string;
+            /** @enum {string} */
+            status: "active" | "disabled";
         };
         CreatedAccessKey: {
             key: components["schemas"]["AccessKeyView"];
@@ -693,6 +754,18 @@ export interface components {
             data?: components["schemas"]["ProviderView"][];
             message: string;
         };
+        EnvelopeListRouteHealthView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListRouteHealthView.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["RouteHealthView"][];
+            message: string;
+        };
         EnvelopeListRouteView: {
             /**
              * Format: uri
@@ -789,6 +862,18 @@ export interface components {
             data?: components["schemas"]["RouteView"];
             message: string;
         };
+        EnvelopeScenePlan: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeScenePlan.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["ScenePlan"];
+            message: string;
+        };
         EnvelopeSceneView: {
             /**
              * Format: uri
@@ -836,6 +921,17 @@ export interface components {
             provider_id: number;
             /** Format: int64 */
             route_id: number;
+        };
+        HealthState: {
+            /** Format: date-time */
+            cool_until: string | null;
+            /** @description Cooling because another gateway process opened the breaker. */
+            shared_only: boolean;
+            /**
+             * Format: int64
+             * @description Consecutive failures this process has seen.
+             */
+            strikes: number;
         };
         HouseError: {
             /**
@@ -888,6 +984,29 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
             vision: boolean;
+        };
+        PlanStep: {
+            /**
+             * @description Whether the model is the scene's primary or one of its fallbacks.
+             * @enum {string}
+             */
+            chain: "primary" | "fallback";
+            model_key: string;
+            /** Format: int64 */
+            order: number;
+            /** Format: int64 */
+            priority: number;
+            provider: string;
+            /** Format: int64 */
+            route_id: number;
+            /**
+             * @description forced: every route is cooling, so the one that recovers first is tried anyway.
+             * @enum {string}
+             */
+            state: "ready" | "cooling" | "forced";
+            upstream_id: string;
+            /** Format: int64 */
+            weight: number;
         };
         Price: {
             /** Format: int64 */
@@ -975,6 +1094,11 @@ export interface components {
         };
         ProviderView: {
             base_url: string;
+            /**
+             * Format: date-time
+             * @description Last successful read of the provider's model list.
+             */
+            catalog_synced_at: string | null;
             /** Format: date-time */
             created_at: string;
             enabled: boolean;
@@ -991,6 +1115,42 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        RouteHealthView: {
+            health: components["schemas"]["HealthState"];
+            last_hour: components["schemas"]["RouteHourStats"];
+            /**
+             * Format: int64
+             * @description Recent first-byte (chat) or full (other kinds) time in this process; 0 until measured.
+             */
+            latency_ms: number;
+            load: components["schemas"]["RouteLoad"];
+            /** Format: int64 */
+            max_in_flight: number;
+            model_key: string;
+            provider: string;
+            /** Format: int64 */
+            route_id: number;
+            /** Format: int64 */
+            rpm: number;
+            /** @enum {string} */
+            state: "healthy" | "cooling" | "limited" | "disabled";
+            /** @enum {string} */
+            status: "active" | "disabled";
+            upstream_id: string;
+        };
+        RouteHourStats: {
+            /** Format: int64 */
+            calls: number;
+            /** Format: int64 */
+            errors: number;
+            last_error: string;
+            /** Format: date-time */
+            last_error_at: string | null;
+            /** Format: int64 */
+            p50_ms: number;
+            /** Format: int64 */
+            p95_ms: number;
+        };
         RouteInput: {
             /**
              * Format: uri
@@ -999,17 +1159,27 @@ export interface components {
              */
             readonly $schema?: string;
             /** Format: int64 */
+            max_in_flight?: number;
+            /** Format: int64 */
             model_id?: number;
             price?: components["schemas"]["Price"];
             /** Format: int64 */
             priority?: number;
             /** Format: int64 */
             provider_id?: number;
+            /** Format: int64 */
+            rpm?: number;
             /** @enum {string} */
             status?: "active" | "disabled";
             upstream_id?: string;
             /** Format: int64 */
             weight?: number;
+        };
+        RouteLoad: {
+            /** Format: int64 */
+            in_flight: number;
+            /** Format: int64 */
+            rpm_used: number;
         };
         RouteStats: {
             /** Format: int64 */
@@ -1024,6 +1194,11 @@ export interface components {
         RouteView: {
             /** Format: int64 */
             id: number;
+            /**
+             * Format: int64
+             * @description Concurrent calls this route may carry across all gateway processes; 0 is unlimited.
+             */
+            max_in_flight: number;
             /** Format: int64 */
             model_id: number;
             price: components["schemas"]["Price"] | null;
@@ -1033,6 +1208,11 @@ export interface components {
             protocol: "chat" | "embeddings" | "moderations" | "responses" | "images";
             /** Format: int64 */
             provider_id: number;
+            /**
+             * Format: int64
+             * @description Calls per minute across all gateway processes; 0 is unlimited.
+             */
+            rpm: number;
             stats_24h: components["schemas"]["RouteStats"];
             /** @enum {string} */
             status: "active" | "disabled";
@@ -1050,6 +1230,8 @@ export interface components {
             readonly $schema?: string;
             /** @enum {string} */
             class: "interactive" | "search" | "batch" | "moderation";
+            content_fallback_model_ids?: number[] | null;
+            context_fallback_model_ids?: number[] | null;
             fallback_model_ids: number[];
             /** Format: int64 */
             idle_ms: number;
@@ -1057,6 +1239,11 @@ export interface components {
             max_output: number;
             /** Format: int64 */
             model_id: number;
+            /**
+             * @description How routes of one priority tier are ordered: weighted keeps a conversation on one route (rendezvous on its key), least_busy prefers fewer calls in flight in this process, latency the lowest recent first-byte time (with a tenth of calls exploring), cost the cheapest price.
+             * @enum {string}
+             */
+            strategy?: "weighted" | "least_busy" | "latency" | "cost";
             /** Format: double */
             temperature: number | null;
             /** Format: int64 */
@@ -1064,9 +1251,20 @@ export interface components {
             /** Format: int64 */
             ttft_ms: number;
         };
+        ScenePlan: {
+            scene: string;
+            /** @description Routes cooling down, not tried unless everything else is. */
+            skipped: components["schemas"]["PlanStep"][];
+            steps: components["schemas"]["PlanStep"][];
+            strategy: string;
+        };
         SceneView: {
             /** @enum {string} */
             class: "interactive" | "search" | "batch" | "moderation";
+            /** @description Tried after a model's content filter refuses the request, before anything streamed. */
+            content_fallback_model_ids: number[];
+            /** @description Tried after a model rejects the input as too long. */
+            context_fallback_model_ids: number[];
             fallback_model_ids: number[];
             /** Format: int64 */
             idle_ms: number;
@@ -1075,6 +1273,8 @@ export interface components {
             max_output: number;
             /** Format: int64 */
             model_id: number;
+            /** @enum {string} */
+            strategy: "weighted" | "least_busy" | "latency" | "cost";
             /** Format: double */
             temperature: number | null;
             /** Format: int64 */
@@ -1126,8 +1326,11 @@ export interface components {
              * @example https://example.com/UpdateLLMProviderModelRequest.json
              */
             readonly $schema?: string;
-            /** @enum {string} */
-            kind: "chat" | "embedding" | "moderation" | "search" | "image" | "video" | "speech" | "transcription" | "rerank";
+            /**
+             * @description auto goes back to the kind the metadata or name suggests.
+             * @enum {string}
+             */
+            kind: "auto" | "chat" | "embedding" | "moderation" | "search" | "image" | "video" | "speech" | "transcription" | "rerank";
         };
         UpsertBudgetRequest: {
             /**
@@ -1403,6 +1606,35 @@ export interface operations {
             };
         };
     };
+    getLLMHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListRouteHealthView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
     listLLMModels: {
         parameters: {
             query?: never;
@@ -1610,7 +1842,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["ProbeLLMProviderModelRequest"];
             };
@@ -1954,6 +2186,37 @@ export interface operations {
             };
         };
     };
+    resetLLMRouteCooldown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeEmpty"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
     testLLMRoute: {
         parameters: {
             query?: never;
@@ -2067,6 +2330,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeEmpty"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    planLLMScene: {
+        parameters: {
+            query?: {
+                /** @description A conversation id, to see where the weighted strategy pins it. */
+                affinity?: string;
+            };
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeScenePlan"];
                 };
             };
             /** @description Error */

@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { LLM_API, LLM_ROUTE_STATUS_OPTIONS } from '~/constants/llm'
+import {
+  LLM_API,
+  LLM_PRICE_FIELDS,
+  LLM_ROUTE_STATUS_OPTIONS
+} from '~/constants/llm'
 import type {
   LlmModel,
-  LlmPrice,
   LlmProvider,
   LlmRoute,
   LlmRouteStatus
@@ -18,24 +21,13 @@ const emit = defineEmits<{ saved: [] }>()
 
 const api = useApi('ai')
 
-const PRICE_FIELDS = [
-  { key: 'input_micro', label: '输入' },
-  { key: 'cached_micro', label: '缓存命中输入' },
-  { key: 'output_micro', label: '输出' }
-] as const
-type PriceKey = (typeof PRICE_FIELDS)[number]['key']
-
 const modelId = ref(0)
 const providerId = ref(0)
 const upstreamId = ref('')
 const priority = ref(0)
 const weight = ref(1)
 const status = ref<LlmRouteStatus>('active')
-const price = ref<Record<PriceKey, string>>({
-  input_micro: '',
-  cached_micro: '',
-  output_micro: ''
-})
+const price = ref(llmPriceDraft())
 let initialPrice = ''
 const saving = ref(false)
 const error = ref('')
@@ -56,26 +48,10 @@ watch(open, (v) => {
   priority.value = r?.priority ?? 0
   weight.value = r?.weight ?? 1
   status.value = r?.status ?? 'active'
-  price.value = {
-    input_micro: llmMicroToUsd(r?.price?.input_micro),
-    cached_micro: llmMicroToUsd(r?.price?.cached_micro),
-    output_micro: llmMicroToUsd(r?.price?.output_micro)
-  }
+  price.value = llmPriceDraft(r?.price)
   initialPrice = JSON.stringify(price.value)
   error.value = ''
 })
-
-const parsePrice = (): LlmPrice | null | 'invalid' => {
-  const raw = price.value
-  if (PRICE_FIELDS.every((f) => raw[f.key].trim() === '')) return null
-  const out = { input_micro: 0, cached_micro: 0, output_micro: 0 }
-  for (const f of PRICE_FIELDS) {
-    const n = llmUsdToMicro(raw[f.key])
-    if (Number.isNaN(n)) return 'invalid'
-    out[f.key] = n ?? 0
-  }
-  return out
-}
 
 const save = async () => {
   error.value = ''
@@ -84,9 +60,9 @@ const save = async () => {
     error.value = '模型、供应商和上游模型 ID 是必填的'
     return
   }
-  const parsed = parsePrice()
+  const parsed = llmParsePrice(price.value)
   if (parsed === 'invalid') {
-    error.value = '价格须为非负数(美元 / 1M tokens),留空表示不定价'
+    error.value = '价格须为非负数(美元),留空表示不定价'
     return
   }
   const priceChanged = JSON.stringify(price.value) !== initialPrice
@@ -168,25 +144,10 @@ const save = async () => {
         />
       </div>
 
-      <div class="border-default-200 space-y-2 rounded-lg border p-4">
-        <p class="text-default-500 text-sm">
-          价格(美元 / 1M tokens,可选;全部留空 = 不定价{{
-            route ? ',修改后生成新的价格版本' : ''
-          }})
-        </p>
-        <div class="grid gap-3 sm:grid-cols-3">
-          <KunInput
-            v-for="f in PRICE_FIELDS"
-            :key="f.key"
-            v-model="price[f.key]"
-            :label="f.label"
-            type="number"
-            min="0"
-            step="0.0001"
-            placeholder="0.00"
-          />
-        </div>
-      </div>
+      <AiLlmPriceFields
+        v-model="price"
+        :hint="route ? '修改后生成新的价格版本' : ''"
+      />
 
       <div v-if="error" class="bg-danger-50 text-danger rounded-lg p-3 text-sm">
         {{ error }}
