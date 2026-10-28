@@ -29,10 +29,14 @@ const (
 // (fillBannerFromScreenshots). Ranked as equals, the loser's sharper art took
 // the survivor's portrait and banner.
 func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *dto.PublicWorkCoverSlots {
-	own, merged := splitMergedCovers(rows)
+	chosen := s.chosenPortrait(rows, meta, allowSexual)
+	own, merged := splitMergedCovers(s.officialCoversFirst(rows))
 	portraitRow, bannerRow := s.electSlotRows(own, meta, allowSexual)
 	if portraitRow == nil {
 		portraitRow, _ = s.electSlotRows(merged, meta, allowSexual)
+	}
+	if chosen != nil {
+		portraitRow = chosen
 	}
 	portrait, banner := s.coverSlot(portraitRow, meta), s.coverSlot(bannerRow, meta)
 	if portrait == nil && banner == nil {
@@ -54,6 +58,58 @@ func (s *PublicService) electSlotRows(rows []WorkCoverRow, meta map[string]Image
 		portrait = ghost.portrait()
 	}
 	return portrait, cand.banner()
+}
+
+func (s *PublicService) chosenPortrait(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *WorkCoverRow {
+	var top *WorkCoverRow
+	tied := false
+	for i := range rows {
+		c := &rows[i]
+		if (!allowSexual && c.Sexual >= model.SexualExplicit) || s.imageURL(c.ImageHash) == "" ||
+			s.sourceKey(c.SourceID) == model.CensoredSourceKey {
+			continue
+		}
+		if c.HumanPinned {
+			if m, ok := meta[c.ImageHash]; !ok || m.Width <= 0 || m.Height <= 0 || isPortraitDims(m.Width, m.Height) {
+				return c
+			}
+		}
+		switch {
+		case c.Votes == 0 || c.MergedIn:
+		case top == nil || c.Votes > top.Votes:
+			top, tied = c, false
+		case c.Votes == top.Votes:
+			tied = true
+		}
+	}
+	if tied {
+		return nil
+	}
+	return top
+}
+
+// The cover_art_all_explicit trigger (catalog migrate, cover_art_grade.go)
+// grades exactly the set this returns; change both or the shelf and the
+// election disagree about whether a safe cover exists.
+func (s *PublicService) officialCoversFirst(rows []WorkCoverRow) []WorkCoverRow {
+	official := false
+	for _, c := range rows {
+		if model.IsCoverArt(c.Kind) && !model.IsUploadedCoverSource(c.SourceID) &&
+			s.sourceKey(c.SourceID) != model.CensoredSourceKey && s.imageURL(c.ImageHash) != "" {
+			official = true
+			break
+		}
+	}
+	if !official {
+		return rows
+	}
+	out := make([]WorkCoverRow, 0, len(rows))
+	for _, c := range rows {
+		if !model.IsUploadedCoverSource(c.SourceID) || c.HumanPinned {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func splitMergedCovers(rows []WorkCoverRow) (own, merged []WorkCoverRow) {
@@ -248,7 +304,7 @@ func (s *PublicService) fillBannerFromScreenshots(
 	}
 	banner := s.bannerFromShots(ownShots, meta, allowSexual)
 	if banner == nil {
-		_, merged := splitMergedCovers(covers)
+		_, merged := splitMergedCovers(s.officialCoversFirst(covers))
 		_, row := s.electSlotRows(merged, meta, allowSexual)
 		banner = s.coverSlot(row, meta)
 	}

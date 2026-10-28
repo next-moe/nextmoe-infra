@@ -1,5 +1,7 @@
 package model
 
+import "slices"
+
 // Source ids as seeded in catalog_source. Only the ones code reasons about by
 // identity are named here.
 const (
@@ -86,4 +88,13 @@ func IdentityVetoExemptSourceIDsFor(entityType int16) []int16 {
 	}
 	out := append([]int16{}, IdentityVetoExemptSourceIDs...)
 	return append(out, EditionSplittingSourceIDs...)
+}
+
+// UploadedCoverSourceIDs hold covers uploaded to this platform (upscale rows
+// are AI-enlarged copies of those uploads), as opposed to art a registry or
+// store publishes.
+var UploadedCoverSourceIDs = []int16{SourceUser, SourceCurated, SourceUpscale}
+
+func IsUploadedCoverSource(id int16) bool {
+	return slices.Contains(UploadedCoverSourceIDs, id)
 }

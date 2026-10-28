@@ -5397,7 +5397,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",
@@ -5441,7 +5441,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "portrait_pinned",
                                     "required": true,
-                                    "doc": "Whether this row is pinned as the portrait cover.",
+                                    "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                     "type": "boolean"
                                   },
                                   {
@@ -5491,7 +5491,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "vote_count",
                                     "required": true,
-                                    "doc": "Net votes on this cover row.",
+                                    "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
@@ -15127,7 +15127,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -15171,7 +15171,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "portrait_pinned",
                                         "required": true,
-                                        "doc": "Whether this row is pinned as the portrait cover.",
+                                        "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                         "type": "boolean"
                                       },
                                       {
@@ -15221,7 +15221,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "vote_count",
                                         "required": true,
-                                        "doc": "Net votes on this cover row.",
+                                        "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -29650,7 +29650,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -29694,7 +29694,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "portrait_pinned",
                                         "required": true,
-                                        "doc": "Whether this row is pinned as the portrait cover.",
+                                        "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                         "type": "boolean"
                                       },
                                       {
@@ -29744,7 +29744,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "vote_count",
                                         "required": true,
-                                        "doc": "Net votes on this cover row.",
+                                        "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -83209,7 +83209,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",
@@ -83253,7 +83253,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "portrait_pinned",
                                     "required": true,
-                                    "doc": "Whether this row is pinned as the portrait cover.",
+                                    "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                     "type": "boolean"
                                   },
                                   {
@@ -83303,7 +83303,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "vote_count",
                                     "required": true,
-                                    "doc": "Net votes on this cover row.",
+                                    "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
@@ -86733,7 +86733,7 @@ export const docsModel: DocsModel = {
                           }
                         ],
                         "nullable": true,
-                        "doc": "Selected portrait image. null if none."
+                        "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none."
                       },
                       {
                         "name": "covers",
@@ -86777,7 +86777,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "portrait_pinned",
                               "required": true,
-                              "doc": "Whether this row is pinned as the portrait cover.",
+                              "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                               "type": "boolean"
                             },
                             {
@@ -86827,7 +86827,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "vote_count",
                               "required": true,
-                              "doc": "Net votes on this cover row.",
+                              "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                               "format": "int64",
                               "type": "integer"
                             },
@@ -91726,7 +91726,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "portrait_pinned",
                               "required": true,
-                              "doc": "Whether this row is pinned as the portrait cover.",
+                              "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                               "type": "boolean"
                             },
                             {
@@ -91776,7 +91776,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "vote_count",
                               "required": true,
-                              "doc": "Net votes on this cover row.",
+                              "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                               "format": "int64",
                               "type": "integer"
                             },
@@ -102973,7 +102973,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -103017,7 +103017,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "portrait_pinned",
                                         "required": true,
-                                        "doc": "Whether this row is pinned as the portrait cover.",
+                                        "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                         "type": "boolean"
                                       },
                                       {
@@ -103067,7 +103067,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "vote_count",
                                         "required": true,
-                                        "doc": "Net votes on this cover row.",
+                                        "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -138242,7 +138242,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",
@@ -138286,7 +138286,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "portrait_pinned",
                                     "required": true,
-                                    "doc": "Whether this row is pinned as the portrait cover.",
+                                    "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                     "type": "boolean"
                                   },
                                   {
@@ -138336,7 +138336,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "vote_count",
                                     "required": true,
-                                    "doc": "Net votes on this cover row.",
+                                    "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
