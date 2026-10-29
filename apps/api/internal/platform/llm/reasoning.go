@@ -32,6 +32,9 @@ func sceneReasoning(sc *Scene, call string) string {
 // Workers AI documents reasoning_effort "none" for glm-5.2 and deepseek-v4, and
 // qwen3 there honours it too; xAI rejects "none" with a 400 but takes "low".
 func thinkingStyle(r *Route) string {
+	if r.Protocol != "" && r.Protocol != ProtocolChat && r.Protocol != ProtocolResponses {
+		return ThinkingNone
+	}
 	if c := thinkingOrAuto(r.ThinkingControl); c != ThinkingAuto {
 		return c
 	}

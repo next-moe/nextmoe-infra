@@ -20,15 +20,15 @@ type PersonaView struct {
 	Name        string            `json:"name"`
 	Avatar      string            `json:"avatar"`
 	Prompt      string            `json:"prompt"`
-	Greetings   []string          `json:"greetings"`
-	Suggestions []SuggestionGroup `json:"suggestions" doc:"Empty uses the built-in groups."`
+	Greetings   []string          `json:"greetings" nullable:"false"`
+	Suggestions []SuggestionGroup `json:"suggestions" nullable:"false" doc:"Empty uses the built-in groups."`
 	Active      bool              `json:"active"`
 	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
 type PersonaList struct {
-	Personas           []PersonaView     `json:"personas"`
-	BuiltinSuggestions []SuggestionGroup `json:"builtin_suggestions"`
+	Personas           []PersonaView     `json:"personas" nullable:"false"`
+	BuiltinSuggestions []SuggestionGroup `json:"builtin_suggestions" nullable:"false"`
 }
 
 type PersonaInput struct {

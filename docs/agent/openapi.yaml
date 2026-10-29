@@ -341,15 +341,11 @@ components:
         builtin_suggestions:
           items:
             $ref: "#/components/schemas/SuggestionGroup"
-          type:
-            - array
-            - "null"
+          type: array
         personas:
           items:
             $ref: "#/components/schemas/PersonaView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - personas
         - builtin_suggestions
@@ -371,9 +367,7 @@ components:
         greetings:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         id:
           format: int64
           type: integer
@@ -389,9 +383,7 @@ components:
           description: Empty uses the built-in groups.
           items:
             $ref: "#/components/schemas/SuggestionGroup"
-          type:
-            - array
-            - "null"
+          type: array
         updated_at:
           format: date-time
           type: string

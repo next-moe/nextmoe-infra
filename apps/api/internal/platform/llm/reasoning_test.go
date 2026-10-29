@@ -24,6 +24,11 @@ func TestThinkingStyleGuessesFromTheUpstream(t *testing.T) {
 			t.Errorf("%s: got %s, want %s", upstream, got, want)
 		}
 	}
+	for _, r := range []Route{{UpstreamID: "@cf/qwen/qwen3-embedding-0.6b", Protocol: ProtocolEmbeddings}, {UpstreamID: "grok-imagine-image", Protocol: ProtocolImages}} {
+		if got := thinkingStyle(&r); got != ThinkingNone {
+			t.Errorf("%s over %s must not be thinking-controlled, got %s", r.UpstreamID, r.Protocol, got)
+		}
+	}
 	if got := thinkingStyle(&Route{UpstreamID: "grok-4.7", ThinkingControl: ThinkingNone}); got != ThinkingNone {
 		t.Errorf("an explicit control must win over the guess, got %s", got)
 	}
