@@ -23,10 +23,6 @@ const runTimeout = 5 * time.Minute
 
 var webTools = []string{"web_search", "read_url"}
 
-// The last step offers no tools; a model mid-plan then wrote "let me check the
-// web" and the turn ended on that promise instead of an answer.
-const lastStepNote = "〔系统〕本轮查资料的次数已经用完，不能再调用工具。请直接用上面已经查到的信息回答；查不到的部分如实说明，不要说「我再去查」。"
-
 type Runner struct {
 	store  *Store
 	gw     *llm.Gateway
@@ -171,8 +167,8 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		}
 		if !last {
 			call.Tools, call.ToolChoice = reg.Specs(skip...), llm.ToolChoiceAuto
-		} else if step > 0 {
-			call.Messages = append(slices.Clone(msgs), llm.Message{Role: llm.RoleUser, Content: lastStepNote})
+		} else if note := strings.TrimSpace(keys.AgentPromptLastStep.ForSite(uint(run.SiteID))); step > 0 && note != "" {
+			call.Messages = append(slices.Clone(msgs), llm.Message{Role: llm.RoleUser, Content: note})
 		}
 		res, err := r.gw.Stream(ctx, call, st.on)
 		st.close()
@@ -206,7 +202,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 				usedWeb = true
 			}
 			out := trun.Call(ctx, tc.Name, tc.Arguments)
-			summary := map[string]any{"cards": len(out.Cards), "sources": len(out.Sources)}
+			summary := stepOutput(out)
 			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
 			parts = append(parts, toolPart(tc, input, summary))
 			found = append(found, foundCards{cards: out.Cards, lookup: isLookup(tc.Name)})
@@ -251,6 +247,21 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	if ok := <-titled; !ok && fin.Status == model.RunCompleted {
 		r.titleConversation(t, nil)
 	}
+}
+
+const maxStepEntities = 12
+
+func stepOutput(out tools.Output) map[string]any {
+	entities := make([]json.RawMessage, 0, min(len(out.Cards), maxStepEntities))
+	for _, c := range out.Cards {
+		if len(entities) == maxStepEntities {
+			break
+		}
+		entities = append(entities, c.Data)
+	}
+	links := make([]tools.Source, 0, len(out.Sources))
+	links = append(links, out.Sources...)
+	return map[string]any{"cards": len(out.Cards), "sources": len(out.Sources), "entities": entities, "links": links}
 }
 
 func toolPart(tc llm.ToolCall, input any, summary map[string]any) Part {
@@ -316,7 +327,7 @@ func (r *Runner) titleConversation(t Turn, w *stream.Writer) bool {
 	res, err := r.gw.Stream(ctx, llm.Call{
 		Scene: llm.SceneTitle, Buffered: true, MaxTokens: 512, Site: t.SiteName, UserID: t.Run.UserID,
 		Messages: []llm.Message{
-			{Role: llm.RoleSystem, Content: "用不超过 16 个字概括用户这个问题的主题，作为标题。不要回答问题，不要写出任何答案、数字或结论。只输出标题本身，不要引号、不要句号。"},
+			{Role: llm.RoleSystem, Content: keys.AgentPromptTitle.ForSite(uint(t.Run.SiteID))},
 			{Role: llm.RoleUser, Content: content + "\n/no_think"},
 		},
 	}, nil)

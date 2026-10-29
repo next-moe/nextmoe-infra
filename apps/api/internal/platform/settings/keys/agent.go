@@ -147,6 +147,7 @@ var agentDomain = settings.Domain{
 		AgentAnonEnabled, AgentAnonVerifyMode, AgentAnonRatePerMinute, AgentAnonQuotaPerDay, AgentAnonGlobalQuotaPerDay, AgentAnonPowDifficulty,
 		AgentUserRatePerMinute, AgentFreeUnitsPerDay,
 		AgentPriceAssistant, AgentPriceWebSurcharge, AgentPriceSearch, AgentPaidEnabled, AgentWebAuto,
+		AgentPromptRules, AgentPromptWeb, AgentPromptWebForced, AgentPromptLastStep, AgentPromptTitle, AgentPromptWebSearch,
 		AgentTurnMaxSteps, AgentTurnMaxOutputTokens, AgentTurnMaxInputChars, AgentContextMaxMessages,
 		AgentUploadMaxFiles,
 		AgentUploadImageEnabled, AgentUploadImageMaxBytes, AgentUploadImageTypes,

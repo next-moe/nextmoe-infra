@@ -18,14 +18,11 @@ import (
 	"api/internal/platform/llm"
 )
 
-// Providers do not honour max_tool_calls; without this bound one call ran ten
-// searches over 300k input tokens. Two searches cost about a fifth of that.
-const webSearchInstructions = "Run at most two web searches and open no pages; then answer in under 200 words. Report the key facts with dates, each followed by its source link. Answer in the language of the question, and say so plainly when the web has no reliable answer."
-
 const maxWebSources = 8
 
 type WebSearch struct {
-	Search func(ctx context.Context, query, instructions string) (llm.SearchResult, error)
+	Search       func(ctx context.Context, query, instructions string) (llm.SearchResult, error)
+	Instructions func() string
 }
 
 func (t *WebSearch) Spec() llm.Tool {
@@ -47,7 +44,11 @@ func (t *WebSearch) Run(ctx context.Context, args json.RawMessage) (Output, erro
 	if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Query) == "" {
 		return Output{Text: `{"error":"query is required"}`}, nil
 	}
-	res, err := t.Search(ctx, in.Query, webSearchInstructions)
+	instructions := ""
+	if t.Instructions != nil {
+		instructions = t.Instructions()
+	}
+	res, err := t.Search(ctx, in.Query, instructions)
 	if err != nil {
 		return Output{}, err
 	}

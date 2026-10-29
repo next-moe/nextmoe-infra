@@ -35,7 +35,7 @@ type PersonaInput struct {
 	SiteID      *int64             `json:"site_id,omitempty" minimum:"0"`
 	Name        *string            `json:"name,omitempty" minLength:"1" maxLength:"64"`
 	Avatar      *string            `json:"avatar,omitempty" maxLength:"128" doc:"An https image URL, or empty for the site's own default."`
-	Prompt      *string            `json:"prompt,omitempty" minLength:"1" maxLength:"8000" doc:"Who the assistant is and how it talks. The tool and safety rules are added after it and cannot be overridden here."`
+	Prompt      *string            `json:"prompt,omitempty" minLength:"1" maxLength:"8000" doc:"Who the assistant is and how it talks. The shared rules from the agent.prompt.* settings are added after it."`
 	Greetings   *[]string          `json:"greetings,omitempty" maxItems:"10"`
 	Suggestions *[]SuggestionGroup `json:"suggestions,omitempty" maxItems:"6"`
 	Active      *bool              `json:"active,omitempty" doc:"Activating a persona deactivates the site's other one."`

@@ -130,7 +130,12 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 - 卡片在回答正文结束后才下发，只包含回答里提到的实体，按提到的先后排列（同一实体只出一张）。工具查到但回答没提到的候选不会出现；回答一个都没提到时，只保留直接查看详情（`get_work` / `get_entity` 这类单条查询）得到的卡片。前端建议把卡片放在正文之后。
 - 断线重连：带上 `Last-Event-ID`，从下一帧接着推。
 - 这一轮已经结束、没有活着的流：204，前端改为重新拉对话（消息已经落库）。
-- 落库的消息 `parts` 和流里的帧同形，就是 AI SDK 的 UIMessage parts：`text`、`file`、`step-start`（每一步开头一个）、`tool-<工具名>`（`{type, toolCallId, state:"output-available", input, output:{cards, sources}}`，用来展示「共运行 N 步，每步查了什么、查到几条」）、`data-entity-card`（`{type, id, data}`）、`source-url`（`{type, sourceId, url, title}`）。推理过程不落库。
+- 落库的消息 `parts` 和流里的帧同形，就是 AI SDK 的 UIMessage parts：`text`、`file`、`step-start`（每一步开头一个）、`tool-<工具名>`（`{type, toolCallId, state:"output-available", input, output}`，用来展示「共运行 N 步，每步查了什么、查到几条」，格式见下）、`data-entity-card`（`{type, id, data}`）、`source-url`（`{type, sourceId, url, title}`）。推理过程不落库。
+- 每一步的 `output`（流里的 `tool-output-available` 帧和落库的 `tool-*` part 相同）：
+  - `cards` / `sources`：查到的实体数和网页数；
+  - `entities`：这一步查到的实体，最多 12 个，每个和 §6.1 的卡片 `data` 同形，可以直接打开预览；
+  - `links`：这一步读到的网页 `[{url, title}]`。
+  工具一返回就推这一帧，所以模型还在继续查的时候，前端就能在步骤里展开看到已经查到了什么。注意：步骤里的实体是「查到的候选」，回答后的卡片才是「回答提到的」。
 - 回答上的 `feedback` 是用户之前打的分（`up` / `down`，没打过是 `null`）。
 - 你的 BFF 转发时要关掉缓冲（`X-Accel-Buffering: no`，不要 gzip 这个响应），否则字是一坨一坨出来的。
 
@@ -152,7 +157,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
 - 每个站最多一个生效的人设，启用一个会自动停用该站的其他人设。
 - 站点没有自己的人设时，用「默认」（`site_id` 0）的那个。生效的默认人设不能删除或停用，要先启用另一个默认人设。
-- 人设提示词写的是「她是谁、怎么说话」。工具使用、引用来源、附件安全这些规则由 agent 统一追加在后面，人设里改不掉。
+- 人设提示词写的是「她是谁、怎么说话」。工具使用、引用来源、附件安全这些通用规则追加在人设后面，在设置中心「AI 助手」域的 `agent.prompt.*` 里改（可以按站点覆盖，见 §4）。
 - 修改后下一问立即生效，不用重启。
 
 ### 3.6 上传
@@ -185,6 +190,8 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `agent.price.assistant` / `agent.price.web_surcharge` / `agent.price.search` | 一问的价格、开联网的加价、一次搜索的价格（整数） |
 | `agent.paid.enabled` | 免费用完后是否允许扣萌萌点 |
 | `agent.web.auto` | 助手是否自行判断联网（站点级，默认开） |
+| `agent.prompt.rules` / `agent.prompt.web` / `agent.prompt.web_forced` / `agent.prompt.last_step` / `agent.prompt.title` | 追加在人设之后的通用规则、可联网时的规则、用户打开联网时的规则、最后一步的提示、起标题的提示词（站点级，多行文本，留空即不加） |
+| `agent.prompt.web_search` | 交给联网搜索模型的指令（全局）。默认限制一次最多检索两次，放宽会直接抬高每次联网的成本 |
 | `agent.user.rate_per_minute` | 已登录用户每分钟请求上限 |
 | `agent.anon.enabled` / `agent.anon.verify_mode` / `agent.anon.pow_difficulty` | 未登录搜索开关、人机验证方式（`none` / `pow`）、难度 |
 | `agent.anon.rate_per_minute` / `agent.anon.quota_per_day` / `agent.anon.global_quota_per_day` | 未登录每 IP 每分钟 / 每天、全站每天上限 |

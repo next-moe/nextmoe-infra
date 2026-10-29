@@ -147,10 +147,15 @@ func TestRunnerAnswersWithToolsStreamsAndSettles(t *testing.T) {
 	}
 	tool := reply[1]
 	var in struct{ Query string }
-	var out struct{ Cards, Sources int }
+	var out struct {
+		Cards, Sources int
+		Entities       []struct{ Kind, ID, Title string }
+		Links          []tools.Source
+	}
 	_ = json.Unmarshal(tool.Input, &in)
 	_ = json.Unmarshal(tool.Output, &out)
-	if tool.ToolCallID != "c1" || tool.State != "output-available" || in.Query != "猫耳妹妹" || out.Cards != 2 || out.Sources != 0 {
+	if tool.ToolCallID != "c1" || tool.State != "output-available" || in.Query != "猫耳妹妹" || out.Cards != 2 || out.Sources != 0 ||
+		len(out.Entities) != 2 || out.Entities[1].ID != "16" || out.Entities[1].Kind != "work" || out.Links == nil {
 		t.Fatalf("a stored tool step must match the streamed frames: %+v input=%s output=%s", tool, tool.Input, tool.Output)
 	}
 	if got := partsText(reply); strings.Contains(got, "search_catalog") {

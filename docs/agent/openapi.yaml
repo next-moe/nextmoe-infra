@@ -314,7 +314,7 @@ components:
           minLength: 1
           type: string
         prompt:
-          description: Who the assistant is and how it talks. The tool and safety rules are added after it and cannot be overridden here.
+          description: Who the assistant is and how it talks. The shared rules from the agent.prompt.* settings are added after it.
           maxLength: 8000
           minLength: 1
           type: string

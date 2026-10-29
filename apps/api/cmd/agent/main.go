@@ -111,7 +111,7 @@ func main() {
 	}
 	webSearch := &tools.WebSearch{Search: func(ctx context.Context, query, instructions string) (llm.SearchResult, error) {
 		return gw.WebSearch(ctx, llm.SceneWebSearch, query, instructions, "agent", 0)
-	}}
+	}, Instructions: keys.AgentPromptWebSearch.Get}
 	readURL := &tools.ReadURL{HTTP: public}
 	siteTools := service.NewSiteTools(agentDB.DB(), &http.Client{Timeout: 30 * time.Second})
 	toolsFor := func(siteID int64, userToken string) *tools.Registry {

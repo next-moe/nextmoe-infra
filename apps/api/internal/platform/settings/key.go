@@ -41,6 +41,7 @@ type Meta struct {
 	Min        *float64
 	Max        *float64
 	Pattern    string
+	Multiline  bool
 	SiteScoped bool
 	Public     bool
 }
