@@ -4,6 +4,54 @@
  */
 
 export interface paths {
+    "/api/v1/admin/agent/personas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Personas, optionally for one site
+         * @description Admin console only; requires ai.agent_manage.
+         */
+        get: operations["listAgentPersonas"];
+        put?: never;
+        /**
+         * Add a persona
+         * @description Admin console only; requires ai.agent_manage.
+         */
+        post: operations["createAgentPersona"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agent/personas/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a persona
+         * @description Admin console only; requires ai.agent_manage.
+         */
+        delete: operations["deleteAgentPersona"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a persona
+         * @description Admin console only; requires ai.agent_manage.
+         */
+        patch: operations["updateAgentPersona"];
+        trace?: never;
+    };
     "/api/v1/admin/agent/site-tools": {
         parameters: {
             query?: never;
@@ -433,8 +481,63 @@ export interface components {
             suggestions: components["schemas"]["SuggestionGroup"][] | null;
             /** @description What the upload menu may offer on this site, from the settings center. */
             uploads: components["schemas"]["UploadsBody"];
+            /** @description The assistant searches the web by itself when a question needs it, and the surcharge is charged only when it did. The toggle then asks it to search first; without auto, only toggled questions can search. */
+            web_search_auto: boolean;
             /** @description Whether web_search can do anything; hide the toggle when false. */
             web_search_available: boolean;
+        };
+        PersonaInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PersonaInput.json
+             */
+            readonly $schema?: string;
+            /** @description Activating a persona deactivates the site's other one. */
+            active?: boolean;
+            /** @description An https image URL, or empty for the site's own default. */
+            avatar?: string;
+            greetings?: string[];
+            name?: string;
+            /** @description Who the assistant is and how it talks. The tool and safety rules are added after it and cannot be overridden here. */
+            prompt?: string;
+            /** Format: int64 */
+            site_id?: number;
+            suggestions?: components["schemas"]["SuggestionGroup"][];
+        };
+        PersonaList: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PersonaList.json
+             */
+            readonly $schema?: string;
+            builtin_suggestions: components["schemas"]["SuggestionGroup"][];
+            personas: components["schemas"]["PersonaView"][];
+        };
+        PersonaView: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PersonaView.json
+             */
+            readonly $schema?: string;
+            active: boolean;
+            avatar: string;
+            greetings: string[];
+            /** Format: int64 */
+            id: number;
+            name: string;
+            prompt: string;
+            /**
+             * Format: int64
+             * @description 0 is the default for every site without an active persona of its own.
+             */
+            site_id: number;
+            /** @description Empty uses the built-in groups. */
+            suggestions: components["schemas"]["SuggestionGroup"][];
+            /** Format: date-time */
+            updated_at: string;
         };
         Problem: {
             /**
@@ -704,6 +807,135 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAgentPersonas: {
+        parameters: {
+            query?: {
+                /** @description -1 lists every site; 0 the defaults. */
+                site_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createAgentPersona: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonaInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteAgentPersona: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAgentPersona: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonaInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listAgentSiteTools: {
         parameters: {
             query?: {

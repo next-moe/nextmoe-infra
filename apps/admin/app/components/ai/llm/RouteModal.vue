@@ -2,13 +2,16 @@
 import {
   LLM_API,
   LLM_PRICE_FIELDS,
-  LLM_ROUTE_STATUS_OPTIONS
+  LLM_ROUTE_STATUS_OPTIONS,
+  LLM_THINKING_CONTROL_META,
+  LLM_THINKING_CONTROL_OPTIONS
 } from '~/constants/llm'
 import type {
   LlmModel,
   LlmProvider,
   LlmRoute,
-  LlmRouteStatus
+  LlmRouteStatus,
+  LlmThinkingControl
 } from '~~/shared/types/llm'
 
 const props = defineProps<{
@@ -29,6 +32,7 @@ const weight = ref(1)
 const status = ref<LlmRouteStatus>('active')
 const maxInFlight = ref(0)
 const rpm = ref(0)
+const thinking = ref<LlmThinkingControl>('auto')
 const price = ref(llmPriceDraft())
 let initialPrice = ''
 const saving = ref(false)
@@ -52,9 +56,21 @@ watch(open, (v) => {
   status.value = r?.status ?? 'active'
   maxInFlight.value = r?.max_in_flight ?? 0
   rpm.value = r?.rpm ?? 0
+  thinking.value = r?.thinking_control ?? 'auto'
   price.value = llmPriceDraft(r?.price)
   initialPrice = JSON.stringify(price.value)
   error.value = ''
+})
+
+const thinkable = computed(() => {
+  const kind = props.models.find((m) => m.id === modelId.value)?.kind
+  return kind === 'chat' || kind === 'search'
+})
+const thinkingHint = computed(() => {
+  const meta = LLM_THINKING_CONTROL_META[thinking.value]
+  const used = props.route?.thinking_effective
+  if (thinking.value !== 'auto' || !used) return meta.hint
+  return `${meta.hint}；当前推断为「${LLM_THINKING_CONTROL_META[used].label}」`
 })
 
 const save = async () => {
@@ -79,6 +95,7 @@ const save = async () => {
     weight: weight.value,
     max_in_flight: maxInFlight.value,
     rpm: rpm.value,
+    thinking_control: thinking.value,
     ...(statusChanged ? { status: status.value } : {}),
     ...(sendPrice ? { price: sendPrice } : {})
   }
@@ -165,6 +182,14 @@ const save = async () => {
           @update:model-value="rpm = $event ?? 0"
         />
       </div>
+
+      <KunSelect
+        v-if="thinkable"
+        v-model="thinking"
+        label="思考控制"
+        :options="LLM_THINKING_CONTROL_OPTIONS"
+        :description="thinkingHint"
+      />
 
       <AiLlmPriceFields
         v-model="price"

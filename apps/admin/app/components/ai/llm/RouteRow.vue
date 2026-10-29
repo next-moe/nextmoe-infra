@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LLM_ROUTE_STATUS_META } from '~/constants/llm'
+import { LLM_ROUTE_STATUS_META, LLM_THINKING_SHORT } from '~/constants/llm'
 import type { LlmRoute } from '~~/shared/types/llm'
 
 const props = defineProps<{
@@ -61,6 +61,14 @@ const isBusy = (what: string) => props.busy === `${props.route.id}:${what}`
         </KunChip>
         <KunChip v-if="route.rpm > 0" color="info" variant="flat" size="xs">
           {{ route.rpm }} 次/分
+        </KunChip>
+        <KunChip
+          v-if="route.thinking_effective !== 'none'"
+          color="secondary"
+          variant="flat"
+          size="xs"
+        >
+          思考 · {{ LLM_THINKING_SHORT[route.thinking_effective] }}
         </KunChip>
       </div>
     </td>
