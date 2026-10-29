@@ -33,6 +33,7 @@ type Output struct {
 	Cards   []Card
 	Sources []Source
 	Total   int
+	Meta    map[string]any
 }
 
 type Tool interface {

@@ -181,6 +181,22 @@ func (t *SearchTags) Run(ctx context.Context, args json.RawMessage) (Output, err
 			}
 		}
 	}
+	matched := []string{}
+	for _, r := range results {
+		for _, m := range r.Matches {
+			if m.Group != "" {
+				m.Name += "（" + m.Group + "）"
+			}
+			if !contains(matched, m.Name) {
+				matched = append(matched, m.Name)
+			}
+		}
+	}
+	forName := "works"
+	if object == "trait" {
+		forName = "characters"
+	}
+	out.Meta = map[string]any{"for": forName, "matched": matched}
 	raw, _ := json.Marshal(map[string]any{"for": object + "s", "results": results})
 	out.Text = string(raw)
 	return out, nil
@@ -203,6 +219,24 @@ func (t *BrowseWorks) Spec() llm.Tool {
 			"released_after":  map[string]any{"type": "string", "description": "YYYY-MM-DD, only works released on or after it."},
 		}, "tag_ids", "sort"),
 	}
+}
+
+func (c *CatalogClient) namesOf(ctx context.Context, path, ids string) []string {
+	var list struct{ Items []tagRef }
+	if err := c.get(ctx, path, url.Values{"ids": {ids}}, &list); err != nil {
+		return nil
+	}
+	byID := map[string]string{}
+	for _, it := range list.Items {
+		byID[it.ID] = it.Localized.name(it.DisplayName)
+	}
+	names := []string{}
+	for _, id := range strings.Split(ids, ",") {
+		if n := byID[id]; n != "" {
+			names = append(names, n)
+		}
+	}
+	return names
 }
 
 func idList(ids []string) string {
@@ -240,7 +274,7 @@ func (t *BrowseWorks) Run(ctx context.Context, args json.RawMessage) (Output, er
 	if err := t.Client.get(ctx, "/v2/catalog/works", q, &list); err != nil {
 		return Output{}, err
 	}
-	out := Output{Total: list.Total}
+	out := Output{Total: list.Total, Meta: map[string]any{"sort": in.Sort, "tags": t.Client.namesOf(ctx, "/v2/catalog/tags", idList(in.TagIDs))}}
 	briefs := make([]map[string]any, 0, len(list.Items))
 	for _, w := range list.Items {
 		b := w.searchBrief(t.Client.NSFW)
@@ -299,7 +333,11 @@ func (t *BrowseCharacters) Run(ctx context.Context, args json.RawMessage) (Outpu
 	if err := t.Client.get(ctx, "/v2/catalog/characters", q, &list); err != nil {
 		return Output{}, err
 	}
-	out := Output{Total: list.Total}
+	sortName := "popular"
+	if sort == "newest" {
+		sortName = "newest"
+	}
+	out := Output{Total: list.Total, Meta: map[string]any{"sort": sortName, "traits": t.Client.namesOf(ctx, "/v2/catalog/traits", idList(in.TraitIDs))}}
 	briefs := make([]map[string]any, 0, len(list.Items))
 	for _, c := range list.Items {
 		e := c.entity(t.Client.NSFW, nil)

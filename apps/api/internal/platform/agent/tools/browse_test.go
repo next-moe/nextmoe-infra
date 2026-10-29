@@ -35,6 +35,8 @@ func fakeBrowseCatalog(t *testing.T) (*CatalogClient, *[]url.URL) {
 			_, _ = w.Write([]byte(`{"total":123,"items":[{"id":"86","display_name":"クラナド","release_date":"2004-04-28","content_limit":"sfw",
 				"companies":[{"display_name":"Key"}],"tags":[{"display_name":"催泪"},{"display_name":"性描写","is_sexual":true}],
 				"ratings":[{"source":"vndb","score":8.73,"vote_count":11510},{"source":"bangumi","score":8.9,"vote_count":6522},{"source":"dlsite","score":4.8,"vote_count":10}]}]}`))
+		case r.URL.Path == "/v2/catalog/traits":
+			_, _ = w.Write([]byte(`{"items":[{"id":"534","display_name":"Kemonomimi","localized":{"zh-Hans":{"value":"兽耳"}}}]}`))
 		case r.URL.Path == "/v2/catalog/characters":
 			_, _ = w.Write([]byte(`{"total":1589,"items":[{"id":"96652","display_name":"椎名 まゆり","gender":"female","work_count":12}]}`))
 		default:
@@ -80,6 +82,9 @@ func TestSearchTagsForCharactersUsesTraits(t *testing.T) {
 	if !strings.Contains(out.Text, `"group":"毛发"`) || len(out.Cards) != 0 || (*seen)[0].Query().Get("object") != "trait" {
 		t.Fatalf("traits carry their group and make no cards: %s", out.Text)
 	}
+	if m, _ := out.Meta["matched"].([]string); len(m) != 1 || m[0] != "兽耳（毛发）" || out.Meta["for"] != "characters" {
+		t.Fatalf("matched traits are named with their group: %v", out.Meta)
+	}
 }
 
 func TestBrowseWorksFiltersByAllTagsAndReportsTheTotal(t *testing.T) {
@@ -91,6 +96,9 @@ func TestBrowseWorksFiltersByAllTagsAndReportsTheTotal(t *testing.T) {
 	q := (*seen)[0].Query()
 	if q.Get("tag_id") != "6296,90" || q.Get("sort") != "rating_vndb" || q.Get("released_after") != "2020-01-01" || q.Get("include_total") != "true" {
 		t.Fatalf("query = %s", (*seen)[0].RawQuery)
+	}
+	if tags, _ := out.Meta["tags"].([]string); out.Meta["sort"] != "classic" || len(tags) != 1 || tags[0] != "催泪" {
+		t.Fatalf("a step names its tags and sort: %v", out.Meta)
 	}
 	if out.Total != 123 || !strings.Contains(out.Text, `"rating":"Bangumi 8.9（6522 人） · VNDB 8.7（11510 人）"`) {
 		t.Fatalf("total and ratings: %d %s", out.Total, out.Text)
@@ -133,5 +141,8 @@ func TestBrowseCharactersByTraits(t *testing.T) {
 	}
 	if out.Total != 1589 || len(out.Cards) != 1 {
 		t.Fatalf("total %d cards %d", out.Total, len(out.Cards))
+	}
+	if traits, _ := out.Meta["traits"].([]string); len(traits) != 1 || traits[0] != "兽耳" || out.Meta["sort"] != "popular" {
+		t.Fatalf("a step names its traits: %v", out.Meta)
 	}
 }

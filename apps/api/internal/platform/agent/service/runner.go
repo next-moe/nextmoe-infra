@@ -265,6 +265,9 @@ func stepOutput(out tools.Output) map[string]any {
 	if out.Total > 0 {
 		m["total"] = out.Total
 	}
+	if len(out.Meta) > 0 {
+		m["meta"] = out.Meta
+	}
 	return m
 }
 

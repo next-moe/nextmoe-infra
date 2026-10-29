@@ -134,6 +134,11 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 - 每一步的 `output`（流里的 `tool-output-available` 帧和落库的 `tool-*` part 相同）：
   - `cards` / `sources`：查到的实体数和网页数；
   - `total`：按标签筛选（`browse_works` / `browse_characters`）时，符合条件的总数，可写成「-> 8 部 / 共 123 部」；其他工具没有这个字段；
+  - `meta`：给步骤文案用的补充信息。
+    - `search_tags`：`{for: "works"|"characters", matched: ["催泪", "灰色（毛发）"]}`；
+    - `browse_works`：`{sort: "popular"|"classic"|"newest", tags: ["催泪", "致郁"]}`；
+    - `browse_characters`：`{sort: "popular"|"newest", traits: ["灰色", "傲娇"]}`。
+    - 其他工具没有这个字段。
   - `entities`：这一步查到的实体，最多 12 个，每个和 §6.1 的卡片 `data` 同形，可以直接打开预览；
   - `links`：这一步读到的网页 `[{url, title}]`。
   工具一返回就推这一帧，所以模型还在继续查的时候，前端就能在步骤里展开看到已经查到了什么。注意：步骤里的实体是「查到的候选」，回答后的卡片才是「回答提到的」。
