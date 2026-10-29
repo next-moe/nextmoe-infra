@@ -47,13 +47,21 @@ func TestPickCardsPrefersTheLaterLookupOfTheSameEntity(t *testing.T) {
 }
 
 func TestPickCardsFallsBackToLookupsOnly(t *testing.T) {
-	search := foundCards{cards: []tools.Card{card("work-1", "A作品"), card("work-2", "B作品"), card("work-3", "C作品"), card("work-4", "D作品")}}
-	lookup := foundCards{cards: []tools.Card{card("character-9", "朝武芳乃")}}
-	if got := ids(pickCards([]foundCards{search}, "资料库里没有找到合适的。")); len(got) != 0 {
-		t.Fatalf("an unnamed search must show no cards, got %v", got)
+	search := foundCards{cards: []tools.Card{card("company-1", "柚子软件")}}
+	lookup := foundCards{cards: []tools.Card{card("character-9", "朝武芳乃")}, lookup: true}
+	if got := ids(pickCards([]foundCards{search}, "资料库里几乎搜不到柚子社。")); len(got) != 0 {
+		t.Fatalf("an unnamed search must show no cards, however few it found, got %v", got)
 	}
 	if got := ids(pickCards([]foundCards{search, lookup}, "她是一位巫女。")); len(got) != 1 || got[0] != "character-9" {
 		t.Fatalf("a direct lookup must still show its card, got %v", got)
+	}
+}
+
+func TestIsLookup(t *testing.T) {
+	for tool, want := range map[string]bool{"get_work": true, "get_entity": true, "kungal__get_topic": true, "search_catalog": false, "kungal__search_topics": false, "web_search": false} {
+		if isLookup(tool) != want {
+			t.Errorf("%s: want %v", tool, want)
+		}
 	}
 }
 

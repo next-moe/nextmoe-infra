@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,10 @@ import (
 const runTimeout = 5 * time.Minute
 
 var webTools = []string{"web_search", "read_url"}
+
+// The last step offers no tools; a model mid-plan then wrote "let me check the
+// web" and the turn ended on that promise instead of an answer.
+const lastStepNote = "〔系统〕本轮查资料的次数已经用完，不能再调用工具。请直接用上面已经查到的信息回答；查不到的部分如实说明，不要说「我再去查」。"
 
 type Runner struct {
 	store  *Store
@@ -166,6 +171,8 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		}
 		if !last {
 			call.Tools, call.ToolChoice = reg.Specs(skip...), llm.ToolChoiceAuto
+		} else if step > 0 {
+			call.Messages = append(slices.Clone(msgs), llm.Message{Role: llm.RoleUser, Content: lastStepNote})
 		}
 		res, err := r.gw.Stream(ctx, call, st.on)
 		st.close()
@@ -202,7 +209,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 			summary := map[string]any{"cards": len(out.Cards), "sources": len(out.Sources)}
 			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
 			parts = append(parts, toolPart(tc, input, summary))
-			found = append(found, foundCards{cards: out.Cards})
+			found = append(found, foundCards{cards: out.Cards, lookup: isLookup(tc.Name)})
 			for _, s := range out.Sources {
 				w.Emit(map[string]any{"type": "source-url", "sourceId": s.URL, "url": s.URL, "title": s.Title})
 				parts = append(parts, Part{Type: "source-url", SourceID: s.URL, URL: s.URL, Title: s.Title})

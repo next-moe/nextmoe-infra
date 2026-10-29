@@ -13,11 +13,18 @@ import (
 const (
 	maxCards         = 8
 	maxFallbackCards = 4
-	lookupSize       = 3
 )
 
 type foundCards struct {
-	cards []tools.Card
+	cards  []tools.Card
+	lookup bool
+}
+
+func isLookup(tool string) bool {
+	if _, name, ok := strings.Cut(tool, "__"); ok {
+		tool = name
+	}
+	return strings.HasPrefix(tool, "get_")
 }
 
 func answerText(parts []Part) string {
@@ -118,7 +125,7 @@ func pickCards(found []foundCards, answer string) []tools.Card {
 		return out
 	}
 	for _, f := range found {
-		if len(f.cards) > lookupSize {
+		if !f.lookup {
 			continue
 		}
 		for _, c := range f.cards {
