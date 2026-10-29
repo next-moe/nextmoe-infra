@@ -13238,7 +13238,7 @@ components:
           anyOf:
             - $ref: "#/components/schemas/CoverSlot"
             - type: "null"
-          description: Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. Every step is under the work's nsfw gate. null if none.
+          description: Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none.
         covers:
           description: Present when include=covers. Empty array if none.
           items:
@@ -13989,7 +13989,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.77.0
+  version: 2.78.0
   x-stability: stable
 openapi: 3.1.0
 paths:
