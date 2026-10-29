@@ -61,6 +61,34 @@ catalog ─────────┤   （负载均衡 + 故障切换）     �
 - 「健康」页显示每条路由的状态（正常、冷却、限流、停用）、冷却到什么时候、在途数和本分钟用量、近 1 小时的 p50/p95 和最近一次错误，冷却中的路由可以手动「解除冷却」（所有进程同时生效）；
 - 场景的「试运行」显示此刻一次调用会按什么顺序试哪些路由，以及哪些因为冷却被跳过。
 
+### 思考等级
+
+推理模型想多久由 **场景** 决定，怎么把它告诉上游由 **路由** 决定。
+
+- 场景的 `reasoning`：`off`（默认，所有已有场景迁移后都是它）、`low`、`medium`、`high`、`default`（什么都不发，用模型自己的默认）。
+  - `off`：上游能关思考的就关掉，不能关的就用它的最低档。
+  - 按模型名直接调 `/v1` 的调用方不经过场景，保持模型默认。
+  - 调用方自己在请求体里带了对应参数时，以调用方为准。
+- 路由的 `thinking_control`：
+
+| 值 | 发给上游的参数 | `off` 时 |
+| --- | --- | --- |
+| `effort` | `reasoning_effort`（Responses 协议是 `reasoning.effort`） | `low` |
+| `effort_none` | 同上 | `none` |
+| `template` | `chat_template_kwargs.enable_thinking` | `false` |
+| `thinking` | `thinking.type` | `disabled` |
+| `none` | 不发 | — |
+| `auto`（默认） | 按上游 id 推断，路由列表里显示推断结果 | |
+
+`auto` 的推断规则：
+- Workers AI（`@cf/` 开头）上的 qwen3 / glm / deepseek → `effort_none`。官方文档写明 glm-5.2、deepseek-v4 接受 `none`，qwen3 实测也接受。
+- grok、gpt-5、o3、o4 → `effort`。xAI 收到 `none` 会返回 400。
+- 其他地方的 qwen3 → `template`。
+- 其他地方的 deepseek、glm、kimi → `thinking`。
+- 其余一律 `none`。
+
+推断不对时在路由上改成明确的值，再用路由的「测试」确认上游接受。
+
 ## 4. 管理端（仅 ren）
 
 权限 `ai.llm_manage` 只授予 ren，不可委派。读和写都需要它：普通 admin 连供应商列表都看不到。

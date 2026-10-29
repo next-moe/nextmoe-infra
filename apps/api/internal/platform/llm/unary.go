@@ -114,6 +114,13 @@ func (g *Gateway) unaryAttempt(ctx context.Context, s *snapshot, sc *Scene, c ca
 	for k, v := range r.Body {
 		body[k] = v
 	}
+	if c.route.Protocol == ProtocolResponses {
+		for k, v := range reasoningFields(thinkingStyle(c.route), sceneReasoning(sc, ""), ProtocolResponses) {
+			if _, set := r.Body[k]; !set {
+				body[k] = v
+			}
+		}
+	}
 	body["model"] = c.route.UpstreamID
 	if track {
 		release, ok := g.coord.Acquire(ctx, c.route.ID, c.route.MaxConcurrency, c.route.RPM)

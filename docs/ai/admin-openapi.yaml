@@ -276,6 +276,8 @@ components:
           type: integer
         status:
           type: string
+        thinking_control:
+          type: string
         upstream_id:
           type: string
         weight:
@@ -327,6 +329,8 @@ components:
           format: int64
           type: integer
         model:
+          type: string
+        reasoning:
           type: string
         strategy:
           type: string
@@ -1672,6 +1676,15 @@ components:
             - active
             - disabled
           type: string
+        thinking_control:
+          enum:
+            - auto
+            - none
+            - effort
+            - effort_none
+            - template
+            - thinking
+          type: string
         upstream_id:
           maxLength: 128
           type: string
@@ -1759,6 +1772,25 @@ components:
           type: string
         status_reason:
           type: string
+        thinking_control:
+          description: "How a scene's reasoning level reaches this upstream: reasoning_effort (effort: off sends low; effort_none: off sends none), chat_template_kwargs.enable_thinking (template), thinking.type (thinking), nothing (none), or auto, guessed from the upstream id."
+          enum:
+            - auto
+            - none
+            - effort
+            - effort_none
+            - template
+            - thinking
+          type: string
+        thinking_effective:
+          description: What auto resolves to for this upstream.
+          enum:
+            - none
+            - effort
+            - effort_none
+            - template
+            - thinking
+          type: string
         upstream_id:
           type: string
         weight:
@@ -1776,6 +1808,8 @@ components:
         - status_reason
         - max_in_flight
         - rpm
+        - thinking_control
+        - thinking_effective
         - price
         - stats_24h
       type: object
@@ -1834,6 +1868,15 @@ components:
         model_id:
           format: int64
           type: integer
+        reasoning:
+          description: How hard reasoning models think in this scene; empty is off. off turns thinking off where the upstream allows it and asks for the lowest effort where it does not; default sends nothing and leaves the model's own default. Each route's thinking_control decides the parameter.
+          enum:
+            - "off"
+            - low
+            - medium
+            - high
+            - default
+          type: string
         strategy:
           description: "How routes of one priority tier are ordered: weighted keeps a conversation on one route (rendezvous on its key), least_busy prefers fewer calls in flight in this process, latency the lowest recent first-byte time (with a tenth of calls exploring), cost the cheapest price."
           enum:
@@ -1941,6 +1984,14 @@ components:
         ready:
           description: Whether any model of the main chain has an active route right now.
           type: boolean
+        reasoning:
+          enum:
+            - "off"
+            - low
+            - medium
+            - high
+            - default
+          type: string
         spent_today_nano:
           format: int64
           type: integer
@@ -1972,6 +2023,7 @@ components:
         - context_fallback_model_ids
         - content_fallback_model_ids
         - strategy
+        - reasoning
         - daily_budget_micro
         - spent_today_nano
         - ready
