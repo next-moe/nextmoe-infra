@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -25,6 +26,42 @@ func isLookup(tool string) bool {
 		tool = name
 	}
 	return strings.HasPrefix(tool, "get_")
+}
+
+const maxBrowseLinks = 3
+
+// browseLinks turns the filters the model browsed into links a site can open
+// in its own catalog pages: one per target and set of ids, in the order first
+// used, with every sort tried so the first is the one the answer led with.
+func browseLinks(used []tools.BrowseLink) []tools.Card {
+	type link struct {
+		tools.BrowseLink
+		Sorts []string `json:"sorts"`
+	}
+	var order []string
+	byKey := map[string]*link{}
+	for _, b := range used {
+		ids := slices.Clone(b.IDs)
+		slices.Sort(ids)
+		key := b.Target + ":" + strings.Join(ids, ",")
+		if l, ok := byKey[key]; ok {
+			if !slices.Contains(l.Sorts, b.Sort) {
+				l.Sorts = append(l.Sorts, b.Sort)
+			}
+			continue
+		}
+		if len(order) == maxBrowseLinks {
+			continue
+		}
+		order = append(order, key)
+		byKey[key] = &link{BrowseLink: b, Sorts: []string{b.Sort}}
+	}
+	out := make([]tools.Card, 0, len(order))
+	for _, k := range order {
+		raw, _ := json.Marshal(byKey[k])
+		out = append(out, tools.Card{ID: "browse-" + k, Data: raw})
+	}
+	return out
 }
 
 func answerText(parts []Part) string {

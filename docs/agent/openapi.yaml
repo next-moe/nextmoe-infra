@@ -1178,6 +1178,14 @@ paths:
               - "true"
               - "false"
             type: string
+        - description: "Search: conversations whose title or any message text contains this, case-insensitively. Same order and cursor as the plain list."
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: "Search: conversations whose title or any message text contains this, case-insensitively. Same order and cursor as the plain list."
+            maxLength: 100
+            type: string
       responses:
         "200":
           content:

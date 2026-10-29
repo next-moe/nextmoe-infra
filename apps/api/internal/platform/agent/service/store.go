@@ -64,10 +64,18 @@ func (s *Store) Conversation(ctx context.Context, userID, siteID, id int64) (*mo
 	return &c, err
 }
 
-func (s *Store) ListConversations(ctx context.Context, userID, siteID int64, starred *bool, before time.Time, beforeID int64, limit int) ([]model.Conversation, error) {
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+func (s *Store) ListConversations(ctx context.Context, userID, siteID int64, starred *bool, search string, before time.Time, beforeID int64, limit int) ([]model.Conversation, error) {
 	q := s.db.WithContext(ctx).Where("user_id = ? AND site_id = ?", userID, siteID)
 	if starred != nil {
 		q = q.Where("starred = ?", *starred)
+	}
+	if search = strings.TrimSpace(search); search != "" {
+		like := "%" + likeEscaper.Replace(search) + "%"
+		q = q.Where(`title ILIKE ? OR EXISTS (
+			SELECT 1 FROM agent_message m, jsonb_array_elements(m.parts) p
+			WHERE m.conversation_id = agent_conversation.id AND p->>'type' = 'text' AND p->>'text' ILIKE ?)`, like, like)
 	}
 	if !before.IsZero() {
 		q = q.Where("(updated_at, id) < (?, ?)", before, beforeID)

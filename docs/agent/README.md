@@ -40,7 +40,7 @@ agent 服务（:9287，`kun_agent` 库）是全站共用的 AI 助手：对话�
 | --- | --- | --- |
 | GET | `/v2/agent/persona` | 看板娘：`name` / `avatar` / `greetings[]`，空对话的建议问题 `suggestions[]`，以及 `web_search_available` / `web_search_auto` |
 | GET | `/v2/agent/quota` | 今日免费剩余、价格、是否可扣萌萌点、萌萌点余额 |
-| GET | `/v2/agent/conversations?cursor=&limit=&starred=` | 历史对话（按更新时间倒序，游标分页）；`starred=true` 只看收藏 |
+| GET | `/v2/agent/conversations?cursor=&limit=&starred=&q=` | 历史对话（按更新时间倒序，游标分页）；`starred=true` 只看收藏；`q` 搜索标题或任一条消息正文里含这段文字的对话（不区分大小写，最长 100 字） |
 | POST | `/v2/agent/conversations` | 新建对话 `{"mode":"assistant"}` |
 | GET | `/v2/agent/conversations/{id}?head=` | 对话 + 当前分支的消息；`head=<消息 id>` 看经过这条消息的那个分支 |
 | PATCH | `/v2/agent/conversations/{id}` | 改标题 `title`、收藏 `starred`、记住当前分支 `head_message_id`，只改传了的字段 |
@@ -125,9 +125,18 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
 `GET /v2/agent/runs/{run_id}/stream` 返回 `text/event-stream`，带 `x-vercel-ai-ui-message-stream: v1` 头，帧格式就是 AI SDK 的 UI message stream 协议，前端直接用 `@ai-sdk/vue` 的 `Chat` + `DefaultChatTransport` 消费（`prepareSendMessagesRequest` 改成先 POST 发消息、再 GET 流）。
 
-会出现的帧：`start`、`start-step`、`data-title`、`text-start` / `text-delta` / `text-end`、`reasoning-start` / `reasoning-delta` / `reasoning-end`、`tool-input-available`、`tool-output-available`、`source-url`、`data-entity-card`（实体卡片，格式见 §6.1）、`data-quota`、`data-run`、`finish-step`、`finish`、`error`、`abort`，最后是 `[DONE]`。
+会出现的帧：`start`、`start-step`、`data-title`、`text-start` / `text-delta` / `text-end`、`reasoning-start` / `reasoning-delta` / `reasoning-end`、`tool-input-available`、`tool-output-available`、`source-url`、`data-entity-card`（实体卡片，格式见 §6.1）、`data-browse`（筛选链接，见下）、`data-quota`、`data-run`、`finish-step`、`finish`、`error`、`abort`，最后是 `[DONE]`。
 
 - 卡片在回答正文结束后才下发，只包含回答里提到的实体，按提到的先后排列（同一实体只出一张）。工具查到但回答没提到的候选不会出现；回答一个都没提到时，只保留直接查看详情（`get_work` / `get_entity` 这类单条查询）得到的卡片。前端建议把卡片放在正文之后。
+- `data-browse`：这一轮按标签筛选作品、或按特征筛选角色时，回答结束后（在卡片之后）推送，每种筛选条件一个，最多 3 个，落库为 `{type:"data-browse", id, data}`。站点按自己的资料库页面拼出链接，例如 letmoe 的 `/games?tag_id=6296`：
+
+```json
+{"target": "works", "ids": ["6296"], "names": ["催泪"], "sort": "popular", "sorts": ["popular", "classic"], "total": 22}
+```
+
+  - `target`：`works`（`ids` 是作品标签 id）或 `characters`（`ids` 是角色特征 id），所有 id 同时满足；
+  - `sort`：回答优先用的排序；`sorts`：这一轮用过的全部排序。作品的取值是 `popular` / `classic` / `newest`，角色的取值是 `popular` / `newest`；
+  - `total`：符合条件的总数。没有结果的筛选不会推送。
 - 断线重连：带上 `Last-Event-ID`，从下一帧接着推。
 - 这一轮已经结束、没有活着的流：204，前端改为重新拉对话（消息已经落库）。
 - 落库的消息 `parts` 和流里的帧同形，就是 AI SDK 的 UIMessage parts：`text`、`file`、`step-start`（每一步开头一个）、`tool-<工具名>`（`{type, toolCallId, state:"output-available", input, output}`，用来展示「共运行 N 步，每步查了什么、查到几条」，格式见下）、`data-entity-card`（`{type, id, data}`）、`source-url`（`{type, sourceId, url, title}`）。推理过程不落库。

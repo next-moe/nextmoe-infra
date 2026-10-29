@@ -34,6 +34,15 @@ type Output struct {
 	Sources []Source
 	Total   int
 	Meta    map[string]any
+	Browse  *BrowseLink
+}
+
+type BrowseLink struct {
+	Target string   `json:"target" doc:"works or characters"`
+	IDs    []string `json:"ids" doc:"Tag ids for works, trait ids for characters; all must match."`
+	Names  []string `json:"names"`
+	Sort   string   `json:"sort"`
+	Total  int      `json:"total"`
 }
 
 type Tool interface {

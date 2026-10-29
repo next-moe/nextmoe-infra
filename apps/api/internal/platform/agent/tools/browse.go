@@ -274,7 +274,9 @@ func (t *BrowseWorks) Run(ctx context.Context, args json.RawMessage) (Output, er
 	if err := t.Client.get(ctx, "/v2/catalog/works", q, &list); err != nil {
 		return Output{}, err
 	}
-	out := Output{Total: list.Total, Meta: map[string]any{"sort": in.Sort, "tags": t.Client.namesOf(ctx, "/v2/catalog/tags", idList(in.TagIDs))}}
+	names := t.Client.namesOf(ctx, "/v2/catalog/tags", idList(in.TagIDs))
+	out := Output{Total: list.Total, Meta: map[string]any{"sort": in.Sort, "tags": names},
+		Browse: &BrowseLink{Target: "works", IDs: strings.Split(idList(in.TagIDs), ","), Names: names, Sort: in.Sort, Total: list.Total}}
 	briefs := make([]map[string]any, 0, len(list.Items))
 	for _, w := range list.Items {
 		b := w.searchBrief(t.Client.NSFW)
@@ -337,7 +339,9 @@ func (t *BrowseCharacters) Run(ctx context.Context, args json.RawMessage) (Outpu
 	if sort == "newest" {
 		sortName = "newest"
 	}
-	out := Output{Total: list.Total, Meta: map[string]any{"sort": sortName, "traits": t.Client.namesOf(ctx, "/v2/catalog/traits", idList(in.TraitIDs))}}
+	names := t.Client.namesOf(ctx, "/v2/catalog/traits", idList(in.TraitIDs))
+	out := Output{Total: list.Total, Meta: map[string]any{"sort": sortName, "traits": names},
+		Browse: &BrowseLink{Target: "characters", IDs: strings.Split(idList(in.TraitIDs), ","), Names: names, Sort: sortName, Total: list.Total}}
 	briefs := make([]map[string]any, 0, len(list.Items))
 	for _, c := range list.Items {
 		e := c.entity(t.Client.NSFW, nil)

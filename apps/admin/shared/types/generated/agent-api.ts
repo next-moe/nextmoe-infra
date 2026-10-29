@@ -1104,6 +1104,8 @@ export interface operations {
                 limit?: number;
                 /** @description Only starred (true) or only unstarred (false) conversations; absent lists both. */
                 starred?: "true" | "false";
+                /** @description Search: conversations whose title or any message text contains this, case-insensitively. Same order and cursor as the plain list. */
+                q?: string;
             };
             header?: never;
             path?: never;

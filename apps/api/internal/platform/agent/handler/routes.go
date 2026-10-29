@@ -191,6 +191,7 @@ func (s *Server) Register(api huma.API) {
 			Cursor  string `query:"cursor" maxLength:"64"`
 			Limit   int    `query:"limit" minimum:"1" maximum:"100" default:"30"`
 			Starred string `query:"starred" enum:"true,false" doc:"Only starred (true) or only unstarred (false) conversations; absent lists both."`
+			Q       string `query:"q" maxLength:"100" doc:"Search: conversations whose title or any message text contains this, case-insensitively. Same order and cursor as the plain list."`
 		}) (*listOut, error) {
 			c, err := requireUser(ctx)
 			if err != nil {
@@ -202,7 +203,7 @@ func (s *Server) Register(api huma.API) {
 				starred = &v
 			}
 			before, beforeID := decodeCursor(in.Cursor)
-			rows, err := s.Store.ListConversations(ctx, c.UserID, c.SiteID, starred, before, beforeID, in.Limit+1)
+			rows, err := s.Store.ListConversations(ctx, c.UserID, c.SiteID, starred, in.Q, before, beforeID, in.Limit+1)
 			if err != nil {
 				return nil, err
 			}

@@ -71,6 +71,35 @@ func TestPickCardsShowsOneCardPerKindAndName(t *testing.T) {
 	}
 }
 
+func TestBrowseLinksOnePerFilterKeepingTheSortsInOrder(t *testing.T) {
+	used := []tools.BrowseLink{
+		{Target: "works", IDs: []string{"6296"}, Names: []string{"催泪"}, Sort: "popular", Total: 22},
+		{Target: "works", IDs: []string{"6296"}, Names: []string{"催泪"}, Sort: "classic", Total: 22},
+		{Target: "works", IDs: []string{"146", "6296"}, Sort: "classic", Total: 3},
+		{Target: "works", IDs: []string{"6296", "146"}, Sort: "popular", Total: 3},
+		{Target: "characters", IDs: []string{"3282"}, Sort: "popular", Total: 9},
+		{Target: "works", IDs: []string{"1"}, Sort: "newest", Total: 1},
+	}
+	got := browseLinks(used)
+	if len(got) != 3 {
+		t.Fatalf("at most three links, one per filter: %d", len(got))
+	}
+	var first struct {
+		Target string
+		IDs    []string
+		Sort   string
+		Sorts  []string
+		Total  int
+	}
+	_ = json.Unmarshal(got[0].Data, &first)
+	if got[0].ID != "browse-works:6296" || first.Sort != "popular" || strings.Join(first.Sorts, ",") != "popular,classic" || first.Total != 22 {
+		t.Fatalf("first link: %s %s", got[0].ID, got[0].Data)
+	}
+	if got[1].ID != "browse-works:146,6296" || got[2].ID != "browse-characters:3282" {
+		t.Fatalf("the same tags in another order are one filter: %s %s", got[1].ID, got[2].ID)
+	}
+}
+
 func TestIsLookup(t *testing.T) {
 	for tool, want := range map[string]bool{"get_work": true, "get_entity": true, "kungal__get_topic": true, "search_catalog": false, "kungal__search_topics": false, "web_search": false} {
 		if isLookup(tool) != want {

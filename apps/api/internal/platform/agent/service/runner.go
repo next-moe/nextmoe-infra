@@ -143,6 +143,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	}
 	var parts []Part
 	var found []foundCards
+	var browses []tools.BrowseLink
 	usedWeb := false
 	fin := Finish{Status: model.RunCompleted}
 	titled := make(chan bool, 1)
@@ -206,6 +207,9 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
 			parts = append(parts, toolPart(tc, input, summary))
 			found = append(found, foundCards{cards: out.Cards, lookup: isLookup(tc.Name)})
+			if out.Browse != nil && out.Browse.Total > 0 {
+				browses = append(browses, *out.Browse)
+			}
 			for _, s := range out.Sources {
 				w.Emit(map[string]any{"type": "source-url", "sourceId": s.URL, "url": s.URL, "title": s.Title})
 				parts = append(parts, Part{Type: "source-url", SourceID: s.URL, URL: s.URL, Title: s.Title})
@@ -218,6 +222,12 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	for _, c := range pickCards(found, answerText(parts)) {
 		w.Emit(map[string]any{"type": "data-entity-card", "id": c.ID, "data": c.Data})
 		parts = append(parts, Part{Type: "data-entity-card", ID: c.ID, Data: c.Data})
+	}
+	if fin.Status == model.RunCompleted {
+		for _, b := range browseLinks(browses) {
+			w.Emit(map[string]any{"type": "data-browse", "id": b.ID, "data": b.Data})
+			parts = append(parts, Part{Type: "data-browse", ID: b.ID, Data: b.Data})
+		}
 	}
 	fin.Parts = dedupeCards(parts)
 	settleCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
