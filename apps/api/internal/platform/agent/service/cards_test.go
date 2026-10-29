@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"api/internal/platform/agent/tools"
@@ -12,7 +13,8 @@ func card(id, title string, localized ...string) tools.Card {
 	for i, v := range localized {
 		l[string(rune('a'+i))] = map[string]string{"value": v}
 	}
-	raw, _ := json.Marshal(map[string]any{"id": id, "title": title, "localized": l})
+	kind, _, _ := strings.Cut(id, "-")
+	raw, _ := json.Marshal(map[string]any{"kind": kind, "id": id, "title": title, "localized": l})
 	return tools.Card{ID: id, Data: raw}
 }
 
@@ -54,6 +56,18 @@ func TestPickCardsFallsBackToLookupsOnly(t *testing.T) {
 	}
 	if got := ids(pickCards([]foundCards{search, lookup}, "她是一位巫女。")); len(got) != 1 || got[0] != "character-9" {
 		t.Fatalf("a direct lookup must still show its card, got %v", got)
+	}
+}
+
+func TestPickCardsShowsOneCardPerKindAndName(t *testing.T) {
+	work := card("work-60", "命运石之门")
+	search := foundCards{cards: []tools.Card{card("character-174357", "阿万音 鈴羽"), card("character-102547", "阿万音 鈴羽", "Amane Suzuha")}}
+	raw, _ := json.Marshal(map[string]any{"kind": "character", "id": "92005", "title": "阿万音铃羽", "cover": "https://img/x.webp",
+		"localized": map[string]any{"ja": map[string]string{"value": "Amane Suzuha"}}})
+	lookup := foundCards{cards: []tools.Card{{ID: "character-92005", Data: raw}}, lookup: true}
+	got := ids(pickCards([]foundCards{{cards: []tools.Card{work}}, search, lookup}, "《命运石之门》里的阿万音鈴羽（阿万音铃羽）"))
+	if len(got) != 2 || got[0] != "work-60" || got[1] != "character-92005" {
+		t.Fatalf("one card per name, preferring the looked-up one, got %v", got)
 	}
 }
 

@@ -91,6 +91,47 @@ func mentionAt(answer, text string, c tools.Card) int {
 	return at
 }
 
+// The catalog keeps one character per work it appears in, so one name in an
+// answer matched three 阿万音鈴羽 cards, titled 阿万音铃羽 or 阿万音 鈴羽 but all
+// "Amane Suzuha" in Japanese. Cards of one kind sharing any name show once,
+// preferring a detail lookup's card, then one with a cover.
+func sameNames(c tools.Card) []string {
+	var d struct {
+		Kind      string `json:"kind"`
+		Title     string `json:"title"`
+		Localized map[string]struct {
+			Value string `json:"value"`
+		} `json:"localized"`
+	}
+	_ = json.Unmarshal(c.Data, &d)
+	names := []string{d.Title}
+	for _, l := range d.Localized {
+		names = append(names, l.Value)
+	}
+	out := []string{"id\x00" + c.ID}
+	for _, v := range names {
+		if n := normalize(v); n != "" {
+			out = append(out, d.Kind+"\x00"+n)
+		}
+	}
+	return out
+}
+
+func cardRank(c tools.Card, lookup bool) int {
+	var d struct {
+		Cover json.RawMessage `json:"cover"`
+	}
+	_ = json.Unmarshal(c.Data, &d)
+	rank := 0
+	if lookup {
+		rank += 2
+	}
+	if cover := string(d.Cover); cover != "" && cover != "null" && cover != `""` {
+		rank++
+	}
+	return rank
+}
+
 // pickCards keeps the cards the answer names, in the order it names them. A
 // search hands back every candidate it found, and showing all of them while
 // the model was still working read as recommendations it never made.
@@ -99,6 +140,7 @@ func pickCards(found []foundCards, answer string) []tools.Card {
 	type hit struct {
 		card tools.Card
 		at   int
+		rank int
 	}
 	var hits []hit
 	seen := map[string]bool{}
@@ -109,13 +151,50 @@ func pickCards(found []foundCards, answer string) []tools.Card {
 			}
 			if at := mentionAt(answer, text, c); at >= 0 {
 				seen[c.ID] = true
-				hits = append(hits, hit{c, at})
+				hits = append(hits, hit{c, at, cardRank(c, found[i].lookup)})
 			}
 		}
 	}
-	sort.SliceStable(hits, func(i, j int) bool { return hits[i].at < hits[j].at })
+	parent := make([]int, len(hits))
+	var root func(int) int
+	root = func(i int) int {
+		for parent[i] != i {
+			parent[i] = parent[parent[i]]
+			i = parent[i]
+		}
+		return i
+	}
+	owner := map[string]int{}
+	for i, h := range hits {
+		parent[i] = i
+		for _, n := range sameNames(h.card) {
+			if j, ok := owner[n]; ok {
+				parent[root(i)] = root(j)
+			} else {
+				owner[n] = i
+			}
+		}
+	}
+	best, first := map[int]int{}, map[int]int{}
+	for i, h := range hits {
+		r := root(i)
+		if b, ok := best[r]; !ok || h.rank > hits[b].rank || (h.rank == hits[b].rank && h.at < hits[b].at) {
+			best[r] = i
+		}
+		if f, ok := first[r]; !ok || h.at < f {
+			first[r] = h.at
+		}
+	}
+	kept := hits[:0:0]
+	for i, h := range hits {
+		if r := root(i); best[r] == i {
+			h.at = first[r]
+			kept = append(kept, h)
+		}
+	}
+	sort.SliceStable(kept, func(i, j int) bool { return kept[i].at < kept[j].at })
 	out := make([]tools.Card, 0, maxCards)
-	for _, h := range hits {
+	for _, h := range kept {
 		if len(out) == maxCards {
 			break
 		}
