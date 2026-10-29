@@ -151,10 +151,13 @@ func (s *Store) SetFeedback(ctx context.Context, userID, siteID, messageID int64
 
 func (s *Store) DeleteConversation(ctx context.Context, c *model.Conversation) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for _, m := range []any{&model.Message{}, &model.Run{}, &model.Upload{}} {
+		for _, m := range []any{&model.Message{}, &model.Run{}, &model.Upload{}, &model.Summary{}, &model.Embedding{}} {
 			if err := tx.Where("conversation_id = ?", c.ID).Delete(m).Error; err != nil {
 				return err
 			}
+		}
+		if err := tx.Model(&model.Memory{}).Where("conversation_id = ?", c.ID).Update("conversation_id", nil).Error; err != nil {
+			return err
 		}
 		return tx.Delete(c).Error
 	})

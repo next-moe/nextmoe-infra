@@ -38,7 +38,7 @@ agent 服务（:9287，`kun_agent` 库）是全站共用的 AI 助手：对话�
 
 | 方法 | 路径 | 作用 |
 | --- | --- | --- |
-| GET | `/v2/agent/persona` | 看板娘：`name` / `avatar` / `greetings[]`，空对话的建议问题 `suggestions[]`，以及 `web_search_available` / `web_search_auto` |
+| GET | `/v2/agent/persona` | 看板娘：`name` / `avatar` / `greetings[]`，空对话的建议问题 `suggestions[]`，以及 `web_search_available` / `web_search_auto` / `memory_available` |
 | GET | `/v2/agent/quota` | 今日免费剩余、价格、是否可扣萌萌点、萌萌点余额 |
 | GET | `/v2/agent/conversations?cursor=&limit=&starred=&q=` | 历史对话（按更新时间倒序，游标分页）；`starred=true` 只看收藏；`q` 搜索标题或任一条消息正文里含这段文字的对话（不区分大小写，最长 100 字） |
 | POST | `/v2/agent/conversations` | 新建对话 `{"mode":"assistant"}` |
@@ -50,6 +50,11 @@ agent 服务（:9287，`kun_agent` 库）是全站共用的 AI 助手：对话�
 | PUT | `/v2/agent/messages/{id}/feedback` | 给回答打分 `{"rating":"up"\|"down"\|"none"}`（204） |
 | GET | `/v2/agent/runs/{id}/stream` | 这一轮的 SSE 流 |
 | POST | `/v2/agent/runs/{id}/cancel` | 停止生成（204） |
+| GET / PATCH | `/v2/agent/preferences` | 用户在本站的两个开关 `memory`（长期记忆）、`history`（参考过去的对话），以及站点是否提供它们 `memory_available` / `history_available`（§3.8） |
+| GET | `/v2/agent/memories` | 助手记住的关于用户的内容 `items[]`（`id` / `content` / `origin` / `conversation_id` / 时间）和上限 `max` |
+| POST | `/v2/agent/memories` | 手动加一条 `{"content":"…"}`（201，≤200 字）；记忆已满且都是用户亲自要求的时返回 409 `MEMORY_FULL` |
+| PATCH / DELETE | `/v2/agent/memories/{id}` | 改正（`{"content":"…"}`）/ 删除一条（204） |
+| DELETE | `/v2/agent/memories` | 清空本站的全部记忆（204） |
 | GET | `/v2/agent/pow/challenge` | 未登录搜索用的工作量证明题目 |
 | POST | `/v2/agent/search` | 搜索模式 `{"q":"…","pow":"…"}` |
 
@@ -194,6 +199,24 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 - 上传后一天内没有被消息引用的文件会被清理；被引用的文件随对话一起删除。
 - 本轮上下文里有图片时，这一轮由网关场景 `agent.vision` 回答。
 
+### 3.8 上下文、记忆与过去的对话
+
+**一段对话之内：滚动摘要。** 每一问随附的历史按估算 token 计（`agent.context.max_tokens`，默认 24000），不是按条数。一轮结束后，如果当前分支（含已有摘要）超过上限的四分之三，较早的部分会在后台压缩成一份结构化摘要（目标与要求、喜好、讨论过的条目及资料库 id、结论、未解决的问题），最近约一半上限的几轮保持原文。摘要是增量的：旧摘要 + 新折叠的几轮 → 新摘要。它记在「覆盖到的最后一条消息」上，所以编辑、重新生成产生的分支会共用分叉点之前的摘要。工具结果本来就不进历史；更早的附件（三问之前上传的）只保留文件名，内容由摘要概括。前端不用做任何事。
+
+**跨对话：长期记忆。** 助手为每位用户在每个站点分别保存一组简短的记忆（喜好、厌恶、玩过的作品、希望怎么称呼和回答），每一问都附在系统提示里。记忆有两个来源：
+- `explicit`：用户在对话里说「记住……」「忘掉……」，模型调用 `remember` / `forget`；或者用户在记忆页里手动添加、改正。自动整理不会改动或挤掉这类记忆。
+- `auto`：对话静止 `agent.memory.idle_minutes`（默认 30）分钟后，后台读一遍新增的部分，对照已有记忆输出增、改、删。记录来源对话 `conversation_id`。满了（`agent.memory.max_items`，默认 100）时最旧的 `auto` 记忆让位。
+
+用户可以随时查看、改正、删除、清空，或者在 `PATCH /preferences` 里关掉 `memory`。关掉后记忆保留，但助手既不读也不写。删除对话不会删除从中整理出的记忆，只解除关联。
+
+**跨对话：过去的对话。** `history` 打开时，助手每一问能看到用户在本站其他对话的标题（`agent.context.titles*`）。用户提到以前聊过的内容时，它还会用 `search_conversations`（标题和正文关键词 + 语义向量，两路结果按 RRF 融合）和 `read_conversation` 去翻。语义索引同样在对话静止后建立，每个问答对一条向量。
+
+**步骤里怎么显示。** 这四个工具和其他工具一样以 `tool-<name>` 出现在步骤里，输出的 `meta`：
+- `remember` / `forget`：`{"memory":{"op":"add"|"update"|"delete","id":"12","content":"…"}}`，适合显示成「已记住：…」「已忘记：…」，并链到记忆页；
+- `search_conversations` / `read_conversation`：`{"conversations":[{"id":"…","title":"…","updated_at":"…"}]}`，适合显示成可以点开的过去对话。
+
+**网关场景。** 摘要用 `agent.summary`，记忆整理用 `agent.memory`，语义索引用 `agent.embed`。没有配置时，前两个退回 `agent.assistant`，向量退回 `catalog.embed`。
+
 ## 4. 萌萌点与次数
 
 全部是后台动态配置（设置中心 `agent` 域，带站点作用域的可以按站覆盖），不写死：
@@ -212,7 +235,12 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `agent.anon.rate_per_minute` / `agent.anon.quota_per_day` / `agent.anon.global_quota_per_day` | 未登录每 IP 每分钟 / 每天、全站每天上限 |
 | `agent.catalog_nsfw` | 该站助手能否看到 r18 作品、性相关标签和图片（站点级，默认开）。封面是否显示仍由前端按卡片的 `content_limit` 决定 |
 | `agent.context.titles` / `agent.context.titles_max` | 把用户在本站其他对话的标题（最近 N 条，默认开、50 条）交给助手，让它了解用户问过什么（站点级） |
-| `agent.turn.max_steps` / `agent.turn.max_output_tokens` / `agent.turn.max_input_chars` / `agent.context.max_messages` | 单轮工具调用步数、输出上限、输入上限、带入的历史条数 |
+| `agent.turn.max_steps` / `agent.turn.max_output_tokens` / `agent.turn.max_input_chars` | 单轮工具调用步数、输出上限、输入上限 |
+| `agent.context.max_tokens` / `agent.context.summary` | 每问随附历史的估算 token 上限；超过四分之三时是否把较早部分压缩成滚动摘要（§3.8） |
+| `agent.memory.enabled` / `agent.memory.auto` | 本站是否提供长期记忆；是否在对话静止后自动整理（关掉则只记用户要求记住的）。都可按站点覆盖，默认开 |
+| `agent.memory.max_items` / `agent.memory.idle_minutes` | 每人每站的记忆上限；对话静止多久后整理记忆、建立搜索索引 |
+| `agent.history.search` | 允许助手搜索、阅读用户在本站的过去对话（站点级，默认开） |
+| `agent.prompt.memory` / `agent.prompt.history` / `agent.prompt.summary` / `agent.prompt.extract` | 记忆的使用规则、翻过去对话的规则（站点级）；滚动摘要、记忆整理的系统提示词（全局，整理的输出格式写在提示词里，改的时候保留） |
 | `agent.upload.max_files`、`agent.upload.{image,text,document}.{enabled,max_bytes,types}` | 上传：每条消息的文件数，每类的开关、大小上限、允许的类型（图片按 MIME，文本和文档按扩展名），都可按站点覆盖 |
 
 扣费流程：发消息时先预留免费次数，不够的部分只核对萌萌点余额；回复成功后才结算，萌萌点经 oauth 扣除（幂等键 `agent:run:<run_id>`），联网加价按「可能联网」预留，这一轮没真的搜索就不收。余额只够基本价时，这一问照常回答，只是不联网。失败、取消的轮次退回免费次数，也不扣萌萌点。界面上统一写「消耗 NextMoe 萌萌点」。

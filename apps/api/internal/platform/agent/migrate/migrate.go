@@ -24,6 +24,16 @@
 // 2026-10-29, site tools: agent_site_tool registers the MCP servers a site lends
 // the assistant (url, auth mode, card kind prefix, allowed tools). New table;
 // a site without rows keeps exactly the shared tools it had.
+//
+// 2026-10-29, context and memory: agent_summary holds rolling summaries of a
+// branch, keyed by the last message they cover (message ids grow down a branch,
+// so the deepest summary on a branch is its highest upto_message_id).
+// agent_memory is what the assistant remembers about a user on a site,
+// agent_preference the user's own switches for memory and chat history (no row
+// means both on), agent_embedding one real[] vector per answered exchange for
+// searching past conversations. agent_conversation.scanned_at (nullable) marks
+// how far the idle job has read a conversation; existing rows stay null, so the
+// job reads every conversation once after this deploy. All additive.
 package migrate
 
 import (
@@ -36,7 +46,8 @@ import (
 )
 
 func Run(db *gorm.DB) error {
-	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}, &model.Run{}, &model.Persona{}, &model.Upload{}, &model.SiteTool{}); err != nil {
+	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}, &model.Run{}, &model.Persona{}, &model.Upload{}, &model.SiteTool{},
+		&model.Summary{}, &model.Memory{}, &model.Preference{}, &model.Embedding{}); err != nil {
 		return fmt.Errorf("agent automigrate: %w", err)
 	}
 	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_run_active

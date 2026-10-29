@@ -126,6 +126,7 @@ func main() {
 	}
 	broker := stream.NewBroker()
 	runner := service.NewRunner(store, gw, broker, quota, toolsFor)
+	go service.NewIndexer(store, gw).Run(ctx)
 
 	powVerifier, err := agentHandler.NewPowVerifier(cfg.LLM.PowKeys, rdb)
 	if err != nil {

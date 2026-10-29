@@ -200,6 +200,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/agent/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the assistant remembers about the caller on this site */
+        get: operations["listAgentMemories"];
+        put?: never;
+        /**
+         * Add a memory by hand
+         * @description Stored as explicit. Adding a memory that already exists returns that one.
+         */
+        post: operations["createAgentMemory"];
+        /** Forget everything remembered about the caller on this site */
+        delete: operations["clearAgentMemories"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/agent/memories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Forget one memory */
+        delete: operations["deleteAgentMemory"];
+        options?: never;
+        head?: never;
+        /**
+         * Correct a memory
+         * @description An edited memory becomes explicit, so automatic extraction no longer changes or evicts it.
+         */
+        patch: operations["updateAgentMemory"];
+        trace?: never;
+    };
     "/v2/agent/messages/{id}/feedback": {
         parameters: {
             query?: never;
@@ -249,6 +292,27 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v2/agent/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's memory and chat history switches on this site */
+        get: operations["getAgentPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Turn memory or chat history on or off
+         * @description Only the fields present change. Both are on until the user turns them off.
+         */
+        patch: operations["updateAgentPreferences"];
         trace?: never;
     };
     "/v2/agent/quota": {
@@ -360,6 +424,15 @@ export interface components {
             pow?: string;
             q: string;
         };
+        ContentIn: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ContentIn.json
+             */
+            readonly $schema?: string;
+            content: string;
+        };
         ConvOutBody: {
             /**
              * Format: uri
@@ -429,6 +502,42 @@ export interface components {
             items: components["schemas"]["ConversationBody"][] | null;
             next_cursor: string | null;
         };
+        ListOutBody1: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListOutBody1.json
+             */
+            readonly $schema?: string;
+            /** @description Newest change first. */
+            items: components["schemas"]["MemoryBody"][] | null;
+            /**
+             * Format: int64
+             * @description How many memories a user can keep on this site; past it the oldest auto memory makes room.
+             */
+            max: number;
+        };
+        MemoryBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/MemoryBody.json
+             */
+            readonly $schema?: string;
+            content: string;
+            /** @description The conversation it came from, while that conversation exists. */
+            conversation_id: string | null;
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            /**
+             * @description explicit: the user asked for it or wrote it; auto: extracted from a conversation after it went quiet.
+             * @enum {string}
+             */
+            origin: "explicit" | "auto";
+            /** Format: date-time */
+            updated_at: string;
+        };
         MessageBody: {
             /**
              * @description The user's rating of an assistant reply.
@@ -476,6 +585,8 @@ export interface components {
             readonly $schema?: string;
             avatar: string;
             greetings: string[] | null;
+            /** @description The site offers long-term memory; show the memory page and switch (/v2/agent/memories, /v2/agent/preferences). */
+            memory_available: boolean;
             name: string;
             /** @description Starter prompts for an empty conversation, grouped like the mode chips of a composer. */
             suggestions: components["schemas"]["SuggestionGroup"][] | null;
@@ -538,6 +649,22 @@ export interface components {
             suggestions: components["schemas"]["SuggestionGroup"][];
             /** Format: date-time */
             updated_at: string;
+        };
+        PreferencesBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PreferencesBody.json
+             */
+            readonly $schema?: string;
+            /** @description The user lets the assistant see their other conversations on this site: their titles with every question, and searching and reading them when asked about earlier chats. */
+            history: boolean;
+            /** @description The site lets the assistant search past conversations. */
+            history_available: boolean;
+            /** @description The user lets the assistant remember things about them on this site and use what it remembered. Off keeps the memories but neither reads nor writes them. */
+            memory: boolean;
+            /** @description The site offers memory at all; hide the memory page and switch when false. */
+            memory_available: boolean;
         };
         Problem: {
             /**
@@ -750,6 +877,16 @@ export interface components {
             prompts: string[] | null;
             /** @description Send this group's prompts with web_search on. */
             web_search: boolean;
+        };
+        UpdateAgentPreferencesRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/UpdateAgentPreferencesRequest.json
+             */
+            readonly $schema?: string;
+            history?: boolean;
+            memory?: boolean;
         };
         UploadBody: {
             /**
@@ -1338,6 +1475,159 @@ export interface operations {
             };
         };
     };
+    listAgentMemories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutBody1"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createAgentMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    clearAgentMemories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteAgentMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAgentMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     setAgentFeedback: {
         parameters: {
             query?: never;
@@ -1417,6 +1707,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetAgentPowChallengeResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAgentPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAgentPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgentPreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesBody"];
                 };
             };
             /** @description Error */

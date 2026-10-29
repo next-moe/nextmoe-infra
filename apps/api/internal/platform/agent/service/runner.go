@@ -50,6 +50,10 @@ type Turn struct {
 	UserToken   string
 	Web         bool
 	Titles      []PastTitle
+	Summary     *model.Summary
+	Memory      bool
+	Memories    []model.Memory
+	PastChats   bool
 }
 
 type PastTitle struct {
@@ -135,7 +139,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	w.Emit(map[string]any{"type": "start", "messageId": strconv.FormatInt(run.AssistantMessageID, 10)})
 	w.Emit(map[string]any{"type": "data-run", "data": map[string]any{"run_id": run.ID, "conversation_id": strconv.FormatInt(run.ConversationID, 10)}})
 
-	reg := r.tools(run.SiteID, t.UserToken)
+	reg := r.tools(run.SiteID, t.UserToken).Add(r.userTools(t)...)
 	var skip []string
 	if !t.Web {
 		skip = webTools
@@ -259,6 +263,12 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	}
 	if err := r.store.FinishRun(settleCtx, run, fin); err != nil {
 		slog.Error("agent: persist finished run", "run", run.ID, "err", err)
+	} else if fin.Status == model.RunCompleted && keys.AgentContextSummary.Get() {
+		r.wg.Add(1)
+		go func() {
+			defer r.wg.Done()
+			r.compact(t, fin.Parts)
+		}()
 	}
 	if ok := <-titled; !ok && fin.Status == model.RunCompleted {
 		r.titleConversation(t, nil)

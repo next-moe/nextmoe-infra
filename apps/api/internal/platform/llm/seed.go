@@ -21,6 +21,9 @@ const (
 	SceneCatalogEmbed   = "catalog.embed"
 	SceneWebSearch      = "agent.web_search"
 	SceneVision         = "agent.vision"
+	SceneSummary        = "agent.summary"
+	SceneMemory         = "agent.memory"
+	SceneAgentEmbed     = "agent.embed"
 )
 
 type Bootstrap struct {

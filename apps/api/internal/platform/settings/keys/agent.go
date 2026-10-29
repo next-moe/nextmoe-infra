@@ -124,12 +124,55 @@ var AgentTurnMaxInputChars = settings.Int(settings.Meta{
 	Min:    settings.F(100), Max: settings.F(200000),
 }, 20000)
 
-var AgentContextMaxMessages = settings.Int(settings.Meta{
-	Name:   "agent.context.max_messages",
-	DescEN: "Most recent messages of the branch sent to the model with each question.",
-	DescZH: "每次提问时随附给模型的最近消息条数。",
-	Min:    settings.F(2), Max: settings.F(200),
-}, 24)
+var AgentContextMaxTokens = settings.Int(settings.Meta{
+	Name:   "agent.context.max_tokens",
+	DescEN: "Estimated tokens of conversation history sent with each question. Past three quarters of it, the older part of the branch is folded into a summary and the latest turns stay word for word.",
+	DescZH: "每次提问随附的对话历史上限（估算 token）。超过四分之三时，较早的部分会压缩成摘要，最近几轮保持原文。",
+	Min:    settings.F(2000), Max: settings.F(1000000),
+}, 24000)
+
+var AgentContextSummary = settings.Bool(settings.Meta{
+	Name:   "agent.context.summary",
+	DescEN: "Folds the older part of a long conversation into a rolling summary instead of dropping it.",
+	DescZH: "长对话中较早的部分压缩成滚动摘要，而不是直接丢弃。",
+}, true)
+
+var AgentHistorySearch = settings.Bool(settings.Meta{
+	Name:       "agent.history.search",
+	DescEN:     "Lets the assistant search and read the user's past conversations on this site when they refer to them.",
+	DescZH:     "用户提到以前的对话时，允许助手搜索、阅读用户在本站的过去对话。",
+	SiteScoped: true,
+	Public:     true,
+}, true)
+
+var AgentMemoryEnabled = settings.Bool(settings.Meta{
+	Name:       "agent.memory.enabled",
+	DescEN:     "Long-term memory on this site: the assistant keeps short notes about each user (tastes, works played, how they like answers) and sees them with every question. Users can view, edit, delete and turn it off.",
+	DescZH:     "本站的长期记忆：助手为每位用户记下简短的信息（喜好、玩过的作品、回答偏好），每次提问都会参考。用户可以查看、修改、删除和关闭。",
+	SiteScoped: true,
+	Public:     true,
+}, true)
+
+var AgentMemoryAuto = settings.Bool(settings.Meta{
+	Name:       "agent.memory.auto",
+	DescEN:     "Also extracts memories from conversations by itself once they go quiet. Off remembers only what users ask it to.",
+	DescZH:     "对话静止后自动从中整理记忆。关闭后只记用户明确要求记住的内容。",
+	SiteScoped: true,
+}, true)
+
+var AgentMemoryMaxItems = settings.Int(settings.Meta{
+	Name:   "agent.memory.max_items",
+	DescEN: "Memories kept per user and site. Past it, the oldest automatic memory makes room.",
+	DescZH: "每位用户在每个站点最多保留的记忆条数。满了之后最旧的自动记忆让位。",
+	Min:    settings.F(1), Max: settings.F(500),
+}, 100)
+
+var AgentMemoryIdleMinutes = settings.Int(settings.Meta{
+	Name:   "agent.memory.idle_minutes",
+	DescEN: "Minutes a conversation stays quiet before it is read for memories and indexed for search.",
+	DescZH: "对话静止多少分钟后，整理其中的记忆并建立搜索索引。",
+	Min:    settings.F(1), Max: settings.F(1440),
+}, 30)
 
 var AgentContextTitles = settings.Bool(settings.Meta{
 	Name:       "agent.context.titles",
@@ -163,7 +206,9 @@ var agentDomain = settings.Domain{
 		AgentUserRatePerMinute, AgentFreeUnitsPerDay,
 		AgentPriceAssistant, AgentPriceWebSurcharge, AgentPriceSearch, AgentPaidEnabled, AgentWebAuto,
 		AgentPromptRules, AgentPromptWeb, AgentPromptWebForced, AgentPromptLastStep, AgentPromptTitle, AgentPromptWebSearch,
-		AgentTurnMaxSteps, AgentTurnMaxOutputTokens, AgentTurnMaxInputChars, AgentContextMaxMessages, AgentContextTitles, AgentContextTitlesMax,
+		AgentPromptMemory, AgentPromptHistory, AgentPromptSummary, AgentPromptExtract,
+		AgentTurnMaxSteps, AgentTurnMaxOutputTokens, AgentTurnMaxInputChars, AgentContextMaxTokens, AgentContextSummary, AgentContextTitles, AgentContextTitlesMax,
+		AgentHistorySearch, AgentMemoryEnabled, AgentMemoryAuto, AgentMemoryMaxItems, AgentMemoryIdleMinutes,
 		AgentUploadMaxFiles,
 		AgentUploadImageEnabled, AgentUploadImageMaxBytes, AgentUploadImageTypes,
 		AgentUploadTextEnabled, AgentUploadTextMaxBytes, AgentUploadTextTypes,

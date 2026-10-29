@@ -79,6 +79,7 @@ type PersonaBody struct {
 	Uploads            UploadsBody       `json:"uploads" doc:"What the upload menu may offer on this site, from the settings center."`
 	WebSearchAvailable bool              `json:"web_search_available" doc:"Whether web_search can do anything; hide the toggle when false."`
 	WebSearchAuto      bool              `json:"web_search_auto" doc:"The assistant searches the web by itself when a question needs it, and the surcharge is charged only when it did. The toggle then asks it to search first; without auto, only toggled questions can search."`
+	MemoryAvailable    bool              `json:"memory_available" doc:"The site offers long-term memory; show the memory page and switch (/v2/agent/memories, /v2/agent/preferences)."`
 }
 
 type ConversationBody struct {
@@ -158,7 +159,7 @@ func (s *Server) Register(api huma.API) {
 			_ = json.Unmarshal(p.Greetings, &greetings)
 			return &struct{ Body PersonaBody }{PersonaBody{Name: p.Name, Avatar: p.Avatar, Greetings: greetings,
 				Suggestions: s.suggestions(p), WebSearchAvailable: s.webSearch(), Uploads: s.uploadsBody(c.SiteID),
-				WebSearchAuto: s.webSearch() && keys.AgentWebAuto.ForSite(uint(c.SiteID))}}, nil
+				WebSearchAuto: s.webSearch() && keys.AgentWebAuto.ForSite(uint(c.SiteID)), MemoryAvailable: keys.AgentMemoryEnabled.ForSite(uint(c.SiteID))}}, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "getAgentQuota", Method: http.MethodGet, Path: "/v2/agent/quota",
@@ -412,6 +413,7 @@ func (s *Server) Register(api huma.API) {
 	s.registerUploads(api)
 	s.registerAdmin(api)
 	s.registerSearch(api)
+	s.registerMemory(api)
 }
 
 func (s *Server) conversation(ctx context.Context, c *caller, raw string) (*model.Conversation, error) {
@@ -483,14 +485,29 @@ func (s *Server) startTurn(ctx context.Context, c *caller, run *model.Run, res s
 	if err != nil {
 		return err
 	}
-	var titles []service.PastTitle
-	if site := uint(c.SiteID); keys.AgentContextTitles.ForSite(site) {
-		if titles, err = s.Store.PastTitles(ctx, c.UserID, c.SiteID, conv.ID, int(keys.AgentContextTitlesMax.ForSite(site))); err != nil {
+	summary, err := s.Store.BranchSummary(ctx, branch)
+	if err != nil {
+		return err
+	}
+	prefs, err := s.Store.Preferences(ctx, c.UserID, c.SiteID)
+	if err != nil {
+		return err
+	}
+	site := uint(c.SiteID)
+	turn := service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName), Uploads: uploads,
+		UserToken: c.Token, Web: web, Summary: summary,
+		Memory: prefs.Memory && keys.AgentMemoryEnabled.ForSite(site), PastChats: prefs.History && keys.AgentHistorySearch.ForSite(site)}
+	if prefs.History && keys.AgentContextTitles.ForSite(site) {
+		if turn.Titles, err = s.Store.PastTitles(ctx, c.UserID, c.SiteID, conv.ID, int(keys.AgentContextTitlesMax.ForSite(site))); err != nil {
 			return err
 		}
 	}
-	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName), Uploads: uploads,
-		UserToken: c.Token, Web: web, Titles: titles})
+	if turn.Memory {
+		if turn.Memories, err = s.Store.Memories(ctx, c.UserID, c.SiteID); err != nil {
+			return err
+		}
+	}
+	s.Runner.Start(turn)
 	return nil
 }
 

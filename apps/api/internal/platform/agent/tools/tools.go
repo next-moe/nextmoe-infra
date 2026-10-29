@@ -56,7 +56,10 @@ type Registry struct {
 }
 
 func NewRegistry(ts ...Tool) *Registry {
-	r := &Registry{tools: map[string]Tool{}}
+	return (&Registry{tools: map[string]Tool{}}).Add(ts...)
+}
+
+func (r *Registry) Add(ts ...Tool) *Registry {
 	for _, t := range ts {
 		if t == nil {
 			continue

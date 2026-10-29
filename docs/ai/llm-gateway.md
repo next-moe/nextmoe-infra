@@ -179,6 +179,9 @@ KUN_LLM_GATEWAY_KEY=nmk_…        # 管理端创建的访问密钥
 | `catalog.embed` | 预留给向量检索 | embedding |
 | `agent.web_search` | AI 助手的联网搜索工具 | search |
 | `agent.vision` | 带图片的助手对话（这一轮的上下文里有用户上传的图片时，代替 `agent.assistant`） | chat，模型要能看图 |
+| `agent.summary` | 长对话的滚动摘要（没有可用路由时用 `agent.assistant`） | chat |
+| `agent.memory` | 对话静止后整理用户的长期记忆，输出 JSON（没有可用路由时用 `agent.assistant`） | chat |
+| `agent.embed` | 过去对话的语义索引和检索（没有可用路由时用 `catalog.embed`）。向量取前 256 维再归一化，换模型后旧向量要清空重建 | embedding |
 
 新加调用方时先在管理端建场景，代码里只写场景 key，不写具体模型。
 

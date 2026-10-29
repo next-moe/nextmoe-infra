@@ -32,6 +32,14 @@ components:
               default: false
               description: Turns the AI assistant on for a site. Off answers every agent request from that site with 403.
               type: boolean
+            agent.history.search:
+              default: true
+              description: Lets the assistant search and read the user's past conversations on this site when they refer to them.
+              type: boolean
+            agent.memory.enabled:
+              default: true
+              description: "Long-term memory on this site: the assistant keeps short notes about each user (tastes, works played, how they like answers) and sees them with every question. Users can view, edit, delete and turn it off."
+              type: boolean
             agent.upload.document.enabled:
               default: true
               description: Lets users attach documents; their text is extracted and the layout dropped.

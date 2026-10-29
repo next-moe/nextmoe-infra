@@ -34,3 +34,28 @@ func TestSystemPromptComesFromTheSettingsCenter(t *testing.T) {
 		t.Fatalf("past titles are fenced as data:\n%s", msgs[0].Content)
 	}
 }
+
+func TestMemoryAndSummaryReachTheSystemPrompt(t *testing.T) {
+	settings.Override(t, keys.AgentPromptMemory, "记忆规则。")
+	settings.Override(t, keys.AgentPromptHistory, "翻旧账规则。")
+	turn := Turn{Persona: &model.Persona{Prompt: "你是测试娘。"}, Run: &model.Run{SiteID: 3},
+		History: chat(5, 10), Summary: &model.Summary{UptoMessageID: 2, Content: "用户想要催泪作"}}
+	msgs, _ := buildMessages(turn, time.Now())
+	if s := msgs[0].Content; strings.Contains(s, "记忆") || strings.Contains(s, "翻旧账") {
+		t.Fatalf("memory off, history off, neither rule nor section:\n%s", s)
+	}
+	if len(msgs) != 4 || !strings.Contains(msgs[0].Content, "〔本对话较早部分的摘要，之后的消息保持原文〕\n用户想要催泪作\n〔摘要结束〕") {
+		t.Fatalf("the summary stands in for messages 1-2: %d messages\n%s", len(msgs), msgs[0].Content)
+	}
+
+	turn.Memory, turn.PastChats = true, true
+	msgs, _ = buildMessages(turn, time.Now())
+	if s := msgs[0].Content; !strings.Contains(s, "记忆规则。\n\n翻旧账规则。") || !strings.Contains(s, "〔关于用户的记忆，编号供 remember / forget 使用〕\n（还没有）") {
+		t.Fatalf("an empty memory still tells the model it may remember:\n%s", s)
+	}
+	turn.Memories = []model.Memory{{ID: 12, Content: "用户讨厌 NTR"}}
+	msgs, _ = buildMessages(turn, time.Now())
+	if !strings.Contains(msgs[0].Content, "\n- #12 用户讨厌 NTR\n〔记忆结束〕") {
+		t.Fatalf("memories carry their ids:\n%s", msgs[0].Content)
+	}
+}
