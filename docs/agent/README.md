@@ -294,6 +294,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
   - `cover` 是 https 地址。图片本身是成人内容（角色图、人物照、logo 也一样）时 `content_limit` 为 `nsfw`；站点没开成人内容时 `cover` 直接为空。
   - `work` 卡额外保留原来的字段：`release_date`、`content_rating`，以及对象形式的 `cover`（catalog 的封面对象，不是字符串）。另有结构化的 `tags`（最多 6 个，站点没开成人内容时不含性相关标签）、`companies`、`ratings`（`[{source: "bangumi"|"vndb", score, votes}]`），方便做更大的预览。
   - 站点卡片额外有 `url`（站内相对路径）。站点卡片也可以带 `facts`，最多 8 条。
+  - 站点卡片说的就是某个共享实体时（比如 letmoe 的游戏 id 就是 catalog 作品 id），可以带 `same_as: "work:148"`（`work` / `character` / `person` / `company` / `series` / `tag` 加 id）。同一回答里它和那个共享实体的卡片只显示一张，优先站点卡片。格式不对的 `same_as` 会被去掉。
 
 ```json
 {"kind": "kungal:topic", "id": "88", "title": "猫耳作品讨论", "subtitle": "…", "cover": "https://…", "summary": "…", "facts": [{"label": "回复", "value": "42"}], "url": "/topic/88", "content_limit": "sfw"}

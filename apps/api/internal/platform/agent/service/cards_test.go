@@ -71,6 +71,18 @@ func TestPickCardsShowsOneCardPerKindAndName(t *testing.T) {
 	}
 }
 
+func TestPickCardsPrefersTheSiteCardOfASharedWork(t *testing.T) {
+	lookup := foundCards{cards: []tools.Card{card("work-148", "Doki Doki Literature Club!", "心跳文学部")}, lookup: true}
+	site := foundCards{cards: tools.SiteCards("letmoe", map[string]any{"cards": []map[string]any{
+		{"kind": "letmoe:game", "id": "148", "title": "心跳文学部", "url": "/game/148", "same_as": "work:148"},
+		{"kind": "letmoe:game", "id": "900", "title": "樱花魅魔9", "url": "/game/900", "same_as": "https://evil.example"},
+	}})}
+	got := ids(pickCards([]foundCards{site, lookup}, "《心跳文学部》和《樱花魅魔9》都能在手机上玩。"))
+	if len(got) != 2 || got[0] != "letmoe:game-148" || got[1] != "letmoe:game-900" {
+		t.Fatalf("the site's card stands in for the shared work it names, got %v", got)
+	}
+}
+
 func TestBrowseLinksOnePerFilterKeepingTheSortsInOrder(t *testing.T) {
 	used := []tools.BrowseLink{
 		{Target: "works", IDs: []string{"6296"}, Names: []string{"催泪"}, Sort: "popular", Total: 22},

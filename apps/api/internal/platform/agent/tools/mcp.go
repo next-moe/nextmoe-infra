@@ -150,9 +150,13 @@ type siteCard struct {
 	Facts        []Fact `json:"facts,omitempty"`
 	URL          string `json:"url"`
 	ContentLimit string `json:"content_limit,omitempty"`
+	SameAs       string `json:"same_as,omitempty"`
 }
 
-var siteKindSuffix = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`)
+var (
+	siteKindSuffix = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`)
+	sharedEntity   = regexp.MustCompile(`^(work|character|person|company|series|tag):[0-9]{1,20}$`)
+)
 
 // SiteCards keeps only well-formed cards of the site's own kinds, so a site
 // tool can neither pass itself off as a shared NextMoe entity nor link out of
@@ -180,6 +184,9 @@ func SiteCards(prefix string, structured any) []Card {
 		}
 		if c.Cover != "" && !strings.HasPrefix(c.Cover, "https://") {
 			c.Cover = ""
+		}
+		if !sharedEntity.MatchString(c.SameAs) {
+			c.SameAs = ""
 		}
 		c.Title, c.Subtitle, c.Summary = clipRunes(c.Title, 120), clipRunes(c.Subtitle, 120), clipRunes(c.Summary, 300)
 		var facts []Fact

@@ -136,6 +136,7 @@ func sameNames(c tools.Card) []string {
 	var d struct {
 		Kind      string `json:"kind"`
 		Title     string `json:"title"`
+		SameAs    string `json:"same_as"`
 		Localized map[string]struct {
 			Value string `json:"value"`
 		} `json:"localized"`
@@ -146,6 +147,9 @@ func sameNames(c tools.Card) []string {
 		names = append(names, l.Value)
 	}
 	out := []string{"id\x00" + c.ID}
+	if kind, id, ok := strings.Cut(d.SameAs, ":"); ok {
+		out = append(out, "id\x00"+kind+"-"+id)
+	}
 	for _, v := range names {
 		if n := normalize(v); n != "" {
 			out = append(out, d.Kind+"\x00"+n)
@@ -156,10 +160,14 @@ func sameNames(c tools.Card) []string {
 
 func cardRank(c tools.Card, lookup bool) int {
 	var d struct {
-		Cover json.RawMessage `json:"cover"`
+		Cover  json.RawMessage `json:"cover"`
+		SameAs string          `json:"same_as"`
 	}
 	_ = json.Unmarshal(c.Data, &d)
 	rank := 0
+	if d.SameAs != "" {
+		rank += 4
+	}
 	if lookup {
 		rank += 2
 	}
