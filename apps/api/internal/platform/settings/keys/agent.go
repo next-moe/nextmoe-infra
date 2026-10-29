@@ -205,7 +205,7 @@ var agentDomain = settings.Domain{
 		AgentAnonEnabled, AgentAnonVerifyMode, AgentAnonRatePerMinute, AgentAnonQuotaPerDay, AgentAnonGlobalQuotaPerDay, AgentAnonPowDifficulty,
 		AgentUserRatePerMinute, AgentFreeUnitsPerDay,
 		AgentPriceAssistant, AgentPriceWebSurcharge, AgentPriceSearch, AgentPaidEnabled, AgentWebAuto,
-		AgentPromptRules, AgentPromptWeb, AgentPromptWebForced, AgentPromptLastStep, AgentPromptTitle, AgentPromptWebSearch,
+		AgentPromptRules, AgentPromptSiteTools, AgentPromptWeb, AgentPromptWebForced, AgentPromptLastStep, AgentPromptTitle, AgentPromptWebSearch,
 		AgentPromptMemory, AgentPromptHistory, AgentPromptSummary, AgentPromptExtract,
 		AgentTurnMaxSteps, AgentTurnMaxOutputTokens, AgentTurnMaxInputChars, AgentContextMaxTokens, AgentContextSummary, AgentContextTitles, AgentContextTitlesMax,
 		AgentHistorySearch, AgentMemoryEnabled, AgentMemoryAuto, AgentMemoryMaxItems, AgentMemoryIdleMinutes,

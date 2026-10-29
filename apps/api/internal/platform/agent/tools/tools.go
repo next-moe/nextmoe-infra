@@ -81,6 +81,28 @@ func (r *Registry) Specs(skip ...string) []llm.Tool {
 	return out
 }
 
+type SiteTool interface {
+	SiteInstructions() string
+}
+
+// SiteNotes reports whether any site tool is registered, and the distinct
+// instructions their servers gave.
+func (r *Registry) SiteNotes() (bool, []string) {
+	has := false
+	var notes []string
+	for _, name := range r.order {
+		st, ok := r.tools[name].(SiteTool)
+		if !ok {
+			continue
+		}
+		has = true
+		if n := st.SiteInstructions(); n != "" && !contains(notes, n) {
+			notes = append(notes, n)
+		}
+	}
+	return has, notes
+}
+
 func contains(xs []string, x string) bool {
 	for _, v := range xs {
 		if v == x {

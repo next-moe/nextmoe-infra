@@ -163,6 +163,7 @@ var goldenNames = []string{
 	"agent.paid.enabled",
 	"agent.web.auto",
 	"agent.prompt.rules",
+	"agent.prompt.site_tools",
 	"agent.prompt.web",
 	"agent.prompt.web_forced",
 	"agent.prompt.last_step",

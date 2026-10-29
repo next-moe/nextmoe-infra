@@ -22,7 +22,7 @@ type topicCards struct {
 
 func fakeSiteMCP(t *testing.T) (*httptest.Server, *[]string) {
 	t.Helper()
-	server := mcp.NewServer(&mcp.Implementation{Name: "kungal", Version: "1"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "kungal", Version: "1"}, &mcp.ServerOptions{Instructions: "这些工具查的是论坛话题。"})
 	mcp.AddTool(server, &mcp.Tool{Name: "search_topics", Description: "Search forum topics"},
 		func(ctx context.Context, req *mcp.CallToolRequest, in struct {
 			Query string `json:"query"`
@@ -71,7 +71,14 @@ func TestSiteToolsListCallForwardTheUserAndKeepOnlyOwnCards(t *testing.T) {
 	if !strings.Contains(string(got[0].Spec().Parameters), "query") {
 		t.Fatalf("the server's input schema reaches the model: %s", got[0].Spec().Parameters)
 	}
-	run := tools.NewRegistry(got...).NewRun(4)
+	reg := tools.NewRegistry(got...)
+	if has, notes := reg.SiteNotes(); !has || len(notes) != 1 || notes[0] != "这些工具查的是论坛话题。" {
+		t.Fatalf("the server instructions go with its tools: %v %v", has, notes)
+	}
+	if has, _ := tools.NewRegistry().SiteNotes(); has {
+		t.Fatal("no site tools, nothing to say")
+	}
+	run := reg.NewRun(4)
 	out := run.Call(ctx, "kungal__search_topics", `{"query":"猫耳"}`)
 	if out.Text != "2 topics about 猫耳" || len(out.Cards) != 1 {
 		t.Fatalf("text and only the site's own linkable cards: %q cards=%d", out.Text, len(out.Cards))

@@ -59,3 +59,17 @@ func TestMemoryAndSummaryReachTheSystemPrompt(t *testing.T) {
 		t.Fatalf("memories carry their ids:\n%s", msgs[0].Content)
 	}
 }
+
+func TestSiteComesFirstAndItsToolsBringTheirNotes(t *testing.T) {
+	settings.Override(t, keys.AgentPromptSiteTools, "站点工具规则。")
+	turn := Turn{Persona: &model.Persona{Prompt: "你是本站的看板娘。"}, Run: &model.Run{SiteID: 14}, SiteName: "LetMoe·一起萌"}
+	msgs, _ := buildMessages(turn, time.Now())
+	if s := msgs[0].Content; !strings.HasPrefix(s, "你在「LetMoe·一起萌」为用户服务，「本站」指的就是这个站点。\n\n你是本站的看板娘。") || strings.Contains(s, "站点工具规则") {
+		t.Fatalf("the site is named before the persona; no site tools, no rule:\n%s", s)
+	}
+	turn.SiteTools, turn.SiteNotes = true, []string{"这些工具查的是 LetMoe 的资源。"}
+	msgs, _ = buildMessages(turn, time.Now())
+	if s := msgs[0].Content; !strings.Contains(s, "站点工具规则。\n\n这些工具查的是 LetMoe 的资源。") {
+		t.Fatalf("the rule, then what the server says:\n%s", s)
+	}
+}

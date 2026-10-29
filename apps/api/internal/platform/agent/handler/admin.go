@@ -53,9 +53,10 @@ type SiteToolInput struct {
 }
 
 type SiteToolProbe struct {
-	OK    bool              `json:"ok"`
-	Error string            `json:"error"`
-	Tools []SiteToolListing `json:"tools"`
+	OK           bool              `json:"ok"`
+	Error        string            `json:"error"`
+	Instructions string            `json:"instructions" doc:"What the server tells the assistant about its tools; added to the system prompt."`
+	Tools        []SiteToolListing `json:"tools"`
 }
 
 type SiteToolListing struct {
@@ -202,8 +203,8 @@ func (s *Server) registerAdmin(api huma.API) {
 			}
 			var allowed []string
 			_ = json.Unmarshal(row.Allowed, &allowed)
-			out.OK = true
-			for _, t := range listed {
+			out.OK, out.Instructions = true, listed.Instructions
+			for _, t := range listed.Tools {
 				ok := len(allowed) == 0
 				for _, a := range allowed {
 					ok = ok || a == t.Name

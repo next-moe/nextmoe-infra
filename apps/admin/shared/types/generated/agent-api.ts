@@ -842,6 +842,8 @@ export interface components {
              */
             readonly $schema?: string;
             error: string;
+            /** @description What the server tells the assistant about its tools; added to the system prompt. */
+            instructions: string;
             ok: boolean;
             tools: components["schemas"]["SiteToolListing"][] | null;
         };

@@ -34,6 +34,12 @@
 // searching past conversations. agent_conversation.scanned_at (nullable) marks
 // how far the idle job has read a conversation; existing rows stay null, so the
 // job reads every conversation once after this deploy. All additive.
+//
+// 2026-10-29, site identity: the seeded default persona said 「你是 NextMoe 的看板娘」,
+// and every site without its own persona answered as NextMoe; on LetMoe it told
+// a user that "the NextMoe platform only offers PC games". The prompt now names
+// the serving site first, and the default persona is rewritten to say 本站 —
+// only while it still holds the seeded text, so an operator's edit is kept.
 package migrate
 
 import (
@@ -54,8 +60,16 @@ func Run(db *gorm.DB) error {
 		ON agent_run (conversation_id) WHERE status = 'running'`).Error; err != nil {
 		return fmt.Errorf("create uq_agent_run_active: %w", err)
 	}
-	return seedDefaultPersona(db)
+	if err := seedDefaultPersona(db); err != nil {
+		return err
+	}
+	return db.Model(&model.Persona{}).Where("site_id = 0 AND prompt = ?", seededPersonaPrompt).Update("prompt", defaultPersonaPrompt).Error
 }
+
+const (
+	seededPersonaPrompt  = "你是 NextMoe 的看板娘「小萌」，活泼、友善，熟悉 galgame、同人游戏和 ACG。用简洁自然的中文回答，必要时使用工具查询资料库；不知道的事情直说不知道，不编造作品或信息。"
+	defaultPersonaPrompt = "你是本站的看板娘「小萌」，活泼、友善，熟悉 galgame、同人游戏和 ACG。用简洁自然的中文回答，必要时使用工具查询资料；不知道的事情直说不知道，不编造作品或信息。"
+)
 
 func seedDefaultPersona(db *gorm.DB) error {
 	var n int64
@@ -71,7 +85,7 @@ func seedDefaultPersona(db *gorm.DB) error {
 	})
 	return db.Create(&model.Persona{
 		SiteID: 0, Kind: model.PersonaMascot, Name: "小萌",
-		Prompt:    "你是 NextMoe 的看板娘「小萌」，活泼、友善，熟悉 galgame、同人游戏和 ACG。用简洁自然的中文回答，必要时使用工具查询资料库；不知道的事情直说不知道，不编造作品或信息。",
+		Prompt:    defaultPersonaPrompt,
 		Greetings: greetings, Active: true,
 	}).Error
 }

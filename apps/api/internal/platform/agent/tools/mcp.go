@@ -15,12 +15,18 @@ import (
 )
 
 type MCPServer struct {
-	Name       string
-	URL        string
-	CardPrefix string
-	Token      string
-	Timeout    time.Duration
-	HTTP       *http.Client
+	Name         string
+	URL          string
+	CardPrefix   string
+	Token        string
+	Timeout      time.Duration
+	HTTP         *http.Client
+	Instructions string
+}
+
+type Listing struct {
+	Tools        []*mcp.Tool
+	Instructions string
 }
 
 type bearer struct {
@@ -46,20 +52,23 @@ func (s MCPServer) connect(ctx context.Context) (*mcp.ClientSession, error) {
 	return client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: s.URL, HTTPClient: hc, MaxRetries: -1, DisableStandaloneSSE: true}, nil)
 }
 
-func (s MCPServer) ListTools(ctx context.Context) ([]*mcp.Tool, error) {
+func (s MCPServer) ListTools(ctx context.Context) (Listing, error) {
 	session, err := s.connect(ctx)
 	if err != nil {
-		return nil, err
+		return Listing{}, err
 	}
 	defer session.Close()
-	var out []*mcp.Tool
+	var out Listing
+	if init := session.InitializeResult(); init != nil {
+		out.Instructions = strings.TrimSpace(init.Instructions)
+	}
 	params := &mcp.ListToolsParams{}
 	for {
 		res, err := session.ListTools(ctx, params)
 		if err != nil {
-			return nil, err
+			return Listing{}, err
 		}
-		out = append(out, res.Tools...)
+		out.Tools = append(out.Tools, res.Tools...)
 		if res.NextCursor == "" {
 			return out, nil
 		}
@@ -93,6 +102,8 @@ func (t *mcpTool) Spec() llm.Tool {
 }
 
 func (t *mcpTool) Timeout() time.Duration { return t.server.Timeout }
+
+func (t *mcpTool) SiteInstructions() string { return t.server.Instructions }
 
 func (t *mcpTool) Run(ctx context.Context, args json.RawMessage) (Output, error) {
 	var arguments map[string]any

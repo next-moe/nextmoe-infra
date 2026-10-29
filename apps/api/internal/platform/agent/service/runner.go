@@ -46,6 +46,8 @@ type Turn struct {
 	History     []model.Message
 	Reservation Reservation
 	SiteName    string
+	SiteTools   bool
+	SiteNotes   []string
 	Uploads     map[string]*model.Upload
 	UserToken   string
 	Web         bool
@@ -140,6 +142,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	w.Emit(map[string]any{"type": "data-run", "data": map[string]any{"run_id": run.ID, "conversation_id": strconv.FormatInt(run.ConversationID, 10)}})
 
 	reg := r.tools(run.SiteID, t.UserToken).Add(r.userTools(t)...)
+	t.SiteTools, t.SiteNotes = reg.SiteNotes()
 	var skip []string
 	if !t.Web {
 		skip = webTools

@@ -177,6 +177,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
 - 每个站最多一个生效的人设，启用一个会自动停用该站的其他人设。
 - 站点没有自己的人设时，用「默认」（`site_id` 0）的那个。生效的默认人设不能删除或停用，要先启用另一个默认人设。
+- 系统提示词的第一句由 agent 写：「你在「<站点名>」为用户服务，「本站」指的就是这个站点」，站点名取自 oauth 的站点表。默认人设只说「本站」，不要在里面写死某个站的名字，否则别的站会自称那个站。
 - 人设提示词写的是「她是谁、怎么说话」。工具使用、引用来源、附件安全这些通用规则追加在人设后面，在设置中心「AI 助手」域的 `agent.prompt.*` 里改（可以按站点覆盖，见 §4）。
 - 修改后下一问立即生效，不用重启。
 
@@ -228,6 +229,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `agent.price.assistant` / `agent.price.web_surcharge` / `agent.price.search` | 一问的价格、开联网的加价、一次搜索的价格（整数） |
 | `agent.paid.enabled` | 免费用完后是否允许扣萌萌点 |
 | `agent.web.auto` | 助手是否自行判断联网（站点级，默认开） |
+| `agent.prompt.site_tools` | 这个站登记了站点工具时追加的规则，后面接上各服务的 `instructions`（站点级，多行文本，留空即不加） |
 | `agent.prompt.rules` / `agent.prompt.web` / `agent.prompt.web_forced` / `agent.prompt.last_step` / `agent.prompt.title` | 追加在人设之后的通用规则、可联网时的规则、用户打开联网时的规则、最后一步的提示、起标题的提示词（站点级，多行文本，留空即不加） |
 | `agent.prompt.web_search` | 交给联网搜索模型的指令（全局）。默认限制一次最多检索两次，放宽会直接抬高每次联网的成本 |
 | `agent.user.rate_per_minute` | 已登录用户每分钟请求上限 |
@@ -310,6 +312,7 @@ agent 只保留格式合格的卡片：
 - 鉴权：
   - 登记为 `user_token` 时，每次调用都带 `Authorization: Bearer <提问用户的 access token>`，站点按自己的规则判断可见性和成人内容；
   - 登记为 `none` 时不带 token，只适合完全公开的数据。
+- 服务说明：在 MCP 初始化结果的 `instructions` 里用一两句话说明这些工具查的是什么、什么时候该先用它们。只要这个站的对话里有站点工具，agent 就把 `agent.prompt.site_tools` 和各服务的说明加进系统提示词。
 - 工具：每个工具都要写清 `description` 和 `inputSchema`，模型靠它们决定什么时候调用。返回值：
   - `content`：给模型读的文字，简洁地写出结果要点；
   - `structuredContent.cards`：可选，格式见 §6.1。
@@ -329,7 +332,7 @@ agent 只保留格式合格的卡片：
 | `allowed` | 允许助手调用的工具名，空表示全部 |
 | `timeout_ms` / `enabled` | 单次调用超时、开关 |
 
-「测试」按钮会用你自己的 token 连一次服务，列出工具及其是否被允许。工具列表在 agent 里缓存 5 分钟；连接失败的服务 1 分钟后重试，期间这个站的对话照常进行，只是暂时没有这些工具。
+「测试」按钮会用你自己的 token 连一次服务，列出服务说明、工具及其是否被允许。工具列表在 agent 里缓存 5 分钟；连接失败的服务 1 分钟后重试，期间这个站的对话照常进行，只是暂时没有这些工具。
 
 ## 7. 本地开发
 

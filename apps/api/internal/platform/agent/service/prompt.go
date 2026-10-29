@@ -17,7 +17,15 @@ func buildMessages(t Turn, now time.Time) ([]llm.Message, bool) {
 	if t.Run != nil {
 		site = uint(t.Run.SiteID)
 	}
-	parts := []string{t.Persona.Prompt, keys.AgentPromptRules.ForSite(site)}
+	var identity string
+	if t.SiteName != "" {
+		identity = fmt.Sprintf("你在「%s」为用户服务，「本站」指的就是这个站点。", t.SiteName)
+	}
+	parts := []string{identity, t.Persona.Prompt, keys.AgentPromptRules.ForSite(site)}
+	if t.SiteTools {
+		parts = append(parts, keys.AgentPromptSiteTools.ForSite(site))
+		parts = append(parts, t.SiteNotes...)
+	}
 	if t.Web {
 		parts = append(parts, keys.AgentPromptWeb.ForSite(site))
 		if t.Run.WebSearch {
@@ -32,9 +40,6 @@ func buildMessages(t Turn, now time.Time) ([]llm.Message, bool) {
 	}
 	system := joinPrompt(parts...)
 	system += fmt.Sprintf("\n- 今天是 %s。", now.Format("2006-01-02"))
-	if t.SiteName != "" {
-		system += fmt.Sprintf("\n- 你正在「%s」站点为用户服务。", t.SiteName)
-	}
 	if t.Memory {
 		var b strings.Builder
 		b.WriteString("\n\n〔关于用户的记忆，编号供 remember / forget 使用〕")
