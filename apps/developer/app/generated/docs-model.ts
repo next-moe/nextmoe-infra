@@ -5397,7 +5397,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. Every step is under the work's nsfw gate. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",
@@ -15127,7 +15127,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. Every step is under the work's nsfw gate. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -29650,7 +29650,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. Every step is under the work's nsfw gate. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -83220,7 +83220,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. Every step is under the work's nsfw gate. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",
@@ -86753,7 +86753,7 @@ export const docsModel: DocsModel = {
                           }
                         ],
                         "nullable": true,
-                        "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. Every step is under the work's nsfw gate. null if none."
+                        "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                       },
                       {
                         "name": "covers",
@@ -102993,7 +102993,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. Every step is under the work's nsfw gate. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -138262,7 +138262,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. Every step is under the work's nsfw gate. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",

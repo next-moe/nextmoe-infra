@@ -30,7 +30,7 @@ const (
 // the survivor's portrait and banner.
 func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *dto.PublicWorkCoverSlots {
 	chosen := s.chosenPortrait(rows, meta, allowSexual)
-	own, merged := splitMergedCovers(s.coverPool(rows, allowSexual))
+	own, merged := splitMergedCovers(s.coverPool(s.yieldRedraws(rows, meta, allowSexual), allowSexual))
 	portraitRow, bannerRow := s.electSlotRows(own, meta, allowSexual)
 	if portraitRow == nil {
 		portraitRow, _ = s.electSlotRows(merged, meta, allowSexual)
@@ -132,6 +132,36 @@ func (s *PublicService) coverPool(rows []WorkCoverRow, allowSexual bool) []WorkC
 	out := make([]WorkCoverRow, 0, len(rows))
 	for _, c := range rows {
 		if c.SourceID != model.SourceBangumi || c.HumanPinned {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+const redrawTargetEdge = 1080
+
+// AI redraws were made only for works without an official portrait at the
+// target edge, and they carry a machine pin; one arriving later takes the slot
+// back.
+func (s *PublicService) yieldRedraws(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) []WorkCoverRow {
+	official := false
+	for _, c := range rows {
+		if c.SourceID == model.SourceAIRedraw || model.IsUploadedCoverSource(c.SourceID) || !model.IsCoverArt(c.Kind) ||
+			s.sourceKey(c.SourceID) == model.CensoredSourceKey || s.imageURL(c.ImageHash) == "" ||
+			(!allowSexual && c.Sexual >= model.SexualExplicit) {
+			continue
+		}
+		if m, ok := meta[c.ImageHash]; ok && isPortraitDims(m.Width, m.Height) && max(m.Width, m.Height) >= redrawTargetEdge {
+			official = true
+			break
+		}
+	}
+	if !official {
+		return rows
+	}
+	out := make([]WorkCoverRow, 0, len(rows))
+	for _, c := range rows {
+		if c.SourceID != model.SourceAIRedraw || c.HumanPinned {
 			out = append(out, c)
 		}
 	}
