@@ -499,7 +499,7 @@ export interface components {
             avatar?: string;
             greetings?: string[];
             name?: string;
-            /** @description Who the assistant is and how it talks. The tool and safety rules are added after it and cannot be overridden here. */
+            /** @description Who the assistant is and how it talks. The shared rules from the agent.prompt.* settings are added after it. */
             prompt?: string;
             /** Format: int64 */
             site_id?: number;
