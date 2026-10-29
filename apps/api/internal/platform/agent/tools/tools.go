@@ -32,6 +32,7 @@ type Output struct {
 	Text    string
 	Cards   []Card
 	Sources []Source
+	Total   int
 }
 
 type Tool interface {

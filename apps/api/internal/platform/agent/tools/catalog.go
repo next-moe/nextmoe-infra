@@ -63,6 +63,35 @@ type work struct {
 	Companies []struct {
 		DisplayName string `json:"display_name"`
 	} `json:"companies"`
+	Ratings []rating `json:"ratings"`
+}
+
+type rating struct {
+	Source    string  `json:"source"`
+	Score     float64 `json:"score"`
+	VoteCount int     `json:"vote_count"`
+}
+
+var ratingSources = map[string]string{"bangumi": "Bangumi", "vndb": "VNDB"}
+
+func (w work) ratings() []rating {
+	var out []rating
+	for _, want := range []string{"bangumi", "vndb"} {
+		for _, r := range w.Ratings {
+			if r.Source == want && r.Score > 0 {
+				out = append(out, r)
+			}
+		}
+	}
+	return out
+}
+
+func (w work) ratingText() string {
+	var parts []string
+	for _, r := range w.ratings() {
+		parts = append(parts, fmt.Sprintf("%s %.1f（%d 人）", ratingSources[r.Source], r.Score, r.VoteCount))
+	}
+	return strings.Join(parts, " · ")
 }
 
 func (w work) card(nsfw bool) Card {
@@ -94,14 +123,28 @@ func (w work) card(nsfw bool) Card {
 	if len(tags) > 0 {
 		facts = append(facts, Fact{"标签", strings.Join(tags, "、")})
 	}
+	if r := w.ratingText(); r != "" {
+		facts = append(facts, Fact{"评分", r})
+	}
 	var intros []intro
 	for _, in := range w.Intros {
 		intros = append(intros, intro{Lang: in.Lang, Value: in.Value})
+	}
+	ratings := []map[string]any{}
+	for _, r := range w.ratings() {
+		ratings = append(ratings, map[string]any{"source": r.Source, "score": r.Score, "votes": r.VoteCount})
+	}
+	if tags == nil {
+		tags = []string{}
+	}
+	if companies == nil {
+		companies = []string{}
 	}
 	raw, _ := json.Marshal(map[string]any{
 		"kind": "work", "id": w.ID, "title": w.DisplayName, "localized": w.Localized,
 		"release_date": w.ReleaseDate, "content_rating": w.ContentRating, "content_limit": w.ContentLimit, "cover": w.Cover,
 		"subtitle": strings.Join(sub, " · "), "summary": pickIntro(intros, 160), "facts": facts,
+		"tags": tags, "companies": companies, "ratings": ratings,
 	})
 	return Card{ID: "work-" + w.ID, Data: raw}
 }
@@ -158,7 +201,7 @@ func (c *CatalogClient) searchWorks(ctx context.Context, query string, limit int
 		Items      []work  `json:"items"`
 		SearchMode *string `json:"search_mode"`
 	}
-	q := url.Values{"q": {query}, "search_mode": {"hybrid"}, "limit": {strconv.Itoa(limit)}, "include": {"intros,tags,companies"}}
+	q := url.Values{"q": {query}, "search_mode": {"hybrid"}, "limit": {strconv.Itoa(limit)}, "include": {"intros,tags,companies,ratings"}}
 	if err := c.get(ctx, "/v2/catalog/works", q, &list); err != nil {
 		return nil, "", err
 	}
@@ -186,7 +229,7 @@ type SearchCatalog struct{ Client *CatalogClient }
 func (t *SearchCatalog) Spec() llm.Tool {
 	return llm.Tool{
 		Name:        "search_catalog",
-		Description: "Search the NextMoe catalog of visual novels / galgames / doujin games by title or by a free-text description of the plot, setting, characters or mood (any language). Returns up to 8 works with ids. Use it before naming any work.",
+		Description: "Find NextMoe catalog works (visual novels / galgames / doujin games) by title or alias in any language, or by a free-text plot description when no tag expresses it. Returns up to 8 works with ids. For themes, moods and elements prefer search_tags then browse_works.",
 		Parameters: schema(map[string]any{
 			"query": map[string]any{"type": "string", "description": "A title, an alias, or a description such as 'cat-eared little sister, tearjerker'."},
 		}, "query"),
@@ -233,7 +276,7 @@ func (t *GetWork) Run(ctx context.Context, args json.RawMessage) (Output, error)
 		return Output{Text: `{"error":"id is required"}`}, nil
 	}
 	var w work
-	q := url.Values{"include": {"intros,tags,companies"}}
+	q := url.Values{"include": {"intros,tags,companies,ratings"}}
 	if err := t.Client.get(ctx, "/v2/catalog/works/"+url.PathEscape(in.ID.String()), q, &w); err != nil {
 		return Output{}, err
 	}

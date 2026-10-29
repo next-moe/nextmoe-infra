@@ -133,6 +133,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 - 落库的消息 `parts` 和流里的帧同形，就是 AI SDK 的 UIMessage parts：`text`、`file`、`step-start`（每一步开头一个）、`tool-<工具名>`（`{type, toolCallId, state:"output-available", input, output}`，用来展示「共运行 N 步，每步查了什么、查到几条」，格式见下）、`data-entity-card`（`{type, id, data}`）、`source-url`（`{type, sourceId, url, title}`）。推理过程不落库。
 - 每一步的 `output`（流里的 `tool-output-available` 帧和落库的 `tool-*` part 相同）：
   - `cards` / `sources`：查到的实体数和网页数；
+  - `total`：按标签筛选（`browse_works` / `browse_characters`）时，符合条件的总数，可写成「-> 8 部 / 共 123 部」；其他工具没有这个字段；
   - `entities`：这一步查到的实体，最多 12 个，每个和 §6.1 的卡片 `data` 同形，可以直接打开预览；
   - `links`：这一步读到的网页 `[{url, title}]`。
   工具一返回就推这一帧，所以模型还在继续查的时候，前端就能在步骤里展开看到已经查到了什么。注意：步骤里的实体是「查到的候选」，回答后的卡片才是「回答提到的」。
@@ -223,11 +224,12 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
 | kind | id | 来自 | catalog 详情 |
 | --- | --- | --- | --- |
-| `work` | 作品 id | `search_catalog` / `get_work` | `/v2/catalog/works/{id}` |
-| `character` | 角色 id | `search_entities` / `get_entity` | `/v2/catalog/characters/{id}` |
+| `work` | 作品 id | `search_catalog` / `browse_works` / `get_work` | `/v2/catalog/works/{id}` |
+| `character` | 角色 id | `search_entities` / `browse_characters` / `get_entity` | `/v2/catalog/characters/{id}` |
 | `person` | **署名（credit name）id**，不是 person id：署名是 catalog 对外的人物实体，person 只把同一人的多个署名连起来，很多署名还没有 person | 同上 | `/v2/catalog/credit-names/{id}` |
 | `company` | 会社 / 社团 id | 同上 | `/v2/catalog/companies/{id}` |
-| `series` | 系列 id | 同上 | `/v2/catalog/series/{id}` |
+| `series` | 系列 id | `search_entities` / `get_entity` | `/v2/catalog/series/{id}` |
+| `tag` | 作品标签 id | `search_tags` | `/v2/catalog/tags/{id}` |
 
 - 站点独有的实体带前缀：`<card_prefix>:<kind>`，如 `kungal:topic`。只有所属站点提供可点击的预览，其他站照普通卡片显示。
 - 所有卡片都有这组预览字段，前端可以用同一个抽屉渲染：
@@ -245,7 +247,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
   - `id` 是字符串。`subtitle` / `cover` / `summary` 可能为空；`facts` 是有序的「标签：值」，至少是空数组。
   - `cover` 是 https 地址。图片本身是成人内容（角色图、人物照、logo 也一样）时 `content_limit` 为 `nsfw`；站点没开成人内容时 `cover` 直接为空。
-  - `work` 卡额外保留原来的字段：`release_date`、`content_rating`，以及对象形式的 `cover`（catalog 的封面对象，不是字符串）。
+  - `work` 卡额外保留原来的字段：`release_date`、`content_rating`，以及对象形式的 `cover`（catalog 的封面对象，不是字符串）。另有结构化的 `tags`（最多 6 个，站点没开成人内容时不含性相关标签）、`companies`、`ratings`（`[{source: "bangumi"|"vndb", score, votes}]`），方便做更大的预览。
   - 站点卡片额外有 `url`（站内相对路径）。站点卡片也可以带 `facts`，最多 8 条。
 
 ```json

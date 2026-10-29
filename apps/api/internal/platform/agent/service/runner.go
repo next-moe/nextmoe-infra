@@ -261,7 +261,11 @@ func stepOutput(out tools.Output) map[string]any {
 	}
 	links := make([]tools.Source, 0, len(out.Sources))
 	links = append(links, out.Sources...)
-	return map[string]any{"cards": len(out.Cards), "sources": len(out.Sources), "entities": entities, "links": links}
+	m := map[string]any{"cards": len(out.Cards), "sources": len(out.Sources), "entities": entities, "links": links}
+	if out.Total > 0 {
+		m["total"] = out.Total
+	}
+	return m
 }
 
 func toolPart(tc llm.ToolCall, input any, summary map[string]any) Part {
