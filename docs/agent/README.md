@@ -210,7 +210,8 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `agent.user.rate_per_minute` | 已登录用户每分钟请求上限 |
 | `agent.anon.enabled` / `agent.anon.verify_mode` / `agent.anon.pow_difficulty` | 未登录搜索开关、人机验证方式（`none` / `pow`）、难度 |
 | `agent.anon.rate_per_minute` / `agent.anon.quota_per_day` / `agent.anon.global_quota_per_day` | 未登录每 IP 每分钟 / 每天、全站每天上限 |
-| `agent.catalog_nsfw` | 该站助手能否看到 r18 作品（站点级） |
+| `agent.catalog_nsfw` | 该站助手能否看到 r18 作品、性相关标签和图片（站点级，默认开）。封面是否显示仍由前端按卡片的 `content_limit` 决定 |
+| `agent.context.titles` / `agent.context.titles_max` | 把用户在本站其他对话的标题（最近 N 条，默认开、50 条）交给助手，让它了解用户问过什么（站点级） |
 | `agent.turn.max_steps` / `agent.turn.max_output_tokens` / `agent.turn.max_input_chars` / `agent.context.max_messages` | 单轮工具调用步数、输出上限、输入上限、带入的历史条数 |
 | `agent.upload.max_files`、`agent.upload.{image,text,document}.{enabled,max_bytes,types}` | 上传：每条消息的文件数，每类的开关、大小上限、允许的类型（图片按 MIME，文本和文档按扩展名），都可按站点覆盖 |
 

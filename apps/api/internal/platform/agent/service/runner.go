@@ -49,6 +49,12 @@ type Turn struct {
 	Uploads     map[string]*model.Upload
 	UserToken   string
 	Web         bool
+	Titles      []PastTitle
+}
+
+type PastTitle struct {
+	Title string
+	At    time.Time
 }
 
 func (r *Runner) Start(t Turn) {

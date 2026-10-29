@@ -12,10 +12,10 @@ var AgentEnabled = settings.Bool(settings.Meta{
 
 var AgentCatalogNSFW = settings.Bool(settings.Meta{
 	Name:       "agent.catalog_nsfw",
-	DescEN:     "Lets the assistant's catalog tools see r18 works on this site.",
-	DescZH:     "允许该站点的助手在资料库工具里看到 r18 作品。",
+	DescEN:     "Lets the assistant's catalog tools see r18 works, sexual tags and sexual images on this site. Covers still follow each card's content_limit on the site.",
+	DescZH:     "允许该站点的助手在资料库工具里看到 r18 作品、性相关标签和图片。站点前端仍按卡片的 content_limit 决定是否显示封面。",
 	SiteScoped: true,
-}, false)
+}, true)
 
 var AgentAnonEnabled = settings.Bool(settings.Meta{
 	Name:       "agent.anon.enabled",
@@ -131,6 +131,21 @@ var AgentContextMaxMessages = settings.Int(settings.Meta{
 	Min:    settings.F(2), Max: settings.F(200),
 }, 24)
 
+var AgentContextTitles = settings.Bool(settings.Meta{
+	Name:       "agent.context.titles",
+	DescEN:     "Gives the assistant the titles of the user's other conversations on this site, so it knows what they have asked before.",
+	DescZH:     "把用户在本站其他对话的标题交给助手，让它了解用户之前问过什么。",
+	SiteScoped: true,
+}, true)
+
+var AgentContextTitlesMax = settings.Int(settings.Meta{
+	Name:   "agent.context.titles_max",
+	DescEN: "How many of the user's most recent other conversation titles the assistant sees.",
+	DescZH: "助手能看到的用户最近其他对话标题的条数。",
+	Min:    settings.F(1), Max: settings.F(200),
+	SiteScoped: true,
+}, 50)
+
 var AgentWebAuto = settings.Bool(settings.Meta{
 	Name:       "agent.web.auto",
 	DescEN:     "Lets the assistant decide on its own when a question needs a web search. Off searches only when the user turns on web search.",
@@ -148,7 +163,7 @@ var agentDomain = settings.Domain{
 		AgentUserRatePerMinute, AgentFreeUnitsPerDay,
 		AgentPriceAssistant, AgentPriceWebSurcharge, AgentPriceSearch, AgentPaidEnabled, AgentWebAuto,
 		AgentPromptRules, AgentPromptWeb, AgentPromptWebForced, AgentPromptLastStep, AgentPromptTitle, AgentPromptWebSearch,
-		AgentTurnMaxSteps, AgentTurnMaxOutputTokens, AgentTurnMaxInputChars, AgentContextMaxMessages,
+		AgentTurnMaxSteps, AgentTurnMaxOutputTokens, AgentTurnMaxInputChars, AgentContextMaxMessages, AgentContextTitles, AgentContextTitlesMax,
 		AgentUploadMaxFiles,
 		AgentUploadImageEnabled, AgentUploadImageMaxBytes, AgentUploadImageTypes,
 		AgentUploadTextEnabled, AgentUploadTextMaxBytes, AgentUploadTextTypes,

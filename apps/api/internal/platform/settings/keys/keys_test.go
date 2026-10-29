@@ -172,6 +172,8 @@ var goldenNames = []string{
 	"agent.turn.max_output_tokens",
 	"agent.turn.max_input_chars",
 	"agent.context.max_messages",
+	"agent.context.titles",
+	"agent.context.titles_max",
 	"agent.upload.max_files",
 	"agent.upload.image.enabled",
 	"agent.upload.image.max_bytes",

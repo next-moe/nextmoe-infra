@@ -56,4 +56,17 @@ func TestListConversationsSearchesTitlesAndMessageText(t *testing.T) {
 	if got := ids(""); len(got) != 3 {
 		t.Fatalf("an empty search lists everything: %v", got)
 	}
+
+	untitled := mk(7, "", "还没起标题")
+	titles, err := s.PastTitles(ctx, 7, 14, cats, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, p := range titles {
+		got = append(got, p.Title)
+	}
+	if len(got) != 2 || got[0] != "折扣" || got[1] != "催泪作品推荐" {
+		t.Fatalf("other titled conversations of this user, newest first, without the current (%d) or untitled (%d) one: %v", cats, untitled, got)
+	}
 }

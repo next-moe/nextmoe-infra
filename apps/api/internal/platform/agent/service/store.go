@@ -84,6 +84,18 @@ func (s *Store) ListConversations(ctx context.Context, userID, siteID int64, sta
 	return out, q.Order("updated_at DESC, id DESC").Limit(limit).Find(&out).Error
 }
 
+func (s *Store) PastTitles(ctx context.Context, userID, siteID, except int64, limit int) ([]PastTitle, error) {
+	var rows []model.Conversation
+	err := s.db.WithContext(ctx).Select("title", "updated_at").
+		Where("user_id = ? AND site_id = ? AND id <> ? AND title <> ''", userID, siteID, except).
+		Order("updated_at DESC, id DESC").Limit(limit).Find(&rows).Error
+	out := make([]PastTitle, len(rows))
+	for i, r := range rows {
+		out[i] = PastTitle{Title: r.Title, At: r.UpdatedAt}
+	}
+	return out, err
+}
+
 func (s *Store) RenameConversation(ctx context.Context, c *model.Conversation, title string) error {
 	return s.db.WithContext(ctx).Model(c).Updates(map[string]any{"title": title, "updated_at": s.now()}).Error
 }
