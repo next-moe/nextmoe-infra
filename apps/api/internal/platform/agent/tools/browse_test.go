@@ -120,6 +120,24 @@ func TestBrowseWorksFiltersByAllTagsAndReportsTheTotal(t *testing.T) {
 	}
 }
 
+func TestCardTagsLeadWithContentTags(t *testing.T) {
+	s := func(v string) *string { return &v }
+	w := work{Tags: []workTag{
+		{DisplayName: "key"}, {DisplayName: "CLANNAD"}, {DisplayName: "麻枝准"},
+		{ID: s("6172"), DisplayName: "亲情", TagKind: s("content"), Tier: s("longtail")},
+		{ID: s("585"), DisplayName: "家族", TagKind: s("content"), Tier: s("core")},
+		{ID: s("585"), DisplayName: "家庭", TagKind: s("content"), Tier: s("core")},
+		{ID: s("9"), DisplayName: "性描写", TagKind: s("content"), Tier: s("core"), IsSexual: true},
+		{ID: s("10"), DisplayName: "真结局", TagKind: s("content"), Tier: s("core"), Spoiler: "major"},
+	}}
+	if got := strings.Join(w.cardTags(false, 4), ","); got != "家族,亲情,key,CLANNAD" {
+		t.Fatalf("got %s", got)
+	}
+	if got := strings.Join(w.cardTags(true, 2), ","); got != "家族,性描写" {
+		t.Fatalf("with nsfw on, a sexual content tag may lead: %s", got)
+	}
+}
+
 func TestTraitVariantsResolveColourWithinItsGroup(t *testing.T) {
 	for kw, want := range map[string][2]string{"银发": {"灰色", "Hair"}, "白髪": {"白色", "Hair"}, "红瞳": {"红色", "Eyes"}, "异色眼": {"异色", "Eyes"}} {
 		q, g := traitVariants(kw)

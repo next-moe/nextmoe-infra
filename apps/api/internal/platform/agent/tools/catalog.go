@@ -56,14 +56,50 @@ type work struct {
 		Lang  string `json:"lang"`
 		Value string `json:"value"`
 	} `json:"intros"`
-	Tags []struct {
-		DisplayName string `json:"display_name"`
-		IsSexual    bool   `json:"is_sexual"`
-	} `json:"tags"`
+	Tags      []workTag `json:"tags"`
 	Companies []struct {
 		DisplayName string `json:"display_name"`
 	} `json:"companies"`
 	Ratings []rating `json:"ratings"`
+}
+
+type workTag struct {
+	ID          *string `json:"id"`
+	DisplayName string  `json:"display_name"`
+	TagKind     *string `json:"tag_kind"`
+	Tier        *string `json:"tier"`
+	Spoiler     string  `json:"spoiler"`
+	IsSexual    bool    `json:"is_sexual"`
+}
+
+// Raw site labels come first on many works ("key", "CLANNAD", staff names), so
+// the first tags of a card said nothing about the work; canonical content tags
+// lead, core before long tail, and raw labels only fill what is left.
+func (w work) cardTags(nsfw bool, n int) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(t workTag) {
+		key := t.DisplayName
+		if t.ID != nil {
+			key = "id:" + *t.ID
+		}
+		if len(out) == n || seen[key] || seen[t.DisplayName] || (t.IsSexual && !nsfw) || (t.Spoiler != "" && t.Spoiler != "none") {
+			return
+		}
+		seen[key], seen[t.DisplayName] = true, true
+		out = append(out, t.DisplayName)
+	}
+	for _, tier := range []string{"core", "longtail"} {
+		for _, t := range w.Tags {
+			if t.ID != nil && t.TagKind != nil && *t.TagKind == "content" && t.Tier != nil && *t.Tier == tier {
+				add(t)
+			}
+		}
+	}
+	for _, t := range w.Tags {
+		add(t)
+	}
+	return out
 }
 
 type rating struct {
@@ -111,15 +147,7 @@ func (w work) card(nsfw bool) Card {
 		sub = append(sub, (*w.ReleaseDate)[:min(4, len(*w.ReleaseDate))])
 		facts = append(facts, Fact{"发售日", *w.ReleaseDate})
 	}
-	var tags []string
-	for _, t := range w.Tags {
-		if len(tags) == 6 {
-			break
-		}
-		if !t.IsSexual || nsfw {
-			tags = append(tags, t.DisplayName)
-		}
-	}
+	tags := w.cardTags(nsfw, 6)
 	if len(tags) > 0 {
 		facts = append(facts, Fact{"标签", strings.Join(tags, "、")})
 	}
@@ -165,16 +193,7 @@ func (w work) brief() map[string]any {
 
 func (w work) searchBrief(nsfw bool) map[string]any {
 	m := w.brief()
-	var tags []string
-	for _, t := range w.Tags {
-		if len(tags) == 8 {
-			break
-		}
-		if !t.IsSexual || nsfw {
-			tags = append(tags, t.DisplayName)
-		}
-	}
-	if len(tags) > 0 {
+	if tags := w.cardTags(nsfw, 8); len(tags) > 0 {
 		m["tags"] = tags
 	}
 	for _, want := range []string{"zh", "ja", ""} {
@@ -282,14 +301,7 @@ func (t *GetWork) Run(ctx context.Context, args json.RawMessage) (Output, error)
 	}
 	m := w.brief()
 	m["content_rating"] = w.ContentRating
-	var tags []string
-	for i, tg := range w.Tags {
-		if i >= 30 {
-			break
-		}
-		tags = append(tags, tg.DisplayName)
-	}
-	m["tags"] = tags
+	m["tags"] = w.cardTags(t.Client.NSFW, 30)
 	var companies []string
 	for _, c := range w.Companies {
 		companies = append(companies, c.DisplayName)
