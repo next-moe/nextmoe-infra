@@ -125,6 +125,10 @@ components:
                 pattern: ^\.[a-z0-9]{1,10}$
                 type: string
               type: array
+            agent.web.auto:
+              default: true
+              description: Lets the assistant decide on its own when a question needs a web search. Off searches only when the user turns on web search.
+              type: boolean
             app.kungal.home_rating_count:
               default: 6
               description: How many player ratings the kungal app shows on its home page; 0 hides the section.

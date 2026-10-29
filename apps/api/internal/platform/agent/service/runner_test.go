@@ -58,7 +58,7 @@ func fakeCatalog(t *testing.T) *httptest.Server {
 		if r.URL.Query().Get("search_mode") != "hybrid" {
 			t.Errorf("search_catalog must ask for hybrid, got %s", r.URL.RawQuery)
 		}
-		_, _ = w.Write([]byte(`{"items":[{"id":"15","display_name":"千恋＊万花","release_date":"2016-07-29","content_rating":"sensitive","content_limit":"sfw","localized":{"zh-Hans":{"value":"千恋万花"}}}],"search_mode":"hybrid"}`))
+		_, _ = w.Write([]byte(`{"items":[{"id":"15","display_name":"千恋＊万花","release_date":"2016-07-29","content_rating":"sensitive","content_limit":"sfw","localized":{"zh-Hans":{"value":"千恋万花"}}},{"id":"16","display_name":"サノバウィッチ","content_limit":"sfw"}],"search_mode":"hybrid"}`))
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -142,7 +142,7 @@ func TestRunnerAnswersWithToolsStreamsAndSettles(t *testing.T) {
 	for _, p := range reply {
 		kinds = append(kinds, p.Type)
 	}
-	if strings.Join(kinds, ",") != "step-start,tool-search_catalog,data-entity-card,step-start,text" || reply[4].Text != "推荐《千恋＊万花》。" {
+	if strings.Join(kinds, ",") != "step-start,tool-search_catalog,step-start,text,data-entity-card" || reply[3].Text != "推荐《千恋＊万花》。" {
 		t.Fatalf("persisted reply parts = %v", kinds)
 	}
 	tool := reply[1]
@@ -150,13 +150,13 @@ func TestRunnerAnswersWithToolsStreamsAndSettles(t *testing.T) {
 	var out struct{ Cards, Sources int }
 	_ = json.Unmarshal(tool.Input, &in)
 	_ = json.Unmarshal(tool.Output, &out)
-	if tool.ToolCallID != "c1" || tool.State != "output-available" || in.Query != "猫耳妹妹" || out.Cards != 1 || out.Sources != 0 {
+	if tool.ToolCallID != "c1" || tool.State != "output-available" || in.Query != "猫耳妹妹" || out.Cards != 2 || out.Sources != 0 {
 		t.Fatalf("a stored tool step must match the streamed frames: %+v input=%s output=%s", tool, tool.Input, tool.Output)
 	}
 	if got := partsText(reply); strings.Contains(got, "search_catalog") {
 		t.Fatalf("tool steps must stay out of the model's history: %q", got)
 	}
-	reply = reply[2:]
+	reply = reply[4:]
 	var card struct {
 		ID           string `json:"id"`
 		Title        string `json:"title"`

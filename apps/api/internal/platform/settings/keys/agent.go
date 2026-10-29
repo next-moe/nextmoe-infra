@@ -131,6 +131,14 @@ var AgentContextMaxMessages = settings.Int(settings.Meta{
 	Min:    settings.F(2), Max: settings.F(200),
 }, 24)
 
+var AgentWebAuto = settings.Bool(settings.Meta{
+	Name:       "agent.web.auto",
+	DescEN:     "Lets the assistant decide on its own when a question needs a web search. Off searches only when the user turns on web search.",
+	DescZH:     "让助手自行判断问题是否需要联网搜索。关闭后只有用户打开「联网」时才会搜索。",
+	SiteScoped: true,
+	Public:     true,
+}, true)
+
 var agentDomain = settings.Domain{
 	Name:    "agent",
 	TitleZH: "AI 助手",
@@ -138,7 +146,7 @@ var agentDomain = settings.Domain{
 		AgentEnabled, AgentCatalogNSFW,
 		AgentAnonEnabled, AgentAnonVerifyMode, AgentAnonRatePerMinute, AgentAnonQuotaPerDay, AgentAnonGlobalQuotaPerDay, AgentAnonPowDifficulty,
 		AgentUserRatePerMinute, AgentFreeUnitsPerDay,
-		AgentPriceAssistant, AgentPriceWebSurcharge, AgentPriceSearch, AgentPaidEnabled,
+		AgentPriceAssistant, AgentPriceWebSurcharge, AgentPriceSearch, AgentPaidEnabled, AgentWebAuto,
 		AgentTurnMaxSteps, AgentTurnMaxOutputTokens, AgentTurnMaxInputChars, AgentContextMaxMessages,
 		AgentUploadMaxFiles,
 		AgentUploadImageEnabled, AgentUploadImageMaxBytes, AgentUploadImageTypes,

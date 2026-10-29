@@ -47,6 +47,7 @@ type Turn struct {
 	SiteName    string
 	Uploads     map[string]*model.Upload
 	UserToken   string
+	Web         bool
 }
 
 func (r *Runner) Start(t Turn) {
@@ -129,7 +130,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 
 	reg := r.tools(run.SiteID, t.UserToken)
 	var skip []string
-	if !run.WebSearch {
+	if !t.Web {
 		skip = webTools
 	}
 	maxSteps := int(keys.AgentTurnMaxSteps.Get())
@@ -140,6 +141,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		scene = llm.SceneVision
 	}
 	var parts []Part
+	var found []foundCards
 	usedWeb := false
 	fin := Finish{Status: model.RunCompleted}
 	titled := make(chan bool, 1)
@@ -200,10 +202,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 			summary := map[string]any{"cards": len(out.Cards), "sources": len(out.Sources)}
 			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
 			parts = append(parts, toolPart(tc, input, summary))
-			for _, c := range out.Cards {
-				w.Emit(map[string]any{"type": "data-entity-card", "id": c.ID, "data": c.Data})
-				parts = append(parts, Part{Type: "data-entity-card", ID: c.ID, Data: c.Data})
-			}
+			found = append(found, foundCards{cards: out.Cards})
 			for _, s := range out.Sources {
 				w.Emit(map[string]any{"type": "source-url", "sourceId": s.URL, "url": s.URL, "title": s.Title})
 				parts = append(parts, Part{Type: "source-url", SourceID: s.URL, URL: s.URL, Title: s.Title})
@@ -213,12 +212,16 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		w.Emit(map[string]any{"type": "finish-step"})
 	}
 
+	for _, c := range pickCards(found, answerText(parts)) {
+		w.Emit(map[string]any{"type": "data-entity-card", "id": c.ID, "data": c.Data})
+		parts = append(parts, Part{Type: "data-entity-card", ID: c.ID, Data: c.Data})
+	}
 	fin.Parts = dedupeCards(parts)
 	settleCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if fin.Status == model.RunCompleted {
 		price := t.Reservation.Price
-		if run.WebSearch && !usedWeb {
+		if t.Web && !usedWeb {
 			price = max(price-int(keys.AgentPriceWebSurcharge.Get()), 0)
 		}
 		s := r.quota.Settle(settleCtx, run.UserID, t.Reservation, price, run.ID, run.Mode)

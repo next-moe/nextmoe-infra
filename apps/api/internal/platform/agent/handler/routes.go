@@ -78,6 +78,7 @@ type PersonaBody struct {
 	Suggestions        []SuggestionGroup `json:"suggestions" doc:"Starter prompts for an empty conversation, grouped like the mode chips of a composer."`
 	Uploads            UploadsBody       `json:"uploads" doc:"What the upload menu may offer on this site, from the settings center."`
 	WebSearchAvailable bool              `json:"web_search_available" doc:"Whether web_search can do anything; hide the toggle when false."`
+	WebSearchAuto      bool              `json:"web_search_auto" doc:"The assistant searches the web by itself when a question needs it, and the surcharge is charged only when it did. The toggle then asks it to search first; without auto, only toggled questions can search."`
 }
 
 type ConversationBody struct {
@@ -156,7 +157,8 @@ func (s *Server) Register(api huma.API) {
 			var greetings []string
 			_ = json.Unmarshal(p.Greetings, &greetings)
 			return &struct{ Body PersonaBody }{PersonaBody{Name: p.Name, Avatar: p.Avatar, Greetings: greetings,
-				Suggestions: s.suggestions(p), WebSearchAvailable: s.webSearch(), Uploads: s.uploadsBody(c.SiteID)}}, nil
+				Suggestions: s.suggestions(p), WebSearchAvailable: s.webSearch(), Uploads: s.uploadsBody(c.SiteID),
+				WebSearchAuto: s.webSearch() && keys.AgentWebAuto.ForSite(uint(c.SiteID))}}, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "getAgentQuota", Method: http.MethodGet, Path: "/v2/agent/quota",
@@ -456,7 +458,7 @@ func sent(run *model.Run) *sendOutput {
 	return out
 }
 
-func (s *Server) startTurn(ctx context.Context, c *caller, run *model.Run, res service.Reservation) error {
+func (s *Server) startTurn(ctx context.Context, c *caller, run *model.Run, res service.Reservation, web bool) error {
 	ctx = context.WithoutCancel(ctx)
 	conv, err := s.Store.Conversation(ctx, c.UserID, c.SiteID, run.ConversationID)
 	if err != nil {
@@ -480,7 +482,7 @@ func (s *Server) startTurn(ctx context.Context, c *caller, run *model.Run, res s
 	if err != nil {
 		return err
 	}
-	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName), Uploads: uploads, UserToken: c.Token})
+	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName), Uploads: uploads, UserToken: c.Token, Web: web})
 	return nil
 }
 

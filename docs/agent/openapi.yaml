@@ -272,6 +272,9 @@ components:
         uploads:
           $ref: "#/components/schemas/UploadsBody"
           description: What the upload menu may offer on this site, from the settings center.
+        web_search_auto:
+          description: The assistant searches the web by itself when a question needs it, and the surcharge is charged only when it did. The toggle then asks it to search first; without auto, only toggled questions can search.
+          type: boolean
         web_search_available:
           description: Whether web_search can do anything; hide the toggle when false.
           type: boolean
@@ -282,6 +285,126 @@ components:
         - suggestions
         - uploads
         - web_search_available
+        - web_search_auto
+      type: object
+    PersonaInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PersonaInput.json
+          format: uri
+          readOnly: true
+          type: string
+        active:
+          description: Activating a persona deactivates the site's other one.
+          type: boolean
+        avatar:
+          description: An https image URL, or empty for the site's own default.
+          maxLength: 128
+          type: string
+        greetings:
+          items:
+            type: string
+          maxItems: 10
+          type: array
+        name:
+          maxLength: 64
+          minLength: 1
+          type: string
+        prompt:
+          description: Who the assistant is and how it talks. The tool and safety rules are added after it and cannot be overridden here.
+          maxLength: 8000
+          minLength: 1
+          type: string
+        site_id:
+          format: int64
+          minimum: 0
+          type: integer
+        suggestions:
+          items:
+            $ref: "#/components/schemas/SuggestionGroup"
+          maxItems: 6
+          type: array
+      type: object
+    PersonaList:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PersonaList.json
+          format: uri
+          readOnly: true
+          type: string
+        builtin_suggestions:
+          items:
+            $ref: "#/components/schemas/SuggestionGroup"
+          type:
+            - array
+            - "null"
+        personas:
+          items:
+            $ref: "#/components/schemas/PersonaView"
+          type:
+            - array
+            - "null"
+      required:
+        - personas
+        - builtin_suggestions
+      type: object
+    PersonaView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PersonaView.json
+          format: uri
+          readOnly: true
+          type: string
+        active:
+          type: boolean
+        avatar:
+          type: string
+        greetings:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+        prompt:
+          type: string
+        site_id:
+          description: 0 is the default for every site without an active persona of its own.
+          format: int64
+          type: integer
+        suggestions:
+          description: Empty uses the built-in groups.
+          items:
+            $ref: "#/components/schemas/SuggestionGroup"
+          type:
+            - array
+            - "null"
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - site_id
+        - name
+        - avatar
+        - prompt
+        - greetings
+        - suggestions
+        - active
+        - updated_at
       type: object
     Problem:
       additionalProperties: false
@@ -780,6 +903,117 @@ info:
   version: 0.1.0
 openapi: 3.1.0
 paths:
+  /api/v1/admin/agent/personas:
+    get:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: listAgentPersonas
+      parameters:
+        - description: -1 lists every site; 0 the defaults.
+          explode: false
+          in: query
+          name: site_id
+          schema:
+            default: -1
+            description: -1 lists every site; 0 the defaults.
+            format: int64
+            minimum: -1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonaList"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Personas, optionally for one site
+      tags:
+        - agent-admin
+    post:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: createAgentPersona
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonaInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonaView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Add a persona
+      tags:
+        - agent-admin
+  /api/v1/admin/agent/personas/{id}:
+    delete:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: deleteAgentPersona
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Remove a persona
+      tags:
+        - agent-admin
+    patch:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: updateAgentPersona
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonaInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonaView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Change a persona
+      tags:
+        - agent-admin
   /api/v1/admin/agent/site-tools:
     get:
       description: Admin console only; requires ai.agent_manage.

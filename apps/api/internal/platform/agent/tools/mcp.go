@@ -136,6 +136,7 @@ type siteCard struct {
 	Subtitle     string `json:"subtitle,omitempty"`
 	Cover        string `json:"cover,omitempty"`
 	Summary      string `json:"summary,omitempty"`
+	Facts        []Fact `json:"facts,omitempty"`
 	URL          string `json:"url"`
 	ContentLimit string `json:"content_limit,omitempty"`
 }
@@ -170,6 +171,14 @@ func SiteCards(prefix string, structured any) []Card {
 			c.Cover = ""
 		}
 		c.Title, c.Subtitle, c.Summary = clipRunes(c.Title, 120), clipRunes(c.Subtitle, 120), clipRunes(c.Summary, 300)
+		var facts []Fact
+		for _, f := range c.Facts {
+			f.Label, f.Value = clipRunes(strings.TrimSpace(f.Label), 16), clipRunes(strings.TrimSpace(f.Value), 120)
+			if f.Label != "" && f.Value != "" && len(facts) < 8 {
+				facts = append(facts, f)
+			}
+		}
+		c.Facts = facts
 		data, _ := json.Marshal(c)
 		out = append(out, Card{ID: c.Kind + "-" + c.ID, Data: data})
 		if len(out) == 12 {

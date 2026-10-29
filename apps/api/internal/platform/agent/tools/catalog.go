@@ -65,10 +65,43 @@ type work struct {
 	} `json:"companies"`
 }
 
-func (w work) card() Card {
+func (w work) card(nsfw bool) Card {
+	var sub []string
+	facts := []Fact{}
+	var companies []string
+	for _, c := range w.Companies {
+		if len(companies) < 2 {
+			companies = append(companies, c.DisplayName)
+		}
+	}
+	if len(companies) > 0 {
+		sub = append(sub, strings.Join(companies, "、"))
+		facts = append(facts, Fact{"会社", strings.Join(companies, "、")})
+	}
+	if w.ReleaseDate != nil && *w.ReleaseDate != "" {
+		sub = append(sub, (*w.ReleaseDate)[:min(4, len(*w.ReleaseDate))])
+		facts = append(facts, Fact{"发售日", *w.ReleaseDate})
+	}
+	var tags []string
+	for _, t := range w.Tags {
+		if len(tags) == 6 {
+			break
+		}
+		if !t.IsSexual || nsfw {
+			tags = append(tags, t.DisplayName)
+		}
+	}
+	if len(tags) > 0 {
+		facts = append(facts, Fact{"标签", strings.Join(tags, "、")})
+	}
+	var intros []intro
+	for _, in := range w.Intros {
+		intros = append(intros, intro{Lang: in.Lang, Value: in.Value})
+	}
 	raw, _ := json.Marshal(map[string]any{
 		"kind": "work", "id": w.ID, "title": w.DisplayName, "localized": w.Localized,
 		"release_date": w.ReleaseDate, "content_rating": w.ContentRating, "content_limit": w.ContentLimit, "cover": w.Cover,
+		"subtitle": strings.Join(sub, " · "), "summary": pickIntro(intros, 160), "facts": facts,
 	})
 	return Card{ID: "work-" + w.ID, Data: raw}
 }
@@ -125,7 +158,7 @@ func (c *CatalogClient) searchWorks(ctx context.Context, query string, limit int
 		Items      []work  `json:"items"`
 		SearchMode *string `json:"search_mode"`
 	}
-	q := url.Values{"q": {query}, "search_mode": {"hybrid"}, "limit": {strconv.Itoa(limit)}, "include": {"intros,tags"}}
+	q := url.Values{"q": {query}, "search_mode": {"hybrid"}, "limit": {strconv.Itoa(limit)}, "include": {"intros,tags,companies"}}
 	if err := c.get(ctx, "/v2/catalog/works", q, &list); err != nil {
 		return nil, "", err
 	}
@@ -143,7 +176,7 @@ func (c *CatalogClient) SearchWorks(ctx context.Context, query string, limit int
 	}
 	cards := make([]Card, len(works))
 	for i, w := range works {
-		cards[i] = w.card()
+		cards[i] = w.card(c.NSFW)
 	}
 	return cards, mode, nil
 }
@@ -175,7 +208,7 @@ func (t *SearchCatalog) Run(ctx context.Context, args json.RawMessage) (Output, 
 	briefs := make([]map[string]any, 0, len(works))
 	for _, w := range works {
 		briefs = append(briefs, w.searchBrief(t.Client.NSFW))
-		out.Cards = append(out.Cards, w.card())
+		out.Cards = append(out.Cards, w.card(t.Client.NSFW))
 	}
 	raw, _ := json.Marshal(map[string]any{"works": briefs})
 	out.Text = string(raw)
@@ -223,5 +256,5 @@ func (t *GetWork) Run(ctx context.Context, args json.RawMessage) (Output, error)
 		m["intro_"+in.Lang] = clip(in.Value, 1500)
 	}
 	raw, _ := json.Marshal(m)
-	return Output{Text: string(raw), Cards: []Card{w.card()}}, nil
+	return Output{Text: string(raw), Cards: []Card{w.card(t.Client.NSFW)}}, nil
 }

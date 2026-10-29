@@ -125,6 +125,7 @@ func (s *Server) registerAdmin(api huma.API) {
 	op := func(id, method, path, summary string) huma.Operation {
 		return huma.Operation{OperationID: id, Method: method, Path: base + path, Summary: summary, Description: note, Tags: tags}
 	}
+	s.registerPersonaAdmin(api, op)
 	type viewOut struct{ Body SiteToolView }
 	save := func(ctx context.Context, row *model.SiteTool, in SiteToolInput) (*viewOut, error) {
 		if err := applySiteTool(row, in); err != nil {

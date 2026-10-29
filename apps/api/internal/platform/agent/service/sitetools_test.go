@@ -28,7 +28,8 @@ func fakeSiteMCP(t *testing.T) (*httptest.Server, *[]string) {
 			Query string `json:"query"`
 		}) (*mcp.CallToolResult, topicCards, error) {
 			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "2 topics about " + in.Query}}}, topicCards{Cards: []map[string]any{
-				{"kind": "kungal:topic", "id": "88", "title": "猫耳作品讨论", "summary": "大家推荐的猫耳作品", "url": "/topic/88", "cover": "http://insecure.example/a.png"},
+				{"kind": "kungal:topic", "id": "88", "title": "猫耳作品讨论", "summary": "大家推荐的猫耳作品", "url": "/topic/88", "cover": "http://insecure.example/a.png",
+					"facts": []map[string]string{{"label": "回复", "value": "42"}, {"label": "", "value": "无标签"}}},
 				{"kind": "work", "id": "15", "title": "冒充共享作品", "url": "/galgame/15"},
 				{"kind": "kungal:topic", "id": "89", "title": "外链", "url": "https://evil.example/x"},
 			}}, nil
@@ -79,6 +80,9 @@ func TestSiteToolsListCallForwardTheUserAndKeepOnlyOwnCards(t *testing.T) {
 	_ = json.Unmarshal(out.Cards[0].Data, &card)
 	if out.Cards[0].ID != "kungal:topic-88" || card["url"] != "/topic/88" || card["cover"] != nil {
 		t.Fatalf("card %s %v: an http cover is dropped", out.Cards[0].ID, card)
+	}
+	if facts, _ := card["facts"].([]any); len(facts) != 1 {
+		t.Fatalf("a fact without a label must be dropped, got %v", card["facts"])
 	}
 	forwarded := false
 	for _, h := range *seen {

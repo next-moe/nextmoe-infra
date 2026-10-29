@@ -161,6 +161,7 @@ var goldenNames = []string{
 	"agent.price.web_surcharge",
 	"agent.price.search",
 	"agent.paid.enabled",
+	"agent.web.auto",
 	"agent.turn.max_steps",
 	"agent.turn.max_output_tokens",
 	"agent.turn.max_input_chars",

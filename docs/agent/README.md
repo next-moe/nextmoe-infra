@@ -38,7 +38,7 @@ agent 服务（:9287，`kun_agent` 库）是全站共用的 AI 助手：对话�
 
 | 方法 | 路径 | 作用 |
 | --- | --- | --- |
-| GET | `/v2/agent/persona` | 看板娘：`name` / `avatar` / `greetings[]`，以及空对话的建议问题 `suggestions[]` 和 `web_search_available` |
+| GET | `/v2/agent/persona` | 看板娘：`name` / `avatar` / `greetings[]`，空对话的建议问题 `suggestions[]`，以及 `web_search_available` / `web_search_auto` |
 | GET | `/v2/agent/quota` | 今日免费剩余、价格、是否可扣萌萌点、萌萌点余额 |
 | GET | `/v2/agent/conversations?cursor=&limit=&starred=` | 历史对话（按更新时间倒序，游标分页）；`starred=true` 只看收藏 |
 | POST | `/v2/agent/conversations` | 新建对话 `{"mode":"assistant"}` |
@@ -80,6 +80,10 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 - 附件先传到 `POST /v2/agent/uploads`，再在 parts 里写 `{"type":"file","uploadId":"…"}`，见 §3.6。旧的写法（文本附件把内容直接放进 `text`）仍然可用。用户输入的文字、附件里的文字分别受 `agent.turn.max_input_chars` 限制（413）。
 - 同一个 `Idempotency-Key` 换了请求体返回 422；同一对话已有回复在生成时返回 409。
 - 免费次数用完且萌萌点不足返回 402。
+- 联网搜索：
+  - `web_search_auto` 为 true 时（设置 `agent.web.auto`，默认开），助手自己判断要不要联网，资料库外的内容和新闻、发售日这类时效问题会去搜。
+  - 这时 `web_search: true` 表示「这一问先联网」。联网开关可以做成可选的强调，不必每次都开。
+  - `web_search_auto` 为 false 时，只有带 `web_search: true` 的问题能联网。
 
 ### 3.2 编辑、重新生成与分支切换
 
@@ -121,8 +125,9 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
 `GET /v2/agent/runs/{run_id}/stream` 返回 `text/event-stream`，带 `x-vercel-ai-ui-message-stream: v1` 头，帧格式就是 AI SDK 的 UI message stream 协议，前端直接用 `@ai-sdk/vue` 的 `Chat` + `DefaultChatTransport` 消费（`prepareSendMessagesRequest` 改成先 POST 发消息、再 GET 流）。
 
-会出现的帧：`start`、`start-step`、`data-title`、`text-start` / `text-delta` / `text-end`、`reasoning-start` / `reasoning-delta` / `reasoning-end`、`tool-input-available`、`tool-output-available`、`source-url`、`data-entity-card`（作品卡片：`kind` / `id` / `title` / `localized` / `release_date` / `content_rating` / `content_limit` / `cover`；对没开成人内容的读者展示封面与否，按 `content_limit` 判断）、`data-quota`、`data-run`、`finish-step`、`finish`、`error`、`abort`，最后是 `[DONE]`。
+会出现的帧：`start`、`start-step`、`data-title`、`text-start` / `text-delta` / `text-end`、`reasoning-start` / `reasoning-delta` / `reasoning-end`、`tool-input-available`、`tool-output-available`、`source-url`、`data-entity-card`（实体卡片，格式见 §6.1）、`data-quota`、`data-run`、`finish-step`、`finish`、`error`、`abort`，最后是 `[DONE]`。
 
+- 卡片在回答正文结束后才下发，只包含回答里提到的实体，按提到的先后排列（同一实体只出一张）。工具查到但回答没提到的候选不会出现；回答一个都没提到时，只保留直接查看详情（`get_work` / `get_entity` 这类单条查询）得到的卡片。前端建议把卡片放在正文之后。
 - 断线重连：带上 `Last-Event-ID`，从下一帧接着推。
 - 这一轮已经结束、没有活着的流：204，前端改为重新拉对话（消息已经落库）。
 - 落库的消息 `parts` 和流里的帧同形，就是 AI SDK 的 UIMessage parts：`text`、`file`、`step-start`（每一步开头一个）、`tool-<工具名>`（`{type, toolCallId, state:"output-available", input, output:{cards, sources}}`，用来展示「共运行 N 步，每步查了什么、查到几条」）、`data-entity-card`（`{type, id, data}`）、`source-url`（`{type, sourceId, url, title}`）。推理过程不落库。
@@ -139,7 +144,16 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
 - `icon` 是 lucide 图标名；每组的 `prompts` 比一屏多，前端一次显示三条，「换一组」轮换。
 - `web_search: true` 的组，点出去的问题要带 `web_search: true` 发送。`web_search_available` 为 false 时服务端不会返回这类组，前端也应隐藏联网开关。
-- 站点可以在 `agent_persona.suggestions` 里配自己的组；为空时用内置的默认组。
+- 站点可以在管理端「AI 助手 · 人设」里配自己的组；为空时用内置的默认组。
+
+### 3.7 人设
+
+看板娘的名字、头像、人设提示词、开场白和建议问题都在管理端「AI 助手 · 人设」里按站点配置（需要 `ai.agent_manage`）。接口是 agent 服务的 `/api/v1/admin/agent/personas`。
+
+- 每个站最多一个生效的人设，启用一个会自动停用该站的其他人设。
+- 站点没有自己的人设时，用「默认」（`site_id` 0）的那个。生效的默认人设不能删除或停用，要先启用另一个默认人设。
+- 人设提示词写的是「她是谁、怎么说话」。工具使用、引用来源、附件安全这些规则由 agent 统一追加在后面，人设里改不掉。
+- 修改后下一问立即生效，不用重启。
 
 ### 3.6 上传
 
@@ -170,6 +184,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `agent.free.units_per_day` | 每个用户每天免费单位数 |
 | `agent.price.assistant` / `agent.price.web_surcharge` / `agent.price.search` | 一问的价格、开联网的加价、一次搜索的价格（整数） |
 | `agent.paid.enabled` | 免费用完后是否允许扣萌萌点 |
+| `agent.web.auto` | 助手是否自行判断联网（站点级，默认开） |
 | `agent.user.rate_per_minute` | 已登录用户每分钟请求上限 |
 | `agent.anon.enabled` / `agent.anon.verify_mode` / `agent.anon.pow_difficulty` | 未登录搜索开关、人机验证方式（`none` / `pow`）、难度 |
 | `agent.anon.rate_per_minute` / `agent.anon.quota_per_day` / `agent.anon.global_quota_per_day` | 未登录每 IP 每分钟 / 每天、全站每天上限 |
@@ -177,7 +192,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `agent.turn.max_steps` / `agent.turn.max_output_tokens` / `agent.turn.max_input_chars` / `agent.context.max_messages` | 单轮工具调用步数、输出上限、输入上限、带入的历史条数 |
 | `agent.upload.max_files`、`agent.upload.{image,text,document}.{enabled,max_bytes,types}` | 上传：每条消息的文件数，每类的开关、大小上限、允许的类型（图片按 MIME，文本和文档按扩展名），都可按站点覆盖 |
 
-扣费流程：发消息时先预留免费次数，不够的部分只核对萌萌点余额；回复成功后才结算，萌萌点经 oauth 扣除（幂等键 `agent:run:<run_id>`），开了联网但这一轮没用上的不收加价。失败、取消的轮次退回免费次数，也不扣萌萌点。界面上统一写「消耗 NextMoe 萌萌点」。
+扣费流程：发消息时先预留免费次数，不够的部分只核对萌萌点余额；回复成功后才结算，萌萌点经 oauth 扣除（幂等键 `agent:run:<run_id>`），联网加价按「可能联网」预留，这一轮没真的搜索就不收。余额只够基本价时，这一问照常回答，只是不联网。失败、取消的轮次退回免费次数，也不扣萌萌点。界面上统一写「消耗 NextMoe 萌萌点」。
 
 ## 5. 未登录搜索与工作量证明
 
@@ -197,12 +212,37 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
 `data-entity-card` 的 `kind`：
 
-- 共享的 NextMoe 实体不带前缀：`work`、`character`、`company`、`tag`、`series`、`person`。id 全站通用，各站都能预览、跳转。
+- 共享的 NextMoe 实体不带前缀，id 都是 catalog 的 id，各站通用：
+
+| kind | id | 来自 | catalog 详情 |
+| --- | --- | --- | --- |
+| `work` | 作品 id | `search_catalog` / `get_work` | `/v2/catalog/works/{id}` |
+| `character` | 角色 id | `search_entities` / `get_entity` | `/v2/catalog/characters/{id}` |
+| `person` | **署名（credit name）id**，不是 person id：署名是 catalog 对外的人物实体，person 只把同一人的多个署名连起来，很多署名还没有 person | 同上 | `/v2/catalog/credit-names/{id}` |
+| `company` | 会社 / 社团 id | 同上 | `/v2/catalog/companies/{id}` |
+| `series` | 系列 id | 同上 | `/v2/catalog/series/{id}` |
+
 - 站点独有的实体带前缀：`<card_prefix>:<kind>`，如 `kungal:topic`。只有所属站点提供可点击的预览，其他站照普通卡片显示。
-- 站点卡片统一的字段：
+- 所有卡片都有这组预览字段，前端可以用同一个抽屉渲染：
 
 ```json
-{"kind": "kungal:topic", "id": "88", "title": "猫耳作品讨论", "subtitle": "…", "cover": "https://…", "summary": "…", "url": "/topic/88", "content_limit": "sfw"}
+{
+  "kind": "character", "id": "39099", "title": "朝武芳乃",
+  "localized": {"ja": {"value": "Tomotake Yoshino"}},
+  "subtitle": "女 · 《千恋＊万花》主角",
+  "cover": "https://…", "summary": "…",
+  "facts": [{"label": "声优", "value": "仙台惠理"}, {"label": "登场作品", "value": "《千恋＊万花》"}],
+  "content_limit": "sfw"
+}
+```
+
+  - `id` 是字符串。`subtitle` / `cover` / `summary` 可能为空；`facts` 是有序的「标签：值」，至少是空数组。
+  - `cover` 是 https 地址。图片本身是成人内容（角色图、人物照、logo 也一样）时 `content_limit` 为 `nsfw`；站点没开成人内容时 `cover` 直接为空。
+  - `work` 卡额外保留原来的字段：`release_date`、`content_rating`，以及对象形式的 `cover`（catalog 的封面对象，不是字符串）。
+  - 站点卡片额外有 `url`（站内相对路径）。站点卡片也可以带 `facts`，最多 8 条。
+
+```json
+{"kind": "kungal:topic", "id": "88", "title": "猫耳作品讨论", "subtitle": "…", "cover": "https://…", "summary": "…", "facts": [{"label": "回复", "value": "42"}], "url": "/topic/88", "content_limit": "sfw"}
 ```
 
 agent 只保留格式合格的卡片：
