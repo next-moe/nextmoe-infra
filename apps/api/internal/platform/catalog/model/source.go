@@ -17,6 +17,7 @@ const (
 	SourceCensored      int16 = 21
 	SourceSeiya         int16 = 22
 	SourceSagaozFool    int16 = 23
+	SourceAIRedraw      int16 = 24
 )
 
 // IdentityVetoExemptSourceIDs are the sources whose exact ids must never veto a
@@ -65,6 +66,7 @@ var IdentityVetoExemptSourceIDs = []int16{
 	SourceDerived,       // first-party: machine inference over catalog facts
 	SourceNextMoe,       // first-party: measurements aggregated from our own users
 	SourceCensored,      // first-party: blurred stand-in derived from official art
+	SourceAIRedraw,      // first-party: AI-redrawn portrait derived from official art
 	SourceHowLongToBeat, // does not deduplicate itself: one entry per platform/release
 }
 

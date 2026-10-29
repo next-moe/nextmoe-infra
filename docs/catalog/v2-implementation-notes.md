@@ -2752,3 +2752,13 @@ Bangumi serves the covers of adult games blurred or mosaicked, and the ladder pi
 - **No portrait, sharpest wins.** When a work holds no portrait-shaped cover, the ladder took the first row by sort order, and importer rows all share sort order 0, so the image hash decided. After the backfill, work 30923 showed a 256x144 VNDB image over its 1668x940 Bangumi cover. The slot now takes the sharpest measured cover before falling back to the first row.
 
 **Spec 2.77.0**: the `cover` description. **No schema change.**
+
+## AI-redrawn covers (spec 2.78.0, 2026-10-28)
+
+Japanese games with real readers often have no usable portrait: the official art is landscape, or a portrait too small to show. Of the Japanese galgames viewed more than 100 times on the forum, the patch site or letmoe, 10,268 had none at 1080px on the long edge: 1,726 with only landscape art and 8,542 with portraits under the target.
+
+- **Source.** A new first-party source `ai_redraw` (id 24) holds covers grok's image edit made from the work's own official art: a 2:3 redraw of a landscape cover, or a faithful enlargement of a small portrait. Each row copies the kind, `sexual` and `violence` of the cover it was made from; the nightly grader then grades it like any machine row. It is not an upload, so the official-art-first rule does not hide it.
+- **Election.** `cmd/import-ai-covers` machine-pins each row it writes, so the redraw takes the portrait slot over landscape or small official art. Once the work holds an official portrait at least 1080px on its long edge that the reader may see, the redraw leaves the pool and that portrait wins. An editor's pin on a redraw keeps it. Votes still come before both.
+- **Import.** `cmd/import-ai-covers -dsn … -dir …` reads `<work_id>__<origin_hash>.<ext>` products, skips works that are gone, merged, already hold a redraw, or no longer carry the origin cover, uploads to the catalog image scope and writes the row. It never lifts an editor's pin. Dry run by default.
+
+**Spec 2.78.0**: the `cover` description. **No schema change**; `migrate-catalog` seeds the source row.

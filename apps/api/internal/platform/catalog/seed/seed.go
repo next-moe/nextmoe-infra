@@ -146,6 +146,7 @@ func sources() []model.CatalogSource {
 		{ID: 21, Key: model.CensoredSourceKey, TrustTier: 0, Note: "first-party blurred stand-in derived from explicit official art (SFW cover face)"},
 		{ID: 22, Key: "seiya", TrustTier: 2, Note: "誠也の部屋 (seiya-saiga.com) walkthrough pages; only the choice graph is kept, never the prose"},
 		{ID: 23, Key: "sagaoz_foolmaker", TrustTier: 2, Note: "愚者の館 (sagaoz.net/foolmaker) walkthrough archive; only the choice graph is kept, never the prose"},
+		{ID: 24, Key: "ai_redraw", TrustTier: 0, Note: "first-party AI-redrawn portrait or enlargement derived from official cover art (grok image_edit)"},
 	}
 }
 
