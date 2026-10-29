@@ -250,6 +250,7 @@ const onSaved = (t: AgentSiteTool) => {
                 <KunSwitch
                   :model-value="t.enabled"
                   :disabled="busy === `${t.id}:enabled`"
+                  :aria-label="`启用 ${t.name}`"
                   @update:model-value="toggle(t, $event)"
                 />
               </td>
