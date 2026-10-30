@@ -76,3 +76,21 @@ func TestTranslateSplitsAChunkAnsweredInProse(t *testing.T) {
 	assert.Equal(t, map[string]string{"帰る": "zh:帰る", "話す": "zh:話す"}, out)
 	assert.Equal(t, 1, st.refused)
 }
+
+func TestChunkStringsCapsCountAndLength(t *testing.T) {
+	long := strings.Repeat("あ", 1000)
+	short := make([]string, 170)
+	for i := range short {
+		short[i] = "は"
+	}
+	sizes := func(chunks [][]string) []int {
+		var n []int
+		for _, c := range chunks {
+			n = append(n, len(c))
+		}
+		return n
+	}
+	assert.Equal(t, []int{80, 80, 10}, sizes(chunkStrings(short)))
+	assert.Equal(t, []int{1, 3}, sizes(chunkStrings([]string{long, long, "は", "は"})))
+	assert.Equal(t, []int{1}, sizes(chunkStrings([]string{strings.Repeat("あ", 3000)})), "one over-long string is still asked")
+}

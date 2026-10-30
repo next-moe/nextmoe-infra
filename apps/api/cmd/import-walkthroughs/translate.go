@@ -23,7 +23,13 @@ import (
 	"gorm.io/gorm"
 )
 
-const translateChunk = 80
+// A chunk is capped by length as well as count: 80 long strings took the
+// cursor gateway up to 620s, past the client's 180s timeout, and 19 charts
+// failed after every retry.
+const (
+	translateChunk      = 80
+	translateChunkRunes = 1500
+)
 
 type glossaryTerm struct {
 	Ja string `json:"ja"`
@@ -384,8 +390,8 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 		return nil
 	}
 	runAll := func(mask nameMask, todo []string) error {
-		for start := 0; start < len(todo); start += translateChunk {
-			if err := run(mask, todo[start:min(start+translateChunk, len(todo))]); err != nil {
+		for _, chunk := range chunkStrings(todo) {
+			if err := run(mask, chunk); err != nil {
 				return err
 			}
 		}
@@ -409,6 +415,23 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 	err := runAll(full, todo)
 	st.refused = len(refused)
 	return out, st, err
+}
+
+func chunkStrings(todo []string) [][]string {
+	var out [][]string
+	start, runes := 0, 0
+	for i, s := range todo {
+		n := utf8.RuneCountInString(s)
+		if i > start && (i-start == translateChunk || runes+n > translateChunkRunes) {
+			out = append(out, todo[start:i])
+			start, runes = i, 0
+		}
+		runes += n
+	}
+	if start < len(todo) {
+		out = append(out, todo[start:])
+	}
+	return out
 }
 
 func refusedChunk(err error) bool {
