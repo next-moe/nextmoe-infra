@@ -95,6 +95,14 @@ func TestTranslateJobProtectsEveryUntranslatedRosterName(t *testing.T) {
 	assert.False(t, keepsNames("思わず来栖の横顔に見とれてしまう。", "不禁看来了栖的侧脸。", job.KeepNames))
 }
 
+func TestShortNamesTakeTheMatchingPartOfTheZhName(t *testing.T) {
+	assert.Equal(t, "忧绪", shortZh("憂緒", []string{"鹿ケ谷 憂緒"}, "鹿谷忧绪"))
+	assert.Equal(t, "春日", shortZh("春日", []string{"春日 真由美"}, "春日真由美"))
+	assert.Equal(t, "鹿谷忧绪", shortZh("鹿ケ谷", []string{"鹿ケ谷 憂緒"}, "鹿谷忧绪"), "a family name of another length keeps the full name")
+	assert.Equal(t, "村云春霞", shortZh("スミちゃん", []string{"村雲 春霞"}, "村云春霞"), "a nickname keeps the full name")
+	assert.Equal(t, "绫地宁宁", shortZh("寧々", []string{"綾地寧々"}, "绫地宁宁"), "an unspaced full name has no parts to match")
+}
+
 func TestNameMaskRoundTripsKeptNames(t *testing.T) {
 	m := newNameMask([]string{"しづる", "春日 しづる", "藍"}, 2)
 	masked := m.hide("春日 しづるとしづるの部屋で藍を見る")

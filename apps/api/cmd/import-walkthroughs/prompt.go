@@ -8,7 +8,7 @@ Input JSON: {"glossary":[{"ja":"綾地寧々","zh":"绫地宁宁"}],"strings":["
 Output JSON: {"t":["<zh for strings[0]>", ...]} with exactly the same length and order as "strings".
 
 Rules:
-- Character names: use the glossary. A short form of a glossary name (given name only, family name with さん/先輩/ちゃん) uses the matching part of the glossary translation (寧々 → 宁宁, 綾地さん → 绫地).
+- Character names: use the glossary. A short form of a glossary name (given name only, family name with さん/先輩/ちゃん) uses the matching part of the glossary translation (寧々 → 宁宁, 綾地さん → 绫地). Write a name the way the string writes it: a given name stays a given name and a nickname stays a nickname; never expand it to the full glossary name.
 - A personal name NOT derivable from the glossary must be kept exactly as written in Japanese. Never transliterate or invent a Chinese name for it.
 - {N1}, {N2} … stand for personal names. Copy each token exactly as written, once, where that name belongs in the Chinese sentence; never translate, drop or add one.
 - Keep END / AFTER / START / RESTART / BAD / TRUE / HAPPY in Latin letters; ノーマルEND → 普通END.

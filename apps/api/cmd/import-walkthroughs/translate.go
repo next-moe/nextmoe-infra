@@ -225,6 +225,7 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 	}
 	translated := map[string]bool{}
 	zhOf := map[int64]string{}
+	namesOf := map[int64][]string{}
 	for _, r := range roster {
 		// A zh-Hans alias that copies the Japanese name is no translation: taking it for one
 		// left 美紀 unprotected, and the model wrote 美纪.
@@ -232,6 +233,7 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 			r.Zh = ""
 		}
 		zhOf[r.CharacterID] = r.Zh
+		namesOf[r.CharacterID] = r.Names
 		for _, n := range r.Names {
 			if r.Zh != "" {
 				job.Glossary = append(job.Glossary, glossaryTerm{Ja: n, Zh: r.Zh})
@@ -242,12 +244,13 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 		}
 	}
 	for _, ch := range c.Characters {
-		zh := zhOf[pins[ch.Key].CharacterID]
+		id := pins[ch.Key].CharacterID
+		zh := zhOf[id]
 		for _, n := range append([]string{ch.Name}, ch.Aliases...) {
 			switch n = strings.TrimSpace(n); {
 			case n == "" || translated[nameKey(n)]:
 			case zh != "":
-				job.Glossary = append(job.Glossary, glossaryTerm{Ja: n, Zh: zh})
+				job.Glossary = append(job.Glossary, glossaryTerm{Ja: n, Zh: shortZh(n, namesOf[id], zh)})
 				translated[nameKey(n)] = true
 			default:
 				keep(n)
@@ -256,6 +259,40 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 	}
 	job.KeepNames = slices.DeleteFunc(job.KeepNames, func(n string) bool { return translated[nameKey(n)] })
 	return job
+}
+
+// A short name took its pin's full zh name, so grok wrote 憂緒に駆け寄る as
+// 跑向鹿谷忧绪. A kanji given or family name of a full name takes the matching
+// end of the zh name instead; anything else keeps the full name, which is
+// still the right person.
+func shortZh(short string, fullNames []string, zh string) string {
+	s, z := []rune(nameNoise.ReplaceAllString(short, "")), []rune(zh)
+	if !allHan(s) {
+		return zh
+	}
+	for _, full := range fullNames {
+		parts := strings.FieldsFunc(full, func(r rune) bool { return unicode.IsSpace(r) || r == '・' })
+		if len(parts) != 2 {
+			continue
+		}
+		joined := []rune(parts[0] + parts[1])
+		switch {
+		case parts[1] == string(s) && allHan([]rune(parts[1])) && len(z) > len(s):
+			return string(z[len(z)-len(s):])
+		case parts[0] == string(s) && len(joined) == len(z) && allHan(joined):
+			return string(z[:len(s)])
+		}
+	}
+	return zh
+}
+
+func allHan(rs []rune) bool {
+	for _, r := range rs {
+		if !unicode.Is(unicode.Han, r) {
+			return false
+		}
+	}
+	return len(rs) > 0
 }
 
 func translateHash(job translateJob) string {
