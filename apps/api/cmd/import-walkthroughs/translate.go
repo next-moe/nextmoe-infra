@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -15,6 +16,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"api/internal/platform/catalog/llmsuggest"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/walkthrough"
 
@@ -352,9 +354,10 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 		var got struct {
 			T []string `json:"t"`
 		}
-		// grok answers a chunk it will not translate in prose (这…, 我…), which
-		// failed the whole chart; a chunk it refuses is split like a short one.
-		if _, err := l.chatJSON(ctx, translateSystem, string(in), "translation", schema, maxTokens, &got); err != nil && !errors.Is(err, errNotJSON) {
+		// grok answers a chunk it will not translate in prose (这…, 我…), and the
+		// cursor gateway blocks some with 422; either failed the whole chart, so
+		// a refused chunk is split like a short one.
+		if _, err := l.chatJSON(ctx, translateSystem, string(in), "translation", schema, maxTokens, &got); err != nil && !refusedChunk(err) {
 			return err
 		}
 		if len(got.T) != len(chunk) {
@@ -406,6 +409,11 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 	err := runAll(full, todo)
 	st.refused = len(refused)
 	return out, st, err
+}
+
+func refusedChunk(err error) bool {
+	var se *llmsuggest.StatusError
+	return errors.Is(err, errNotJSON) || errors.As(err, &se) && se.Status == http.StatusUnprocessableEntity
 }
 
 var placeholderRe = regexp.MustCompile(`\{N[0-9]+\}`)
