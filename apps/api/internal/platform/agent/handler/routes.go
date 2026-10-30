@@ -33,6 +33,7 @@ type Server struct {
 
 	WebSearch func() bool
 	Vision    func() bool
+	SiteTools *service.SiteTools
 }
 
 func (s *Server) webSearch() bool { return s.WebSearch != nil && s.WebSearch() }
@@ -406,6 +407,7 @@ func (s *Server) Register(api huma.API) {
 
 	s.registerBranching(api)
 	s.registerUploads(api)
+	s.registerAdmin(api)
 	s.registerSearch(api)
 }
 
@@ -478,7 +480,7 @@ func (s *Server) startTurn(ctx context.Context, c *caller, run *model.Run, res s
 	if err != nil {
 		return err
 	}
-	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName), Uploads: uploads})
+	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName), Uploads: uploads, UserToken: c.Token})
 	return nil
 }
 

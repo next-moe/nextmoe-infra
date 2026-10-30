@@ -19,7 +19,16 @@ interface ApiError {
   message: string
 }
 
-export type ApiService = 'oauth' | 'catalog' | 'trust' | 'ai' | 'telemetry'
+interface ProblemError {
+  title?: string
+  detail?: string
+  errors?: { message?: string; location?: string }[] | null
+}
+
+export type ApiService =
+  'oauth' | 'catalog' | 'trust' | 'ai' | 'telemetry' | 'agent'
+
+const PLAIN_JSON_SERVICES: ApiService[] = ['agent']
 
 export const resolveApiBase = (service: ApiService = 'oauth'): string => {
   const config = useRuntimeConfig()
@@ -37,6 +46,9 @@ export const resolveApiBase = (service: ApiService = 'oauth'): string => {
   if (service === 'telemetry') {
     return (config.public.telemetryApiBase as string) || '/telemetry-proxy'
   }
+  if (service === 'agent') {
+    return (config.public.agentApiBase as string) || '/agent-proxy'
+  }
   return (
     (import.meta.server && config.apiBaseSsr
       ? (config.apiBaseSsr as string)
@@ -46,6 +58,7 @@ export const resolveApiBase = (service: ApiService = 'oauth'): string => {
 
 export const useApi = (service: ApiService = 'oauth') => {
   const baseUrl = resolveApiBase(service)
+  const plainJson = PLAIN_JSON_SERVICES.includes(service)
   const accessToken = useCookie('access_token')
   const { startLogin } = useOAuthLogin()
 
@@ -94,7 +107,7 @@ export const useApi = (service: ApiService = 'oauth') => {
     }
 
     try {
-      const response = await $fetch<ApiResponse<T>>(url, {
+      const response = await $fetch<ApiResponse<T> | T>(url, {
         method,
         body: body ? JSON.stringify(body) : undefined,
         headers: {
@@ -105,14 +118,32 @@ export const useApi = (service: ApiService = 'oauth') => {
         credentials: 'include'
       })
 
-      return response
+      return plainJson
+        ? { code: 0, message: '', data: response as T }
+        : (response as ApiResponse<T>)
     } catch (error: unknown) {
-      const fetchError = error as { statusCode?: number; data?: ApiError }
+      const fetchError = error as {
+        statusCode?: number
+        data?: ApiError & ProblemError
+      }
 
       if (fetchError.statusCode === 401 && retry) {
         const refreshed = await handleUnauthorized()
         if (refreshed) {
           return request<T>(endpoint, options, false)
+        }
+      }
+
+      if (plainJson) {
+        const p = fetchError.data
+        const field = p?.errors?.[0]
+        return {
+          code: fetchError.statusCode ?? -1,
+          message:
+            [p?.detail ?? p?.title, field?.message]
+              .filter(Boolean)
+              .join(': ') || 'Request failed',
+          data: null as T
         }
       }
 

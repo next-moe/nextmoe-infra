@@ -7,6 +7,9 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type ErrorKind string
@@ -25,12 +28,15 @@ const (
 	ErrKindMalformed       ErrorKind = "malformed"
 	ErrKindCanceled        ErrorKind = "canceled"
 	ErrKindNoRoute         ErrorKind = "no_route"
+	ErrKindLimited         ErrorKind = "limited"
+	ErrKindBudget          ErrorKind = "budget_exceeded"
 )
 
 type Error struct {
-	Kind   ErrorKind
-	Status int
-	Msg    string
+	Kind       ErrorKind
+	Status     int
+	Msg        string
+	RetryAfter time.Duration
 }
 
 func (e *Error) Error() string {
@@ -57,7 +63,7 @@ func (k ErrorKind) transient() bool {
 }
 
 func (k ErrorKind) failsOver() bool {
-	return k != ErrKindContentFiltered && k != ErrKindCanceled && k != ErrKindBadRequest
+	return k != ErrKindContentFiltered && k != ErrKindCanceled && k != ErrKindBadRequest && k != ErrKindBudget
 }
 
 var (
@@ -88,6 +94,29 @@ func classifyHTTP(status int, body string) *Error {
 		e.Kind = ErrKindBadRequest
 	}
 	return e
+}
+
+func httpError(resp *http.Response, body string) *Error {
+	e := classifyHTTP(resp.StatusCode, body)
+	e.RetryAfter = retryAfter(resp.Header, time.Now())
+	return e
+}
+
+func retryAfter(h http.Header, now time.Time) time.Duration {
+	if v := strings.TrimSpace(h.Get("Retry-After")); v != "" {
+		if secs, err := strconv.Atoi(v); err == nil {
+			return time.Duration(secs) * time.Second
+		}
+		if t, err := http.ParseTime(v); err == nil {
+			return t.Sub(now)
+		}
+	}
+	for _, k := range []string{"X-Ratelimit-Reset-Requests", "X-Ratelimit-Reset-Tokens", "X-Ratelimit-Reset"} {
+		if d, err := time.ParseDuration(strings.TrimSpace(h.Get(k))); err == nil {
+			return d
+		}
+	}
+	return 0
 }
 
 func classifyTransport(ctx context.Context, err error) *Error {

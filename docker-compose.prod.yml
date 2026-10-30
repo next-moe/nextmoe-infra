@@ -1041,6 +1041,7 @@ services:
       NUXT_TRUST_API_BASE_SSR: http://trust:9283/api/v1
       NUXT_AI_API_BASE_SSR: http://ai:9284/api/v1
       NUXT_TELEMETRY_API_BASE_SSR: http://telemetry:9286/api/v1
+      NUXT_AGENT_API_BASE_SSR: http://infra-agent:9287/api/v1
       # Dokploy panel vars only reach the container when compose lists them
       # (developer.nextmoe.dev shipped with an empty secret 2026-07-23 this
       # way). :? fails the deploy loudly if the secret was not pre-staged.

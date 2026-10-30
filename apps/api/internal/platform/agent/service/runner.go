@@ -27,14 +27,14 @@ type Runner struct {
 	gw     *llm.Gateway
 	broker *stream.Broker
 	quota  *Quota
-	tools  func(siteID int64) *tools.Registry
+	tools  func(siteID int64, userToken string) *tools.Registry
 
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
 	wg      sync.WaitGroup
 }
 
-func NewRunner(store *Store, gw *llm.Gateway, broker *stream.Broker, quota *Quota, toolsFor func(siteID int64) *tools.Registry) *Runner {
+func NewRunner(store *Store, gw *llm.Gateway, broker *stream.Broker, quota *Quota, toolsFor func(siteID int64, userToken string) *tools.Registry) *Runner {
 	return &Runner{store: store, gw: gw, broker: broker, quota: quota, tools: toolsFor, cancels: map[string]context.CancelFunc{}}
 }
 
@@ -46,6 +46,7 @@ type Turn struct {
 	Reservation Reservation
 	SiteName    string
 	Uploads     map[string]*model.Upload
+	UserToken   string
 }
 
 func (r *Runner) Start(t Turn) {
@@ -126,7 +127,7 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	w.Emit(map[string]any{"type": "start", "messageId": strconv.FormatInt(run.AssistantMessageID, 10)})
 	w.Emit(map[string]any{"type": "data-run", "data": map[string]any{"run_id": run.ID, "conversation_id": strconv.FormatInt(run.ConversationID, 10)}})
 
-	reg := r.tools(run.SiteID)
+	reg := r.tools(run.SiteID, t.UserToken)
 	var skip []string
 	if !run.WebSearch {
 		skip = webTools

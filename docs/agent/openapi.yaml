@@ -516,6 +516,149 @@ components:
       required:
         - rating
       type: object
+    SiteToolInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SiteToolInput.json
+          format: uri
+          readOnly: true
+          type: string
+        allowed:
+          items:
+            type: string
+          maxItems: 50
+          type: array
+        auth:
+          description: user_token forwards the asking user's access token, so the site applies its own visibility rules; such tools are skipped for signed-out searches.
+          enum:
+            - user_token
+            - none
+          type: string
+        card_prefix:
+          description: Cards from this server must use kinds <card_prefix>:<kind>; others are dropped.
+          pattern: ^[a-z][a-z0-9_]{0,31}$
+          type: string
+        enabled:
+          type: boolean
+        name:
+          description: Prefixes the tool names the model sees, as <name>__<tool>.
+          pattern: ^[a-z][a-z0-9_]{0,31}$
+          type: string
+        site_id:
+          format: int64
+          minimum: 1
+          type: integer
+        timeout_ms:
+          format: int64
+          maximum: 120000
+          minimum: 1000
+          type: integer
+        url:
+          description: The site's MCP endpoint (streamable HTTP), reachable from the agent.
+          maxLength: 512
+          type: string
+      type: object
+    SiteToolListing:
+      additionalProperties: false
+      properties:
+        allowed:
+          type: boolean
+        description:
+          type: string
+        model_name:
+          description: As the model sees it.
+          type: string
+        name:
+          description: As the server names it.
+          type: string
+      required:
+        - name
+        - model_name
+        - description
+        - allowed
+      type: object
+    SiteToolProbe:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SiteToolProbe.json
+          format: uri
+          readOnly: true
+          type: string
+        error:
+          type: string
+        ok:
+          type: boolean
+        tools:
+          items:
+            $ref: "#/components/schemas/SiteToolListing"
+          type:
+            - array
+            - "null"
+      required:
+        - ok
+        - error
+        - tools
+      type: object
+    SiteToolView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SiteToolView.json
+          format: uri
+          readOnly: true
+          type: string
+        allowed:
+          description: Tool names the assistant may call; empty allows every tool the server lists.
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        auth:
+          enum:
+            - user_token
+            - none
+          type: string
+        card_prefix:
+          type: string
+        enabled:
+          type: boolean
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+        site_id:
+          format: int64
+          type: integer
+        timeout_ms:
+          format: int64
+          type: integer
+        updated_at:
+          format: date-time
+          type: string
+        url:
+          type: string
+      required:
+        - id
+        - site_id
+        - name
+        - url
+        - auth
+        - card_prefix
+        - allowed
+        - timeout_ms
+        - enabled
+        - updated_at
+      type: object
     SuggestionGroup:
       additionalProperties: false
       properties:
@@ -637,6 +780,149 @@ info:
   version: 0.1.0
 openapi: 3.1.0
 paths:
+  /api/v1/admin/agent/site-tools:
+    get:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: listAgentSiteTools
+      parameters:
+        - explode: false
+          in: query
+          name: site_id
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/SiteToolView"
+                type:
+                  - array
+                  - "null"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Site tool servers, optionally for one site
+      tags:
+        - agent-admin
+    post:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: createAgentSiteTool
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteToolInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteToolView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Register a site's MCP server
+      tags:
+        - agent-admin
+  /api/v1/admin/agent/site-tools/{id}:
+    delete:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: deleteAgentSiteTool
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Remove a site tool server
+      tags:
+        - agent-admin
+    patch:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: updateAgentSiteTool
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteToolInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteToolView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Change a site tool server
+      tags:
+        - agent-admin
+  /api/v1/admin/agent/site-tools/{id}/test:
+    post:
+      description: Admin console only; requires ai.agent_manage.
+      operationId: testAgentSiteTool
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteToolProbe"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error
+      summary: Connect to the server and list its tools, with your own token
+      tags:
+        - agent-admin
   /v2/agent/conversations:
     get:
       operationId: listAgentConversations

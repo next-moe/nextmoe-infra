@@ -131,3 +131,24 @@ type Upload struct {
 }
 
 func (Upload) TableName() string { return "agent_upload" }
+
+const (
+	SiteToolAuthUser = "user_token"
+	SiteToolAuthNone = "none"
+)
+
+type SiteTool struct {
+	ID         int64          `gorm:"primaryKey"`
+	SiteID     int64          `gorm:"not null;uniqueIndex:uq_agent_site_tool,priority:1"`
+	Name       string         `gorm:"size:32;not null;uniqueIndex:uq_agent_site_tool,priority:2"`
+	URL        string         `gorm:"size:512;not null"`
+	Auth       string         `gorm:"size:16;not null;default:'user_token'"`
+	CardPrefix string         `gorm:"size:32;not null"`
+	Allowed    datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	TimeoutMs  int            `gorm:"not null;default:20000"`
+	Enabled    bool           `gorm:"not null;default:true"`
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+func (SiteTool) TableName() string { return "agent_site_tool" }

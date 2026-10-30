@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"api/internal/platform/ai/dto"
 	aiPerm "api/internal/platform/ai/perm"
@@ -20,11 +21,18 @@ import (
 
 type adminCtxKey string
 
-const ctxKeyAdminRoles adminCtxKey = "ai_admin:roles"
+const (
+	ctxKeyAdminRoles adminCtxKey = "ai_admin:roles"
+	actorCtxKey      adminCtxKey = "ai_admin:actor"
+)
 
 func adminAuthBridge(ctx huma.Context, next func(huma.Context)) {
-	if roles, ok := humafiber.Unwrap(ctx).Locals("user_roles").([]string); ok {
+	fc := humafiber.Unwrap(ctx)
+	if roles, ok := fc.Locals("user_roles").([]string); ok {
 		ctx = huma.WithValue(ctx, ctxKeyAdminRoles, roles)
+	}
+	if id, ok := fc.Locals("user_id").(uint); ok && id > 0 {
+		ctx = huma.WithValue(ctx, actorCtxKey, "user:"+strconv.FormatUint(uint64(id), 10))
 	}
 	next(ctx)
 }

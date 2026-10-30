@@ -189,7 +189,57 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 
 每个解只能用一次，题目 5 分钟过期，作用域绑定站点 + `agent.search`，别的站点或别的动作用不了。
 
-## 6. 本地开发
+## 6. 站点工具（MCP）与站内卡片
+
+助手默认只能查 NextMoe 共享的资料库。站点独有的内容（比如 kungal 的话题）在各站自己的库里，由站点以 MCP 服务的形式借给助手。
+
+### 6.1 卡片
+
+`data-entity-card` 的 `kind`：
+
+- 共享的 NextMoe 实体不带前缀：`work`、`character`、`company`、`tag`、`series`、`person`。id 全站通用，各站都能预览、跳转。
+- 站点独有的实体带前缀：`<card_prefix>:<kind>`，如 `kungal:topic`。只有所属站点提供可点击的预览，其他站照普通卡片显示。
+- 站点卡片统一的字段：
+
+```json
+{"kind": "kungal:topic", "id": "88", "title": "猫耳作品讨论", "subtitle": "…", "cover": "https://…", "summary": "…", "url": "/topic/88", "content_limit": "sfw"}
+```
+
+agent 只保留格式合格的卡片：
+- `kind` 必须是本服务登记的前缀；
+- `id`、`title` 不能为空；
+- `url` 必须是站内相对路径（以 `/` 开头，不能是 `//`）；
+- `cover` 只接受 https，不合格的封面会被去掉；
+- 每次调用最多 12 张。
+
+### 6.2 站点要提供的 MCP 服务
+
+- 传输方式：MCP streamable HTTP（任一 MCP SDK 的标准 HTTP 服务端即可），地址要让 agent 在内网能访问到。
+- 鉴权：
+  - 登记为 `user_token` 时，每次调用都带 `Authorization: Bearer <提问用户的 access token>`，站点按自己的规则判断可见性和成人内容；
+  - 登记为 `none` 时不带 token，只适合完全公开的数据。
+- 工具：每个工具都要写清 `description` 和 `inputSchema`，模型靠它们决定什么时候调用。返回值：
+  - `content`：给模型读的文字，简洁地写出结果要点；
+  - `structuredContent.cards`：可选，格式见 §6.1。
+  - 出错时返回 `isError: true` 并附文字说明，不要返回 HTTP 错误。
+- 会修改数据的工具（「帮我办」类）暂不开放。以后会改为先返回待确认卡片，用户确认后才执行。
+
+### 6.3 登记
+
+在管理端「AI 助手 · 站点工具」里按站点登记（需要 `ai.agent_manage`）。接口在 agent 服务的 `/api/v1/admin/agent/site-tools`：
+
+| 字段 | 含义 |
+| --- | --- |
+| `site_id` / `name` | 所属站点、服务名（模型看到的工具名是 `<name>__<工具名>`） |
+| `url` | MCP 地址 |
+| `auth` | `user_token` / `none` |
+| `card_prefix` | 卡片 kind 的前缀 |
+| `allowed` | 允许助手调用的工具名，空表示全部 |
+| `timeout_ms` / `enabled` | 单次调用超时、开关 |
+
+「测试」按钮会用你自己的 token 连一次服务，列出工具及其是否被允许。工具列表在 agent 里缓存 5 分钟；连接失败的服务 1 分钟后重试，期间这个站的对话照常进行，只是暂时没有这些工具。
+
+## 7. 本地开发
 
 ```bash
 go run ./cmd/migrate agent      # kun_agent（先 pnpm dev:db 建库）

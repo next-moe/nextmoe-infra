@@ -39,6 +39,11 @@ onMounted(load)
 const providerName = (id: number) =>
   id ? (props.providers.find((p) => p.id === id)?.name ?? `#${id}`) : ''
 
+const actorLabel = (actor: string) => {
+  const [kind, id] = actor.split(':')
+  return kind === 'user' && id ? `用户 #${id}` : actor
+}
+
 const routeLabel = (id: number) => {
   if (!id) return ''
   const r = props.routes.find((x) => x.id === id)
@@ -67,6 +72,7 @@ const routeLabel = (id: number) => {
           <tr>
             <th class="px-3 py-2 text-left font-medium">时间</th>
             <th class="px-3 py-2 text-left font-medium">类型</th>
+            <th class="px-3 py-2 text-left font-medium">操作人</th>
             <th class="px-3 py-2 text-left font-medium">路由 / 供应商</th>
             <th class="px-3 py-2 text-left font-medium">详情</th>
           </tr>
@@ -85,6 +91,12 @@ const routeLabel = (id: number) => {
                 {{ LLM_EVENT_KIND_LABEL[e.kind] ?? e.kind }}
               </KunChip>
             </td>
+            <td class="px-3 py-2 text-xs whitespace-nowrap">
+              <span v-if="e.actor" class="text-foreground font-mono">
+                {{ actorLabel(e.actor) }}
+              </span>
+              <span v-else class="text-default-400">网关</span>
+            </td>
             <td class="px-3 py-2">
               <p v-if="e.route_id">{{ routeLabel(e.route_id) }}</p>
               <p v-else-if="e.provider_id">{{ providerName(e.provider_id) }}</p>
@@ -95,7 +107,7 @@ const routeLabel = (id: number) => {
             </td>
           </tr>
           <tr v-if="!events.length">
-            <td colspan="4" class="text-default-400 px-3 py-8 text-center">
+            <td colspan="5" class="text-default-400 px-3 py-8 text-center">
               {{ loading ? '加载中…' : '暂无事件' }}
             </td>
           </tr>

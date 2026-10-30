@@ -30,6 +30,13 @@ const errorRate = computed(() =>
 const toggleLabel = computed(() =>
   props.route.status === 'active' ? '停用' : '启用'
 )
+const perCall = computed(() => props.route.price?.per_call_micro ?? 0)
+const showTokenPrice = computed(() => {
+  const p = props.route.price
+  return (
+    !p || !perCall.value || p.input_micro + p.cached_micro + p.output_micro > 0
+  )
+})
 const isBusy = (what: string) => props.busy === `${props.route.id}:${what}`
 </script>
 
@@ -40,6 +47,22 @@ const isBusy = (what: string) => props.busy === `${props.route.id}:${what}`
       <p class="text-default-500 font-mono text-xs break-all">
         {{ route.upstream_id }}
       </p>
+      <div class="mt-1 flex flex-wrap gap-1">
+        <KunChip color="default" variant="flat" size="xs">
+          {{ route.protocol }}
+        </KunChip>
+        <KunChip
+          v-if="route.max_in_flight > 0"
+          color="info"
+          variant="flat"
+          size="xs"
+        >
+          并发 ≤ {{ route.max_in_flight }}
+        </KunChip>
+        <KunChip v-if="route.rpm > 0" color="info" variant="flat" size="xs">
+          {{ route.rpm }} 次/分
+        </KunChip>
+      </div>
     </td>
     <td class="px-3 py-2 text-right tabular-nums">{{ route.priority }}</td>
     <td class="px-3 py-2 text-right tabular-nums">{{ route.weight }}</td>
@@ -60,9 +83,12 @@ const isBusy = (what: string) => props.busy === `${props.route.id}:${what}`
     </td>
     <td class="px-3 py-2 text-xs tabular-nums">
       <template v-if="route.price">
-        <p>输入 {{ llmUsdPerM(route.price.input_micro) }}</p>
-        <p>缓存 {{ llmUsdPerM(route.price.cached_micro) }}</p>
-        <p>输出 {{ llmUsdPerM(route.price.output_micro) }}</p>
+        <template v-if="showTokenPrice">
+          <p>输入 {{ llmUsdPerM(route.price.input_micro) }}</p>
+          <p>缓存 {{ llmUsdPerM(route.price.cached_micro) }}</p>
+          <p>输出 {{ llmUsdPerM(route.price.output_micro) }}</p>
+        </template>
+        <p v-if="perCall">每次 {{ llmUsdPerM(perCall) }}</p>
       </template>
       <span v-else class="text-default-400">未定价</span>
     </td>

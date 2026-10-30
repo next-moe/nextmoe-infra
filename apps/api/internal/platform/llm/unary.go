@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"slices"
 	"strings"
@@ -19,11 +20,12 @@ import (
 )
 
 type Request struct {
-	Scene  string
-	Model  string
-	Body   map[string]json.RawMessage
-	Site   string
-	UserID int64
+	Scene       string
+	Model       string
+	Body        map[string]json.RawMessage
+	Site        string
+	UserID      int64
+	AccessKeyID int64
 }
 
 type Response struct {
@@ -41,6 +43,10 @@ func (g *Gateway) Moderate(ctx context.Context, r Request) (Response, error) {
 	return g.unary(ctx, r, ModelModeration, "/moderations")
 }
 
+func (g *Gateway) GenerateImages(ctx context.Context, r Request) (Response, error) {
+	return g.unary(ctx, r, ModelImage, "/images/generations")
+}
+
 func (g *Gateway) unary(ctx context.Context, r Request, kind, path string) (Response, error) {
 	s := g.snap.Load()
 	if s == nil {
@@ -56,24 +62,49 @@ func (g *Gateway) unary(ctx context.Context, r Request, kind, path string) (Resp
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(sc.TotalMs)*time.Millisecond)
 	defer cancel()
 	callID := uuid.NewString()
-	plan := s.plan(sc, "", g.health)
+	if err := g.checkBudget(ctx, s, sc, r.AccessKeyID); err != nil {
+		return Response{}, err
+	}
+	plan := s.plan(sc, "", g.health, g.stats)
 	if len(plan) == 0 {
 		return Response{}, &Error{Kind: ErrKindNoRoute, Msg: "no active route for " + sc.Key}
 	}
+	if len(plan) == 1 {
+		plan = append(plan, plan[0])
+	}
 	var lastErr error
+	attempts, limited := 0, 0
 	for i, c := range plan {
-		if i >= maxAttempts {
+		if attempts >= maxAttempts {
 			break
+		}
+		if i > 0 && c.route == plan[i-1].route {
+			if !KindOf(lastErr).transient() {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return Response{CallID: callID}, lastErr
+			case <-time.After(time.Duration(300+rand.IntN(500)) * time.Millisecond):
+			}
 		}
 		res, err := g.unaryAttempt(ctx, s, sc, c, r, path, callID, true)
 		if err == nil {
 			res.CallID = callID
 			return res, nil
 		}
+		if KindOf(err) == ErrKindLimited {
+			limited++
+			continue
+		}
+		attempts++
 		lastErr = err
 		if !KindOf(err).failsOver() || ctx.Err() != nil {
 			return res, err
 		}
+	}
+	if lastErr == nil && limited > 0 {
+		return Response{CallID: callID}, &Error{Kind: ErrKindRateLimit, Msg: "every route of " + sc.Key + " is at its concurrency or per-minute limit"}
 	}
 	return Response{CallID: callID}, lastErr
 }
@@ -84,6 +115,14 @@ func (g *Gateway) unaryAttempt(ctx context.Context, s *snapshot, sc *Scene, c ca
 		body[k] = v
 	}
 	body["model"] = c.route.UpstreamID
+	if track {
+		release, ok := g.coord.Acquire(ctx, c.route.ID, c.route.MaxConcurrency, c.route.RPM)
+		if !ok {
+			return Response{}, &Error{Kind: ErrKindLimited, Msg: "route at its limit"}
+		}
+		defer release()
+		defer g.stats.begin(c.route.ID)()
+	}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return Response{}, &Error{Kind: ErrKindBadRequest, Msg: err.Error()}
@@ -91,17 +130,15 @@ func (g *Gateway) unaryAttempt(ctx context.Context, s *snapshot, sc *Scene, c ca
 	started := g.now()
 	out, resp, err := postJSON(ctx, g.client, c.provider.BaseURL+path, s.keys[c.provider.ID], s.headers[c.provider.ID], raw)
 	out.firstByte = g.now().Sub(started)
-	g.record(s, sc, c, Call{Site: r.Site, UserID: r.UserID}, callID, started, out, err)
+	g.record(s, sc, c, Call{Site: r.Site, UserID: r.UserID, AccessKeyID: r.AccessKeyID, probe: !track}, callID, started, out, err)
 	if !track {
 		return resp, err
 	}
 	if err != nil {
-		if g.health.failure(c.route.ID, KindOf(err)) {
-			g.alert(c.route, err)
-		}
+		g.noteFailure(ctx, c.route, err)
 		return resp, err
 	}
-	g.health.success(c.route.ID)
+	g.noteSuccess(ctx, c.route.ID, g.now().Sub(started))
 	return resp, nil
 }
 
@@ -133,22 +170,26 @@ func postJSON(ctx context.Context, client *http.Client, url, key string, headers
 		return out, Response{}, classifyTransport(ctx, err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return out, Response{}, classifyHTTP(resp.StatusCode, string(data))
+		return out, Response{}, httpError(resp, string(data))
 	}
 	var meta struct {
 		Model string `json:"model"`
 		Usage struct {
-			PromptTokens int `json:"prompt_tokens"`
-			InputTokens  int `json:"input_tokens"`
-			OutputTokens int `json:"output_tokens"`
-			TotalTokens  int `json:"total_tokens"`
+			PromptTokens   int   `json:"prompt_tokens"`
+			InputTokens    int   `json:"input_tokens"`
+			OutputTokens   int   `json:"output_tokens"`
+			TotalTokens    int   `json:"total_tokens"`
+			CostInUSDTicks int64 `json:"cost_in_usd_ticks"`
+			CostInNanoUSD  int64 `json:"cost_in_nano_usd"`
 		} `json:"usage"`
+		Data []json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return out, Response{}, &Error{Kind: ErrKindMalformed, Status: resp.StatusCode, Msg: truncate(string(data), 300)}
 	}
 	in := cmp.Or(meta.Usage.PromptTokens, meta.Usage.InputTokens, meta.Usage.TotalTokens)
-	out.result = Result{Model: meta.Model, Usage: Usage{InputTokens: in, OutputTokens: meta.Usage.OutputTokens}}
+	out.result = Result{Model: meta.Model, Usage: Usage{InputTokens: in, OutputTokens: meta.Usage.OutputTokens,
+		Units: len(meta.Data), ReportedNano: reportedNano(meta.Usage.CostInUSDTicks, meta.Usage.CostInNanoUSD)}}
 	return out, Response{Body: data, Model: meta.Model, Usage: out.result.Usage}, nil
 }
 
@@ -175,15 +216,19 @@ func (g *Gateway) Probe(ctx context.Context, routeID int64) (ProbeResult, error)
 	if err := g.db.WithContext(ctx).First(&m, r.ModelID).Error; err != nil {
 		return ProbeResult{}, err
 	}
-	key, err := providerKey(&p, g.kek)
+	return g.probeUpstream(ctx, &p, &r, &m), nil
+}
+
+func (g *Gateway) probeUpstream(ctx context.Context, p *Provider, r *Route, m *Model) ProbeResult {
+	key, err := providerKey(p, g.kek)
 	if err != nil {
-		return ProbeResult{ErrorKind: string(ErrKindAuth), Message: err.Error()}, nil
+		return ProbeResult{ErrorKind: string(ErrKindAuth), Message: err.Error()}
 	}
 	var headers map[string]string
 	_ = json.Unmarshal(p.Headers, &headers)
 	s := &snapshot{keys: map[int64]string{p.ID: key}, headers: map[int64]map[string]string{p.ID: headers}, prices: map[int64]*PriceRevision{}}
 	sc := &Scene{Key: "admin.test", ModelID: m.ID, Class: ClassBatch, TTFTMs: 20_000, IdleMs: 20_000, TotalMs: 30_000}
-	c := candidate{route: &r, model: &m, provider: &p}
+	c := candidate{route: r, model: m, provider: p}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	started := g.now()
@@ -201,6 +246,10 @@ func (g *Gateway) Probe(ctx context.Context, routeID int64) (ProbeResult, error)
 		var res Response
 		res, err = g.unaryAttempt(ctx, s, sc, c, Request{Body: map[string]json.RawMessage{"input": json.RawMessage(`"ping"`)}, Site: "admin"}, "/responses", uuid.NewString(), false)
 		served = res.Model
+	case ModelImage:
+		var res Response
+		res, err = g.unaryAttempt(ctx, s, sc, c, Request{Body: map[string]json.RawMessage{"prompt": json.RawMessage(`"a small red circle on a white background"`), "n": json.RawMessage(`1`)}, Site: "admin"}, "/images/generations", uuid.NewString(), false)
+		served = res.Model
 	default:
 		var res Result
 		res, _, err = g.attempt(ctx, s, sc, c, Call{Messages: []Message{{Role: RoleUser, Content: "ping"}}, MaxTokens: 16, Buffered: true, Site: "admin", probe: true}, uuid.NewString(), nil)
@@ -210,7 +259,7 @@ func (g *Gateway) Probe(ctx context.Context, routeID int64) (ProbeResult, error)
 	if err != nil {
 		out.ErrorKind, out.Message = string(KindOf(err)), err.Error()
 	}
-	return out, nil
+	return out
 }
 
 func HashAccessKey(secret string) string {
@@ -281,7 +330,7 @@ func (g *Gateway) Ready(scene string) (string, bool) {
 	if m := s.models[sc.ModelID]; m != nil {
 		key = m.Key
 	}
-	return key, len(s.plan(sc, "", g.health)) > 0
+	return key, len(s.plan(sc, "", g.health, g.stats)) > 0
 }
 
 func (g *Gateway) Models() []Model {

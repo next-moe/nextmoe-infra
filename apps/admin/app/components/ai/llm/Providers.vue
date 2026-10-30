@@ -2,8 +2,11 @@
 import { LLM_API } from '~/constants/llm'
 import type { LlmProvider } from '~~/shared/types/llm'
 
-defineProps<{ providers: LlmProvider[]; kekConfigured: boolean }>()
-const emit = defineEmits<{ changed: [] }>()
+const props = defineProps<{
+  providers: LlmProvider[]
+  kekConfigured: boolean
+}>()
+const emit = defineEmits<{ changed: []; adopted: [] }>()
 
 const api = useApi('ai')
 const busy = ref(0)
@@ -13,6 +16,16 @@ const editing = ref<LlmProvider | null>(null)
 const openModal = (p: LlmProvider | null) => {
   editing.value = p
   modalOpen.value = true
+}
+
+const catalogOpen = ref(false)
+const catalogId = ref(0)
+const catalogFor = computed(
+  () => props.providers.find((p) => p.id === catalogId.value) ?? null
+)
+const openCatalog = (p: LlmProvider) => {
+  catalogId.value = p.id
+  catalogOpen.value = true
 }
 
 const toggle = async (p: LlmProvider, enabled: boolean) => {
@@ -112,6 +125,9 @@ const remove = async (p: LlmProvider) => {
               />
             </td>
             <td class="px-3 py-2 text-right whitespace-nowrap">
+              <KunButton size="sm" variant="flat" @click="openCatalog(p)">
+                可用模型
+              </KunButton>
               <KunButton size="sm" variant="light" @click="openModal(p)">
                 编辑
               </KunButton>
@@ -140,6 +156,12 @@ const remove = async (p: LlmProvider) => {
       :provider="editing"
       :kek-configured="kekConfigured"
       @saved="emit('changed')"
+    />
+    <AiLlmCatalog
+      v-model="catalogOpen"
+      :provider="catalogFor"
+      @adopted="emit('adopted')"
+      @synced="emit('changed')"
     />
   </div>
 </template>

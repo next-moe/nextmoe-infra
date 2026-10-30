@@ -89,7 +89,7 @@ func TestRunnerAnswersWithToolsStreamsAndSettles(t *testing.T) {
 	reg := tools.NewRegistry(&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat})
 	store := NewStore(testDB)
 	broker := stream.NewBroker()
-	runner := NewRunner(store, gw, broker, quota, func(int64) *tools.Registry { return reg })
+	runner := NewRunner(store, gw, broker, quota, func(int64, string) *tools.Registry { return reg })
 
 	user := time.Now().UnixNano()
 	defer rdb.Del(ctx, quota.freeKey(user))

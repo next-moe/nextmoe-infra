@@ -25,6 +25,7 @@ func Mount(app *fiber.App, s *Server) {
 	v1.Post("/chat/completions", s.chat)
 	v1.Post("/embeddings", s.embeddings)
 	v1.Post("/moderations", s.moderations)
+	v1.Post("/images/generations", s.images)
 }
 
 const localKey = "llm_access_key"
@@ -73,7 +74,7 @@ func statusFor(k llm.ErrorKind) int {
 		return http.StatusServiceUnavailable
 	case llm.ErrKindBadRequest, llm.ErrKindContextLength, llm.ErrKindContentFiltered:
 		return http.StatusBadRequest
-	case llm.ErrKindRateLimit:
+	case llm.ErrKindRateLimit, llm.ErrKindBudget:
 		return http.StatusTooManyRequests
 	case llm.ErrKindTimeout:
 		return http.StatusGatewayTimeout
@@ -119,7 +120,7 @@ func (sv *Server) unary(c fiber.Ctx, call func(context.Context, llm.Request) (ll
 		return err
 	}
 	delete(body, "model")
-	res, err := call(c.Context(), llm.Request{Model: model, Body: body, Site: site(c)})
+	res, err := call(c.Context(), llm.Request{Model: model, Body: body, Site: site(c), AccessKeyID: keyOf(c).ID})
 	if err != nil {
 		return failErr(c, err)
 	}
@@ -130,6 +131,8 @@ func (sv *Server) unary(c fiber.Ctx, call func(context.Context, llm.Request) (ll
 func (sv *Server) embeddings(c fiber.Ctx) error { return sv.unary(c, sv.GW.Embed) }
 
 func (sv *Server) moderations(c fiber.Ctx) error { return sv.unary(c, sv.GW.Moderate) }
+
+func (sv *Server) images(c fiber.Ctx) error { return sv.unary(c, sv.GW.GenerateImages) }
 
 var chatKeys = map[string]bool{"model": true, "messages": true, "stream": true, "stream_options": true, "tools": true,
 	"tool_choice": true, "max_tokens": true, "max_completion_tokens": true, "user": true}
@@ -216,6 +219,7 @@ func (sv *Server) chat(c fiber.Ctx) error {
 	if err != nil {
 		return fail(c, http.StatusBadRequest, "invalid_messages", err.Error())
 	}
+	call.AccessKeyID = keyOf(c).ID
 	id := fmt.Sprintf("chatcmpl-%d", time.Now().UnixNano())
 	created := time.Now().Unix()
 	if !stream {

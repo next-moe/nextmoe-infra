@@ -34,7 +34,7 @@ func gatewayDB(t *testing.T) *gorm.DB {
 	if err := aimigrate.Run(db); err != nil {
 		t.Fatal(err)
 	}
-	for _, tbl := range []string{"llm_attempt", "llm_event", "llm_scene", "llm_price_revision", "llm_route", "llm_model", "llm_provider", "llm_access_key"} {
+	for _, tbl := range []string{"llm_attempt", "llm_event", "llm_scene", "llm_price_revision", "llm_route", "llm_model", "llm_provider", "llm_access_key", "llm_provider_model", "llm_usage_hourly"} {
 		if err := db.Exec("TRUNCATE " + tbl + " RESTART IDENTITY CASCADE").Error; err != nil {
 			t.Fatal(err)
 		}

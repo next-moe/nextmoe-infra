@@ -13,11 +13,18 @@ const (
 	ModelEmbedding  = "embedding"
 	ModelModeration = "moderation"
 	ModelSearch     = "search"
+	ModelImage      = "image"
 
 	ProtocolChat        = "chat"
 	ProtocolEmbeddings  = "embeddings"
 	ProtocolModerations = "moderations"
 	ProtocolResponses   = "responses"
+	ProtocolImages      = "images"
+
+	StrategyWeighted  = "weighted"
+	StrategyLeastBusy = "least_busy"
+	StrategyLatency   = "latency"
+	StrategyCost      = "cost"
 
 	RouteActive   = "active"
 	RouteDisabled = "disabled"
@@ -39,6 +46,7 @@ type Provider struct {
 	Headers            datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'"`
 	PriceMultiplierPPM int64          `gorm:"not null;default:1000000"`
 	Enabled            bool           `gorm:"not null;default:true"`
+	CatalogSyncedAt    *time.Time
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
@@ -79,6 +87,7 @@ type Route struct {
 	Status         string `gorm:"size:16;not null;default:'active'"`
 	StatusReason   string `gorm:"size:255;not null;default:''"`
 	MaxConcurrency int    `gorm:"not null;default:0"`
+	RPM            int    `gorm:"column:rpm;not null;default:0"`
 	PriceID        *int64
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -87,21 +96,63 @@ type Route struct {
 func (Route) TableName() string { return "llm_route" }
 
 type PriceRevision struct {
-	ID          int64  `gorm:"primaryKey"`
-	RouteID     int64  `gorm:"not null;index"`
-	InputMicro  int64  `gorm:"not null"`
-	CachedMicro int64  `gorm:"not null"`
-	OutputMicro int64  `gorm:"not null"`
-	Source      string `gorm:"size:16;not null;default:'manual'"`
-	CreatedAt   time.Time
+	ID           int64  `gorm:"primaryKey"`
+	RouteID      int64  `gorm:"not null;index"`
+	InputMicro   int64  `gorm:"not null"`
+	CachedMicro  int64  `gorm:"not null"`
+	OutputMicro  int64  `gorm:"not null"`
+	PerCallMicro int64  `gorm:"not null;default:0"`
+	Source       string `gorm:"size:16;not null;default:'manual'"`
+	CreatedAt    time.Time
 }
 
 func (PriceRevision) TableName() string { return "llm_price_revision" }
+
+type ProviderModel struct {
+	ID               int64          `gorm:"primaryKey"`
+	ProviderID       int64          `gorm:"not null;uniqueIndex:uq_llm_provider_model,priority:1"`
+	UpstreamID       string         `gorm:"size:200;not null;uniqueIndex:uq_llm_provider_model,priority:2"`
+	Kind             string         `gorm:"size:16;not null"`
+	KindSource       string         `gorm:"size:16;not null"`
+	InputModalities  datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	OutputModalities datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	ContextTokens    int            `gorm:"not null;default:0"`
+	OwnedBy          string         `gorm:"size:100;not null;default:''"`
+	Raw              datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'"`
+	Probe            datatypes.JSON `gorm:"type:jsonb"`
+	Listed           bool           `gorm:"not null;default:true"`
+	FirstSeenAt      time.Time      `gorm:"not null"`
+	LastSeenAt       time.Time      `gorm:"not null"`
+	DelistedAt       *time.Time
+}
+
+func (ProviderModel) TableName() string { return "llm_provider_model" }
+
+type UsageHourly struct {
+	Hour         time.Time `gorm:"primaryKey"`
+	Scene        string    `gorm:"primaryKey;size:64"`
+	RouteID      int64     `gorm:"primaryKey"`
+	AccessKeyID  int64     `gorm:"primaryKey"`
+	ProviderID   int64     `gorm:"not null"`
+	ModelKey     string    `gorm:"size:64;not null"`
+	Calls        int64     `gorm:"not null"`
+	Errors       int64     `gorm:"not null"`
+	InputTokens  int64     `gorm:"not null"`
+	OutputTokens int64     `gorm:"not null"`
+	CostNano     int64     `gorm:"not null"`
+	DurationMs   int64     `gorm:"not null"`
+}
+
+func (UsageHourly) TableName() string { return "llm_usage_hourly" }
 
 type Scene struct {
 	Key              string         `gorm:"primaryKey;size:64"`
 	ModelID          int64          `gorm:"not null"`
 	FallbackModelIDs datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	ContextFallback  datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	ContentFallback  datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	Strategy         string         `gorm:"size:16;not null;default:'weighted'"`
+	DailyBudgetMicro int64          `gorm:"not null;default:0"`
 	Class            string         `gorm:"size:16;not null;default:'interactive'"`
 	Temperature      *float64
 	MaxOutput        int `gorm:"not null;default:0"`
@@ -120,6 +171,7 @@ type Attempt struct {
 	RouteID           int64  `gorm:"not null"`
 	ProviderID        int64  `gorm:"not null"`
 	ModelKey          string `gorm:"size:64;not null"`
+	AccessKeyID       int64  `gorm:"not null;default:0"`
 	ServedModel       string `gorm:"size:128;not null;default:''"`
 	UpstreamRequestID string `gorm:"size:128;not null;default:''"`
 	TraceID           string `gorm:"size:32;not null;default:''"`
@@ -148,25 +200,27 @@ type RouteEvent struct {
 	ProviderID int64  `gorm:"not null;default:0"`
 	Kind       string `gorm:"size:32;not null"`
 	Detail     string `gorm:"type:text;not null;default:''"`
+	Actor      string `gorm:"size:64;not null;default:''"`
 	CreatedAt  time.Time
 }
 
 func (RouteEvent) TableName() string { return "llm_event" }
 
 type AccessKey struct {
-	ID            int64          `gorm:"primaryKey"`
-	Name          string         `gorm:"size:64;not null;uniqueIndex"`
-	Prefix        string         `gorm:"size:16;not null"`
-	Hash          string         `gorm:"size:64;not null;uniqueIndex"`
-	AllowedModels datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
-	Enabled       bool           `gorm:"not null;default:true"`
-	LastUsedAt    *time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID               int64          `gorm:"primaryKey"`
+	Name             string         `gorm:"size:64;not null;uniqueIndex"`
+	Prefix           string         `gorm:"size:16;not null"`
+	Hash             string         `gorm:"size:64;not null;uniqueIndex"`
+	AllowedModels    datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	Enabled          bool           `gorm:"not null;default:true"`
+	DailyBudgetMicro int64          `gorm:"not null;default:0"`
+	LastUsedAt       *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 func (AccessKey) TableName() string { return "llm_access_key" }
 
 func Tables() []any {
-	return []any{&Provider{}, &Model{}, &Route{}, &PriceRevision{}, &Scene{}, &Attempt{}, &RouteEvent{}, &AccessKey{}}
+	return []any{&Provider{}, &Model{}, &Route{}, &PriceRevision{}, &Scene{}, &Attempt{}, &RouteEvent{}, &AccessKey{}, &ProviderModel{}, &UsageHourly{}}
 }

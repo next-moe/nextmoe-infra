@@ -44,6 +44,12 @@ export const SIDEBAR_MENU: SidebarItem[] = [
     renOnly: true
   },
   {
+    icon: 'lucide:plug',
+    label: 'AI 助手 · 站点工具',
+    to: '/ai/agent-tools',
+    adminOnly: true
+  },
+  {
     icon: 'lucide:heart-pulse',
     label: '应用监测',
     renOnly: true,
