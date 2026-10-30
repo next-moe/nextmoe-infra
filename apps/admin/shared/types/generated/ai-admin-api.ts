@@ -700,6 +700,7 @@ export interface components {
             /** Format: int64 */
             rpm: number;
             status: string;
+            thinking_control?: string;
             upstream_id: string;
             /** Format: int64 */
             weight: number;
@@ -717,6 +718,7 @@ export interface components {
             /** Format: int64 */
             max_output: number;
             model: string;
+            reasoning?: string;
             strategy: string;
             /** Format: double */
             temperature: number | null;
@@ -1373,6 +1375,8 @@ export interface components {
             rpm?: number;
             /** @enum {string} */
             status?: "active" | "disabled";
+            /** @enum {string} */
+            thinking_control?: "auto" | "none" | "effort" | "effort_none" | "template" | "thinking";
             upstream_id?: string;
             /** Format: int64 */
             weight?: number;
@@ -1419,6 +1423,16 @@ export interface components {
             /** @enum {string} */
             status: "active" | "disabled";
             status_reason: string;
+            /**
+             * @description How a scene's reasoning level reaches this upstream: reasoning_effort (effort: off sends low; effort_none: off sends none), chat_template_kwargs.enable_thinking (template), thinking.type (thinking), nothing (none), or auto, guessed from the upstream id.
+             * @enum {string}
+             */
+            thinking_control: "auto" | "none" | "effort" | "effort_none" | "template" | "thinking";
+            /**
+             * @description What auto resolves to for this upstream.
+             * @enum {string}
+             */
+            thinking_effective: "none" | "effort" | "effort_none" | "template" | "thinking";
             upstream_id: string;
             /** Format: int64 */
             weight: number;
@@ -1443,6 +1457,11 @@ export interface components {
             max_output: number;
             /** Format: int64 */
             model_id: number;
+            /**
+             * @description How hard reasoning models think in this scene; empty is off. off turns thinking off where the upstream allows it and asks for the lowest effort where it does not; default sends nothing and leaves the model's own default. Each route's thinking_control decides the parameter.
+             * @enum {string}
+             */
+            reasoning?: "off" | "low" | "medium" | "high" | "default";
             /**
              * @description How routes of one priority tier are ordered: weighted keeps a conversation on one route (rendezvous on its key), least_busy prefers fewer calls in flight in this process, latency the lowest recent first-byte time (with a tenth of calls exploring), cost the cheapest price.
              * @enum {string}
@@ -1485,6 +1504,8 @@ export interface components {
             model_id: number;
             /** @description Whether any model of the main chain has an active route right now. */
             ready: boolean;
+            /** @enum {string} */
+            reasoning: "off" | "low" | "medium" | "high" | "default";
             /** Format: int64 */
             spent_today_nano: number;
             /** @enum {string} */

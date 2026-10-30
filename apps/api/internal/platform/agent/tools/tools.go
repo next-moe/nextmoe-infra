@@ -32,6 +32,18 @@ type Output struct {
 	Text    string
 	Cards   []Card
 	Sources []Source
+	Total   int
+	Meta    map[string]any
+	Browse  *BrowseLink
+	Err     error
+}
+
+type BrowseLink struct {
+	Target string   `json:"target" doc:"works or characters"`
+	IDs    []string `json:"ids" doc:"Tag ids for works, trait ids for characters; all must match."`
+	Names  []string `json:"names"`
+	Sort   string   `json:"sort"`
+	Total  int      `json:"total"`
 }
 
 type Tool interface {
@@ -45,7 +57,10 @@ type Registry struct {
 }
 
 func NewRegistry(ts ...Tool) *Registry {
-	r := &Registry{tools: map[string]Tool{}}
+	return (&Registry{tools: map[string]Tool{}}).Add(ts...)
+}
+
+func (r *Registry) Add(ts ...Tool) *Registry {
 	for _, t := range ts {
 		if t == nil {
 			continue
@@ -65,6 +80,28 @@ func (r *Registry) Specs(skip ...string) []llm.Tool {
 		}
 	}
 	return out
+}
+
+type SiteTool interface {
+	SiteInstructions() string
+}
+
+// SiteNotes reports whether any site tool is registered, and the distinct
+// instructions their servers gave.
+func (r *Registry) SiteNotes() (bool, []string) {
+	has := false
+	var notes []string
+	for _, name := range r.order {
+		st, ok := r.tools[name].(SiteTool)
+		if !ok {
+			continue
+		}
+		has = true
+		if n := st.SiteInstructions(); n != "" && !contains(notes, n) {
+			notes = append(notes, n)
+		}
+	}
+	return has, notes
 }
 
 func contains(xs []string, x string) bool {
@@ -138,7 +175,7 @@ func (r *Run) Call(ctx context.Context, name, rawArgs string) Output {
 		if errors.Is(err, context.DeadlineExceeded) {
 			msg = "tool timed out"
 		}
-		out = Output{Text: fmt.Sprintf(`{"error":%q}`, msg)}
+		out = Output{Text: fmt.Sprintf(`{"error":%q}`, msg), Err: err}
 	}
 	out.Text = clip(out.Text, modelOutputCap)
 	r.mu.Lock()

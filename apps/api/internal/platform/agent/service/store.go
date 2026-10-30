@@ -41,6 +41,7 @@ type Part struct {
 	State      string          `json:"state,omitempty"`
 	Input      json.RawMessage `json:"input,omitempty"`
 	Output     json.RawMessage `json:"output,omitempty"`
+	ErrorText  string          `json:"errorText,omitempty"`
 }
 
 type Store struct {
@@ -64,16 +65,36 @@ func (s *Store) Conversation(ctx context.Context, userID, siteID, id int64) (*mo
 	return &c, err
 }
 
-func (s *Store) ListConversations(ctx context.Context, userID, siteID int64, starred *bool, before time.Time, beforeID int64, limit int) ([]model.Conversation, error) {
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+func (s *Store) ListConversations(ctx context.Context, userID, siteID int64, starred *bool, search string, before time.Time, beforeID int64, limit int) ([]model.Conversation, error) {
 	q := s.db.WithContext(ctx).Where("user_id = ? AND site_id = ?", userID, siteID)
 	if starred != nil {
 		q = q.Where("starred = ?", *starred)
+	}
+	if search = strings.TrimSpace(search); search != "" {
+		like := "%" + likeEscaper.Replace(search) + "%"
+		q = q.Where(`title ILIKE ? OR EXISTS (
+			SELECT 1 FROM agent_message m, jsonb_array_elements(m.parts) p
+			WHERE m.conversation_id = agent_conversation.id AND p->>'type' = 'text' AND p->>'text' ILIKE ?)`, like, like)
 	}
 	if !before.IsZero() {
 		q = q.Where("(updated_at, id) < (?, ?)", before, beforeID)
 	}
 	var out []model.Conversation
 	return out, q.Order("updated_at DESC, id DESC").Limit(limit).Find(&out).Error
+}
+
+func (s *Store) PastTitles(ctx context.Context, userID, siteID, except int64, limit int) ([]PastTitle, error) {
+	var rows []model.Conversation
+	err := s.db.WithContext(ctx).Select("title", "updated_at").
+		Where("user_id = ? AND site_id = ? AND id <> ? AND title <> ''", userID, siteID, except).
+		Order("updated_at DESC, id DESC").Limit(limit).Find(&rows).Error
+	out := make([]PastTitle, len(rows))
+	for i, r := range rows {
+		out[i] = PastTitle{Title: r.Title, At: r.UpdatedAt}
+	}
+	return out, err
 }
 
 func (s *Store) RenameConversation(ctx context.Context, c *model.Conversation, title string) error {
@@ -131,10 +152,13 @@ func (s *Store) SetFeedback(ctx context.Context, userID, siteID, messageID int64
 
 func (s *Store) DeleteConversation(ctx context.Context, c *model.Conversation) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for _, m := range []any{&model.Message{}, &model.Run{}, &model.Upload{}} {
+		for _, m := range []any{&model.Message{}, &model.Run{}, &model.Upload{}, &model.Summary{}, &model.Embedding{}} {
 			if err := tx.Where("conversation_id = ?", c.ID).Delete(m).Error; err != nil {
 				return err
 			}
+		}
+		if err := tx.Model(&model.Memory{}).Where("conversation_id = ?", c.ID).Update("conversation_id", nil).Error; err != nil {
+			return err
 		}
 		return tx.Delete(c).Error
 	})

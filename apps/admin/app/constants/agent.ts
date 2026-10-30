@@ -40,3 +40,11 @@ export const AGENT_TOOL_DEFAULTS: AgentSiteToolForm = {
 }
 
 export const AGENT_TOOL_TIMEOUT_RANGE = { min: 1000, max: 120000 } as const
+
+export const AGENT_DEFAULT_SITE = 0
+
+export const AGENT_PERSONA_PROMPT_HINT =
+  '写她是谁、怎么说话、熟悉什么。工具使用、注明来源、附件安全等通用规则追加在人设后面，在设置中心「AI 助手」的 agent.prompt.* 里修改。'
+
+export const AGENT_PERSONA_PLACEHOLDER =
+  '你是「小萌」，NextMoe 的看板娘，活泼、友善，熟悉 galgame、同人游戏和 ACG。用简洁自然的中文回答；不知道的事情直说不知道。'

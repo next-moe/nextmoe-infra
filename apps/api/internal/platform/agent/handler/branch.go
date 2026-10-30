@@ -125,9 +125,11 @@ func (s *Server) begin(ctx context.Context, c *caller, req service.StartRequest)
 	if !s.Limits.Allow(ctx, "user:"+strconv.FormatInt(c.UserID, 10), keys.AgentUserRatePerMinute.Get(), time.Minute) {
 		return nil, fail(http.StatusTooManyRequests, CodeRateLimited, "too many messages; wait a minute")
 	}
-	req.Price = int(keys.AgentPriceAssistant.Get())
-	if req.WebSearch {
-		req.Price += int(keys.AgentPriceWebSurcharge.Get())
+	base, surcharge := int(keys.AgentPriceAssistant.Get()), int(keys.AgentPriceWebSurcharge.Get())
+	web := s.webSearch() && (req.WebSearch || keys.AgentWebAuto.ForSite(uint(c.SiteID)))
+	req.Price = base
+	if web {
+		req.Price += surcharge
 	}
 	if existing, err := s.Store.RunByIdem(ctx, c.UserID, req.IdemKey); err == nil {
 		if existing.IdemHash != service.RequestHash(req) {
@@ -136,6 +138,10 @@ func (s *Server) begin(ctx context.Context, c *caller, req service.StartRequest)
 		return sent(existing), nil
 	}
 	res, err := s.Quota.Reserve(ctx, c.UserID, req.Price)
+	if web && !req.WebSearch && surcharge > 0 && (errors.Is(err, service.ErrQuotaExhausted) || errors.Is(err, service.ErrInsufficientPoints)) {
+		web, req.Price = false, base
+		res, err = s.Quota.Reserve(ctx, c.UserID, req.Price)
+	}
 	switch {
 	case errors.Is(err, service.ErrQuotaExhausted):
 		return nil, fail(http.StatusPaymentRequired, CodeFreeUnitsExhausted, "today's free units are used up")
@@ -162,7 +168,7 @@ func (s *Server) begin(ctx context.Context, c *caller, req service.StartRequest)
 		return nil, err
 	}
 	if created {
-		if err := s.startTurn(ctx, c, run, res); err != nil {
+		if err := s.startTurn(ctx, c, run, res, web); err != nil {
 			return nil, err
 		}
 	}

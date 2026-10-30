@@ -44,6 +44,7 @@ type Call struct {
 	Tools       []Tool
 	ToolChoice  string
 	MaxTokens   int
+	Reasoning   string
 	JSON        bool
 	Buffered    bool
 	Extra       map[string]json.RawMessage
