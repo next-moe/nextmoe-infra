@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -57,6 +58,22 @@ func TestMemoryAndSummaryReachTheSystemPrompt(t *testing.T) {
 	msgs, _ = buildMessages(turn, time.Now())
 	if !strings.Contains(msgs[0].Content, "\n- #12 用户讨厌 NTR\n〔记忆结束〕") {
 		t.Fatalf("memories carry their ids:\n%s", msgs[0].Content)
+	}
+}
+
+func TestShownCardsRideOnTheNextQuestion(t *testing.T) {
+	reply, _ := json.Marshal([]Part{
+		{Type: "text", Text: "推荐《心跳文学部》。"},
+		{Type: "data-entity-card", ID: "letmoe:game-148", Data: json.RawMessage(`{"kind":"letmoe:game","id":"148","title":"心跳文学部"}`)},
+	})
+	history := []model.Message{msg(1, model.RoleUser, "手机上能玩什么"), {ID: 2, Role: model.RoleAssistant, Parts: reply}, msg(3, model.RoleUser, "有汉化吗")}
+	msgs, _ := buildMessages(Turn{Persona: &model.Persona{}, Run: &model.Run{}, History: history}, time.Now())
+	if len(msgs) != 4 || msgs[2].Content != "推荐《心跳文学部》。" ||
+		msgs[3].Content != "〔上一条回答下方给用户展示了这些卡片：心跳文学部(letmoe:game id 148)〕\n有汉化吗" {
+		t.Fatalf("the reply stays clean and the next question carries its cards: %+v", msgs[1:])
+	}
+	if got := messageText(history[1], nil); got != "推荐《心跳文学部》。\n[本轮展示的卡片：心跳文学部(letmoe:game id 148)]" {
+		t.Fatalf("summaries and past-conversation reads keep the card note: %q", got)
 	}
 }
 

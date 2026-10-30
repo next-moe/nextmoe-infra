@@ -67,14 +67,23 @@ func buildMessages(t Turn, now time.Time) ([]llm.Message, bool) {
 	}
 	msgs := []llm.Message{{Role: llm.RoleSystem, Content: system}}
 	vision := false
+	shown := ""
 	for _, h := range history {
 		text, images := h.text, h.images
-		if text == "" && len(images) == 0 {
-			continue
-		}
 		role := llm.RoleUser
 		if h.msg.Role == model.RoleAssistant {
 			role = llm.RoleAssistant
+		}
+		// qwen3 copied the card note at the end of its own past reply into a new reply, so the note rides on the next question.
+		if role == llm.RoleUser && shown != "" {
+			text = fmt.Sprintf("〔上一条回答下方给用户展示了这些卡片：%s〕\n%s", shown, text)
+		}
+		shown = ""
+		if role == llm.RoleAssistant {
+			shown = h.cards
+		}
+		if text == "" && len(images) == 0 {
+			continue
 		}
 		msg := llm.Message{Role: role, Content: text}
 		if len(images) > 0 && role == llm.RoleUser {
@@ -107,8 +116,9 @@ func decodeParts(m model.Message) []Part {
 }
 
 func messageText(m model.Message, uploads map[string]*model.Upload) string {
-	text, _ := hydrate(decodeParts(m), uploads)
-	return text
+	parts := decodeParts(m)
+	text, _ := hydrate(parts, uploads)
+	return withCards(text, cardList(parts))
 }
 
 func UploadIDs(parts []Part) []string {
@@ -137,12 +147,40 @@ func hydrate(parts []Part, uploads map[string]*model.Upload) (string, []string) 
 		}
 		out = append(out, p)
 	}
-	return partsText(out), images
+	return partsBody(out), images
 }
 
 func partsText(parts []Part) string {
-	var b strings.Builder
+	return withCards(partsBody(parts), cardList(parts))
+}
+
+func withCards(text, cards string) string {
+	if cards == "" {
+		return text
+	}
+	return strings.TrimSpace(text + "\n[本轮展示的卡片：" + cards + "]")
+}
+
+func cardList(parts []Part) string {
 	var cards []string
+	for _, p := range parts {
+		if p.Type != "data-entity-card" {
+			continue
+		}
+		var c struct {
+			Kind  string `json:"kind"`
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		}
+		if json.Unmarshal(p.Data, &c) == nil && c.ID != "" {
+			cards = append(cards, fmt.Sprintf("%s(%s id %s)", c.Title, c.Kind, c.ID))
+		}
+	}
+	return strings.Join(cards, "、")
+}
+
+func partsBody(parts []Part) string {
+	var b strings.Builder
 	for _, p := range parts {
 		switch p.Type {
 		case "text":
@@ -156,19 +194,7 @@ func partsText(parts []Part) string {
 			} else {
 				fmt.Fprintf(&b, "\n\n〔附件 %s〕\n%s\n〔附件结束〕", p.Filename, p.Text)
 			}
-		case "data-entity-card":
-			var c struct {
-				Kind  string `json:"kind"`
-				ID    string `json:"id"`
-				Title string `json:"title"`
-			}
-			if json.Unmarshal(p.Data, &c) == nil && c.ID != "" {
-				cards = append(cards, fmt.Sprintf("%s(%s id %s)", c.Title, c.Kind, c.ID))
-			}
 		}
-	}
-	if len(cards) > 0 {
-		fmt.Fprintf(&b, "\n[本轮展示的卡片：%s]", strings.Join(cards, "、"))
 	}
 	return strings.TrimSpace(b.String())
 }

@@ -35,6 +35,7 @@ func estimateTokens(s string) int {
 type rendered struct {
 	msg    model.Message
 	text   string
+	cards  string
 	images []string
 	tokens int
 }
@@ -63,8 +64,10 @@ func render(history []model.Message, uploads map[string]*model.Upload) []rendere
 				ups = nil
 			}
 		}
-		text, images := hydrate(decodeParts(m), ups)
-		out[i] = rendered{msg: m, text: text, images: images, tokens: estimateTokens(text) + imageTokens*len(images)}
+		parts := decodeParts(m)
+		text, images := hydrate(parts, ups)
+		cards := cardList(parts)
+		out[i] = rendered{msg: m, text: text, cards: cards, images: images, tokens: estimateTokens(text+cards) + imageTokens*len(images)}
 	}
 	return out
 }
