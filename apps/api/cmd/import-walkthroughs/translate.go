@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -351,7 +352,9 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 		var got struct {
 			T []string `json:"t"`
 		}
-		if _, err := l.chatJSON(ctx, translateSystem, string(in), "translation", schema, maxTokens, &got); err != nil {
+		// grok answers a chunk it will not translate in prose (这…, 我…), which
+		// failed the whole chart; a chunk it refuses is split like a short one.
+		if _, err := l.chatJSON(ctx, translateSystem, string(in), "translation", schema, maxTokens, &got); err != nil && !errors.Is(err, errNotJSON) {
 			return err
 		}
 		if len(got.T) != len(chunk) {
