@@ -63,16 +63,18 @@ type WalkthroughSection struct {
 }
 
 type WalkthroughEntry struct {
-	_                   struct{} `json:"-" additionalProperties:"true"`
-	Key                 string   `json:"key" pattern:"^[A-Za-z0-9_]+$" minLength:"1" maxLength:"32" doc:"Chart-local key that a segment's from node refers to."`
-	Label               string   `json:"label" maxLength:"256" doc:"The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant."`
-	UnlockedByEndingKey *string  `json:"unlocked_by_ending_key" pattern:"^[A-Za-z0-9_]+$" maxLength:"32" doc:"endings[].key whose completion unlocks this entry. null if it is open from the start."`
+	_                   struct{}                 `json:"-" additionalProperties:"true"`
+	Key                 string                   `json:"key" pattern:"^[A-Za-z0-9_]+$" minLength:"1" maxLength:"32" doc:"Chart-local key that a segment's from node refers to."`
+	Label               string                   `json:"label" maxLength:"256" doc:"The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant."`
+	Localized           map[string]LocalizedText `json:"localized" doc:"BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."`
+	UnlockedByEndingKey *string                  `json:"unlocked_by_ending_key" pattern:"^[A-Za-z0-9_]+$" maxLength:"32" doc:"endings[].key whose completion unlocks this entry. null if it is open from the start."`
 }
 
 type WalkthroughSave struct {
-	_     struct{} `json:"-" additionalProperties:"true"`
-	Key   string   `json:"key" pattern:"^[A-Za-z0-9_]+$" minLength:"1" maxLength:"32" doc:"Chart-local key that save steps and save nodes refer to."`
-	Label string   `json:"label" maxLength:"256" doc:"The save point as the source page labels it. Must not be used as a discriminant."`
+	_         struct{}                 `json:"-" additionalProperties:"true"`
+	Key       string                   `json:"key" pattern:"^[A-Za-z0-9_]+$" minLength:"1" maxLength:"32" doc:"Chart-local key that save steps and save nodes refer to."`
+	Label     string                   `json:"label" maxLength:"256" doc:"The save point as the source page labels it. Must not be used as a discriminant."`
+	Localized map[string]LocalizedText `json:"localized" doc:"BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant."`
 }
 
 type WalkthroughEnding struct {
@@ -91,6 +93,7 @@ type WalkthroughSegment struct {
 	FromNode           WalkthroughNode          `json:"from_node" doc:"Where the segment starts: an entry, a save, or the ending an after-story follows."`
 	Condition          *string                  `json:"condition" maxLength:"1024" doc:"Precondition the source states for this segment, as it writes it. null if none. Must not be used as a discriminant."`
 	ConditionLocalized map[string]LocalizedText `json:"condition_localized" doc:"BCP-47 keys: machine translations of condition. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."`
+	RequiresEndingKeys []string                 `json:"requires_ending_keys" doc:"endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null."`
 	Steps              []WalkthroughStep        `json:"steps" doc:"Steps in play order. Empty array, never null."`
 	ToNode             WalkthroughNode          `json:"to_node" doc:"Where the segment ends: an ending, a collection stop, or open when it stops without either."`
 }
@@ -103,12 +106,12 @@ type WalkthroughNode struct {
 
 type WalkthroughStep struct {
 	_            struct{}                 `json:"-" additionalProperties:"true"`
-	StepType     string                   `json:"step_type" enum:"choice,action,save" doc:"choice picks text; action is a non-choice step such as a minigame; save creates save_key here."`
-	Text         *string                  `json:"text" maxLength:"1024" doc:"The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant."`
+	StepType     string                   `json:"step_type" enum:"choice,action,save,heading,note" doc:"choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it."`
+	Text         *string                  `json:"text" maxLength:"1024" doc:"The step as the source page writes it. null for a save step. Must not be used as a discriminant."`
 	Localized    map[string]LocalizedText `json:"localized" doc:"BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."`
 	Alternatives []WalkthroughAlternative `json:"alternatives" doc:"Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null."`
 	Achievement  bool                     `json:"achievement" doc:"The source marks this step as needed for an achievement only."`
-	SaveKey      *string                  `json:"save_key" pattern:"^[A-Za-z0-9_]+$" maxLength:"32" doc:"saves[].key this save step creates. null for choice and action steps."`
+	SaveKey      *string                  `json:"save_key" pattern:"^[A-Za-z0-9_]+$" maxLength:"32" doc:"saves[].key this save step creates. null for every other step_type."`
 }
 
 type WalkthroughRelease struct {

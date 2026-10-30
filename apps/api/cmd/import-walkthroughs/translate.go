@@ -213,6 +213,12 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 	for _, s := range c.Sections {
 		add(&s.Title)
 	}
+	for _, s := range c.Saves {
+		add(&s.Label)
+	}
+	for _, e := range c.Entries {
+		add(&e.Label)
+	}
 	keep := func(n string) {
 		for _, p := range nameParts(n) {
 			if !slices.Contains(job.KeepNames, p) {
@@ -311,7 +317,7 @@ type translateStats struct {
 func translateOne(ctx context.Context, l *llm, schema map[string]any, job translateJob, maxTokens int) (map[string]string, translateStats, error) {
 	out := map[string]string{}
 	var st translateStats
-	mask := newNameMask(job.KeepNames)
+	mask := newNameMask(job.KeepNames, 2)
 	var todo []string
 	for _, ja := range job.Strings {
 		switch zh, ok := job.Earlier[ja]; {
@@ -324,8 +330,9 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 			todo = append(todo, ja)
 		}
 	}
-	var run func(chunk []string) error
-	run = func(chunk []string) error {
+	var refused []string
+	var run func(mask nameMask, chunk []string) error
+	run = func(mask nameMask, chunk []string) error {
 		masked := make([]string, len(chunk))
 		for i, ja := range chunk {
 			masked[i] = mask.hide(ja)
@@ -346,32 +353,52 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 		if len(got.T) != len(chunk) {
 			if len(chunk) == 1 {
 				st.asked++
-				st.refused++
+				refused = append(refused, chunk[0])
 				return nil
 			}
 			half := len(chunk) / 2
-			if err := run(chunk[:half]); err != nil {
+			if err := run(mask, chunk[:half]); err != nil {
 				return err
 			}
-			return run(chunk[half:])
+			return run(mask, chunk[half:])
 		}
 		st.asked += len(chunk)
 		for i, ja := range chunk {
 			zh, ok := mask.restore(masked[i], strings.TrimSpace(got.T[i]))
 			if !ok || zh == "" || !keepsNames(ja, zh, job.KeepNames) {
-				st.refused++
+				refused = append(refused, ja)
 				continue
 			}
 			out[ja] = zh
 		}
 		return nil
 	}
-	for start := 0; start < len(todo); start += translateChunk {
-		if err := run(todo[start:min(start+translateChunk, len(todo))]); err != nil {
-			return out, st, err
+	runAll := func(mask nameMask, todo []string) error {
+		for start := 0; start < len(todo); start += translateChunk {
+			if err := run(mask, todo[start:min(start+translateChunk, len(todo))]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := runAll(mask, todo); err != nil {
+		return out, st, err
+	}
+	full := newNameMask(job.KeepNames, 1)
+	first := refused
+	todo, refused = nil, nil
+	for _, ja := range first {
+		if full.hide(ja) == mask.hide(ja) {
+			refused = append(refused, ja)
+		} else if full.onlyNames(ja) {
+			out[ja] = ja
+		} else {
+			todo = append(todo, ja)
 		}
 	}
-	return out, st, nil
+	err := runAll(full, todo)
+	st.refused = len(refused)
+	return out, st, err
 }
 
 var placeholderRe = regexp.MustCompile(`\{N[0-9]+\}`)
@@ -380,13 +407,16 @@ var placeholderRe = regexp.MustCompile(`\{N[0-9]+\}`)
 // before a string reaches the model and swaps it back after: asked to keep
 // the names verbatim, glm-5.2 still transliterated them, and the keepsNames
 // guard dropped 40.9k of the 287k strings on 2026-10-25. A one-rune name
-// stays unmasked, because 愛 or 藍 is as often a word as a name.
+// stays unmasked at first, because 愛 or 藍 is as often a word as a name; but
+// the model then wrote 鈴を追う as 追铃, the guard refused it, and 1,556 choice
+// steps went without zh-Hans, so a refused string is asked once more with
+// one-rune names masked too.
 type nameMask struct {
 	hider, shower *strings.Replacer
 }
 
-func newNameMask(names []string) nameMask {
-	long := slices.DeleteFunc(slices.Clone(names), func(n string) bool { return utf8.RuneCountInString(n) < 2 })
+func newNameMask(names []string, minRunes int) nameMask {
+	long := slices.DeleteFunc(slices.Clone(names), func(n string) bool { return utf8.RuneCountInString(n) < minRunes })
 	slices.SortStableFunc(long, func(a, b string) int { return utf8.RuneCountInString(b) - utf8.RuneCountInString(a) })
 	var hide, show []string
 	for i, n := range long {

@@ -12913,6 +12913,11 @@ components:
           description: The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant.
           maxLength: 256
           type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
+          type: object
         unlocked_by_ending_key:
           description: endings[].key whose completion unlocks this entry. null if it is open from the start.
           maxLength: 32
@@ -12923,6 +12928,7 @@ components:
       required:
         - key
         - label
+        - localized
         - unlocked_by_ending_key
       type: object
     WalkthroughImportReview:
@@ -13036,9 +13042,15 @@ components:
           description: The save point as the source page labels it. Must not be used as a discriminant.
           maxLength: 256
           type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant."
+          type: object
       required:
         - key
         - label
+        - localized
       type: object
     WalkthroughSection:
       additionalProperties: true
@@ -13092,6 +13104,11 @@ components:
           minLength: 1
           pattern: ^[A-Za-z0-9_]+$
           type: string
+        requires_ending_keys:
+          description: endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.
+          items:
+            type: string
+          type: array
         section_key:
           description: sections[].key this segment is listed under. null if the source lists it under no heading.
           maxLength: 32
@@ -13113,6 +13130,7 @@ components:
         - from_node
         - condition
         - condition_localized
+        - requires_ending_keys
         - steps
         - to_node
       type: object
@@ -13133,22 +13151,24 @@ components:
           description: "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
           type: object
         save_key:
-          description: saves[].key this save step creates. null for choice and action steps.
+          description: saves[].key this save step creates. null for every other step_type.
           maxLength: 32
           pattern: ^[A-Za-z0-9_]+$
           type:
             - string
             - "null"
         step_type:
-          description: choice picks text; action is a non-choice step such as a minigame; save creates save_key here.
+          description: choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.
           enum:
             - choice
             - action
             - save
+            - heading
+            - note
           type: string
           x-vocabulary-closed: true
         text:
-          description: The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.
+          description: The step as the source page writes it. null for a save step. Must not be used as a discriminant.
           maxLength: 1024
           type:
             - string
@@ -13989,7 +14009,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.78.0
+  version: 2.79.0
   x-stability: stable
 openapi: 3.1.0
 paths:

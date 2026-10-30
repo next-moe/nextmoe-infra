@@ -257,10 +257,12 @@ func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string
 		})
 	}
 	for _, e := range c.Entries {
-		out.Entries = append(out.Entries, repr.WalkthroughEntry{Key: e.Key, Label: e.Label, UnlockedByEndingKey: e.UnlockedBy})
+		out.Entries = append(out.Entries, repr.WalkthroughEntry{
+			Key: e.Key, Label: e.Label, Localized: walkthroughLocalized(e.LabelZh), UnlockedByEndingKey: e.UnlockedBy,
+		})
 	}
 	for _, s := range c.Saves {
-		out.Saves = append(out.Saves, repr.WalkthroughSave{Key: s.Key, Label: s.Label})
+		out.Saves = append(out.Saves, repr.WalkthroughSave{Key: s.Key, Label: s.Label, Localized: walkthroughLocalized(s.LabelZh)})
 	}
 	for _, e := range c.Endings {
 		out.Endings = append(out.Endings, repr.WalkthroughEnding{
@@ -271,7 +273,8 @@ func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string
 		seg := repr.WalkthroughSegment{
 			Key: s.Key, SectionKey: s.Section, FromNode: walkthroughNode(s.From), ToNode: walkthroughNode(s.To),
 			Condition: s.Condition, ConditionLocalized: walkthroughLocalized(s.ConditionZh),
-			Steps: make([]repr.WalkthroughStep, 0, len(s.Steps)),
+			RequiresEndingKeys: orEmptyStrings(s.RequiresEndings),
+			Steps:              make([]repr.WalkthroughStep, 0, len(s.Steps)),
 		}
 		for _, st := range s.Steps {
 			step := repr.WalkthroughStep{

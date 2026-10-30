@@ -9,7 +9,8 @@ import type {
 import {
   WT_ENDING_TYPES,
   WT_KEY_PATTERN,
-  WT_LIMITS
+  WT_LIMITS,
+  WT_STEP_META
 } from '~/constants/walkthrough'
 
 const list = <T>(value: T[] | null | undefined): T[] =>
@@ -29,9 +30,10 @@ export const normalizeChart = (raw: unknown): WtChart => {
     })),
     entries: list(c.entries).map((e) => ({
       ...e,
+      label_zh: e.label_zh ?? null,
       unlocked_by: e.unlocked_by ?? null
     })),
-    saves: list(c.saves),
+    saves: list(c.saves).map((s) => ({ ...s, label_zh: s.label_zh ?? null })),
     endings: list(c.endings).map((e) => ({
       ...e,
       name_zh: e.name_zh ?? null,
@@ -42,6 +44,7 @@ export const normalizeChart = (raw: unknown): WtChart => {
       section: s.section ?? null,
       condition: s.condition ?? null,
       condition_zh: s.condition_zh ?? null,
+      requires_endings: list(s.requires_endings),
       steps: list(s.steps).map((st) => ({
         ...st,
         text: st.text ?? null,
@@ -218,6 +221,7 @@ export const removeEnding = (d: WtChart, key: string) => {
     if (s.to.node_type === 'ending' && s.to.key === key) {
       s.to = { node_type: 'open', key: null }
     }
+    s.requires_endings = s.requires_endings?.filter((k) => k !== key)
   }
   for (const e of d.entries) if (e.unlocked_by === key) e.unlocked_by = null
 }
@@ -324,6 +328,8 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
       push(t(), '终点只能是结局、回收或未完待续')
     if (tooLong(s.condition, WT_LIMITS.conditionRunes))
       push(t(), '前提条件太长了')
+    if (s.requires_endings?.some((k) => !has(chart.endings, k)))
+      push(t(), '前提里要求的结局不存在')
     steps += s.steps.length
     s.steps.forEach((st, i) => {
       if (st.step_type === 'save') {
@@ -331,10 +337,7 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
         return
       }
       if (blank(st.text))
-        push(
-          t(i),
-          st.step_type === 'choice' ? '选项还没有填写' : '操作还没有填写'
-        )
+        push(t(i), `${WT_STEP_META[st.step_type].label}还没有填写`)
       if (tooLong(st.text, WT_LIMITS.textRunes))
         push(t(i), `步骤文本最多 ${WT_LIMITS.textRunes} 字`)
       if (st.alt.length > WT_LIMITS.alts)
@@ -355,6 +358,8 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
 export const stripTranslations = (d: WtChart) => {
   for (const s of d.sections) s.title_zh = null
   for (const e of d.endings) e.name_zh = null
+  for (const s of d.saves) s.label_zh = null
+  for (const e of d.entries) e.label_zh = null
   for (const s of d.segments) {
     s.condition_zh = null
     for (const st of s.steps) {

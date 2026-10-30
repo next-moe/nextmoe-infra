@@ -91,9 +91,22 @@ describe('walkthrough document', () => {
     expect(c.segments[0]!.steps).toHaveLength(1)
 
     const d = chart()
+    d.segments[0]!.requires_endings = ['n1']
     removeEnding(d, 'n1')
     expect(d.segments[1]!.to).toEqual({ node_type: 'open', key: null })
+    expect(d.segments[0]!.requires_endings).toEqual([])
     expect(validateChart(d)).toEqual([])
+  })
+
+  it('names the empty step by its type and refuses a required ending the chart lacks', () => {
+    const c = chart()
+    expect(c.segments[0]!.requires_endings).toEqual([])
+    c.segments[0]!.steps.unshift({ ...blankStep('heading'), text: ' ' })
+    c.segments[0]!.requires_endings = ['n9']
+    expect(validateChart(c).map((i) => i.message)).toEqual([
+      '前提里要求的结局不存在',
+      '小标题还没有填写'
+    ])
   })
 
   it('hands out the first free key', () => {

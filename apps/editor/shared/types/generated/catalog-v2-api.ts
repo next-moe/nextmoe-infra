@@ -3796,7 +3796,7 @@ export interface components {
             id: string;
             /** @description Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant. */
             identity: string;
-            /** @description Whether this row is pinned as the portrait cover. */
+            /** @description Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait. */
             portrait_pinned: boolean;
             /**
              * @description Sexual depiction. null means not assessed.
@@ -3819,7 +3819,7 @@ export interface components {
             violence: "tame" | "violent" | "brutal" | null;
             /**
              * Format: int64
-             * @description Net votes on this cover row.
+             * @description Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.
              */
             vote_count: number;
             /**
@@ -10532,6 +10532,10 @@ export interface components {
             key: string;
             /** @description The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant. */
             label: string;
+            /** @description BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
             /** @description endings[].key whose completion unlocks this entry. null if it is open from the start. */
             unlocked_by_ending_key: string | null;
         } & {
@@ -10594,6 +10598,10 @@ export interface components {
             key: string;
             /** @description The save point as the source page labels it. Must not be used as a discriminant. */
             label: string;
+            /** @description BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
         } & {
             [key: string]: unknown;
         };
@@ -10622,6 +10630,8 @@ export interface components {
             from_node: components["schemas"]["WalkthroughNode"];
             /** @description Chart-local segment key. */
             key: string;
+            /** @description endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null. */
+            requires_ending_keys: string[];
             /** @description sections[].key this segment is listed under. null if the source lists it under no heading. */
             section_key: string | null;
             /** @description Steps in play order. Empty array, never null. */
@@ -10640,14 +10650,14 @@ export interface components {
             localized: {
                 [key: string]: components["schemas"]["LocalizedText"];
             };
-            /** @description saves[].key this save step creates. null for choice and action steps. */
+            /** @description saves[].key this save step creates. null for every other step_type. */
             save_key: string | null;
             /**
-             * @description choice picks text; action is a non-choice step such as a minigame; save creates save_key here.
+             * @description choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.
              * @enum {string}
              */
-            step_type: "choice" | "action" | "save";
-            /** @description The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant. */
+            step_type: "choice" | "action" | "save" | "heading" | "note";
+            /** @description The step as the source page writes it. null for a save step. Must not be used as a discriminant. */
             text: string | null;
         } & {
             [key: string]: unknown;
@@ -10693,7 +10703,7 @@ export interface components {
              * @enum {string}
              */
             content_rating: "all_ages" | "sensitive" | "r18";
-            /** @description Selected portrait image. null if none. */
+            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none. */
             cover: components["schemas"]["CoverSlot"] | null;
             /** @description Present when include=covers. Empty array if none. */
             covers?: components["schemas"]["Cover"][];

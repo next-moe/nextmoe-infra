@@ -77884,6 +77884,29 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
                                         "name": "unlocked_by_ending_key",
                                         "required": true,
                                         "nullable": true,
@@ -77912,6 +77935,29 @@ export const docsModel: DocsModel = {
                                         "required": true,
                                         "doc": "The save point as the source page labels it. Must not be used as a discriminant.",
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
                                       }
                                     ]
                                   }
@@ -78043,6 +78089,15 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "requires_ending_keys",
+                                        "required": true,
+                                        "doc": "endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.",
+                                        "type": "array",
+                                        "itemsOf": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      {
                                         "name": "section_key",
                                         "required": true,
                                         "nullable": true,
@@ -78130,17 +78185,19 @@ export const docsModel: DocsModel = {
                                               "name": "save_key",
                                               "required": true,
                                               "nullable": true,
-                                              "doc": "saves[].key this save step creates. null for choice and action steps.",
+                                              "doc": "saves[].key this save step creates. null for every other step_type.",
                                               "type": "string"
                                             },
                                             {
                                               "name": "step_type",
                                               "required": true,
-                                              "doc": "choice picks text; action is a non-choice step such as a minigame; save creates save_key here.",
+                                              "doc": "choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.",
                                               "enum": [
                                                 "choice",
                                                 "action",
-                                                "save"
+                                                "save",
+                                                "heading",
+                                                "note"
                                               ],
                                               "type": "string"
                                             },
@@ -78148,7 +78205,7 @@ export const docsModel: DocsModel = {
                                               "name": "text",
                                               "required": true,
                                               "nullable": true,
-                                              "doc": "The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.",
+                                              "doc": "The step as the source page writes it. null for a save step. Must not be used as a discriminant.",
                                               "type": "string"
                                             }
                                           ]
@@ -79967,6 +80024,29 @@ export const docsModel: DocsModel = {
                                   "type": "string"
                                 },
                                 {
+                                  "name": "localized",
+                                  "required": true,
+                                  "doc": "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                  "type": "map",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "is_machine",
+                                        "required": true,
+                                        "doc": "Whether this value is machine-translated.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "value",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
                                   "name": "unlocked_by_ending_key",
                                   "required": true,
                                   "nullable": true,
@@ -79995,6 +80075,29 @@ export const docsModel: DocsModel = {
                                   "required": true,
                                   "doc": "The save point as the source page labels it. Must not be used as a discriminant.",
                                   "type": "string"
+                                },
+                                {
+                                  "name": "localized",
+                                  "required": true,
+                                  "doc": "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant.",
+                                  "type": "map",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "is_machine",
+                                        "required": true,
+                                        "doc": "Whether this value is machine-translated.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "value",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
                                 }
                               ]
                             }
@@ -80126,6 +80229,15 @@ export const docsModel: DocsModel = {
                                   "type": "string"
                                 },
                                 {
+                                  "name": "requires_ending_keys",
+                                  "required": true,
+                                  "doc": "endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
                                   "name": "section_key",
                                   "required": true,
                                   "nullable": true,
@@ -80213,17 +80325,19 @@ export const docsModel: DocsModel = {
                                         "name": "save_key",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "saves[].key this save step creates. null for choice and action steps.",
+                                        "doc": "saves[].key this save step creates. null for every other step_type.",
                                         "type": "string"
                                       },
                                       {
                                         "name": "step_type",
                                         "required": true,
-                                        "doc": "choice picks text; action is a non-choice step such as a minigame; save creates save_key here.",
+                                        "doc": "choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.",
                                         "enum": [
                                           "choice",
                                           "action",
-                                          "save"
+                                          "save",
+                                          "heading",
+                                          "note"
                                         ],
                                         "type": "string"
                                       },
@@ -80231,7 +80345,7 @@ export const docsModel: DocsModel = {
                                         "name": "text",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.",
+                                        "doc": "The step as the source page writes it. null for a save step. Must not be used as a discriminant.",
                                         "type": "string"
                                       }
                                     ]
@@ -273095,6 +273209,29 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
                                         "name": "unlocked_by_ending_key",
                                         "required": true,
                                         "nullable": true,
@@ -273123,6 +273260,29 @@ export const docsModel: DocsModel = {
                                         "required": true,
                                         "doc": "The save point as the source page labels it. Must not be used as a discriminant.",
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
                                       }
                                     ]
                                   }
@@ -273254,6 +273414,15 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "requires_ending_keys",
+                                        "required": true,
+                                        "doc": "endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.",
+                                        "type": "array",
+                                        "itemsOf": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      {
                                         "name": "section_key",
                                         "required": true,
                                         "nullable": true,
@@ -273341,17 +273510,19 @@ export const docsModel: DocsModel = {
                                               "name": "save_key",
                                               "required": true,
                                               "nullable": true,
-                                              "doc": "saves[].key this save step creates. null for choice and action steps.",
+                                              "doc": "saves[].key this save step creates. null for every other step_type.",
                                               "type": "string"
                                             },
                                             {
                                               "name": "step_type",
                                               "required": true,
-                                              "doc": "choice picks text; action is a non-choice step such as a minigame; save creates save_key here.",
+                                              "doc": "choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.",
                                               "enum": [
                                                 "choice",
                                                 "action",
-                                                "save"
+                                                "save",
+                                                "heading",
+                                                "note"
                                               ],
                                               "type": "string"
                                             },
@@ -273359,7 +273530,7 @@ export const docsModel: DocsModel = {
                                               "name": "text",
                                               "required": true,
                                               "nullable": true,
-                                              "doc": "The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.",
+                                              "doc": "The step as the source page writes it. null for a save step. Must not be used as a discriminant.",
                                               "type": "string"
                                             }
                                           ]

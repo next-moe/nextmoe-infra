@@ -1600,9 +1600,6 @@
   "Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null.": "来源为回收差分 CG 保留的其他选项;主线选 text。空数组,从不为 null。",
   "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.": "BCP-47 键:text 的机器翻译。没有来源译名的人名保持原文书写。没有则为空对象。不得用作判别字段。",
   "The alternative choice as the source page writes it, in the walkthrough's lang. Must not be used as a discriminant.": "备选选项在来源页面上的原始写法,语言为攻略的 lang。不得用作判别字段。",
-  "saves[].key this save step creates. null for choice and action steps.": "此存档步骤建立的存档的 saves[].key。choice 与 action 步骤为 null。",
-  "choice picks text; action is a non-choice step such as a minigame; save creates save_key here.": "choice 表示选择 text;action 是非选项步骤,例如小游戏;save 表示在此处建立 save_key。",
-  "The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.": "选项或操作在来源页面上的原始写法。存档步骤为 null。不得用作判别字段。",
   "Endings in the chart.": "图中的结局数。",
   "Catalog walkthrough id.": "catalog 攻略 id。",
   "BCP-47 language of every text field in the chart: ja for an imported walkthrough, ja or zh-Hans for one written on this platform. Translations sit in localized maps beside them; a zh-Hans chart has no zh-Hans entries there.": "图中所有文本字段的 BCP-47 语言：导入的攻略为 ja，在本平台撰写的攻略为 ja 或 zh-Hans。译文在它们旁边的 localized 映射里；zh-Hans 的图在那里没有 zh-Hans 条目。",
@@ -1710,5 +1707,11 @@
   "moyu's patch kinds.": "moyu 的补丁类型。",
   "moyu's languages.": "moyu 的语言。",
   "The patch author's display name.": "补丁作者的显示名。",
-  "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`MUTUALLY_EXCLUSIVE_PARAMETERS`, `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`,\n`UNKNOWN_INCLUDE`, `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or\n`TOO_MANY_IDS`, and `errors[0]` names the parameter.": "请求无法解析。`code` 取 `INVALID_PARAMETER`、`MUTUALLY_EXCLUSIVE_PARAMETERS`、`UNKNOWN_ENUM_VALUE`、`UNKNOWN_SORT`、`UNKNOWN_INCLUDE`、`INVALID_CURSOR`、`LIMIT_TOO_LARGE` 或 `TOO_MANY_IDS` 之一，`errors[0]` 指出是哪个参数。"
+  "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`MUTUALLY_EXCLUSIVE_PARAMETERS`, `UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`,\n`UNKNOWN_INCLUDE`, `INVALID_CURSOR`, `LIMIT_TOO_LARGE` or\n`TOO_MANY_IDS`, and `errors[0]` names the parameter.": "请求无法解析。`code` 取 `INVALID_PARAMETER`、`MUTUALLY_EXCLUSIVE_PARAMETERS`、`UNKNOWN_ENUM_VALUE`、`UNKNOWN_SORT`、`UNKNOWN_INCLUDE`、`INVALID_CURSOR`、`LIMIT_TOO_LARGE` 或 `TOO_MANY_IDS` 之一，`errors[0]` 指出是哪个参数。",
+  "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.": "BCP-47 键:label 的机器翻译。没有可溯源资料库译名的人名保留原文。没有时为空对象。不得用作判别字段。",
+  "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant.": "BCP-47 键:label 的机器翻译,例如 セーブ１２ 译作 存档12。没有时为空对象。不得用作判别字段。",
+  "endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.": "进入这一段之前必须先看过的结局,值为 endings[].key。导入的攻略图只在 condition 里提到的每个结局都能对应到本图结局时才从 condition 填写;condition 始终是完整原文,所以 condition 不为空而这里为空,表示这个前置条件没能解析出来。空数组,不会为 null。",
+  "saves[].key this save step creates. null for every other step_type.": "这个存档步骤创建的 saves[].key。其他 step_type 为 null。",
+  "choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.": "choice 是在游戏内选项菜单里选 text;action 是玩家要做的其他事,例如小游戏或在地图上走的路线;save 在此处创建 save_key。heading 是原页面用来给后续步骤分组的标题行,例如日期、游戏内第几天、章节或楼层,管到下一个 heading 或本段结束;note 是写给读者的说明或备注,通常以 ※ 开头。heading 和 note 都不是要选的项,给选项编号的站点应跳过它们。遇到不认识的 step_type 时,站点应照常显示其 text,但不编号。",
+  "The step as the source page writes it. null for a save step. Must not be used as a discriminant.": "原页面写的这一步的原文。存档步骤为 null。不得用作判别字段。"
 }

@@ -1,5 +1,5 @@
 export type WtNodeType = 'entry' | 'save' | 'ending' | 'collect' | 'open'
-export type WtStepType = 'choice' | 'action' | 'save'
+export type WtStepType = 'choice' | 'action' | 'save' | 'heading' | 'note'
 export type WtEndingType =
   'heroine' | 'harem' | 'true' | 'normal' | 'bad' | 'after' | 'other'
 export type WtLang = 'ja' | 'zh-Hans'
@@ -20,12 +20,14 @@ export interface WtSection {
 export interface WtEntry {
   key: string
   label: string
+  label_zh?: string | null
   unlocked_by: string | null
 }
 
 export interface WtSave {
   key: string
   label: string
+  label_zh?: string | null
 }
 
 export interface WtEnding {
@@ -57,6 +59,7 @@ export interface WtSegment {
   from: WtNode
   condition: string | null
   condition_zh: string | null
+  requires_endings?: string[]
   steps: WtStep[]
   to: WtNode
 }

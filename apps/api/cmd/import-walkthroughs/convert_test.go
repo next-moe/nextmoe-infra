@@ -96,7 +96,7 @@ func TestTranslateJobProtectsEveryUntranslatedRosterName(t *testing.T) {
 }
 
 func TestNameMaskRoundTripsKeptNames(t *testing.T) {
-	m := newNameMask([]string{"しづる", "春日 しづる", "藍"})
+	m := newNameMask([]string{"しづる", "春日 しづる", "藍"}, 2)
 	masked := m.hide("春日 しづるとしづるの部屋で藍を見る")
 	assert.Equal(t, "{N1}と{N2}の部屋で藍を見る", masked, "the full name is masked before its part; a one-rune name is not")
 	zh, ok := m.restore(masked, "在{N2}的房间里和{N1}一起看藍")

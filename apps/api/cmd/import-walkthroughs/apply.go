@@ -346,6 +346,12 @@ func mergeTranslations(c *walkthrough.Chart, zh map[string]string) {
 	for i := range c.Endings {
 		c.Endings[i].NameZh = tr(&c.Endings[i].Name)
 	}
+	for i := range c.Saves {
+		c.Saves[i].LabelZh = tr(&c.Saves[i].Label)
+	}
+	for i := range c.Entries {
+		c.Entries[i].LabelZh = tr(&c.Entries[i].Label)
+	}
 	for i := range c.Segments {
 		s := &c.Segments[i]
 		s.ConditionZh = tr(s.Condition)

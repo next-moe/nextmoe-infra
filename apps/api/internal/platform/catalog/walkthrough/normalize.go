@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 var (
@@ -14,6 +17,12 @@ var (
 	badName     = regexp.MustCompile(`(?i)(BAD|バッド|ＢＡＤ)`)
 	trueName    = regexp.MustCompile(`(?i)(TRUE|トゥルー|ＴＲＵＥ)`)
 	normalName  = regexp.MustCompile(`(?i)(NORMAL|ノーマル|ＮＯＲＭＡＬ)`)
+	headingLine = regexp.MustCompile(`^[■□◆◇]?\s*(?:\d{1,2}月\d{1,2}日(?:\s*\(?[月火水木金土日](?:曜日?)?\)?)?|\d{1,2}/\d{1,2}(?:\s*\([月火水木金土日]\))?|第?[\d一二三四五六七八九十]+日目(?:\s*(?:朝|昼|夕方?|夜|午前|午後|深夜|放課後))?|第[\d一二三四五六七八九十百]+[章話部幕]|B\d+(?:-\d+)?F?)\s*[━─]*$`)
+	noteLine    = regexp.MustCompile(`^[※*]`)
+	routeLine   = regexp.MustCompile(`^\d+(?:\s*[→⇒]\s*\d+)+`)
+	bareEnding  = regexp.MustCompile(`^(?:END|エンド|ED)$`)
+	eitherOf    = regexp.MustCompile(`(?:^|[^A-Z])OR(?:[^A-Z]|$)|または|いずれか|どちらか`)
+	looseJoin   = regexp.MustCompile("[^\x00][&と・、]\x00|\x00[&と・、][^\x00]")
 )
 
 func Normalize(c *Chart) {
@@ -58,6 +67,9 @@ func Normalize(c *Chart) {
 				st.Alt = slices.DeleteFunc(st.Alt, func(a string) bool {
 					return strings.TrimSpace(a) == t || strings.TrimSpace(a) == bare
 				})
+				if st.StepType == StepChoice && len(st.Alt) == 0 {
+					st.StepType = choiceKind(t)
+				}
 			}
 			st.AltZh = st.AltZh[:min(len(st.AltZh), len(st.Alt))]
 			for len(st.AltZh) < len(st.Alt) {
@@ -84,6 +96,7 @@ func Normalize(c *Chart) {
 			e.EndingType = "harem"
 		}
 	}
+	fillBadEndingCharacters(c)
 
 	reached := map[string]bool{}
 	for _, s := range c.Segments {
@@ -100,6 +113,87 @@ func Normalize(c *Chart) {
 		}
 	}
 	c.Endings = slices.DeleteFunc(c.Endings, func(e Ending) bool { return !reached[e.Key] })
+	resolveRequiredEndings(c)
+}
+
+func choiceKind(text string) string {
+	t := norm.NFKC.String(text)
+	switch {
+	case headingLine.MatchString(t):
+		return StepHeading
+	case noteLine.MatchString(t):
+		return StepNote
+	case routeLine.MatchString(t):
+		return StepAction
+	}
+	return StepChoice
+}
+
+func fillBadEndingCharacters(c *Chart) {
+	sections := map[string]Section{}
+	for _, s := range c.Sections {
+		sections[s.Key] = s
+	}
+	sectionOf := map[string]string{}
+	for _, s := range c.Segments {
+		if s.To.NodeType == NodeEnding && s.To.Key != nil && s.Section != nil {
+			sectionOf[*s.To.Key] = *s.Section
+		}
+	}
+	for i := range c.Endings {
+		e := &c.Endings[i]
+		if e.EndingType != "bad" || len(e.Characters) > 0 {
+			continue
+		}
+		if sec, ok := sections[sectionOf[e.Key]]; ok && len(sec.Characters) == 1 {
+			e.Characters = []string{sec.Characters[0]}
+		}
+	}
+}
+
+func resolveRequiredEndings(c *Chart) {
+	type named struct{ key, name string }
+	var names []named
+	seen := map[string]bool{}
+	for _, e := range c.Endings {
+		n := foldName(e.Name)
+		if n == "" || seen[n] || bareEnding.MatchString(n) {
+			continue
+		}
+		seen[n] = true
+		names = append(names, named{e.Key, n})
+	}
+	slices.SortStableFunc(names, func(a, b named) int { return len([]rune(b.name)) - len([]rune(a.name)) })
+	for i := range c.Segments {
+		s := &c.Segments[i]
+		if s.Condition == nil || len(s.RequiresEndings) > 0 {
+			continue
+		}
+		cond := foldName(*s.Condition)
+		if eitherOf.MatchString(cond) {
+			continue
+		}
+		var keys []string
+		for _, n := range names {
+			if !strings.Contains(cond, n.name) || s.To.Key != nil && *s.To.Key == n.key {
+				continue
+			}
+			keys = append(keys, n.key)
+			cond = strings.ReplaceAll(cond, n.name, "\x00")
+		}
+		if !looseJoin.MatchString(cond) {
+			s.RequiresEndings = keys
+		}
+	}
+}
+
+func foldName(s string) string {
+	return strings.ToUpper(strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, norm.NFKC.String(s)))
 }
 
 func stripRepeated(re *regexp.Regexp, s string) string {
@@ -131,6 +225,7 @@ func FillNil(c *Chart) {
 	}
 	for i := range c.Segments {
 		s := &c.Segments[i]
+		s.RequiresEndings = orEmpty(s.RequiresEndings)
 		s.Steps = orEmpty(s.Steps)
 		for j := range s.Steps {
 			s.Steps[j].Alt = orEmpty(s.Steps[j].Alt)
@@ -205,13 +300,18 @@ func Validate(c Chart) []string {
 		}
 		ref("segment "+s.Key+" from", s.From, NodeEntry, NodeSave, NodeEnding)
 		ref("segment "+s.Key+" to", s.To, NodeEnding, NodeCollect, NodeOpen)
+		for _, k := range s.RequiresEndings {
+			if !endings[k] {
+				problems = append(problems, fmt.Sprintf("segment %s: requires ending %s", s.Key, k))
+			}
+		}
 		for _, st := range s.Steps {
 			switch st.StepType {
 			case StepSave:
 				if st.Save == nil || !saves[*st.Save] {
 					problems = append(problems, fmt.Sprintf("segment %s: save step %v", s.Key, deref(st.Save)))
 				}
-			case StepChoice, StepAction:
+			case StepChoice, StepAction, StepHeading, StepNote:
 				if st.Text == nil || strings.TrimSpace(*st.Text) == "" {
 					problems = append(problems, fmt.Sprintf("segment %s: empty %s", s.Key, st.StepType))
 				}

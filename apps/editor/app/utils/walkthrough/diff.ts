@@ -4,7 +4,7 @@ import type {
   WtSegment,
   WtStep
 } from '#shared/types/walkthrough'
-import { WT_ENDING_LABEL } from '~/constants/walkthrough'
+import { WT_ENDING_LABEL, WT_STEP_META } from '~/constants/walkthrough'
 import { nodeLabel, normalizeChart } from './doc'
 
 export type WtChangeStatus = 'added' | 'removed' | 'changed'
@@ -22,7 +22,7 @@ const quote = (s: string | null | undefined) => `「${s ?? ''}」`
 const stepText = (st: WtStep, chart: WtChart) =>
   st.step_type === 'save'
     ? `存档${quote(chart.saves.find((s) => s.key === st.save)?.label ?? st.save)}`
-    : `${st.step_type === 'action' ? '操作' : '选项'}${quote(st.text)}${st.achievement ? ' ☆' : ''}`
+    : `${WT_STEP_META[st.step_type].label}${quote(st.text)}${st.achievement ? ' ☆' : ''}`
 
 const stepSignature = (st: WtStep) => JSON.stringify(st)
 
@@ -148,6 +148,10 @@ export const diffCharts = (
     chart.characters.find((c) => c.key === key)?.name || key
   const names = (chart: WtChart, keys: string[]) =>
     keys.map((k) => nameOf(chart, k)).join('、') || '无'
+  const endingNames = (chart: WtChart, keys: string[] | undefined) =>
+    (keys ?? [])
+      .map((k) => chart.endings.find((e) => e.key === k)?.name ?? k)
+      .join('、') || '无'
 
   const segmentOrder =
     JSON.stringify(
@@ -201,7 +205,12 @@ export const diffCharts = (
       a.saves,
       b.saves,
       (s) => s.label || s.key,
-      (x, y) => [`名称：${quote(x.label)} → ${quote(y.label)}`]
+      (x, y) => [
+        ...(x.label !== y.label
+          ? [`名称：${quote(x.label)} → ${quote(y.label)}`]
+          : []),
+        ...changed('中文名称', x.label_zh, y.label_zh)
+      ]
     ),
     ...diffKeyed(
       '入口',
@@ -212,6 +221,7 @@ export const diffCharts = (
         ...(x.label !== y.label
           ? [`名称：${quote(x.label)} → ${quote(y.label)}`]
           : []),
+        ...changed('中文名称', x.label_zh, y.label_zh),
         ...changed('解锁条件', x.unlocked_by, y.unlocked_by)
       ]
     ),
@@ -247,6 +257,12 @@ export const diffCharts = (
           ? [`前提：${quote(x.condition)} → ${quote(y.condition)}`]
           : []),
         ...changed('前提的译文', x.condition_zh, y.condition_zh),
+        ...(JSON.stringify(x.requires_endings ?? []) !==
+        JSON.stringify(y.requires_endings ?? [])
+          ? [
+              `前提结局：${endingNames(a, x.requires_endings)} → ${endingNames(b, y.requires_endings)}`
+            ]
+          : []),
         ...changed('所属分节', x.section, y.section),
         ...stepDetails(x, y, a, b)
       ]

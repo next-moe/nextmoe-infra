@@ -290,9 +290,11 @@ func checkChartLimits(c *walkthrough.Chart) error {
 	}
 	for i, e := range c.Entries {
 		text(fmt.Sprintf("entries[%d].label", i), e.Label, maxChartLabelRunes, true)
+		optText(fmt.Sprintf("entries[%d].label_zh", i), e.LabelZh, maxChartLabelRunes)
 	}
 	for i, s := range c.Saves {
 		text(fmt.Sprintf("saves[%d].label", i), s.Label, maxChartLabelRunes, true)
+		optText(fmt.Sprintf("saves[%d].label_zh", i), s.LabelZh, maxChartLabelRunes)
 	}
 	for i, e := range c.Endings {
 		text(fmt.Sprintf("endings[%d].name", i), e.Name, maxChartNameRunes, true)
@@ -302,6 +304,9 @@ func checkChartLimits(c *walkthrough.Chart) error {
 	for i, s := range c.Segments {
 		optText(fmt.Sprintf("segments[%d].condition", i), s.Condition, maxChartConditionRunes)
 		optText(fmt.Sprintf("segments[%d].condition_zh", i), s.ConditionZh, maxChartConditionRunes)
+		if len(s.RequiresEndings) != len(slices.Compact(slices.Sorted(slices.Values(s.RequiresEndings)))) {
+			errs = append(errs, fmt.Errorf("segments[%d].requires_endings names an ending twice", i))
+		}
 		steps += len(s.Steps)
 		for j, st := range s.Steps {
 			where := fmt.Sprintf("segments[%d].steps[%d]", i, j)

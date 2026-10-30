@@ -24,6 +24,14 @@ const drag = useStepDrag()
 const alts = ref<{ open: () => void } | null>(null)
 
 const meta = computed(() => WT_STEP_META[props.step.step_type])
+
+const STEP_TONE: Record<WtStepType, string> = {
+  choice: 'text-primary-600 hover:bg-primary-100',
+  action: 'bg-default-100 text-default-600',
+  save: 'bg-success-100 text-success-700',
+  heading: 'bg-info-100 text-info-700',
+  note: 'bg-warning-100 text-warning-700'
+}
 const issues = computed(() =>
   doc.issuesOf({ kind: 'segment', key: props.segmentKey, step: props.index })
 )
@@ -250,11 +258,7 @@ const inputClass =
           :class="
             cn(
               'mt-1 flex size-7 shrink-0 items-center justify-center rounded-md transition-colors',
-              props.step.step_type === 'save'
-                ? 'bg-success-100 text-success-700'
-                : props.step.step_type === 'action'
-                  ? 'bg-default-100 text-default-600'
-                  : 'text-primary-600 hover:bg-primary-100'
+              STEP_TONE[props.step.step_type]
             )
           "
           :title="`${meta.label}（点击切换类型）`"

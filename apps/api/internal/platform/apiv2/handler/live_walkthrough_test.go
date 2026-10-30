@@ -36,13 +36,20 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 		} `json:"characters"`
 		EndingCount int `json:"ending_count"`
 		Chart       *struct {
+			Entries []struct {
+				Localized map[string]any `json:"localized"`
+			} `json:"entries"`
+			Saves []struct {
+				Localized map[string]map[string]any `json:"localized"`
+			} `json:"saves"`
 			Endings []struct {
 				Name      string                    `json:"name"`
 				Localized map[string]map[string]any `json:"localized"`
 				Keys      []string                  `json:"character_keys"`
 			} `json:"endings"`
 			Segments []struct {
-				FromNode struct {
+				RequiresEndingKeys []string `json:"requires_ending_keys"`
+				FromNode           struct {
 					NodeType string  `json:"node_type"`
 					Key      *string `json:"key"`
 				} `json:"from_node"`
@@ -75,6 +82,13 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	assert.Equal(t, "直播END", w.Chart.Endings[0].Localized["zh-Hans"]["value"])
 	assert.Equal(t, true, w.Chart.Endings[0].Localized["zh-Hans"]["is_machine"])
 	assert.Equal(t, []string{"c1"}, w.Chart.Endings[0].Keys)
+	require.Len(t, w.Chart.Saves, 1)
+	assert.Equal(t, "存档01", w.Chart.Saves[0].Localized["zh-Hans"]["value"])
+	require.Len(t, w.Chart.Entries, 1)
+	assert.NotNil(t, w.Chart.Entries[0].Localized)
+	assert.Empty(t, w.Chart.Entries[0].Localized)
+	assert.NotNil(t, w.Chart.Segments[0].RequiresEndingKeys, "a chart stored before requires_endings still says []")
+	assert.Empty(t, w.Chart.Segments[0].RequiresEndingKeys)
 	steps := w.Chart.Segments[0].Steps
 	require.Len(t, steps, 2)
 	assert.Equal(t, "はい", *steps[0].Text)

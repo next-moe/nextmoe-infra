@@ -11,9 +11,11 @@ const (
 )
 
 const (
-	StepChoice = "choice"
-	StepAction = "action"
-	StepSave   = "save"
+	StepChoice  = "choice"
+	StepAction  = "action"
+	StepSave    = "save"
+	StepHeading = "heading"
+	StepNote    = "note"
 )
 
 var EndingTypes = []string{"heroine", "harem", "true", "normal", "bad", "after", "other"}
@@ -43,12 +45,14 @@ type Section struct {
 type Entry struct {
 	Key        string  `json:"key"`
 	Label      string  `json:"label"`
+	LabelZh    *string `json:"label_zh"`
 	UnlockedBy *string `json:"unlocked_by"`
 }
 
 type Save struct {
-	Key   string `json:"key"`
-	Label string `json:"label"`
+	Key     string  `json:"key"`
+	Label   string  `json:"label"`
+	LabelZh *string `json:"label_zh"`
 }
 
 type Ending struct {
@@ -60,13 +64,14 @@ type Ending struct {
 }
 
 type Segment struct {
-	Key         string  `json:"key"`
-	Section     *string `json:"section"`
-	From        Node    `json:"from"`
-	Condition   *string `json:"condition"`
-	ConditionZh *string `json:"condition_zh"`
-	Steps       []Step  `json:"steps"`
-	To          Node    `json:"to"`
+	Key             string   `json:"key"`
+	Section         *string  `json:"section"`
+	From            Node     `json:"from"`
+	Condition       *string  `json:"condition"`
+	ConditionZh     *string  `json:"condition_zh"`
+	RequiresEndings []string `json:"requires_endings"`
+	Steps           []Step   `json:"steps"`
+	To              Node     `json:"to"`
 }
 
 type Node struct {
