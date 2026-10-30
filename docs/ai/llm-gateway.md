@@ -22,7 +22,7 @@ catalog ─────────┤   （负载均衡 + 故障切换）     �
 | 概念 | 是什么 | 例子 |
 | --- | --- | --- |
 | 供应商 provider | 一个 OpenAI 兼容的端点 + key（加密存库）+ 可选额外请求头 + 价格倍率 | `cloudflare` → `https://api.cloudflare.com/client/v4/accounts/<id>/ai/v1` |
-| 模型 model | 我们自己的稳定名字，带种类：`chat` / `embedding` / `moderation` | `deepseek-v4-flash` |
+| 模型 model | 我们自己的稳定名字，带种类：`chat` / `embedding` / `moderation` / `search` | `deepseek-v4-flash` |
 | 路由 route | 模型 × 供应商：这个供应商上该模型的上游 id、优先级、权重、价格 | `deepseek-v4-flash` @ cloudflare = `@cf/deepseek-ai/deepseek-v4-flash` |
 | 场景 scene | 调用方要的东西：主模型 + 回退模型链 + 超时 | `agent.assistant` = deepseek-v4-flash → qwen3-30b-a3b |
 | 访问密钥 access key | 内部调用方访问 `/v1/*` 的凭据，可限定可用的模型 / 场景 | `catalog` 只能用 `catalog.embed` |
@@ -108,7 +108,16 @@ KUN_LLM_GATEWAY_KEY=nmk_…        # 管理端创建的访问密钥
 | `ai.moderation.llm` | 内容审核 Tier2 | chat（JSON 输出） |
 | `ai.moderation.omni` | 内容审核 Tier1 | moderation |
 | `catalog.embed` | 预留给向量检索 | embedding |
+| `agent.web_search` | AI 助手的联网搜索工具 | search |
+| `agent.vision` | 带图片的助手对话（这一轮的上下文里有用户上传的图片时，代替 `agent.assistant`） | chat，模型要能看图 |
 
 新加调用方时先在管理端建场景，代码里只写场景 key，不写具体模型。
+
+`agent.web_search` 和 `agent.vision` 不会自动生成，要由 ren 在管理端建好：
+
+- **联网搜索（search 种类）**：网关用 OpenAI Responses 协议调用 `POST {base}/responses`，带服务端工具 `{"type":"web_search"}`，取回答正文和 `url_citation` 引用。供应商必须在 Responses API 里提供服务端 web_search（例如 xAI 的 grok-4.x）。在 chat/completions 里同一个模型不会联网。
+  - 上游不认 `max_tool_calls`；agent 在 instructions 里把一次调用限制为最多两次检索，否则一次调用会检索十次、输入约 30 万 token。
+  - 场景没有可用路由时，agent 不注册 `web_search` / `read_url` 工具，`/v2/agent/persona` 的 `web_search_available` 为 false，前端隐藏联网开关。
+- **看图（agent.vision）**：场景没有可用路由时，上传菜单里不出现「图片」。
 
 例外：catalog 的向量检索按上游 id `@cf/qwen/qwen3-embedding-0.6b` 调用，而不是 `catalog.embed`。模型名是每条向量文本哈希的一部分，改名会让全库向量被判定为过期，重新嵌入一遍（works 约 55 分钟）。真要换嵌入模型时本来就得全量重嵌，到时再一起改成场景名。

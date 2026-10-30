@@ -22,6 +22,7 @@ var (
 	ErrRunActive       = errors.New("agent: a reply is still streaming in this conversation")
 	ErrIdempotencyUsed = errors.New("agent: idempotency key reused with a different request")
 	ErrBadParent       = errors.New("agent: parent message is not in this conversation")
+	ErrNotRegenerable  = errors.New("agent: only a user message of this conversation can be answered again")
 )
 
 type Part struct {
@@ -34,6 +35,12 @@ type Part struct {
 	URL       string          `json:"url,omitempty"`
 	Title     string          `json:"title,omitempty"`
 	Data      json.RawMessage `json:"data,omitempty"`
+
+	UploadID   string          `json:"uploadId,omitempty"`
+	ToolCallID string          `json:"toolCallId,omitempty"`
+	State      string          `json:"state,omitempty"`
+	Input      json.RawMessage `json:"input,omitempty"`
+	Output     json.RawMessage `json:"output,omitempty"`
 }
 
 type Store struct {
@@ -57,8 +64,11 @@ func (s *Store) Conversation(ctx context.Context, userID, siteID, id int64) (*mo
 	return &c, err
 }
 
-func (s *Store) ListConversations(ctx context.Context, userID, siteID int64, before time.Time, beforeID int64, limit int) ([]model.Conversation, error) {
+func (s *Store) ListConversations(ctx context.Context, userID, siteID int64, starred *bool, before time.Time, beforeID int64, limit int) ([]model.Conversation, error) {
 	q := s.db.WithContext(ctx).Where("user_id = ? AND site_id = ?", userID, siteID)
+	if starred != nil {
+		q = q.Where("starred = ?", *starred)
+	}
 	if !before.IsZero() {
 		q = q.Where("(updated_at, id) < (?, ?)", before, beforeID)
 	}
@@ -70,9 +80,58 @@ func (s *Store) RenameConversation(ctx context.Context, c *model.Conversation, t
 	return s.db.WithContext(ctx).Model(c).Updates(map[string]any{"title": title, "updated_at": s.now()}).Error
 }
 
+func (s *Store) StarConversation(ctx context.Context, c *model.Conversation, starred bool) error {
+	return s.db.WithContext(ctx).Model(c).Update("starred", starred).Error
+}
+
+func (s *Store) SetHead(ctx context.Context, c *model.Conversation, messageID int64) (int64, error) {
+	leaf, err := s.Leaf(ctx, c.ID, messageID)
+	if err != nil {
+		return 0, err
+	}
+	return leaf, s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`WITH RECURSIVE chain AS (
+				SELECT id, parent_id FROM agent_message WHERE id = ?
+				UNION ALL
+				SELECT m.id, m.parent_id FROM agent_message m JOIN chain ON m.id = chain.parent_id
+			) UPDATE agent_message SET chosen_at = ? WHERE id IN (SELECT id FROM chain)`, leaf, s.now()).Error; err != nil {
+			return err
+		}
+		return tx.Model(c).Update("head_message_id", leaf).Error
+	})
+}
+
+func (s *Store) ActiveRuns(ctx context.Context, conversationIDs []int64) (map[int64]string, error) {
+	out := map[int64]string{}
+	if len(conversationIDs) == 0 {
+		return out, nil
+	}
+	var rows []model.Run
+	err := s.db.WithContext(ctx).Select("id", "conversation_id").
+		Where("conversation_id IN ? AND status = ?", conversationIDs, model.RunRunning).Find(&rows).Error
+	for _, r := range rows {
+		out[r.ConversationID] = r.ID
+	}
+	return out, err
+}
+
+func (s *Store) SetFeedback(ctx context.Context, userID, siteID, messageID int64, rating string) error {
+	res := s.db.WithContext(ctx).Exec(`UPDATE agent_message m SET feedback = ?
+		FROM agent_conversation c
+		WHERE m.id = ? AND m.role = ? AND c.id = m.conversation_id AND c.user_id = ? AND c.site_id = ?`,
+		rating, messageID, model.RoleAssistant, userID, siteID)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) DeleteConversation(ctx context.Context, c *model.Conversation) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for _, m := range []any{&model.Message{}, &model.Run{}} {
+		for _, m := range []any{&model.Message{}, &model.Run{}, &model.Upload{}} {
 			if err := tx.Where("conversation_id = ?", c.ID).Delete(m).Error; err != nil {
 				return err
 			}
@@ -90,7 +149,7 @@ func (s *Store) Branch(ctx context.Context, head *int64) ([]model.Message, error
 			SELECT * , 0 AS depth FROM agent_message WHERE id = ?
 			UNION ALL
 			SELECT m.*, chain.depth + 1 FROM agent_message m JOIN chain ON m.id = chain.parent_id
-		) SELECT id, conversation_id, parent_id, role, parts, status, run_id, created_at FROM chain ORDER BY depth DESC`, *head).Scan(&out).Error
+		) SELECT id, conversation_id, parent_id, role, parts, status, run_id, feedback, chosen_at, created_at FROM chain ORDER BY depth DESC`, *head).Scan(&out).Error
 	return out, err
 }
 
@@ -106,7 +165,7 @@ func (s *Store) Leaf(ctx context.Context, conversationID, messageID int64) (int6
 	for range 10000 {
 		var next []int64
 		if err := s.db.WithContext(ctx).Model(&model.Message{}).Where("parent_id = ?", cur).
-			Order("id DESC").Limit(1).Pluck("id", &next).Error; err != nil {
+			Order("greatest(chosen_at, created_at) DESC, id DESC").Limit(1).Pluck("id", &next).Error; err != nil {
 			return 0, err
 		}
 		if len(next) == 0 {
@@ -126,16 +185,16 @@ func (s *Store) RunByIdem(ctx context.Context, userID int64, key string) (*model
 	return &r, err
 }
 
-func (s *Store) SiblingCounts(ctx context.Context, conversationID int64) (map[int64]int, error) {
+func (s *Store) SiblingIDs(ctx context.Context, conversationID int64) (map[int64][]int64, error) {
 	var rows []struct {
+		ID       int64
 		ParentID int64
-		N        int
 	}
-	err := s.db.WithContext(ctx).Raw(`SELECT coalesce(parent_id, 0) AS parent_id, count(*) AS n FROM agent_message
-		WHERE conversation_id = ? GROUP BY 1`, conversationID).Scan(&rows).Error
-	out := map[int64]int{}
+	err := s.db.WithContext(ctx).Raw(`SELECT id, coalesce(parent_id, 0) AS parent_id FROM agent_message
+		WHERE conversation_id = ? ORDER BY id`, conversationID).Scan(&rows).Error
+	out := map[int64][]int64{}
 	for _, r := range rows {
-		out[r.ParentID] = r.N
+		out[r.ParentID] = append(out[r.ParentID], r.ID)
 	}
 	return out, err
 }
@@ -143,6 +202,7 @@ func (s *Store) SiblingCounts(ctx context.Context, conversationID int64) (map[in
 type StartRequest struct {
 	Conversation *model.Conversation
 	ParentID     *int64
+	Regenerate   *int64
 	Parts        []Part
 	Mode         string
 	WebSearch    bool
@@ -155,10 +215,11 @@ func RequestHash(r StartRequest) string {
 	raw, _ := json.Marshal(struct {
 		C  int64
 		P  *int64
+		R  *int64 `json:",omitempty"`
 		Ps []Part
 		M  string
 		W  bool
-	}{r.Conversation.ID, r.ParentID, r.Parts, r.Mode, r.WebSearch})
+	}{r.Conversation.ID, r.ParentID, r.Regenerate, r.Parts, r.Mode, r.WebSearch})
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
 }
@@ -189,20 +250,37 @@ func (s *Store) StartRun(ctx context.Context, r StartRequest) (*model.Run, bool,
 		Price: r.Price, FreeUnits: r.FreeHeld, Settle: model.SettleNone, CreatedAt: s.now(),
 	}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if parent != nil {
-			var n int64
-			if err := tx.Model(&model.Message{}).Where("id = ? AND conversation_id = ?", *parent, r.Conversation.ID).Count(&n).Error; err != nil {
+		var user model.Message
+		if r.Regenerate != nil {
+			err := tx.Where("id = ? AND conversation_id = ? AND role = ?", *r.Regenerate, r.Conversation.ID, model.RoleUser).Take(&user).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotRegenerable
+			}
+			if err != nil {
 				return err
 			}
-			if n == 0 {
-				return ErrBadParent
+		} else {
+			if parent != nil {
+				var n int64
+				if err := tx.Model(&model.Message{}).Where("id = ? AND conversation_id = ?", *parent, r.Conversation.ID).Count(&n).Error; err != nil {
+					return err
+				}
+				if n == 0 {
+					return ErrBadParent
+				}
 			}
-		}
-		parts, _ := json.Marshal(r.Parts)
-		user := model.Message{ConversationID: r.Conversation.ID, ParentID: parent, Role: model.RoleUser,
-			Parts: datatypes.JSON(parts), Status: model.MessageComplete, RunID: run.ID, CreatedAt: s.now()}
-		if err := tx.Create(&user).Error; err != nil {
-			return err
+			parts, _ := json.Marshal(r.Parts)
+			user = model.Message{ConversationID: r.Conversation.ID, ParentID: parent, Role: model.RoleUser,
+				Parts: datatypes.JSON(parts), Status: model.MessageComplete, RunID: run.ID, CreatedAt: s.now()}
+			if err := tx.Create(&user).Error; err != nil {
+				return err
+			}
+			if ids := UploadIDs(r.Parts); len(ids) > 0 {
+				if err := tx.Model(&model.Upload{}).Where("id IN ? AND user_id = ?", ids, r.Conversation.UserID).
+					Update("conversation_id", r.Conversation.ID).Error; err != nil {
+					return err
+				}
+			}
 		}
 		reply := model.Message{ConversationID: r.Conversation.ID, ParentID: &user.ID, Role: model.RoleAssistant,
 			Parts: datatypes.JSON("[]"), Status: model.MessageStreaming, RunID: run.ID, CreatedAt: s.now()}

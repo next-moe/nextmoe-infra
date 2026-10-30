@@ -6,6 +6,20 @@
 // second submission while a reply streams is refused by the database rather
 // than by a check-then-insert race. The default mascot (site 0) is seeded only
 // when no persona exists; sites get their own mascot from operators.
+//
+// 2026-10-29, chat UX: agent_conversation.starred (default false),
+// agent_message.feedback (empty, up or down) and agent_persona.suggestions (jsonb,
+// default '[]'; empty means the built-in suggestion groups), and
+// agent_message.chosen_at (nullable): switching to a branch stamps every message
+// on it, and walking down to a leaf prefers the child chosen or created last,
+// so returning to a question restores the reply the user last picked under it.
+// All additive; existing rows need no backfill (null falls back to created_at).
+//
+// 2026-10-29, uploads: agent_upload holds what users attach to a message,
+// owned by its user: a scaled-down picture in data, or the UTF-8 / extracted
+// text of a text file or document in text. conversation_id is set once a
+// message uses it; unattached rows are swept by the agent after a day and the
+// rest go with their conversation. New table, nothing to backfill.
 package migrate
 
 import (
@@ -18,7 +32,7 @@ import (
 )
 
 func Run(db *gorm.DB) error {
-	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}, &model.Run{}, &model.Persona{}); err != nil {
+	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}, &model.Run{}, &model.Persona{}, &model.Upload{}); err != nil {
 		return fmt.Errorf("agent automigrate: %w", err)
 	}
 	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_run_active

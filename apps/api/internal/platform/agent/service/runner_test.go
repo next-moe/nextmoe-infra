@@ -123,7 +123,7 @@ func TestRunnerAnswersWithToolsStreamsAndSettles(t *testing.T) {
 	}
 	runner.Wait()
 	joined := strings.Join(types, ",")
-	for _, want := range []string{"start", "tool-input-available", "tool-output-available", "data-entity-card", "text-start", "data-quota", "finish"} {
+	for _, want := range []string{"start", "tool-input-available", "tool-output-available", "data-entity-card", "text-start", "data-title", "data-quota", "finish"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("stream lacks %s: %s", want, joined)
 		}
@@ -138,9 +138,25 @@ func TestRunnerAnswersWithToolsStreamsAndSettles(t *testing.T) {
 	conv, _ = store.Conversation(ctx, user, 14, conv.ID)
 	branch, _ := store.Branch(ctx, conv.HeadMessageID)
 	reply := decodeParts(branch[len(branch)-1])
-	if len(reply) != 2 || reply[0].Type != "data-entity-card" || reply[1].Text != "推荐《千恋＊万花》。" {
-		t.Fatalf("persisted reply parts = %+v", reply)
+	var kinds []string
+	for _, p := range reply {
+		kinds = append(kinds, p.Type)
 	}
+	if strings.Join(kinds, ",") != "step-start,tool-search_catalog,data-entity-card,step-start,text" || reply[4].Text != "推荐《千恋＊万花》。" {
+		t.Fatalf("persisted reply parts = %v", kinds)
+	}
+	tool := reply[1]
+	var in struct{ Query string }
+	var out struct{ Cards, Sources int }
+	_ = json.Unmarshal(tool.Input, &in)
+	_ = json.Unmarshal(tool.Output, &out)
+	if tool.ToolCallID != "c1" || tool.State != "output-available" || in.Query != "猫耳妹妹" || out.Cards != 1 || out.Sources != 0 {
+		t.Fatalf("a stored tool step must match the streamed frames: %+v input=%s output=%s", tool, tool.Input, tool.Output)
+	}
+	if got := partsText(reply); strings.Contains(got, "search_catalog") {
+		t.Fatalf("tool steps must stay out of the model's history: %q", got)
+	}
+	reply = reply[2:]
 	var card struct {
 		ID           string `json:"id"`
 		Title        string `json:"title"`

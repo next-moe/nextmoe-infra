@@ -24,7 +24,8 @@ export const LLM_MODEL_KIND_META: Record<
 > = {
   chat: { label: '对话', color: 'primary' },
   embedding: { label: '向量', color: 'info' },
-  moderation: { label: '审核', color: 'warning' }
+  moderation: { label: '审核', color: 'warning' },
+  search: { label: '联网搜索', color: 'secondary' }
 }
 
 export const LLM_MODEL_KIND_OPTIONS = (

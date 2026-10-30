@@ -86,9 +86,9 @@ func TestStartRunIsIdempotentAndSingleFlight(t *testing.T) {
 	if _, _, err := s.StartRun(ctx, regen); err != nil {
 		t.Fatalf("a new branch from the root: %v", err)
 	}
-	counts, _ := s.SiblingCounts(ctx, c.ID)
-	if counts[0] != 2 {
-		t.Fatalf("two root user messages expected, counts=%v", counts)
+	siblings, _ := s.SiblingIDs(ctx, c.ID)
+	if len(siblings[0]) != 2 || siblings[0][0] >= siblings[0][1] {
+		t.Fatalf("two root user messages expected, oldest first: %v", siblings)
 	}
 	if runs, err := s.InterruptOrphans(ctx); err != nil || len(runs) != 1 || runs[0].Status != model.RunInterrupted {
 		t.Fatalf("interrupt orphans: runs=%+v err=%v", runs, err)

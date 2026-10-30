@@ -140,5 +140,9 @@ var agentDomain = settings.Domain{
 		AgentUserRatePerMinute, AgentFreeUnitsPerDay,
 		AgentPriceAssistant, AgentPriceWebSurcharge, AgentPriceSearch, AgentPaidEnabled,
 		AgentTurnMaxSteps, AgentTurnMaxOutputTokens, AgentTurnMaxInputChars, AgentContextMaxMessages,
+		AgentUploadMaxFiles,
+		AgentUploadImageEnabled, AgentUploadImageMaxBytes, AgentUploadImageTypes,
+		AgentUploadTextEnabled, AgentUploadTextMaxBytes, AgentUploadTextTypes,
+		AgentUploadDocumentEnabled, AgentUploadDocumentMaxBytes, AgentUploadDocumentTypes,
 	},
 }

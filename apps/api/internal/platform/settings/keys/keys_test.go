@@ -165,6 +165,16 @@ var goldenNames = []string{
 	"agent.turn.max_output_tokens",
 	"agent.turn.max_input_chars",
 	"agent.context.max_messages",
+	"agent.upload.max_files",
+	"agent.upload.image.enabled",
+	"agent.upload.image.max_bytes",
+	"agent.upload.image.types",
+	"agent.upload.text.enabled",
+	"agent.upload.text.max_bytes",
+	"agent.upload.text.types",
+	"agent.upload.document.enabled",
+	"agent.upload.document.max_bytes",
+	"agent.upload.document.types",
 }
 
 func TestLiveRegistryIsWellFormed(t *testing.T) {

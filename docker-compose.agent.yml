@@ -28,7 +28,6 @@
 #   KUN_LLM_KEK                                            (the ai service's value; opens the sealed provider keys)
 #   KUN_AGENT_CLIENT_ID  KUN_AGENT_CLIENT_SECRET           (moemoepoint charges)
 #   KUN_AGENT_POW_KEYS                                     (anonymous search proof of work)
-#   KUN_BRAVE_API_KEY                                      (web search; empty = off)
 name: kun-galgame-infra-agent
 
 x-agent-env: &agent-env
@@ -72,7 +71,6 @@ services:
       KUN_AGENT_CLIENT_SECRET: ${KUN_AGENT_CLIENT_SECRET:-}
       KUN_AGENT_POW_KEYS: ${KUN_AGENT_POW_KEYS:-}
       KUN_LLM_KEK: ${KUN_LLM_KEK:-}
-      KUN_BRAVE_API_KEY: ${KUN_BRAVE_API_KEY:-}
     expose: ["9287"]
     depends_on:
       migrate-agent: { condition: service_completed_successfully }

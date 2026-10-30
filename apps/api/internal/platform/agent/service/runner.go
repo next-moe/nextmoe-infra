@@ -45,6 +45,7 @@ type Turn struct {
 	History     []model.Message
 	Reservation Reservation
 	SiteName    string
+	Uploads     map[string]*model.Upload
 }
 
 func (r *Runner) Start(t Turn) {
@@ -132,17 +133,32 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	}
 	maxSteps := int(keys.AgentTurnMaxSteps.Get())
 	trun := reg.NewRun(maxSteps * 2)
-	msgs := buildMessages(t, time.Now())
+	msgs, vision := buildMessages(t, time.Now())
+	scene := llm.SceneAssistant
+	if vision {
+		scene = llm.SceneVision
+	}
 	var parts []Part
 	usedWeb := false
 	fin := Finish{Status: model.RunCompleted}
+	titled := make(chan bool, 1)
+	if t.Conv.Title == "" {
+		r.wg.Add(1)
+		go func() {
+			defer r.wg.Done()
+			titled <- r.titleConversation(t, w)
+		}()
+	} else {
+		titled <- true
+	}
 
 	for step := 0; step < maxSteps; step++ {
 		w.Emit(map[string]any{"type": "start-step"})
+		parts = append(parts, Part{Type: "step-start"})
 		st := &stepState{w: w, textID: fmt.Sprintf("text-%d", step), reasID: fmt.Sprintf("reasoning-%d", step)}
 		last := step == maxSteps-1 || trun.Exhausted()
 		call := llm.Call{
-			Scene: llm.SceneAssistant, AffinityKey: strconv.FormatInt(run.ConversationID, 10), Messages: msgs,
+			Scene: scene, AffinityKey: strconv.FormatInt(run.ConversationID, 10), Messages: msgs,
 			MaxTokens: int(keys.AgentTurnMaxOutputTokens.Get()), Site: t.SiteName, UserID: run.UserID,
 		}
 		if !last {
@@ -180,7 +196,9 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 				usedWeb = true
 			}
 			out := trun.Call(ctx, tc.Name, tc.Arguments)
-			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": map[string]any{"cards": len(out.Cards), "sources": len(out.Sources)}})
+			summary := map[string]any{"cards": len(out.Cards), "sources": len(out.Sources)}
+			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
+			parts = append(parts, toolPart(tc, input, summary))
 			for _, c := range out.Cards {
 				w.Emit(map[string]any{"type": "data-entity-card", "id": c.ID, "data": c.Data})
 				parts = append(parts, Part{Type: "data-entity-card", ID: c.ID, Data: c.Data})
@@ -219,9 +237,18 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	if err := r.store.FinishRun(settleCtx, run, fin); err != nil {
 		slog.Error("agent: persist finished run", "run", run.ID, "err", err)
 	}
-	if fin.Status == model.RunCompleted && t.Conv.Title == "" {
-		r.titleConversation(settleCtx, t, fin.Parts)
+	if ok := <-titled; !ok && fin.Status == model.RunCompleted {
+		r.titleConversation(t, nil)
 	}
+}
+
+func toolPart(tc llm.ToolCall, input any, summary map[string]any) Part {
+	in, err := json.Marshal(input)
+	if err != nil || input == nil {
+		in, _ = json.Marshal(tc.Arguments)
+	}
+	out, _ := json.Marshal(summary)
+	return Part{Type: "tool-" + tc.Name, ToolCallID: tc.ID, State: "output-available", Input: in, Output: out}
 }
 
 func userFacingError(kind string) string {
@@ -260,36 +287,69 @@ func contains(xs []string, x string) bool {
 	return false
 }
 
-func (r *Runner) titleConversation(ctx context.Context, t Turn, reply []Part) {
-	var user string
+func (r *Runner) titleConversation(t Turn, w *stream.Writer) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	var typed []string
 	if n := len(t.History); n > 0 {
-		user = messageText(t.History[n-1])
+		for _, p := range decodeParts(t.History[n-1]) {
+			if p.Type == "text" {
+				typed = append(typed, p.Text)
+			}
+		}
 	}
-	answer := partsText(reply)
+	content := clipRunes(strings.Join(typed, "\n"), 500)
+	if strings.TrimSpace(content) == "" {
+		return false
+	}
 	res, err := r.gw.Stream(ctx, llm.Call{
 		Scene: llm.SceneTitle, Buffered: true, MaxTokens: 512, Site: t.SiteName, UserID: t.Run.UserID,
 		Messages: []llm.Message{
-			{Role: llm.RoleSystem, Content: "用不超过 16 个字概括这段对话的主题，作为标题。只输出标题本身，不要引号、不要句号。"},
-			{Role: llm.RoleUser, Content: clipRunes(user, 500) + "\n\n" + clipRunes(answer, 500) + "\n/no_think"},
+			{Role: llm.RoleSystem, Content: "用不超过 16 个字概括用户这个问题的主题，作为标题。不要回答问题，不要写出任何答案、数字或结论。只输出标题本身，不要引号、不要句号。"},
+			{Role: llm.RoleUser, Content: content + "\n/no_think"},
 		},
 	}, nil)
 	if err != nil {
 		slog.Warn("agent: title", "conversation", t.Conv.ID, "err", err)
-		return
+		return false
 	}
-	title := strings.Trim(strings.TrimSpace(firstLine(res.Text)), "\"'「」《》。")
+	title := tidyTitle(firstLine(res.Text))
 	if title == "" {
-		return
+		return false
 	}
-	if err := r.store.RenameConversation(ctx, t.Conv, clipRunes(title, 40)); err != nil {
+	conv := *t.Conv
+	if err := r.store.RenameConversation(ctx, &conv, title); err != nil {
 		slog.Warn("agent: save title", "conversation", t.Conv.ID, "err", err)
+		return false
 	}
+	if w != nil {
+		w.Emit(map[string]any{"type": "data-title", "data": map[string]any{"title": title}})
+	}
+	return true
 }
 
 func firstLine(s string) string {
 	s = strings.TrimSpace(s)
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
 		return s[:i]
+	}
+	return s
+}
+
+var titlePairs = [][2]string{{"「", "」"}, {"《", "》"}, {"『", "』"}, {"“", "”"}, {"\"", "\""}, {"'", "'"}}
+
+func tidyTitle(s string) string {
+	s = strings.TrimRight(strings.TrimSpace(s), "。.")
+	for _, p := range titlePairs {
+		if len(s) > len(p[0])+len(p[1]) && strings.HasPrefix(s, p[0]) && strings.HasSuffix(s, p[1]) {
+			s = s[len(p[0]) : len(s)-len(p[1])]
+		}
+	}
+	s = clipRunes(strings.TrimSpace(s), 40)
+	for _, p := range titlePairs[:4] {
+		if strings.Count(s, p[0]) > strings.Count(s, p[1]) {
+			s = strings.TrimSpace(s[:strings.LastIndex(s, p[0])])
+		}
 	}
 	return s
 }
