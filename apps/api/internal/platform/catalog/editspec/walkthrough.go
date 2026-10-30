@@ -37,6 +37,7 @@ const (
 	maxChartBytes          = 400_000
 	maxChartCharacters     = 128
 	maxChartSections       = 400
+	maxChartLegend         = 32
 	maxChartEntries        = 200
 	maxChartSaves          = 600
 	maxChartEndings        = 600
@@ -226,6 +227,7 @@ func checkChartLimits(c *walkthrough.Chart) error {
 	}{
 		{"characters", len(c.Characters), maxChartCharacters},
 		{"sections", len(c.Sections), maxChartSections},
+		{"legend", len(c.Legend), maxChartLegend},
 		{"entries", len(c.Entries), maxChartEntries},
 		{"saves", len(c.Saves), maxChartSaves},
 		{"endings", len(c.Endings), maxChartEndings},
@@ -288,6 +290,10 @@ func checkChartLimits(c *walkthrough.Chart) error {
 		text(fmt.Sprintf("sections[%d].title", i), s.Title, maxChartNameRunes, true)
 		optText(fmt.Sprintf("sections[%d].title_zh", i), s.TitleZh, maxChartNameRunes)
 	}
+	for i, l := range c.Legend {
+		text(fmt.Sprintf("legend[%d].text", i), l.Text, maxChartTextRunes, true)
+		optText(fmt.Sprintf("legend[%d].text_zh", i), l.TextZh, maxChartTextRunes)
+	}
 	for i, e := range c.Entries {
 		text(fmt.Sprintf("entries[%d].label", i), e.Label, maxChartLabelRunes, true)
 		optText(fmt.Sprintf("entries[%d].label_zh", i), e.LabelZh, maxChartLabelRunes)
@@ -312,6 +318,8 @@ func checkChartLimits(c *walkthrough.Chart) error {
 			where := fmt.Sprintf("segments[%d].steps[%d]", i, j)
 			optText(where+".text", st.Text, maxChartTextRunes)
 			optText(where+".text_zh", st.TextZh, maxChartTextRunes)
+			optText(where+".remark", st.Remark, maxChartTextRunes)
+			optText(where+".remark_zh", st.RemarkZh, maxChartTextRunes)
 			if len(st.Alt) > maxChartAlts {
 				errs = append(errs, fmt.Errorf("%s.alt: at most %d", where, maxChartAlts))
 			}
@@ -324,7 +332,7 @@ func checkChartLimits(c *walkthrough.Chart) error {
 			for k, a := range st.AltZh {
 				optText(fmt.Sprintf("%s.alt_zh[%d]", where, k), a, maxChartTextRunes)
 			}
-			if st.StepType == walkthrough.StepSave && (st.Text != nil || st.TextZh != nil || len(st.Alt) > 0 || st.Achievement) {
+			if st.StepType == walkthrough.StepSave && (st.Text != nil || st.TextZh != nil || len(st.Alt) > 0 || st.Remark != nil || st.Achievement) {
 				errs = append(errs, fmt.Errorf("%s: a save step carries only save", where))
 			}
 			if st.StepType != walkthrough.StepSave && st.Save != nil {

@@ -22,7 +22,7 @@ const quote = (s: string | null | undefined) => `「${s ?? ''}」`
 const stepText = (st: WtStep, chart: WtChart) =>
   st.step_type === 'save'
     ? `存档${quote(chart.saves.find((s) => s.key === st.save)?.label ?? st.save)}`
-    : `${WT_STEP_META[st.step_type].label}${quote(st.text)}${st.achievement ? ' ☆' : ''}`
+    : `${WT_STEP_META[st.step_type].label}${quote(st.text)}${st.remark ? `（${st.remark}）` : ''}${st.achievement ? ' · 成就' : ''}`
 
 const stepSignature = (st: WtStep) => JSON.stringify(st)
 
@@ -72,10 +72,13 @@ const stepDetails = (
     if (op.op === 'del' && next?.op === 'add') {
       const from = before.steps[op.i]!
       const to = after.steps[next.j]!
-      const zhChanged = from.text_zh !== to.text_zh && from.text === to.text
+      const zhChanged =
+        (from.text_zh !== to.text_zh || from.remark_zh !== to.remark_zh) &&
+        from.text === to.text &&
+        from.remark === to.remark
       out.push(
         zhChanged
-          ? `第 ${next.j + 1} 步的译文：${quote(from.text_zh)} → ${quote(to.text_zh)}`
+          ? `第 ${next.j + 1} 步的译文：${quote(from.text_zh)}${from.remark_zh ? `（${from.remark_zh}）` : ''} → ${quote(to.text_zh)}${to.remark_zh ? `（${to.remark_zh}）` : ''}`
           : `第 ${next.j + 1} 步：${stepText(from, a)} → ${stepText(to, b)}`
       )
       k++
@@ -165,7 +168,29 @@ export const diffCharts = (
         .filter((k) => a.segments.some((x) => x.key === k))
     )
 
+  const legendBefore = a.legend.map((l) => l.text)
+  const legendAfter = b.legend.map((l) => l.text)
+  const legendDetails = [
+    ...legendBefore
+      .filter((t) => !legendAfter.includes(t))
+      .map((t) => `删除${quote(t)}`),
+    ...legendAfter
+      .filter((t) => !legendBefore.includes(t))
+      .map((t) => `新增${quote(t)}`)
+  ]
+
   return [
+    ...(JSON.stringify(a.legend) !== JSON.stringify(b.legend)
+      ? [
+          {
+            group: '符号说明',
+            key: '__legend__',
+            status: 'changed' as const,
+            label: '符号说明',
+            details: legendDetails.length ? legendDetails : ['调整了顺序或译文']
+          }
+        ]
+      : []),
     ...diffKeyed(
       '角色',
       a.characters,

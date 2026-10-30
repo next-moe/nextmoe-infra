@@ -10449,6 +10449,8 @@ export interface components {
             endings: components["schemas"]["WalkthroughEnding"][];
             /** @description Places a playthrough starts from: the title screen, or a later unlock of it. Empty array, never null. */
             entries: components["schemas"]["WalkthroughEntry"][];
+            /** @description The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null. */
+            legend: components["schemas"]["WalkthroughLegendLine"][];
             /** @description Save points the chart creates and resumes from. Empty array, never null. */
             saves: components["schemas"]["WalkthroughSave"][];
             /** @description Headings of the source page that group segments, usually one per route. Empty array, never null. */
@@ -10562,6 +10564,16 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        WalkthroughLegendLine: {
+            /** @description BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description The definition as the source page writes it. Must not be used as a discriminant. */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
         WalkthroughNode: {
             /** @description entries[], saves[] or endings[] key for those node types. null for collect and open. */
             key: string | null;
@@ -10642,12 +10654,18 @@ export interface components {
             [key: string]: unknown;
         };
         WalkthroughStep: {
-            /** @description The source marks this step as needed for an achievement only. */
+            /** @description The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark. */
             achievement: boolean;
             /** @description Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null. */
             alternatives: components["schemas"]["WalkthroughAlternative"][];
             /** @description BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
             localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant. */
+            remark: string | null;
+            /** @description BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant. */
+            remark_localized: {
                 [key: string]: components["schemas"]["LocalizedText"];
             };
             /** @description saves[].key this save step creates. null for every other step_type. */
@@ -10703,7 +10721,7 @@ export interface components {
              * @enum {string}
              */
             content_rating: "all_ages" | "sensitive" | "r18";
-            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. Every step is under the work's nsfw gate. null if none. */
+            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none. */
             cover: components["schemas"]["CoverSlot"] | null;
             /** @description Present when include=covers. Empty array if none. */
             covers?: components["schemas"]["Cover"][];

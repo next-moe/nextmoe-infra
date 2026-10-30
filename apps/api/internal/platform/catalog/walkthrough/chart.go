@@ -23,6 +23,7 @@ var EndingTypes = []string{"heroine", "harem", "true", "normal", "bad", "after",
 type Chart struct {
 	Characters []Character `json:"characters"`
 	Sections   []Section   `json:"sections"`
+	Legend     []Legend    `json:"legend"`
 	Entries    []Entry     `json:"entries"`
 	Saves      []Save      `json:"saves"`
 	Endings    []Ending    `json:"endings"`
@@ -40,6 +41,11 @@ type Section struct {
 	Title      string   `json:"title"`
 	TitleZh    *string  `json:"title_zh"`
 	Characters []string `json:"characters"`
+}
+
+type Legend struct {
+	Text   string  `json:"text"`
+	TextZh *string `json:"text_zh"`
 }
 
 type Entry struct {
@@ -85,6 +91,8 @@ type Step struct {
 	TextZh      *string   `json:"text_zh"`
 	Alt         []string  `json:"alt"`
 	AltZh       []*string `json:"alt_zh"`
+	Remark      *string   `json:"remark"`
+	RemarkZh    *string   `json:"remark_zh"`
 	Achievement bool      `json:"achievement"`
 	Save        *string   `json:"save"`
 }

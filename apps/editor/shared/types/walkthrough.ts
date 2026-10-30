@@ -17,6 +17,11 @@ export interface WtSection {
   characters: string[]
 }
 
+export interface WtLegend {
+  text: string
+  text_zh: string | null
+}
+
 export interface WtEntry {
   key: string
   label: string
@@ -49,6 +54,8 @@ export interface WtStep {
   text_zh: string | null
   alt: string[]
   alt_zh: (string | null)[]
+  remark: string | null
+  remark_zh: string | null
   achievement: boolean
   save: string | null
 }
@@ -67,6 +74,7 @@ export interface WtSegment {
 export interface WtChart {
   characters: WtCharacter[]
   sections: WtSection[]
+  legend: WtLegend[]
   entries: WtEntry[]
   saves: WtSave[]
   endings: WtEnding[]
@@ -79,7 +87,10 @@ export interface WtPin {
 }
 
 export type WtTarget =
-  | { kind: 'character' | 'section' | 'entry' | 'save' | 'ending'; key: string }
+  | {
+      kind: 'character' | 'section' | 'entry' | 'save' | 'ending' | 'legend'
+      key: string
+    }
   | { kind: 'segment'; key: string; step?: number }
 
 export interface WtIssue {

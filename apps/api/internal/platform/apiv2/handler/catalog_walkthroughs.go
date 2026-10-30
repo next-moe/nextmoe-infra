@@ -246,6 +246,7 @@ func walkthroughNode(n walkthrough.Node) repr.WalkthroughNode {
 func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string) map[string]repr.LocalizedText) *repr.WalkthroughChart {
 	out := &repr.WalkthroughChart{
 		Sections: make([]repr.WalkthroughSection, 0, len(c.Sections)),
+		Legend:   make([]repr.WalkthroughLegendLine, 0, len(c.Legend)),
 		Entries:  make([]repr.WalkthroughEntry, 0, len(c.Entries)),
 		Saves:    make([]repr.WalkthroughSave, 0, len(c.Saves)),
 		Endings:  make([]repr.WalkthroughEnding, 0, len(c.Endings)),
@@ -255,6 +256,9 @@ func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string
 		out.Sections = append(out.Sections, repr.WalkthroughSection{
 			Key: s.Key, Title: s.Title, Localized: walkthroughLocalized(s.TitleZh), CharacterKeys: orEmptyStrings(s.Characters),
 		})
+	}
+	for _, l := range c.Legend {
+		out.Legend = append(out.Legend, repr.WalkthroughLegendLine{Text: l.Text, Localized: walkthroughLocalized(l.TextZh)})
 	}
 	for _, e := range c.Entries {
 		out.Entries = append(out.Entries, repr.WalkthroughEntry{
@@ -279,6 +283,7 @@ func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string
 		for _, st := range s.Steps {
 			step := repr.WalkthroughStep{
 				StepType: st.StepType, Text: st.Text, Localized: walkthroughLocalized(st.TextZh),
+				Remark: st.Remark, RemarkLocalized: walkthroughLocalized(st.RemarkZh),
 				Achievement: st.Achievement, SaveKey: st.Save,
 				Alternatives: make([]repr.WalkthroughAlternative, 0, len(st.Alt)),
 			}

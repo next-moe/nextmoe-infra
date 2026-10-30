@@ -28,6 +28,10 @@ export const normalizeChart = (raw: unknown): WtChart => {
       title_zh: s.title_zh ?? null,
       characters: list(s.characters)
     })),
+    legend: list(c.legend).map((l) => ({
+      ...l,
+      text_zh: l.text_zh ?? null
+    })),
     entries: list(c.entries).map((e) => ({
       ...e,
       label_zh: e.label_zh ?? null,
@@ -51,6 +55,8 @@ export const normalizeChart = (raw: unknown): WtChart => {
         text_zh: st.text_zh ?? null,
         alt: list(st.alt),
         alt_zh: list(st.alt_zh),
+        remark: st.remark ?? null,
+        remark_zh: st.remark_zh ?? null,
         achievement: Boolean(st.achievement),
         save: st.save ?? null
       }))
@@ -85,13 +91,19 @@ export const blankStep = (
   text_zh: null,
   alt: [],
   alt_zh: [],
+  remark: null,
+  remark_zh: null,
   achievement: false,
   save: stepType === 'save' ? save : null
 })
 
+export const takesRemark = (stepType: WtStepType) =>
+  stepType === 'choice' || stepType === 'action'
+
 export const emptyChart = (): WtChart => ({
   characters: [],
   sections: [],
+  legend: [],
   entries: [{ key: 'e1', label: 'START', unlocked_by: null }],
   saves: [],
   endings: [],
@@ -289,6 +301,14 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
   for (const s of chart.saves) {
     if (blank(s.label)) push({ kind: 'save', key: s.key }, '存档还没有名称')
   }
+  chart.legend.forEach((l, i) => {
+    const t = { kind: 'legend' as const, key: String(i) }
+    if (blank(l.text)) push(t, '符号说明还没有填写')
+    if (tooLong(l.text, WT_LIMITS.textRunes))
+      push(t, `符号说明最多 ${WT_LIMITS.textRunes} 字`)
+  })
+  if (chart.legend.length > WT_LIMITS.legend)
+    push(null, `符号说明最多 ${WT_LIMITS.legend} 条`)
   const types = new Set(WT_ENDING_TYPES.map((e) => e.value))
   for (const e of chart.endings) {
     const t = { kind: 'ending' as const, key: e.key }
@@ -345,6 +365,12 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
       if (st.alt.some(blank)) push(t(i), '有空白的其他写法')
       if (st.alt_zh.length !== st.alt.length)
         push(t(i), '其他写法与译文数量不一致')
+      if (st.remark !== null && blank(st.remark))
+        push(t(i), '备注是空的，不需要就删掉')
+      if (st.remark !== null && !takesRemark(st.step_type))
+        push(t(i), `${WT_STEP_META[st.step_type].label}不能带备注`)
+      if (tooLong(st.remark, WT_LIMITS.textRunes))
+        push(t(i), `备注最多 ${WT_LIMITS.textRunes} 字`)
     })
   }
   if (steps > WT_LIMITS.steps) push(null, `步骤总数最多 ${WT_LIMITS.steps} 个`)
@@ -360,10 +386,12 @@ export const stripTranslations = (d: WtChart) => {
   for (const e of d.endings) e.name_zh = null
   for (const s of d.saves) s.label_zh = null
   for (const e of d.entries) e.label_zh = null
+  for (const l of d.legend) l.text_zh = null
   for (const s of d.segments) {
     s.condition_zh = null
     for (const st of s.steps) {
       st.text_zh = null
+      st.remark_zh = null
       st.alt_zh = st.alt.map(() => null)
     }
   }

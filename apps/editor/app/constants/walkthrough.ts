@@ -22,6 +22,7 @@ export const WT_LIMITS = {
   textRunes: 1024,
   conditionRunes: 1024,
   aliases: 32,
+  legend: 32,
   alts: 16,
   characters: 128,
   segments: 2000,

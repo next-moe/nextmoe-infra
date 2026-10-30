@@ -12759,6 +12759,11 @@ components:
           items:
             $ref: "#/components/schemas/WalkthroughEntry"
           type: array
+        legend:
+          description: The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WalkthroughLegendLine"
+          type: array
         saves:
           description: Save points the chart creates and resumes from. Empty array, never null.
           items:
@@ -12776,6 +12781,7 @@ components:
           type: array
       required:
         - sections
+        - legend
         - entries
         - saves
         - endings
@@ -12961,6 +12967,22 @@ components:
         - endings_reached
         - coverage
       type: object
+    WalkthroughLegendLine:
+      additionalProperties: true
+      properties:
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant."
+          type: object
+        text:
+          description: The definition as the source page writes it. Must not be used as a discriminant.
+          maxLength: 1024
+          type: string
+      required:
+        - text
+        - localized
+      type: object
     WalkthroughNode:
       additionalProperties: true
       properties:
@@ -13138,7 +13160,7 @@ components:
       additionalProperties: true
       properties:
         achievement:
-          description: The source marks this step as needed for an achievement only.
+          description: The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark.
           type: boolean
         alternatives:
           description: Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null.
@@ -13149,6 +13171,17 @@ components:
           additionalProperties:
             $ref: "#/components/schemas/LocalizedText"
           description: "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
+          type: object
+        remark:
+          description: "What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant."
+          maxLength: 1024
+          type:
+            - string
+            - "null"
+        remark_localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant."
           type: object
         save_key:
           description: saves[].key this save step creates. null for every other step_type.
@@ -13178,6 +13211,8 @@ components:
         - text
         - localized
         - alternatives
+        - remark
+        - remark_localized
         - achievement
         - save_key
       type: object

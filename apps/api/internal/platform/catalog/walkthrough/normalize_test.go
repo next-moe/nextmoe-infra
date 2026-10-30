@@ -12,16 +12,24 @@ func TestNormalizeCleansEntryLabelsAndSelfAlternatives(t *testing.T) {
 	c := Chart{
 		Entries: []Entry{{Key: "start", Label: "【START】から開始"}, {Key: "restart", Label: "【RESTART】"}},
 		Segments: []Segment{{Key: "g1", From: Node{NodeType: NodeEntry, Key: ptr("start")}, To: Node{NodeType: NodeOpen},
-			Steps: []Step{{StepType: StepChoice, Text: ptr("☆(しつこいからもういいか)"), Alt: []string{"しつこいからもういいか", "別の"}}}}},
+			Steps: []Step{{StepType: StepChoice, Text: ptr("(しつこいからもういいか)"), Alt: []string{"しつこいからもういいか", "別の"}}}}},
 	}
 	Normalize(&c)
 	assert.Equal(t, "START", c.Entries[0].Label)
 	assert.Equal(t, "RESTART", c.Entries[1].Label)
 	st := c.Segments[0].Steps[0]
-	assert.True(t, st.Achievement)
 	assert.Equal(t, "(しつこいからもういいか)", *st.Text)
 	assert.Equal(t, []string{"別の"}, st.Alt, "an alternative equal to its own choice is dropped")
 	assert.Len(t, st.AltZh, 1)
+}
+
+func TestNormalizeKeepsMarksAndLeavesAchievementAlone(t *testing.T) {
+	c := Chart{Segments: []Segment{{Key: "g1", To: Node{NodeType: NodeOpen},
+		Steps: []Step{{StepType: StepChoice, Text: ptr("☆手を握る")}}}}}
+	Normalize(&c)
+	st := c.Segments[0].Steps[0]
+	assert.Equal(t, "☆手を握る", *st.Text, "☆ means what the page's legend says, so it stays in the text")
+	assert.False(t, st.Achievement)
 }
 
 func TestNormalizeTurnsCollectionEndingsIntoCollectStops(t *testing.T) {

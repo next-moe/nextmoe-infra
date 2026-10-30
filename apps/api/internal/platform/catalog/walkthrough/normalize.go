@@ -50,10 +50,6 @@ func Normalize(c *Chart) {
 			st := &s.Steps[j]
 			if st.Text != nil {
 				t := strings.TrimSpace(*st.Text)
-				if rest, ok := strings.CutPrefix(t, "☆"); ok {
-					t = strings.TrimSpace(rest)
-					st.Achievement = true
-				}
 				for _, a := range st.Alt {
 					a = strings.TrimSpace(a)
 					for _, suffix := range []string{"(" + a + ")", "（" + a + "）"} {
@@ -114,6 +110,10 @@ func Normalize(c *Chart) {
 	}
 	c.Endings = slices.DeleteFunc(c.Endings, func(e Ending) bool { return !reached[e.Key] })
 	resolveRequiredEndings(c)
+}
+
+func IsHeading(text string) bool {
+	return headingLine.MatchString(norm.NFKC.String(strings.TrimSpace(text)))
 }
 
 func choiceKind(text string) string {
@@ -214,6 +214,7 @@ func FillNil(c *Chart) {
 	c.Saves = orEmpty(c.Saves)
 	c.Endings = orEmpty(c.Endings)
 	c.Segments = orEmpty(c.Segments)
+	c.Legend = orEmpty(c.Legend)
 	for i := range c.Characters {
 		c.Characters[i].Aliases = orEmpty(c.Characters[i].Aliases)
 	}
@@ -315,9 +316,17 @@ func Validate(c Chart) []string {
 				if st.Text == nil || strings.TrimSpace(*st.Text) == "" {
 					problems = append(problems, fmt.Sprintf("segment %s: empty %s", s.Key, st.StepType))
 				}
+				if st.Remark != nil && (strings.TrimSpace(*st.Remark) == "" || st.StepType != StepChoice && st.StepType != StepAction) {
+					problems = append(problems, fmt.Sprintf("segment %s: remark on %s %q", s.Key, st.StepType, deref(st.Text)))
+				}
 			default:
 				problems = append(problems, fmt.Sprintf("segment %s: step_type %q", s.Key, st.StepType))
 			}
+		}
+	}
+	for i, l := range c.Legend {
+		if strings.TrimSpace(l.Text) == "" {
+			problems = append(problems, fmt.Sprintf("legend %d: empty", i))
 		}
 	}
 	return problems

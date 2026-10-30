@@ -40,12 +40,19 @@ type WalkthroughCharacter struct {
 }
 
 type WalkthroughChart struct {
-	_        struct{}             `json:"-" additionalProperties:"true"`
-	Sections []WalkthroughSection `json:"sections" doc:"Headings of the source page that group segments, usually one per route. Empty array, never null."`
-	Entries  []WalkthroughEntry   `json:"entries" doc:"Places a playthrough starts from: the title screen, or a later unlock of it. Empty array, never null."`
-	Saves    []WalkthroughSave    `json:"saves" doc:"Save points the chart creates and resumes from. Empty array, never null."`
-	Endings  []WalkthroughEnding  `json:"endings" doc:"Endings, one per occurrence in the source: repeated names are separate endings. Empty array, never null."`
-	Segments []WalkthroughSegment `json:"segments" doc:"Runs of steps from one node to the next, in source order. Empty array, never null."`
+	_        struct{}                `json:"-" additionalProperties:"true"`
+	Sections []WalkthroughSection    `json:"sections" doc:"Headings of the source page that group segments, usually one per route. Empty array, never null."`
+	Legend   []WalkthroughLegendLine `json:"legend" doc:"The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null."`
+	Entries  []WalkthroughEntry      `json:"entries" doc:"Places a playthrough starts from: the title screen, or a later unlock of it. Empty array, never null."`
+	Saves    []WalkthroughSave       `json:"saves" doc:"Save points the chart creates and resumes from. Empty array, never null."`
+	Endings  []WalkthroughEnding     `json:"endings" doc:"Endings, one per occurrence in the source: repeated names are separate endings. Empty array, never null."`
+	Segments []WalkthroughSegment    `json:"segments" doc:"Runs of steps from one node to the next, in source order. Empty array, never null."`
+}
+
+type WalkthroughLegendLine struct {
+	_         struct{}                 `json:"-" additionalProperties:"true"`
+	Text      string                   `json:"text" maxLength:"1024" doc:"The definition as the source page writes it. Must not be used as a discriminant."`
+	Localized map[string]LocalizedText `json:"localized" doc:"BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant."`
 }
 
 type WalkthroughAlternative struct {
@@ -105,13 +112,15 @@ type WalkthroughNode struct {
 }
 
 type WalkthroughStep struct {
-	_            struct{}                 `json:"-" additionalProperties:"true"`
-	StepType     string                   `json:"step_type" enum:"choice,action,save,heading,note" doc:"choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it."`
-	Text         *string                  `json:"text" maxLength:"1024" doc:"The step as the source page writes it. null for a save step. Must not be used as a discriminant."`
-	Localized    map[string]LocalizedText `json:"localized" doc:"BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."`
-	Alternatives []WalkthroughAlternative `json:"alternatives" doc:"Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null."`
-	Achievement  bool                     `json:"achievement" doc:"The source marks this step as needed for an achievement only."`
-	SaveKey      *string                  `json:"save_key" pattern:"^[A-Za-z0-9_]+$" maxLength:"32" doc:"saves[].key this save step creates. null for every other step_type."`
+	_               struct{}                 `json:"-" additionalProperties:"true"`
+	StepType        string                   `json:"step_type" enum:"choice,action,save,heading,note" doc:"choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it."`
+	Text            *string                  `json:"text" maxLength:"1024" doc:"The step as the source page writes it. null for a save step. Must not be used as a discriminant."`
+	Localized       map[string]LocalizedText `json:"localized" doc:"BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."`
+	Alternatives    []WalkthroughAlternative `json:"alternatives" doc:"Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null."`
+	Remark          *string                  `json:"remark" maxLength:"1024" doc:"What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant."`
+	RemarkLocalized map[string]LocalizedText `json:"remark_localized" doc:"BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant."`
+	Achievement     bool                     `json:"achievement" doc:"The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark."`
+	SaveKey         *string                  `json:"save_key" pattern:"^[A-Za-z0-9_]+$" maxLength:"32" doc:"saves[].key this save step creates. null for every other step_type."`
 }
 
 type WalkthroughRelease struct {

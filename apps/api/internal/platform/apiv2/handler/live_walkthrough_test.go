@@ -36,6 +36,7 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 		} `json:"characters"`
 		EndingCount int `json:"ending_count"`
 		Chart       *struct {
+			Legend  []any `json:"legend"`
 			Entries []struct {
 				Localized map[string]any `json:"localized"`
 			} `json:"entries"`
@@ -61,7 +62,9 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 						Text      string         `json:"text"`
 						Localized map[string]any `json:"localized"`
 					} `json:"alternatives"`
-					SaveKey *string `json:"save_key"`
+					SaveKey         *string        `json:"save_key"`
+					Remark          *string        `json:"remark"`
+					RemarkLocalized map[string]any `json:"remark_localized"`
 				} `json:"steps"`
 			} `json:"segments"`
 		} `json:"chart"`
@@ -95,6 +98,11 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	assert.Equal(t, "是", steps[0].Localized["zh-Hans"]["value"])
 	require.Len(t, steps[0].Alternatives, 1)
 	assert.Empty(t, steps[0].Alternatives[0].Localized, "an untranslated alternative has an empty localized map")
+	assert.Nil(t, steps[0].Remark)
+	assert.NotNil(t, steps[0].RemarkLocalized)
+	assert.Empty(t, steps[0].RemarkLocalized)
+	assert.NotNil(t, w.Chart.Legend, "a chart stored before legend still says []")
+	assert.Empty(t, w.Chart.Legend)
 	assert.Nil(t, steps[1].Text)
 	assert.Equal(t, "sv01", *steps[1].SaveKey)
 

@@ -138,6 +138,9 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 			return nil
 		}
 		curatedPins = provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "pins"))
+		if provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "status")) {
+			w.Status = existing.Status
+		}
 		if provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "work_id")) {
 			w.WorkID = existing.WorkID
 		}
@@ -162,12 +165,12 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 	if w.ID != 0 {
 		var prev walkthrough.Chart
 		if json.Unmarshal(existing.Chart, &prev) == nil && reflect.DeepEqual(prev, c) &&
-			existing.WorkID == w.WorkID && existing.SourceHash == w.SourceHash && existing.TranslateModel == w.TranslateModel &&
+			existing.WorkID == w.WorkID && existing.Status == w.Status && existing.SourceHash == w.SourceHash && existing.TranslateModel == w.TranslateModel &&
 			sameReview(existing.ImportReview, w.ImportReview) && (curatedPins || pinsLinked(pins, links)) {
 			st.Unchanged++
 			return nil
 		}
-		if err := tx.Model(&existing).Select("work_id", "source_author", "source_updated_on", "chart_version",
+		if err := tx.Model(&existing).Select("work_id", "status", "source_author", "source_updated_on", "chart_version",
 			"chart", "source_hash", "extract_model", "translate_model", "import_review", "updated_at").Updates(&w).Error; err != nil {
 			return err
 		}
@@ -352,12 +355,16 @@ func mergeTranslations(c *walkthrough.Chart, zh map[string]string) {
 	for i := range c.Entries {
 		c.Entries[i].LabelZh = tr(&c.Entries[i].Label)
 	}
+	for i := range c.Legend {
+		c.Legend[i].TextZh = tr(&c.Legend[i].Text)
+	}
 	for i := range c.Segments {
 		s := &c.Segments[i]
 		s.ConditionZh = tr(s.Condition)
 		for j := range s.Steps {
 			st := &s.Steps[j]
 			st.TextZh = tr(st.Text)
+			st.RemarkZh = tr(st.Remark)
 			st.AltZh = make([]*string, len(st.Alt))
 			for k := range st.Alt {
 				st.AltZh[k] = tr(&st.Alt[k])
@@ -443,8 +450,8 @@ func loadExtractionMeta(ctx context.Context, src *gorm.DB, ids []int64) (map[int
 		Verdict   string
 		Metrics   string
 	}
-	if err := src.WithContext(ctx).Table("wt_stage.extraction").Select("entry_id, model, input_hash, verdict, coalesce(metrics::text, '{}') AS metrics").
-		Where("prompt_version = ? AND entry_id IN ?", extract.PromptVersion, ids).Scan(&rows).Error; err != nil {
+	if err := src.WithContext(ctx).Table(latestExtractions(settledVerdicts)).Select("entry_id, model, input_hash, verdict, coalesce(metrics::text, '{}') AS metrics").
+		Where("entry_id IN ?", ids).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make(map[int64]extractionMeta, len(rows))

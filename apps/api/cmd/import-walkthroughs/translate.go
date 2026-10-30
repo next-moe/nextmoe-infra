@@ -32,7 +32,6 @@ type translateJob struct {
 	Strings   []string
 	Glossary  []glossaryTerm
 	KeepNames []string
-	Earlier   map[string]string
 }
 
 func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sourceEntry, o extractOpts) error {
@@ -56,10 +55,6 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 	if err != nil {
 		return err
 	}
-	earlier, err := earlierTranslations(ctx, src)
-	if err != nil {
-		return err
-	}
 	var jobs []translateJob
 	for _, id := range keysOf(charts) {
 		if _, matched := pins[id]; !matched {
@@ -69,14 +64,13 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 		if len(job.Strings) == 0 || !o.Redo && done[id] == translateHash(job) {
 			continue
 		}
-		job.Earlier = earlier[id]
 		jobs = append(jobs, job)
 	}
 	fmt.Printf("\n=== import-walkthroughs translate model=%s prompt=%s charts=%d todo=%d ===\n",
 		l.model, translatePromptVersion, len(charts), len(jobs))
 
 	schema := mustSchema(translateSchemaJSON)
-	var finished, failed, refused, reused, asked atomic.Int64
+	var finished, failed, refused, asked atomic.Int64
 	sem := make(chan struct{}, max(o.Workers, 1))
 	var wg sync.WaitGroup
 	for _, job := range jobs {
@@ -90,7 +84,6 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 			defer func() { <-sem }()
 			out, st, err := translateOne(ctx, l, schema, job, o.MaxTokens)
 			refused.Add(int64(st.refused))
-			reused.Add(int64(st.reused))
 			asked.Add(int64(st.asked))
 			errText := ""
 			if err != nil {
@@ -102,13 +95,13 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 				slog.Error("store translation", "entry", job.EntryID, "err", err)
 			}
 			if n := finished.Add(1); n%25 == 0 || n == int64(len(jobs)) {
-				slog.Info("progress", "done", n, "of", len(jobs), "failed", failed.Load(), "reused", reused.Load(), "asked", asked.Load(), "refused", refused.Load())
+				slog.Info("progress", "done", n, "of", len(jobs), "failed", failed.Load(), "asked", asked.Load(), "refused", refused.Load())
 			}
 		}(job)
 	}
 	wg.Wait()
-	fmt.Printf("translated=%d failed=%d reused_strings=%d asked_strings=%d refused_strings=%d\n",
-		finished.Load()-failed.Load(), failed.Load(), reused.Load(), asked.Load(), refused.Load())
+	fmt.Printf("translated=%d failed=%d asked_strings=%d refused_strings=%d\n",
+		finished.Load()-failed.Load(), failed.Load(), asked.Load(), refused.Load())
 	return ctx.Err()
 }
 
@@ -205,7 +198,11 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 			for i := range st.Alt {
 				add(&st.Alt[i])
 			}
+			add(st.Remark)
 		}
+	}
+	for _, l := range c.Legend {
+		add(&l.Text)
 	}
 	for _, e := range c.Endings {
 		add(&e.Name)
@@ -284,34 +281,8 @@ func settledTranslations(ctx context.Context, src *gorm.DB) (map[int64]string, e
 	return out, err
 }
 
-func earlierTranslations(ctx context.Context, src *gorm.DB) (map[int64]map[string]string, error) {
-	var rows []struct {
-		EntryID int64
-		Strings string
-	}
-	if err := src.WithContext(ctx).Table("wt_stage.translation").
-		Select("entry_id, strings::text AS strings").
-		Where("prompt_version <> ? AND error = '' AND strings IS NOT NULL", translatePromptVersion).
-		Order("created_at").Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make(map[int64]map[string]string, len(rows))
-	for _, r := range rows {
-		m := map[string]string{}
-		if err := json.Unmarshal([]byte(r.Strings), &m); err != nil {
-			return nil, fmt.Errorf("entry %d translation: %w", r.EntryID, err)
-		}
-		if out[r.EntryID] == nil {
-			out[r.EntryID] = m
-			continue
-		}
-		maps.Copy(out[r.EntryID], m)
-	}
-	return out, nil
-}
-
 type translateStats struct {
-	reused, asked, refused int
+	asked, refused int
 }
 
 func translateOne(ctx context.Context, l *llm, schema map[string]any, job translateJob, maxTokens int) (map[string]string, translateStats, error) {
@@ -320,13 +291,9 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 	mask := newNameMask(job.KeepNames, 2)
 	var todo []string
 	for _, ja := range job.Strings {
-		switch zh, ok := job.Earlier[ja]; {
-		case ok && keepsNames(ja, zh, job.KeepNames):
-			out[ja] = zh
-			st.reused++
-		case mask.onlyNames(ja):
+		if mask.onlyNames(ja) {
 			out[ja] = ja
-		default:
+		} else {
 			todo = append(todo, ja)
 		}
 	}

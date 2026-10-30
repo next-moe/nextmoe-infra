@@ -77917,6 +77917,46 @@ export const docsModel: DocsModel = {
                                   }
                                 },
                                 {
+                                  "name": "legend",
+                                  "required": true,
+                                  "doc": "The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "name": "text",
+                                        "required": true,
+                                        "doc": "The definition as the source page writes it. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
                                   "name": "saves",
                                   "required": true,
                                   "doc": "Save points the chart creates and resumes from. Empty array, never null.",
@@ -78115,7 +78155,7 @@ export const docsModel: DocsModel = {
                                             {
                                               "name": "achievement",
                                               "required": true,
-                                              "doc": "The source marks this step as needed for an achievement only.",
+                                              "doc": "The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark.",
                                               "type": "boolean"
                                             },
                                             {
@@ -78162,6 +78202,36 @@ export const docsModel: DocsModel = {
                                               "name": "localized",
                                               "required": true,
                                               "doc": "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                              "type": "map",
+                                              "itemsOf": {
+                                                "type": "object",
+                                                "children": [
+                                                  {
+                                                    "name": "is_machine",
+                                                    "required": true,
+                                                    "doc": "Whether this value is machine-translated.",
+                                                    "type": "boolean"
+                                                  },
+                                                  {
+                                                    "name": "value",
+                                                    "required": true,
+                                                    "doc": "Must not be used as a discriminant.",
+                                                    "type": "string"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            {
+                                              "name": "remark",
+                                              "required": true,
+                                              "nullable": true,
+                                              "doc": "What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant.",
+                                              "type": "string"
+                                            },
+                                            {
+                                              "name": "remark_localized",
+                                              "required": true,
+                                              "doc": "BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant.",
                                               "type": "map",
                                               "itemsOf": {
                                                 "type": "object",
@@ -80057,6 +80127,46 @@ export const docsModel: DocsModel = {
                             }
                           },
                           {
+                            "name": "legend",
+                            "required": true,
+                            "doc": "The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null.",
+                            "type": "array",
+                            "itemsOf": {
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "localized",
+                                  "required": true,
+                                  "doc": "BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant.",
+                                  "type": "map",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "is_machine",
+                                        "required": true,
+                                        "doc": "Whether this value is machine-translated.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "value",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "name": "text",
+                                  "required": true,
+                                  "doc": "The definition as the source page writes it. Must not be used as a discriminant.",
+                                  "type": "string"
+                                }
+                              ]
+                            }
+                          },
+                          {
                             "name": "saves",
                             "required": true,
                             "doc": "Save points the chart creates and resumes from. Empty array, never null.",
@@ -80255,7 +80365,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "achievement",
                                         "required": true,
-                                        "doc": "The source marks this step as needed for an achievement only.",
+                                        "doc": "The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark.",
                                         "type": "boolean"
                                       },
                                       {
@@ -80302,6 +80412,36 @@ export const docsModel: DocsModel = {
                                         "name": "localized",
                                         "required": true,
                                         "doc": "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "name": "remark",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "remark_localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant.",
                                         "type": "map",
                                         "itemsOf": {
                                           "type": "object",
@@ -273242,6 +273382,46 @@ export const docsModel: DocsModel = {
                                   }
                                 },
                                 {
+                                  "name": "legend",
+                                  "required": true,
+                                  "doc": "The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "name": "text",
+                                        "required": true,
+                                        "doc": "The definition as the source page writes it. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
                                   "name": "saves",
                                   "required": true,
                                   "doc": "Save points the chart creates and resumes from. Empty array, never null.",
@@ -273440,7 +273620,7 @@ export const docsModel: DocsModel = {
                                             {
                                               "name": "achievement",
                                               "required": true,
-                                              "doc": "The source marks this step as needed for an achievement only.",
+                                              "doc": "The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark.",
                                               "type": "boolean"
                                             },
                                             {
@@ -273487,6 +273667,36 @@ export const docsModel: DocsModel = {
                                               "name": "localized",
                                               "required": true,
                                               "doc": "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                              "type": "map",
+                                              "itemsOf": {
+                                                "type": "object",
+                                                "children": [
+                                                  {
+                                                    "name": "is_machine",
+                                                    "required": true,
+                                                    "doc": "Whether this value is machine-translated.",
+                                                    "type": "boolean"
+                                                  },
+                                                  {
+                                                    "name": "value",
+                                                    "required": true,
+                                                    "doc": "Must not be used as a discriminant.",
+                                                    "type": "string"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            {
+                                              "name": "remark",
+                                              "required": true,
+                                              "nullable": true,
+                                              "doc": "What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant.",
+                                              "type": "string"
+                                            },
+                                            {
+                                              "name": "remark_localized",
+                                              "required": true,
+                                              "doc": "BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant.",
                                               "type": "map",
                                               "itemsOf": {
                                                 "type": "object",
