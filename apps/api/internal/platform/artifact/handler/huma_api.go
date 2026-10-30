@@ -376,6 +376,10 @@ func (s *HumaServer) completeUpload(ctx context.Context, in *completeInput) (*ar
 			return nil, apiErr(http.StatusBadRequest, errors.ErrArtifactBadRequest)
 		case stderrors.Is(err, service.ErrSizeMismatch):
 			return nil, apiErr(http.StatusBadRequest, errors.ErrArtifactSizeMismatch)
+		case stderrors.Is(err, service.ErrIncomplete):
+			return nil, apiErrMsg(http.StatusConflict, errors.ErrArtifactBadRequest, "upload is missing parts: resume, upload them, then complete again")
+		case stderrors.Is(err, service.ErrNotResumable):
+			return nil, apiErr(http.StatusConflict, errors.ErrArtifactBadRequest)
 		default:
 			slog.Error("artifact complete", "uuid", in.UUID, "site", site, "err", err)
 			return nil, apiErr(http.StatusInternalServerError, errors.ErrArtifactStoreFailed)
