@@ -2,7 +2,7 @@
 
 > 读者：letmoe / kungal / moyu 等下游站点的后端集成者。
 > 真相源：`cmd/agent` 与 `internal/platform/agent`；机读契约 = `docs/agent/openapi.yaml`（`go run ./cmd/gen-openapi -agent` 生成，CI 校验不漂移）。
-> 状态基线：2026-10-28。
+> 状态基线：2026-10-29（编辑分支、重新生成、步骤落库、反馈、收藏、建议问题）。
 
 ## 1. 全景
 
@@ -11,7 +11,7 @@ agent 服务（:9287，`kun_agent` 库）是全站共用的 AI 助手：对话�
 ```
 浏览器 ──► 你站后端（BFF） ──► agent :9287 ──► LLM 网关（kun_ai 路由表，多供应商故障转移）
                                    ├──► catalog /v2（混合检索：BM25 + 向量）
-                                   ├──► Brave（联网搜索，可选）
+                                   ├──► 网关场景 agent.web_search（联网搜索，可选）
                                    └──► oauth（萌萌点扣费）
 ```
 
@@ -38,20 +38,22 @@ agent 服务（:9287，`kun_agent` 库）是全站共用的 AI 助手：对话�
 
 | 方法 | 路径 | 作用 |
 | --- | --- | --- |
-| GET | `/v2/agent/persona` | 看板娘：`name` / `avatar` / `greetings[]` |
+| GET | `/v2/agent/persona` | 看板娘：`name` / `avatar` / `greetings[]`，以及空对话的建议问题 `suggestions[]` 和 `web_search_available` |
 | GET | `/v2/agent/quota` | 今日免费剩余、价格、是否可扣萌萌点、萌萌点余额 |
-| GET | `/v2/agent/conversations?cursor=&limit=` | 历史对话（按更新时间倒序，游标分页） |
+| GET | `/v2/agent/conversations?cursor=&limit=&starred=` | 历史对话（按更新时间倒序，游标分页）；`starred=true` 只看收藏 |
 | POST | `/v2/agent/conversations` | 新建对话 `{"mode":"assistant"}` |
-| GET | `/v2/agent/conversations/{id}` | 对话 + 当前分支的消息 |
-| PATCH | `/v2/agent/conversations/{id}` | 重命名 `{"title":"…"}` |
+| GET | `/v2/agent/conversations/{id}?head=` | 对话 + 当前分支的消息；`head=<消息 id>` 看经过这条消息的那个分支 |
+| PATCH | `/v2/agent/conversations/{id}` | 改标题 `title`、收藏 `starred`、记住当前分支 `head_message_id`，只改传了的字段 |
 | DELETE | `/v2/agent/conversations/{id}` | 删除（204） |
 | POST | `/v2/agent/conversations/{id}/messages` | 发消息，开始一轮回复（202） |
+| POST | `/v2/agent/conversations/{id}/regenerate` | 对同一条用户消息重新回答（202），新回答和旧回答互为兄弟 |
+| PUT | `/v2/agent/messages/{id}/feedback` | 给回答打分 `{"rating":"up"\|"down"\|"none"}`（204） |
 | GET | `/v2/agent/runs/{id}/stream` | 这一轮的 SSE 流 |
 | POST | `/v2/agent/runs/{id}/cancel` | 停止生成（204） |
 | GET | `/v2/agent/pow/challenge` | 未登录搜索用的工作量证明题目 |
 | POST | `/v2/agent/search` | 搜索模式 `{"q":"…","pow":"…"}` |
 
-对话标题在第一轮回复结束后自动生成，前端重新拉一次对话列表即可看到。
+对话标题在第一轮开始时就并行生成，生成好后流里会推一帧 `data-title`（`{"title":"…"}`），前端直接改侧边栏即可。列表和对话详情里的 `active_run_id` 不为空，表示这个对话还在生成，可以在侧边栏转圈。
 
 ### 3.1 发消息
 
@@ -74,12 +76,25 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 {"run_id": "01JB…", "user_message_id": "118", "assistant_message_id": "119"}
 ```
 
-- `parent_id` 省略 = 接在当前分支末尾；`"0"` = 新开一个根分支；传某条 assistant 消息 = 在它后面续问；传某条 user 消息的父消息 = 重新生成 / 编辑后重发。消息上的 `siblings` > 1 时可以在前端显示分支切换。
-- 附件目前只收文本（`text/*`、`application/json`、`application/x-yaml`），由你后端读出内容放进 `text`；图片返回 415。文字和附件总长受 `agent.turn.max_input_chars` 限制（413）。
+- `parent_id` 省略 = 接在当前分支末尾；`"0"` = 新开一个根分支；传某条 assistant 消息 = 在它后面续问。**前端正在看别的分支时，一定要显式传 `parent_id`（当前显示的最后一条消息）**，否则会接到服务端记住的分支上。
+- 附件先传到 `POST /v2/agent/uploads`，再在 parts 里写 `{"type":"file","uploadId":"…"}`，见 §3.6。旧的写法（文本附件把内容直接放进 `text`）仍然可用。用户输入的文字、附件里的文字分别受 `agent.turn.max_input_chars` 限制（413）。
 - 同一个 `Idempotency-Key` 换了请求体返回 422；同一对话已有回复在生成时返回 409。
 - 免费次数用完且萌萌点不足返回 402。
 
-### 3.2 错误
+### 3.2 编辑、重新生成与分支切换
+
+消息是一棵树。每条消息带 `sibling_ids`：同一个父消息下的所有消息（包括自己），按时间从旧到新。自己在里面的位置就是 `‹ n/m ›` 里的 n，`m = sibling_ids.length`，大于 1 时显示切换器。
+
+| 操作 | 请求 | 结果 |
+| --- | --- | --- |
+| 编辑用户消息后重发 | `POST …/messages`，`parent_id` = 被编辑消息的 `parent_id`（第一条消息是 `"0"`），`parts` = 新内容 | 新的用户消息和原消息互为兄弟，切换器出现在**用户消息**上 |
+| 重新生成回答 | `POST …/regenerate` `{"message_id": 回答的 parent_id}` | 新回答和旧回答互为兄弟，切换器出现在**回答**上；不新增用户消息 |
+| 重试某条用户消息 | `POST …/regenerate` `{"message_id": 这条用户消息的 id}` | 同上 |
+| 切换到另一个版本 | `GET /conversations/{id}?head=<兄弟消息 id>` 渲染；再 `PATCH {"head_message_id": 同一个 id}` 记住选择 | 返回经过那条消息的整条分支，往下每一层都取用户上次在那里选过的版本（没选过就取最新的）；刷新后、或切回之前的问题时，都停在用户最后选的版本 |
+
+重新生成和发消息一样需要 `Idempotency-Key`、一样计费、一样返回 `run_id`。
+
+### 3.3 错误
 
 错误体是 `application/problem+json`：`{status, title, detail, code}`。**按 `code` 分支，不要按 `detail` 或状态码猜。**
 
@@ -93,22 +108,57 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `RUN_ACTIVE` | 409 | 这个对话还有回复在生成 |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | 同一个 Idempotency-Key 换了请求体 |
 | `BAD_PARENT` / `EMPTY_MESSAGE` | 400 | `parent_id` 不属于该对话 / 消息为空 |
+| `NOT_REGENERABLE` | 400 | 重新生成的 `message_id` 不是本对话的用户消息 |
+| `FILE_TOO_LARGE` / `UNREADABLE_FILE` | 413 / 422 | 文件超过本站上限 / 读不出来（文本不是 UTF-8、文档只有图片没有文字、文件损坏） |
+| `BAD_UPLOAD` / `TOO_MANY_FILES` | 400 | `uploadId` 不是你本人在本对话可用的上传 / 一条消息的文件数超过上限 |
 | `UNSUPPORTED_ATTACHMENT` / `INPUT_TOO_LONG` | 415 / 413 | 附件类型不支持 / 输入超长 |
 | `RATE_LIMITED` / `ANON_DAILY_LIMIT` / `ANON_GLOBAL_LIMIT` | 429 | 每分钟限流 / 该 IP 今日搜索用完 / 全站未登录搜索今日用完 |
 | `POW_REQUIRED` / `POW_REJECTED` / `POW_UNAVAILABLE` | 403 / 403 / 503 | 需要工作量证明 / 解无效、过期或已用过 / 服务端没配 PoW |
 | `CATALOG_UNAVAILABLE` | 502 | 资料库检索失败 |
 | `NOT_FOUND` / `INVALID_REQUEST` | 404 / 400、422 | 其余通用情况 |
 
-### 3.3 流式回复
+### 3.4 流式回复
 
 `GET /v2/agent/runs/{run_id}/stream` 返回 `text/event-stream`，带 `x-vercel-ai-ui-message-stream: v1` 头，帧格式就是 AI SDK 的 UI message stream 协议，前端直接用 `@ai-sdk/vue` 的 `Chat` + `DefaultChatTransport` 消费（`prepareSendMessagesRequest` 改成先 POST 发消息、再 GET 流）。
 
-会出现的帧：`start`、`start-step`、`text-start` / `text-delta` / `text-end`、`reasoning-start` / `reasoning-delta` / `reasoning-end`、`tool-input-available`、`tool-output-available`、`source-url`、`data-entity-card`（作品卡片：`kind` / `id` / `title` / `localized` / `release_date` / `content_rating` / `content_limit` / `cover`；对没开成人内容的读者展示封面与否，按 `content_limit` 判断）、`data-quota`、`data-run`、`finish-step`、`finish`、`error`、`abort`，最后是 `[DONE]`。
+会出现的帧：`start`、`start-step`、`data-title`、`text-start` / `text-delta` / `text-end`、`reasoning-start` / `reasoning-delta` / `reasoning-end`、`tool-input-available`、`tool-output-available`、`source-url`、`data-entity-card`（作品卡片：`kind` / `id` / `title` / `localized` / `release_date` / `content_rating` / `content_limit` / `cover`；对没开成人内容的读者展示封面与否，按 `content_limit` 判断）、`data-quota`、`data-run`、`finish-step`、`finish`、`error`、`abort`，最后是 `[DONE]`。
 
 - 断线重连：带上 `Last-Event-ID`，从下一帧接着推。
 - 这一轮已经结束、没有活着的流：204，前端改为重新拉对话（消息已经落库）。
-- 落库的消息 `parts` 和流里的帧同形，就是 AI SDK 的 UIMessage parts：`text`、`file`、`data-entity-card`（`{type, id, data}`）、`source-url`（`{type, sourceId, url, title}`）。推理过程和工具调用不落库。
+- 落库的消息 `parts` 和流里的帧同形，就是 AI SDK 的 UIMessage parts：`text`、`file`、`step-start`（每一步开头一个）、`tool-<工具名>`（`{type, toolCallId, state:"output-available", input, output:{cards, sources}}`，用来展示「共运行 N 步，每步查了什么、查到几条」）、`data-entity-card`（`{type, id, data}`）、`source-url`（`{type, sourceId, url, title}`）。推理过程不落库。
+- 回答上的 `feedback` 是用户之前打的分（`up` / `down`，没打过是 `null`）。
 - 你的 BFF 转发时要关掉缓冲（`X-Accel-Buffering: no`，不要 gzip 这个响应），否则字是一坨一坨出来的。
+
+### 3.5 建议问题
+
+`GET /persona` 的 `suggestions` 是分组的建议问题，用来做空对话时输入框下面的模式按钮：
+
+```json
+[{"label": "找作品", "icon": "search", "web_search": false, "prompts": ["推荐几部猫耳妹妹的催泪作", "…"]}]
+```
+
+- `icon` 是 lucide 图标名；每组的 `prompts` 比一屏多，前端一次显示三条，「换一组」轮换。
+- `web_search: true` 的组，点出去的问题要带 `web_search: true` 发送。`web_search_available` 为 false 时服务端不会返回这类组，前端也应隐藏联网开关。
+- 站点可以在 `agent_persona.suggestions` 里配自己的组；为空时用内置的默认组。
+
+### 3.6 上传
+
+上传菜单的内容来自 `GET /persona` 的 `uploads`，全部由设置中心的 `agent.upload.*` 控制（可按站点覆盖）：
+
+```json
+{"max_files": 4, "options": [
+  {"kind": "image", "label": "图片", "icon": "image", "accept": "image/png,image/jpeg,image/webp,image/gif", "max_bytes": 10485760},
+  {"kind": "text", "label": "文本 / 代码", "icon": "file-text", "accept": ".txt,.md,…", "max_bytes": 524288},
+  {"kind": "document", "label": "文档", "icon": "file", "accept": ".pdf,.docx", "max_bytes": 20971520}
+]}
+```
+
+- 点上传按钮弹出菜单，每项一个选项，`accept` 直接给 `<input type="file">`。`max_files` 为 0 或 `options` 为空时不显示上传按钮。
+- `POST /v2/agent/uploads`（`multipart/form-data`，字段名 `file`）→ `{id, kind, media_type, filename, size, chars, truncated, url}`。你的 BFF 原样转发 multipart 即可；前端可以先按 `max_bytes` 拦一次。
+- 图片会缩到长边 1568 像素再交给模型；文档只提取文字（扫描件没有文字会返回 `UNREADABLE_FILE`）；文字超过单条消息上限会截断，`truncated` 为 true。
+- 发消息时引用：`{"type":"file","uploadId":"<id>"}`。落库后这个 part 带 `mediaType`、`filename`、`url`；`GET /v2/agent/uploads/{id}` 用同样的鉴权取回缩略后的图片或模型读到的文字，前端显示附件时用它。
+- 上传后一天内没有被消息引用的文件会被清理；被引用的文件随对话一起删除。
+- 本轮上下文里有图片时，这一轮由网关场景 `agent.vision` 回答。
 
 ## 4. 萌萌点与次数
 
@@ -125,6 +175,7 @@ Idempotency-Key: 3b8f…（每次点击发送生成一个，重试时复用）
 | `agent.anon.rate_per_minute` / `agent.anon.quota_per_day` / `agent.anon.global_quota_per_day` | 未登录每 IP 每分钟 / 每天、全站每天上限 |
 | `agent.catalog_nsfw` | 该站助手能否看到 r18 作品（站点级） |
 | `agent.turn.max_steps` / `agent.turn.max_output_tokens` / `agent.turn.max_input_chars` / `agent.context.max_messages` | 单轮工具调用步数、输出上限、输入上限、带入的历史条数 |
+| `agent.upload.max_files`、`agent.upload.{image,text,document}.{enabled,max_bytes,types}` | 上传：每条消息的文件数，每类的开关、大小上限、允许的类型（图片按 MIME，文本和文档按扩展名），都可按站点覆盖 |
 
 扣费流程：发消息时先预留免费次数，不够的部分只核对萌萌点余额；回复成功后才结算，萌萌点经 oauth 扣除（幂等键 `agent:run:<run_id>`），开了联网但这一轮没用上的不收加价。失败、取消的轮次退回免费次数，也不扣萌萌点。界面上统一写「消耗 NextMoe 萌萌点」。
 
@@ -146,6 +197,6 @@ go run ./cmd/migrate ai         # kun_ai 里的 llm_* 路由表
 go run ./cmd/agent              # :9287
 ```
 
-模型、供应商和 key 都在 LLM 网关里配置（管理端「LLM 网关配置」，仅 ren，见 `docs/ai/llm-gateway.md`）。本地网关为空时，`apps/api/.env` 里的 `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` 会在第一次启动时被种成第一个供应商；网关里没有可用路由时，每一轮都会失败。`KUN_LLM_KEK` 要和 ai 服务用同一个值。其余可选：`KUN_AGENT_CLIENT_ID` / `KUN_AGENT_CLIENT_SECRET`（不填只有免费次数）、`KUN_AGENT_POW_KEYS`、`KUN_BRAVE_API_KEY`（不填就没有联网搜索）。
+模型、供应商和 key 都在 LLM 网关里配置（管理端「LLM 网关配置」，仅 ren，见 `docs/ai/llm-gateway.md`）。本地网关为空时，`apps/api/.env` 里的 `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` 会在第一次启动时被种成第一个供应商；网关里没有可用路由时，每一轮都会失败。`KUN_LLM_KEK` 要和 ai 服务用同一个值。其余可选：`KUN_AGENT_CLIENT_ID` / `KUN_AGENT_CLIENT_SECRET`（不填只有免费次数）、`KUN_AGENT_POW_KEYS`。联网搜索和看图不靠环境变量，由网关里的 `agent.web_search`、`agent.vision` 场景决定（见 `docs/ai/llm-gateway.md` §8）。
 
 本地还要在设置中心给你的站点打开 `agent.enabled`。

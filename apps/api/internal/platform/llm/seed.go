@@ -19,6 +19,8 @@ const (
 	SceneModerationLLM  = "ai.moderation.llm"
 	SceneModerationOmni = "ai.moderation.omni"
 	SceneCatalogEmbed   = "catalog.embed"
+	SceneWebSearch      = "agent.web_search"
+	SceneVision         = "agent.vision"
 )
 
 type Bootstrap struct {

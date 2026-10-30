@@ -30,7 +30,12 @@ type Server struct {
 	Redis   redis.UniversalClient
 	Clock   func() time.Time
 	MaxBody int
+
+	WebSearch func() bool
+	Vision    func() bool
 }
+
+func (s *Server) webSearch() bool { return s.WebSearch != nil && s.WebSearch() }
 
 func who(ctx huma.Context) *caller { return callerOf(humafiber.Unwrap(ctx)) }
 
@@ -66,31 +71,42 @@ func requireUser(ctx context.Context) (*caller, error) {
 }
 
 type PersonaBody struct {
-	Name      string   `json:"name"`
-	Avatar    string   `json:"avatar"`
-	Greetings []string `json:"greetings"`
+	Name               string            `json:"name"`
+	Avatar             string            `json:"avatar"`
+	Greetings          []string          `json:"greetings"`
+	Suggestions        []SuggestionGroup `json:"suggestions" doc:"Starter prompts for an empty conversation, grouped like the mode chips of a composer."`
+	Uploads            UploadsBody       `json:"uploads" doc:"What the upload menu may offer on this site, from the settings center."`
+	WebSearchAvailable bool              `json:"web_search_available" doc:"Whether web_search can do anything; hide the toggle when false."`
 }
 
 type ConversationBody struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Mode      string    `json:"mode" enum:"assistant,search"`
-	UpdatedAt time.Time `json:"updated_at"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Mode        string    `json:"mode" enum:"assistant,search"`
+	Starred     bool      `json:"starred"`
+	ActiveRunID *string   `json:"active_run_id" doc:"A reply still streaming in this conversation."`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
-func conversationBody(c model.Conversation) ConversationBody {
-	return ConversationBody{ID: strconv.FormatInt(c.ID, 10), Title: c.Title, Mode: c.Mode, UpdatedAt: c.UpdatedAt, CreatedAt: c.CreatedAt}
+func conversationBody(c model.Conversation, activeRun string) ConversationBody {
+	b := ConversationBody{ID: strconv.FormatInt(c.ID, 10), Title: c.Title, Mode: c.Mode, Starred: c.Starred, UpdatedAt: c.UpdatedAt, CreatedAt: c.CreatedAt}
+	if activeRun != "" {
+		b.ActiveRunID = &activeRun
+	}
+	return b
 }
 
 type MessageBody struct {
-	ID       string          `json:"id"`
-	ParentID *string         `json:"parent_id"`
-	Role     string          `json:"role" enum:"user,assistant"`
-	Parts    json.RawMessage `json:"parts"`
-	Status   string          `json:"status" enum:"complete,streaming,failed,canceled"`
-	RunID    string          `json:"run_id"`
-	Siblings int             `json:"siblings" doc:"How many messages share this message's parent, itself included. Above 1 the UI offers to switch branches."`
+	ID         string          `json:"id"`
+	ParentID   *string         `json:"parent_id"`
+	Role       string          `json:"role" enum:"user,assistant"`
+	Parts      json.RawMessage `json:"parts"`
+	Status     string          `json:"status" enum:"complete,streaming,failed,canceled"`
+	RunID      string          `json:"run_id"`
+	Siblings   int             `json:"siblings" doc:"len(sibling_ids)."`
+	SiblingIDs []string        `json:"sibling_ids" doc:"Every message under this message's parent, itself included, oldest first. Its position is the n of an n/m switcher; fetch ?head=<sibling> to show another one."`
+	Feedback   *string         `json:"feedback" enum:"up,down" doc:"The user's rating of an assistant reply."`
 }
 
 type QuotaBody struct {
@@ -138,7 +154,8 @@ func (s *Server) Register(api huma.API) {
 			}
 			var greetings []string
 			_ = json.Unmarshal(p.Greetings, &greetings)
-			return &struct{ Body PersonaBody }{PersonaBody{Name: p.Name, Avatar: p.Avatar, Greetings: greetings}}, nil
+			return &struct{ Body PersonaBody }{PersonaBody{Name: p.Name, Avatar: p.Avatar, Greetings: greetings,
+				Suggestions: s.suggestions(p), WebSearchAvailable: s.webSearch(), Uploads: s.uploadsBody(c.SiteID)}}, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "getAgentQuota", Method: http.MethodGet, Path: "/v2/agent/quota",
@@ -168,15 +185,29 @@ func (s *Server) Register(api huma.API) {
 	huma.Register(api, huma.Operation{OperationID: "listAgentConversations", Method: http.MethodGet, Path: "/v2/agent/conversations",
 		Summary: "The caller's conversations on this site, newest first", Tags: []string{"agent"}},
 		func(ctx context.Context, in *struct {
-			Cursor string `query:"cursor" maxLength:"64"`
-			Limit  int    `query:"limit" minimum:"1" maximum:"100" default:"30"`
+			Cursor  string `query:"cursor" maxLength:"64"`
+			Limit   int    `query:"limit" minimum:"1" maximum:"100" default:"30"`
+			Starred string `query:"starred" enum:"true,false" doc:"Only starred (true) or only unstarred (false) conversations; absent lists both."`
 		}) (*listOut, error) {
 			c, err := requireUser(ctx)
 			if err != nil {
 				return nil, err
 			}
+			var starred *bool
+			if in.Starred != "" {
+				v := in.Starred == "true"
+				starred = &v
+			}
 			before, beforeID := decodeCursor(in.Cursor)
-			rows, err := s.Store.ListConversations(ctx, c.UserID, c.SiteID, before, beforeID, in.Limit+1)
+			rows, err := s.Store.ListConversations(ctx, c.UserID, c.SiteID, starred, before, beforeID, in.Limit+1)
+			if err != nil {
+				return nil, err
+			}
+			ids := make([]int64, len(rows))
+			for i, r := range rows {
+				ids[i] = r.ID
+			}
+			active, err := s.Store.ActiveRuns(ctx, ids)
 			if err != nil {
 				return nil, err
 			}
@@ -188,7 +219,7 @@ func (s *Server) Register(api huma.API) {
 					out.Body.NextCursor = &cur
 					break
 				}
-				out.Body.Items = append(out.Body.Items, conversationBody(r))
+				out.Body.Items = append(out.Body.Items, conversationBody(r, active[r.ID]))
 			}
 			return out, nil
 		})
@@ -208,7 +239,7 @@ func (s *Server) Register(api huma.API) {
 			if err != nil {
 				return nil, err
 			}
-			return &struct{ Body ConversationBody }{conversationBody(*conv)}, nil
+			return &struct{ Body ConversationBody }{conversationBody(*conv, "")}, nil
 		})
 
 	type convOut struct {
@@ -248,12 +279,11 @@ func (s *Server) Register(api huma.API) {
 			if err != nil {
 				return nil, err
 			}
-			siblings, err := s.Store.SiblingCounts(ctx, conv.ID)
+			siblings, err := s.Store.SiblingIDs(ctx, conv.ID)
 			if err != nil {
 				return nil, err
 			}
 			out := &convOut{}
-			out.Body.Conversation = conversationBody(*conv)
 			out.Body.Messages = []MessageBody{}
 			for _, m := range branch {
 				mb := MessageBody{ID: strconv.FormatInt(m.ID, 10), Role: m.Role, Parts: json.RawMessage(m.Parts), Status: m.Status, RunID: m.RunID}
@@ -263,22 +293,37 @@ func (s *Server) Register(api huma.API) {
 					p := strconv.FormatInt(parent, 10)
 					mb.ParentID = &p
 				}
-				mb.Siblings = siblings[parent]
+				for _, id := range siblings[parent] {
+					mb.SiblingIDs = append(mb.SiblingIDs, strconv.FormatInt(id, 10))
+				}
+				mb.Siblings = len(mb.SiblingIDs)
+				if m.Feedback != "" {
+					f := m.Feedback
+					mb.Feedback = &f
+				}
 				out.Body.Messages = append(out.Body.Messages, mb)
 				if m.Status == model.MessageStreaming && s.Broker.Active(m.RunID) {
 					id := m.RunID
 					out.Body.ActiveRunID = &id
 				}
 			}
+			active := ""
+			if out.Body.ActiveRunID != nil {
+				active = *out.Body.ActiveRunID
+			}
+			out.Body.Conversation = conversationBody(*conv, active)
 			return out, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "renameAgentConversation", Method: http.MethodPatch, Path: "/v2/agent/conversations/{id}",
-		Summary: "Rename a conversation", Tags: []string{"agent"}},
+		Summary: "Rename, star or switch the branch of a conversation", Tags: []string{"agent"},
+		Description: "Only the fields present change. head_message_id makes the branch through that message current, down to the reply last chosen (or else last created) under each message, so a reload and a return to an earlier question both show what the user last picked."},
 		func(ctx context.Context, in *struct {
 			ID   string `path:"id"`
 			Body struct {
-				Title string `json:"title" minLength:"1" maxLength:"100"`
+				Title         *string `json:"title,omitempty" minLength:"1" maxLength:"100"`
+				Starred       *bool   `json:"starred,omitempty"`
+				HeadMessageID *string `json:"head_message_id,omitempty"`
 			}
 		}) (*struct{ Body ConversationBody }, error) {
 			c, err := requireUser(ctx)
@@ -289,11 +334,37 @@ func (s *Server) Register(api huma.API) {
 			if err != nil {
 				return nil, err
 			}
-			if err := s.Store.RenameConversation(ctx, conv, strings.TrimSpace(in.Body.Title)); err != nil {
-				return nil, err
+			if t := in.Body.Title; t != nil {
+				title := strings.TrimSpace(*t)
+				if title == "" {
+					return nil, huma.Error422UnprocessableEntity("title must not be blank")
+				}
+				if err := s.Store.RenameConversation(ctx, conv, title); err != nil {
+					return nil, err
+				}
+				conv.Title = title
 			}
-			conv.Title = strings.TrimSpace(in.Body.Title)
-			return &struct{ Body ConversationBody }{conversationBody(*conv)}, nil
+			if in.Body.Starred != nil {
+				if err := s.Store.StarConversation(ctx, conv, *in.Body.Starred); err != nil {
+					return nil, err
+				}
+				conv.Starred = *in.Body.Starred
+			}
+			if h := in.Body.HeadMessageID; h != nil {
+				id, err := strconv.ParseInt(*h, 10, 64)
+				if err != nil {
+					return nil, huma.Error404NotFound("no such message in this conversation")
+				}
+				leaf, err := s.Store.SetHead(ctx, conv, id)
+				if errors.Is(err, service.ErrNotFound) {
+					return nil, huma.Error404NotFound("no such message in this conversation")
+				}
+				if err != nil {
+					return nil, err
+				}
+				conv.HeadMessageID = &leaf
+			}
+			return &struct{ Body ConversationBody }{conversationBody(*conv, "")}, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "deleteAgentConversation", Method: http.MethodDelete, Path: "/v2/agent/conversations/{id}",
@@ -333,6 +404,8 @@ func (s *Server) Register(api huma.API) {
 			return nil, nil
 		})
 
+	s.registerBranching(api)
+	s.registerUploads(api)
 	s.registerSearch(api)
 }
 
@@ -357,12 +430,9 @@ func (s *Server) send(ctx context.Context, in *sendInput) (*sendOutput, error) {
 	if err != nil {
 		return nil, err
 	}
-	parts, perr := validateParts(in.Body.Parts)
+	parts, perr := s.validateParts(ctx, c, conv, in.Body.Parts)
 	if perr != nil {
 		return nil, perr
-	}
-	if !s.Limits.Allow(ctx, "user:"+strconv.FormatInt(c.UserID, 10), keys.AgentUserRatePerMinute.Get(), time.Minute) {
-		return nil, fail(http.StatusTooManyRequests, CodeRateLimited, "too many messages; wait a minute")
 	}
 	var parent *int64
 	if in.Body.ParentID != nil {
@@ -372,48 +442,8 @@ func (s *Server) send(ctx context.Context, in *sendInput) (*sendOutput, error) {
 		}
 		parent = &v
 	}
-	price := int(keys.AgentPriceAssistant.Get())
-	if in.Body.WebSearch {
-		price += int(keys.AgentPriceWebSurcharge.Get())
-	}
-	req := service.StartRequest{Conversation: conv, ParentID: parent, Parts: parts, Mode: model.ModeAssistant,
-		WebSearch: in.Body.WebSearch, IdemKey: strings.Clone(in.IdempotencyKey), Price: price}
-	if existing, err := s.Store.RunByIdem(ctx, c.UserID, req.IdemKey); err == nil {
-		if existing.IdemHash != service.RequestHash(req) {
-			return nil, fail(http.StatusUnprocessableEntity, CodeIdempotencyKeyReused, "Idempotency-Key was used with a different request")
-		}
-		return sent(existing), nil
-	}
-	res, err := s.Quota.Reserve(ctx, c.UserID, price)
-	switch {
-	case errors.Is(err, service.ErrQuotaExhausted):
-		return nil, fail(http.StatusPaymentRequired, CodeFreeUnitsExhausted, "today's free units are used up")
-	case errors.Is(err, service.ErrInsufficientPoints):
-		return nil, fail(http.StatusPaymentRequired, CodeInsufficientPoints, "not enough moemoepoints for this question")
-	case err != nil:
-		return nil, err
-	}
-	req.FreeHeld = res.Free
-	run, created, err := s.Store.StartRun(ctx, req)
-	if err != nil || !created {
-		s.Quota.Release(context.WithoutCancel(ctx), c.UserID, res)
-	}
-	switch {
-	case errors.Is(err, service.ErrRunActive):
-		return nil, fail(http.StatusConflict, CodeRunActive, "a reply is still streaming in this conversation")
-	case errors.Is(err, service.ErrIdempotencyUsed):
-		return nil, fail(http.StatusUnprocessableEntity, CodeIdempotencyKeyReused, "Idempotency-Key was used with a different request")
-	case errors.Is(err, service.ErrBadParent):
-		return nil, fail(http.StatusBadRequest, CodeBadParent, "parent_id is not a message of this conversation")
-	case err != nil:
-		return nil, err
-	}
-	if created {
-		if err := s.startTurn(ctx, c, run, res); err != nil {
-			return nil, err
-		}
-	}
-	return sent(run), nil
+	return s.begin(ctx, c, service.StartRequest{Conversation: conv, ParentID: parent, Parts: parts, Mode: model.ModeAssistant,
+		WebSearch: in.Body.WebSearch, IdemKey: strings.Clone(in.IdempotencyKey)})
 }
 
 func sent(run *model.Run) *sendOutput {
@@ -438,33 +468,18 @@ func (s *Server) startTurn(ctx context.Context, c *caller, run *model.Run, res s
 	if err != nil {
 		return err
 	}
-	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName)})
+	var ids []string
+	for _, m := range branch {
+		var parts []service.Part
+		_ = json.Unmarshal(m.Parts, &parts)
+		ids = append(ids, service.UploadIDs(parts)...)
+	}
+	uploads, err := s.Store.UploadsByID(ctx, ids)
+	if err != nil {
+		return err
+	}
+	s.Runner.Start(service.Turn{Run: run, Conv: conv, Persona: persona, History: branch, Reservation: res, SiteName: strings.Clone(c.SiteName), Uploads: uploads})
 	return nil
-}
-
-func validateParts(in []service.Part) ([]service.Part, error) {
-	total := 0
-	out := make([]service.Part, 0, len(in))
-	for _, p := range in {
-		switch p.Type {
-		case "text":
-		case "file":
-			if !strings.HasPrefix(p.MediaType, "text/") && p.MediaType != "application/json" && p.MediaType != "application/x-yaml" {
-				return nil, fail(http.StatusUnsupportedMediaType, CodeUnsupportedAttachment, "only text files can be attached for now")
-			}
-		default:
-			return nil, huma.Error400BadRequest("unsupported part type " + p.Type)
-		}
-		total += len([]rune(p.Text))
-		out = append(out, service.Part{Type: p.Type, Text: strings.Clone(p.Text), MediaType: strings.Clone(p.MediaType), Filename: strings.Clone(p.Filename)})
-	}
-	if total == 0 {
-		return nil, fail(http.StatusBadRequest, CodeEmptyMessage, "the message is empty")
-	}
-	if total > int(keys.AgentTurnMaxInputChars.Get()) {
-		return nil, fail(http.StatusRequestEntityTooLarge, CodeInputTooLong, "the message and its attachments are too long")
-	}
-	return out, nil
 }
 
 func encodeCursor(t time.Time, id int64) string {

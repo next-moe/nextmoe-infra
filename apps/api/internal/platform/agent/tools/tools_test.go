@@ -65,6 +65,28 @@ func TestReadURLRefusesPrivateAddresses(t *testing.T) {
 	}
 }
 
+func TestWebSearchRunsAtMostTwicePerAnswerAndCapsSources(t *testing.T) {
+	calls := 0
+	ws := &WebSearch{Search: func(ctx context.Context, query, instructions string) (llm.SearchResult, error) {
+		calls++
+		var cites []llm.Citation
+		for i := range 20 {
+			cites = append(cites, llm.Citation{URL: "https://example.com/" + strings.Repeat("a", i+1), Title: "t"})
+		}
+		return llm.SearchResult{Text: "summary for " + query, Citations: cites}, nil
+	}}
+	run := NewRegistry(ws).NewRun(10)
+	first := run.Call(context.Background(), "web_search", `{"query":"a"}`)
+	if len(first.Sources) != maxWebSources || !strings.Contains(first.Text, "summary for a") {
+		t.Fatalf("sources must be capped at %d: got %d, text %q", maxWebSources, len(first.Sources), first.Text)
+	}
+	run.Call(context.Background(), "web_search", `{"query":"b"}`)
+	third := run.Call(context.Background(), "web_search", `{"query":"c"}`)
+	if calls != 2 || !strings.Contains(third.Text, "only 2 times") {
+		t.Fatalf("a third distinct search must be refused without calling out: calls=%d text=%q", calls, third.Text)
+	}
+}
+
 func TestStripTags(t *testing.T) {
 	got := stripTags(`<html><head><title>x</title></head><body><script>evil()</script><p>Hello&nbsp;<b>world</b></p></body></html>`)
 	if strings.Contains(got, "evil") || !strings.Contains(got, "Hello") || !strings.Contains(got, "world") {

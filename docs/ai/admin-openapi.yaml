@@ -613,6 +613,7 @@ components:
             - chat
             - embedding
             - moderation
+            - search
           type: string
         max_output:
           format: int64
@@ -646,6 +647,7 @@ components:
             - chat
             - embedding
             - moderation
+            - search
           type: string
         max_output:
           format: int64

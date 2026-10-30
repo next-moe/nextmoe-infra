@@ -32,6 +32,99 @@ components:
               default: false
               description: Turns the AI assistant on for a site. Off answers every agent request from that site with 403.
               type: boolean
+            agent.upload.document.enabled:
+              default: true
+              description: Lets users attach documents; their text is extracted and the layout dropped.
+              type: boolean
+            agent.upload.document.max_bytes:
+              default: 20971520
+              description: Largest document a user may attach, in bytes.
+              format: int64
+              maximum: 31457280
+              minimum: 1024
+              type: integer
+            agent.upload.document.types:
+              default:
+                - .pdf
+                - .docx
+              description: Document extensions accepted.
+              items:
+                pattern: ^\.(pdf|docx)$
+                type: string
+              type: array
+            agent.upload.image.enabled:
+              default: true
+              description: Lets users attach pictures. Also needs a ready agent.vision scene in the LLM gateway.
+              type: boolean
+            agent.upload.image.max_bytes:
+              default: 10485760
+              description: Largest picture a user may attach, in bytes. Pictures are scaled down before the model sees them.
+              format: int64
+              maximum: 31457280
+              minimum: 1024
+              type: integer
+            agent.upload.image.types:
+              default:
+                - image/png
+                - image/jpeg
+                - image/webp
+                - image/gif
+              description: Picture media types users may attach.
+              items:
+                pattern: ^image/(png|jpeg|webp|gif)$
+                type: string
+              type: array
+            agent.upload.max_files:
+              default: 4
+              description: Files one assistant message may carry. 0 hides the upload button.
+              format: int64
+              maximum: 10
+              minimum: 0
+              type: integer
+            agent.upload.text.enabled:
+              default: true
+              description: Lets users attach plain-text and code files.
+              type: boolean
+            agent.upload.text.max_bytes:
+              default: 524288
+              description: Largest text file a user may attach, in bytes.
+              format: int64
+              maximum: 10485760
+              minimum: 1024
+              type: integer
+            agent.upload.text.types:
+              default:
+                - .txt
+                - .md
+                - .markdown
+                - .json
+                - .yaml
+                - .yml
+                - .csv
+                - .tsv
+                - .log
+                - .srt
+                - .ass
+                - .ini
+                - .toml
+                - .xml
+                - .html
+                - .css
+                - .js
+                - .ts
+                - .py
+                - .go
+                - .java
+                - .c
+                - .cpp
+                - .rs
+                - .lua
+                - .sh
+              description: File extensions accepted as text, read as UTF-8.
+              items:
+                pattern: ^\.[a-z0-9]{1,10}$
+                type: string
+              type: array
             app.kungal.home_rating_count:
               default: 6
               description: How many player ratings the kungal app shows on its home page; 0 hides the section.

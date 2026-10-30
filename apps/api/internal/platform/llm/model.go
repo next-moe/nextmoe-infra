@@ -12,10 +12,12 @@ const (
 	ModelChat       = "chat"
 	ModelEmbedding  = "embedding"
 	ModelModeration = "moderation"
+	ModelSearch     = "search"
 
 	ProtocolChat        = "chat"
 	ProtocolEmbeddings  = "embeddings"
 	ProtocolModerations = "moderations"
+	ProtocolResponses   = "responses"
 
 	RouteActive   = "active"
 	RouteDisabled = "disabled"

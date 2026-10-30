@@ -18,6 +18,9 @@ const (
 	MessageFailed    = "failed"
 	MessageCanceled  = "canceled"
 
+	FeedbackUp   = "up"
+	FeedbackDown = "down"
+
 	RunRunning     = "running"
 	RunCompleted   = "completed"
 	RunFailed      = "failed"
@@ -39,6 +42,7 @@ type Conversation struct {
 	SiteID        int64  `gorm:"not null"`
 	Title         string `gorm:"size:200;not null;default:''"`
 	Mode          string `gorm:"size:16;not null;default:'assistant'"`
+	Starred       bool   `gorm:"not null;default:false"`
 	HeadMessageID *int64
 	PersonaID     *int64
 	CreatedAt     time.Time
@@ -55,6 +59,8 @@ type Message struct {
 	Parts          datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
 	Status         string         `gorm:"size:16;not null;default:'complete'"`
 	RunID          string         `gorm:"size:36;not null;default:''"`
+	Feedback       string         `gorm:"size:8;not null;default:''"`
+	ChosenAt       *time.Time
 	CreatedAt      time.Time
 }
 
@@ -88,16 +94,40 @@ type Run struct {
 func (Run) TableName() string { return "agent_run" }
 
 type Persona struct {
-	ID        int64          `gorm:"primaryKey"`
-	SiteID    int64          `gorm:"not null;index"`
-	Kind      string         `gorm:"size:16;not null;default:'mascot'"`
-	Name      string         `gorm:"size:64;not null"`
-	Avatar    string         `gorm:"size:128;not null;default:''"`
-	Prompt    string         `gorm:"type:text;not null"`
-	Greetings datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
-	Active    bool           `gorm:"not null;default:true"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID          int64          `gorm:"primaryKey"`
+	SiteID      int64          `gorm:"not null;index"`
+	Kind        string         `gorm:"size:16;not null;default:'mascot'"`
+	Name        string         `gorm:"size:64;not null"`
+	Avatar      string         `gorm:"size:128;not null;default:''"`
+	Prompt      string         `gorm:"type:text;not null"`
+	Greetings   datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	Suggestions datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
+	Active      bool           `gorm:"not null;default:true"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func (Persona) TableName() string { return "agent_persona" }
+
+const (
+	UploadImage    = "image"
+	UploadText     = "text"
+	UploadDocument = "document"
+)
+
+type Upload struct {
+	ID             string `gorm:"primaryKey;size:36"`
+	UserID         int64  `gorm:"not null;index"`
+	SiteID         int64  `gorm:"not null"`
+	ConversationID *int64 `gorm:"index"`
+	Kind           string `gorm:"size:16;not null"`
+	MediaType      string `gorm:"size:100;not null"`
+	Filename       string `gorm:"size:255;not null;default:''"`
+	Size           int64  `gorm:"not null"`
+	Data           []byte `gorm:"type:bytea"`
+	Text           string `gorm:"type:text;not null;default:''"`
+	Truncated      bool   `gorm:"not null;default:false"`
+	CreatedAt      time.Time
+}
+
+func (Upload) TableName() string { return "agent_upload" }
