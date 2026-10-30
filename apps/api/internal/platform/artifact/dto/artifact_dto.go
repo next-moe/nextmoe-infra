@@ -7,6 +7,7 @@ type InitUploadRequest struct {
 	MimeType    string `json:"mime_type,omitempty" validate:"max=100"`
 	Checksum    string `json:"checksum,omitempty" validate:"omitempty,len=64"`
 	Public      bool   `json:"public,omitempty"`
+	PartSize    int64  `json:"part_size,omitempty" validate:"omitempty,gt=0" doc:"Preferred multipart part size in bytes. Clamped to [5 MiB, 5 GiB] and raised so the file fits in 10000 parts; the response part_size is the one to slice by."`
 	UploaderSub string `json:"uploader_sub,omitempty" validate:"max=64"`
 }
 
@@ -55,7 +56,7 @@ type ManifestInput struct {
 }
 
 type CompleteUploadRequest struct {
-	Parts    []CompletedPart `json:"parts,omitempty"`
+	Parts    []CompletedPart `json:"parts,omitempty" doc:"Deprecated and ignored: the service assembles the part list from storage."`
 	Manifest *ManifestInput  `json:"manifest,omitempty"`
 }
 
