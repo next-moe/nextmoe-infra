@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"api/internal/middleware"
 	"api/internal/platform/agent/stream"
+	aiPerm "api/internal/platform/ai/perm"
 	siteRepo "api/internal/platform/site/repository"
 	"api/pkg/oidctoken"
 
@@ -33,6 +35,7 @@ func Setup(app *fiber.App, s *Server, verifier *oidctoken.Verifier, clients *sit
 		return userAuth(c)
 	})
 	app.Get("/v2/agent/runs/:id/stream", s.stream)
+	app.Use("/api/v1/admin/agent", middleware.JWTAuth(verifier), middleware.RequirePermission(aiPerm.Resolver, aiPerm.AgentManage))
 
 	useProblems()
 	cfg := huma.DefaultConfig("NextMoe Agent API", "0.1.0")

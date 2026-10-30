@@ -20,6 +20,10 @@
 // text of a text file or document in text. conversation_id is set once a
 // message uses it; unattached rows are swept by the agent after a day and the
 // rest go with their conversation. New table, nothing to backfill.
+//
+// 2026-10-29, site tools: agent_site_tool registers the MCP servers a site lends
+// the assistant (url, auth mode, card kind prefix, allowed tools). New table;
+// a site without rows keeps exactly the shared tools it had.
 package migrate
 
 import (
@@ -32,7 +36,7 @@ import (
 )
 
 func Run(db *gorm.DB) error {
-	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}, &model.Run{}, &model.Persona{}, &model.Upload{}); err != nil {
+	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}, &model.Run{}, &model.Persona{}, &model.Upload{}, &model.SiteTool{}); err != nil {
 		return fmt.Errorf("agent automigrate: %w", err)
 	}
 	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_run_active

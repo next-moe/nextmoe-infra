@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"api/internal/app"
+	"api/internal/infrastructure/cache"
 	"api/internal/infrastructure/database"
 	"api/internal/middleware"
 	aiHandler "api/internal/platform/ai/handler"
@@ -68,6 +70,12 @@ func main() {
 		os.Exit(1)
 	}
 	gw := llm.New(aiDB.DB(), kek)
+	if redisCache, err := cache.NewRedisCache(cfg.Redis); err == nil && redisCache.Enabled() {
+		gw.SetCoordinator(llm.NewRedisCoord(redisCache.Storage().Conn()))
+		defer redisCache.Close()
+	} else {
+		slog.Warn("llm gateway: no redis, so route cooldowns and limits stay inside this process", "error", err)
+	}
 	if err := gw.Refresh(permCtx); err != nil {
 		slog.Error("llm gateway snapshot", "error", err)
 		os.Exit(1)
@@ -112,7 +120,16 @@ func main() {
 	application.Fiber.Use("/api/v1/admin/ai/llm", middleware.RequirePermission(aiPerm.Resolver, aiPerm.LLMManage))
 
 	s2sAPI := aiHandler.Setup(application.Fiber, moderationSvc)
-	aiHandler.SetupAdmin(application.Fiber, statsSvc, budgetSvc, llm.NewAdmin(aiDB.DB(), kek, gw))
+	llmAdmin := llm.NewAdmin(aiDB.DB(), kek, gw)
+	aiHandler.SetupAdmin(application.Fiber, statsSvc, budgetSvc, llmAdmin)
+	go llmAdmin.RunUsageJobs(permCtx)
+	go func() {
+		time.Sleep(5 * time.Minute)
+		for {
+			llmAdmin.SyncAllProviders(permCtx)
+			time.Sleep(24 * time.Hour)
+		}
+	}()
 	proxy.Mount(application.Fiber, &proxy.Server{GW: gw})
 
 	application.Fiber.Get("/openapi.json", func(c fiber.Ctx) error {

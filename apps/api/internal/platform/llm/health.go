@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -13,6 +14,8 @@ const (
 	breakAuth           = time.Minute
 	breakAuthCap        = 30 * time.Minute
 	alertAfterAuth      = 3
+	retryAfterFloor     = time.Second
+	retryAfterCap       = 10 * time.Minute
 )
 
 type routeHealth struct {
@@ -22,13 +25,52 @@ type routeHealth struct {
 }
 
 type health struct {
-	mu  sync.Mutex
-	m   map[int64]*routeHealth
-	now func() time.Time
+	mu     sync.Mutex
+	m      map[int64]*routeHealth
+	shared map[int64]time.Time
+	now    func() time.Time
 }
 
 func newHealth(now func() time.Time) *health {
-	return &health{m: map[int64]*routeHealth{}, now: now}
+	return &health{m: map[int64]*routeHealth{}, shared: map[int64]time.Time{}, now: now}
+}
+
+func (h *health) setShared(m map[int64]time.Time) {
+	h.mu.Lock()
+	h.shared = m
+	h.mu.Unlock()
+}
+
+func (h *health) reset(id int64) {
+	h.mu.Lock()
+	delete(h.m, id)
+	delete(h.shared, id)
+	h.mu.Unlock()
+}
+
+type HealthState struct {
+	CoolUntil  *time.Time `json:"cool_until"`
+	Strikes    int        `json:"strikes" doc:"Consecutive failures this process has seen."`
+	SharedOnly bool       `json:"shared_only" doc:"Cooling because another gateway process opened the breaker."`
+}
+
+func (h *health) state(id int64) HealthState {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	now := h.now()
+	var st HealthState
+	if r := h.m[id]; r != nil {
+		st.Strikes = r.transient + r.authStrikes
+		if now.Before(r.openUntil) {
+			t := r.openUntil
+			st.CoolUntil = &t
+		}
+	}
+	if t, ok := h.shared[id]; ok && now.Before(t) && (st.CoolUntil == nil || t.After(*st.CoolUntil)) {
+		st.SharedOnly = st.CoolUntil == nil
+		st.CoolUntil = &t
+	}
+	return st
 }
 
 func (h *health) get(id int64) *routeHealth {
@@ -43,24 +85,43 @@ func (h *health) get(id int64) *routeHealth {
 func (h *health) blockedUntil(id int64) (time.Time, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	r := h.m[id]
-	if r == nil || !h.now().Before(r.openUntil) {
-		return time.Time{}, false
+	now := h.now()
+	var until time.Time
+	if r := h.m[id]; r != nil && now.Before(r.openUntil) {
+		until = r.openUntil
 	}
-	return r.openUntil, true
+	if t, ok := h.shared[id]; ok && now.Before(t) && t.After(until) {
+		until = t
+	}
+	return until, !until.IsZero()
 }
 
-func (h *health) success(id int64) {
+func (h *health) success(id int64) (wasShared bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	delete(h.m, id)
+	_, wasShared = h.shared[id]
+	delete(h.shared, id)
+	return wasShared
 }
 
-func (h *health) failure(id int64, kind ErrorKind) (alert bool) {
+func (h *health) failure(id int64, err error) (alert bool, opened time.Time) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	defer func() {
+		if r := h.m[id]; r != nil && h.now().Before(r.openUntil) {
+			opened = r.openUntil
+		}
+	}()
 	r := h.get(id)
 	now := h.now()
+	kind := KindOf(err)
+	var le *Error
+	if errors.As(err, &le) && le.RetryAfter > 0 && (kind == ErrKindRateLimit || kind == ErrKindUpstream) {
+		r.transient++
+		r.openUntil = now.Add(min(max(le.RetryAfter, retryAfterFloor), retryAfterCap))
+		return false, opened
+	}
 	switch {
 	case kind.transient():
 		r.transient++
@@ -76,7 +137,7 @@ func (h *health) failure(id int64, kind ErrorKind) (alert bool) {
 	case kind == ErrKindAuth || kind == ErrKindQuota:
 		r.authStrikes++
 		r.openUntil = now.Add(min(breakAuth<<min(r.authStrikes-1, 5), breakAuthCap))
-		return r.authStrikes == alertAfterAuth
+		return r.authStrikes == alertAfterAuth, opened
 	}
-	return false
+	return false, opened
 }

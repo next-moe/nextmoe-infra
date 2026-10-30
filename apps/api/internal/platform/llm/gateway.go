@@ -17,6 +17,7 @@ import (
 const (
 	maxAttempts     = 6
 	refreshInterval = 30 * time.Second
+	coolSync        = 2 * time.Second
 )
 
 var (
@@ -29,6 +30,8 @@ type Gateway struct {
 	kek    []byte
 	client *http.Client
 	health *health
+	coord  Coordinator
+	stats  *routeStats
 	snap   atomic.Pointer[snapshot]
 	used   usageMarker
 	now    func() time.Time
@@ -45,7 +48,17 @@ func New(db *gorm.DB, kek []byte) *Gateway {
 		used: usageMarker{last: map[int64]time.Time{}},
 	}
 	g.health = newHealth(func() time.Time { return g.now() })
+	g.coord = newLocalCoord(func() time.Time { return g.now() })
+	g.stats = newRouteStats()
 	return g
+}
+
+func (g *Gateway) SetCoordinator(c Coordinator) { g.coord = c }
+
+func (g *Gateway) syncCooling(ctx context.Context) {
+	if m, err := g.coord.Cooling(ctx); err == nil {
+		g.health.setShared(m)
+	}
 }
 
 func (g *Gateway) Refresh(ctx context.Context) error {
@@ -58,6 +71,18 @@ func (g *Gateway) Refresh(ctx context.Context) error {
 }
 
 func (g *Gateway) Start(ctx context.Context) {
+	go func() {
+		t := time.NewTicker(coolSync)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				g.syncCooling(ctx)
+			}
+		}
+	}()
 	go func() {
 		t := time.NewTicker(refreshInterval)
 		defer t.Stop()
@@ -94,16 +119,19 @@ func (g *Gateway) Stream(ctx context.Context, call Call, onEvent func(Event)) (R
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(sc.TotalMs)*time.Millisecond)
 	defer cancel()
 	callID := uuid.NewString()
-	plan := s.plan(sc, call.AffinityKey, g.health)
-	if len(plan) == 0 {
+	if err := g.checkBudget(ctx, s, sc, call.AccessKeyID); err != nil {
+		return Result{}, err
+	}
+	queue := s.plan(sc, call.AffinityKey, g.health, g.stats)
+	if len(queue) == 0 {
 		return Result{}, &Error{Kind: ErrKindNoRoute, Msg: "no active route for scene " + call.Scene}
 	}
 	var lastErr error
 	skipModel := int64(0)
-	for i, c := range plan {
-		if i >= maxAttempts {
-			break
-		}
+	attempts, limited := 0, 0
+	usedContext, usedContent := false, false
+	for i := 0; i < len(queue) && attempts < maxAttempts; i++ {
+		c := queue[i]
 		if c.model.ID == skipModel {
 			continue
 		}
@@ -112,14 +140,32 @@ func (g *Gateway) Stream(ctx context.Context, call Call, onEvent func(Event)) (R
 			res.CallID = callID
 			return res, nil
 		}
-		lastErr = err
 		kind := KindOf(err)
-		if committed || !kind.failsOver() || ctx.Err() != nil {
+		if kind == ErrKindLimited {
+			limited++
+			continue
+		}
+		attempts++
+		lastErr = err
+		if committed || ctx.Err() != nil {
 			return res, err
 		}
-		if kind == ErrKindContextLength {
+		switch {
+		case kind == ErrKindContextLength:
 			skipModel = c.model.ID
+			if !usedContext {
+				usedContext = true
+				queue = append(queue, s.planChain(sc, modelIDs(sc.ContextFallback), call.AffinityKey, g.health, g.stats, false)...)
+			}
+		case kind == ErrKindContentFiltered && !usedContent && len(modelIDs(sc.ContentFallback)) > 0:
+			usedContent = true
+			queue = append(queue[:i+1], s.planChain(sc, modelIDs(sc.ContentFallback), call.AffinityKey, g.health, g.stats, false)...)
+		case !kind.failsOver():
+			return res, err
 		}
+	}
+	if lastErr == nil && limited > 0 {
+		return Result{CallID: callID}, &Error{Kind: ErrKindRateLimit, Msg: "every route of scene " + sc.Key + " is at its concurrency or per-minute limit"}
 	}
 	return Result{CallID: callID}, lastErr
 }
@@ -136,6 +182,12 @@ func (g *Gateway) attempt(ctx context.Context, s *snapshot, sc *Scene, c candida
 	if err != nil {
 		return Result{}, false, &Error{Kind: ErrKindBadRequest, Msg: err.Error()}
 	}
+	release, ok := g.coord.Acquire(ctx, c.route.ID, c.route.MaxConcurrency, c.route.RPM)
+	if !ok {
+		return Result{}, false, &Error{Kind: ErrKindLimited, Msg: "route at its limit"}
+	}
+	defer release()
+	defer g.stats.begin(c.route.ID)()
 	committed := false
 	var pending []Event
 	flush := func() {
@@ -178,13 +230,28 @@ func (g *Gateway) attempt(ctx context.Context, s *snapshot, sc *Scene, c candida
 		return out.result, committed, err
 	}
 	if err != nil {
-		if g.health.failure(c.route.ID, KindOf(err)) {
-			g.alert(c.route, err)
-		}
+		g.noteFailure(ctx, c.route, err)
 		return out.result, committed, err
 	}
-	g.health.success(c.route.ID)
+	g.noteSuccess(ctx, c.route.ID, out.firstByte)
 	return out.result, committed, nil
+}
+
+func (g *Gateway) noteFailure(ctx context.Context, r *Route, err error) {
+	alert, opened := g.health.failure(r.ID, err)
+	if alert {
+		g.alert(r, err)
+	}
+	if !opened.IsZero() {
+		g.coord.PublishCool(context.WithoutCancel(ctx), r.ID, opened)
+	}
+}
+
+func (g *Gateway) noteSuccess(ctx context.Context, id int64, latency time.Duration) {
+	g.stats.observe(id, float64(latency/time.Millisecond))
+	if g.health.success(id) {
+		g.coord.ClearCool(context.WithoutCancel(ctx), id)
+	}
 }
 
 func (g *Gateway) record(s *snapshot, sc *Scene, c candidate, call Call, callID string, started time.Time, out attemptOutcome, err error) {
@@ -193,7 +260,7 @@ func (g *Gateway) record(s *snapshot, sc *Scene, c candidate, call Call, callID 
 	}
 	u := out.result.Usage
 	a := Attempt{
-		CallID: callID, Scene: sc.Key, RouteID: c.route.ID, ProviderID: c.provider.ID, ModelKey: c.model.Key,
+		CallID: callID, Scene: sc.Key, RouteID: c.route.ID, ProviderID: c.provider.ID, ModelKey: c.model.Key, AccessKeyID: call.AccessKeyID,
 		ServedModel: out.result.Model, UpstreamRequestID: out.requestID, Site: call.Site, UserID: call.UserID,
 		OK: err == nil, HTTPStatus: out.status, TTFTMs: int(out.firstByte / time.Millisecond),
 		DurationMs: int(g.now().Sub(started) / time.Millisecond), InputTokens: u.InputTokens, CachedTokens: u.CachedTokens,
@@ -203,7 +270,10 @@ func (g *Gateway) record(s *snapshot, sc *Scene, c candidate, call Call, callID 
 	if err != nil {
 		a.ErrorKind = string(KindOf(err))
 	}
-	if c.route.PriceID != nil {
+	switch {
+	case u.ReportedNano > 0:
+		a.CostNano = scaled(u.ReportedNano, c.provider.PriceMultiplierPPM)
+	case c.route.PriceID != nil:
 		if p := s.prices[*c.route.PriceID]; p != nil {
 			a.CostNano = costNano(u, p, c.provider.PriceMultiplierPPM)
 		}
@@ -211,15 +281,23 @@ func (g *Gateway) record(s *snapshot, sc *Scene, c candidate, call Call, callID 
 	if dbErr := g.db.Create(&a).Error; dbErr != nil {
 		slog.Warn("llm gateway: record attempt", "err", dbErr)
 	}
+	if !call.probe {
+		g.addSpend(s, sc, call.AccessKeyID, a.CostNano)
+	}
 }
 
 func costNano(u Usage, p *PriceRevision, multiplierPPM int64) int64 {
 	uncached := max(u.InputTokens-u.CachedTokens, 0)
 	micro := int64(uncached)*p.InputMicro + int64(u.CachedTokens)*p.CachedMicro + int64(u.OutputTokens)*p.OutputMicro
+	micro += p.PerCallMicro * int64(max(u.Units, 1)) * 1_000_000
+	return scaled(micro, multiplierPPM) / 1000
+}
+
+func scaled(v, multiplierPPM int64) int64 {
 	if multiplierPPM <= 0 {
 		multiplierPPM = 1_000_000
 	}
-	return micro * multiplierPPM / 1_000_000 / 1000
+	return v * multiplierPPM / 1_000_000
 }
 
 func (g *Gateway) alert(r *Route, cause error) {

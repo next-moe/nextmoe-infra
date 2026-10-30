@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import {
   LLM_API,
+  LLM_BUDGET_HINT,
+  LLM_SCENE_CHAINS,
   LLM_SCENE_CLASS_OPTIONS,
-  LLM_SCENE_DEFAULTS
+  LLM_SCENE_DEFAULTS,
+  LLM_SCENE_STRATEGY_META,
+  LLM_SCENE_STRATEGY_OPTIONS
 } from '~/constants/llm'
 import type {
   LlmModel,
@@ -22,7 +26,7 @@ const api = useApi('ai')
 
 const key = ref('')
 const form = ref<LlmScenePutRequest>({ ...LLM_SCENE_DEFAULTS })
-const addId = ref<number | null>(null)
+const budget = ref('')
 const saving = ref(false)
 const error = ref('')
 
@@ -34,6 +38,10 @@ watch(open, (v) => {
     ? {
         model_id: s.model_id,
         fallback_model_ids: [...s.fallback_model_ids],
+        context_fallback_model_ids: [...s.context_fallback_model_ids],
+        content_fallback_model_ids: [...s.content_fallback_model_ids],
+        strategy: s.strategy,
+        daily_budget_micro: s.daily_budget_micro,
         class: s.class,
         temperature: s.temperature,
         max_output: s.max_output,
@@ -44,9 +52,11 @@ watch(open, (v) => {
     : {
         ...LLM_SCENE_DEFAULTS,
         model_id: props.models[0]?.id ?? 0,
-        fallback_model_ids: []
+        fallback_model_ids: [],
+        context_fallback_model_ids: [],
+        content_fallback_model_ids: []
       }
-  addId.value = null
+  budget.value = llmBudgetDraft(form.value.daily_budget_micro)
   error.value = ''
 })
 
@@ -56,38 +66,17 @@ const primaryKind = computed(() => byId(form.value.model_id)?.kind)
 const primaryOptions = computed(() =>
   props.models.map((m) => ({ value: m.id, label: `${m.key} · ${m.kind}` }))
 )
-const fallbackOptions = computed(() =>
-  props.models
-    .filter(
-      (m) =>
-        m.kind === primaryKind.value &&
-        m.id !== form.value.model_id &&
-        !form.value.fallback_model_ids.includes(m.id)
-    )
-    .map((m) => ({ value: m.id, label: m.key }))
-)
-
 watch(
   () => form.value.model_id,
   () => {
-    form.value.fallback_model_ids = form.value.fallback_model_ids.filter(
-      (id) => id !== form.value.model_id && byId(id)?.kind === primaryKind.value
-    )
+    for (const c of LLM_SCENE_CHAINS) {
+      form.value[c.key] = form.value[c.key].filter(
+        (id) =>
+          id !== form.value.model_id && byId(id)?.kind === primaryKind.value
+      )
+    }
   }
 )
-
-watch(addId, (id) => {
-  if (id == null) return
-  form.value.fallback_model_ids.push(id)
-  nextTick(() => (addId.value = null))
-})
-
-const move = (i: number, delta: number) => {
-  const list = form.value.fallback_model_ids
-  const j = i + delta
-  if (j < 0 || j >= list.length) return
-  ;[list[i], list[j]] = [list[j]!, list[i]!]
-}
 
 const NUMBER_FIELDS = [
   { key: 'max_output', label: '最大输出 tokens', hint: '0 = 用模型默认' },
@@ -107,11 +96,16 @@ const save = async () => {
     error.value = '已有同名场景,请直接编辑它'
     return
   }
+  const dailyBudget = llmParseBudget(budget.value)
+  if (dailyBudget === 'invalid') {
+    error.value = '每日预算须为非负数(美元)'
+    return
+  }
   saving.value = true
   try {
     const res = await api.put<LlmScene>(
       `${LLM_API}/scenes/${encodeURIComponent(k)}`,
-      { ...form.value }
+      { ...form.value, daily_budget_micro: dailyBudget }
     )
     if (res.code !== 0) {
       error.value = res.message || '保存失败'
@@ -155,64 +149,24 @@ const save = async () => {
           :options="primaryOptions"
           searchable
         />
-        <div class="space-y-2">
-          <p class="text-default-500 text-sm">
-            备选模型(按顺序尝试,只能选与主模型同类型的模型)
-          </p>
-          <div
-            v-for="(id, i) in form.fallback_model_ids"
-            :key="id"
-            class="border-default-200 flex items-center gap-2 rounded-lg border px-3 py-1.5"
-          >
-            <span class="text-default-400 w-5 text-xs tabular-nums">
-              {{ i + 1 }}
-            </span>
-            <span class="text-foreground flex-1 font-mono text-sm">
-              {{ byId(id)?.key ?? `#${id}` }}
-            </span>
-            <KunButton
-              size="sm"
-              variant="light"
-              is-icon-only
-              aria-label="上移"
-              :disabled="i === 0"
-              @click="move(i, -1)"
-            >
-              <KunIcon name="lucide:arrow-up" class="size-4" />
-            </KunButton>
-            <KunButton
-              size="sm"
-              variant="light"
-              is-icon-only
-              aria-label="下移"
-              :disabled="i === form.fallback_model_ids.length - 1"
-              @click="move(i, 1)"
-            >
-              <KunIcon name="lucide:arrow-down" class="size-4" />
-            </KunButton>
-            <KunButton
-              size="sm"
-              variant="light"
-              color="danger"
-              is-icon-only
-              aria-label="移除"
-              @click="form.fallback_model_ids.splice(i, 1)"
-            >
-              <KunIcon name="lucide:x" class="size-4" />
-            </KunButton>
-          </div>
-          <KunSelect
-            v-model="addId"
-            :options="fallbackOptions"
-            :disabled="!fallbackOptions.length"
-            :placeholder="
-              fallbackOptions.length
-                ? '添加备选模型…'
-                : '没有可添加的同类型模型'
-            "
-            aria-label="添加备选模型"
-          />
-        </div>
+        <KunSelect
+          v-model="form.strategy"
+          label="路由策略"
+          :options="LLM_SCENE_STRATEGY_OPTIONS"
+          :description="LLM_SCENE_STRATEGY_META[form.strategy].hint"
+        />
+        <p class="text-default-400 text-xs">
+          以下三条链都只能选与主模型同类型的模型。
+        </p>
+        <AiLlmSceneChain
+          v-for="c in LLM_SCENE_CHAINS"
+          :key="c.key"
+          v-model="form[c.key]"
+          :models="models"
+          :primary-id="form.model_id"
+          :label="c.label"
+          :hint="c.hint"
+        />
       </div>
 
       <div class="grid gap-3 sm:grid-cols-2">
@@ -233,6 +187,15 @@ const save = async () => {
           :description="f.hint"
           :min="0"
           @update:model-value="form[f.key] = $event ?? 0"
+        />
+        <KunInput
+          v-model="budget"
+          label="每日预算（美元）"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="不限"
+          :description="LLM_BUDGET_HINT"
         />
       </div>
 

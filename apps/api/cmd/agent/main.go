@@ -65,6 +65,7 @@ func main() {
 		os.Exit(1)
 	}
 	gw := llm.New(aiDB.DB(), kek)
+	gw.SetCoordinator(llm.NewRedisCoord(rdb))
 	if err := gw.Refresh(ctx); err != nil {
 		slog.Error("llm gateway snapshot", "error", err)
 		os.Exit(1)
@@ -112,12 +113,15 @@ func main() {
 		return gw.WebSearch(ctx, llm.SceneWebSearch, query, instructions, "agent", 0)
 	}}
 	readURL := &tools.ReadURL{HTTP: public}
-	toolsFor := func(siteID int64) *tools.Registry {
+	siteTools := service.NewSiteTools(agentDB.DB(), &http.Client{Timeout: 30 * time.Second})
+	toolsFor := func(siteID int64, userToken string) *tools.Registry {
 		cat := catalogFor(siteID)
-		if !webReady() {
-			return tools.NewRegistry(&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat})
+		set := []tools.Tool{&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat}}
+		if webReady() {
+			set = append(set, webSearch, readURL)
 		}
-		return tools.NewRegistry(&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat}, webSearch, readURL)
+		set = append(set, siteTools.For(context.Background(), siteID, userToken)...)
+		return tools.NewRegistry(set...)
 	}
 	broker := stream.NewBroker()
 	runner := service.NewRunner(store, gw, broker, quota, toolsFor)
@@ -130,7 +134,8 @@ func main() {
 	server := &agentHandler.Server{
 		Store: store, Runner: runner, Broker: broker, Quota: quota,
 		Limits: agentHandler.NewLimiter(rdb), Search: &agentHandler.Searcher{Catalog: catalogFor}, WebSearch: webReady,
-		Vision: func() bool { _, ok := gw.Ready(llm.SceneVision); return ok },
+		Vision:    func() bool { _, ok := gw.Ready(llm.SceneVision); return ok },
+		SiteTools: siteTools,
 	}
 	if powVerifier != nil {
 		server.Verify = powVerifier

@@ -28,8 +28,12 @@ func mapLLMErr(op string, err error) *houseError {
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
 	case stderrors.Is(err, llm.ErrInUse):
 		return apiErrMsg(http.StatusConflict, errors.ErrValidationFailed, err.Error())
+	case stderrors.Is(err, llm.ErrCatalogUnsupported):
+		return apiErrMsg(http.StatusBadRequest, errors.ErrValidationFailed, "该供应商不在 /models 提供模型列表（例如 Cloudflare Workers AI 的 OpenAI 兼容地址），请在「路由」里手动添加")
 	case stderrors.Is(err, llm.ErrInvalid), stderrors.Is(err, llm.ErrNoKEK):
 		return apiErrMsg(http.StatusBadRequest, errors.ErrValidationFailed, err.Error())
+	case stderrors.As(err, new(*llm.Error)):
+		return apiErrMsg(http.StatusBadGateway, errors.ErrValidationFailed, err.Error())
 	default:
 		slog.Error("ai llm admin "+op, "err", err)
 		return apiErr(http.StatusInternalServerError, errors.ErrInternalServer)
@@ -58,6 +62,9 @@ func guard[I, T any](op string, fn func(context.Context, *I) (T, error)) func(co
 	return func(ctx context.Context, in *I) (*out[T], error) {
 		if he := requireLLMManage(ctx); he != nil {
 			return nil, he
+		}
+		if actor, ok := ctx.Value(actorCtxKey).(string); ok {
+			ctx = llm.WithActor(ctx, actor)
 		}
 		v, err := fn(ctx, in)
 		if err != nil {
@@ -104,6 +111,72 @@ func (s *llmAdmin) register(api huma.API) {
 		}))
 	huma.Register(api, op("deleteLLMProvider", http.MethodDelete, "/providers/{id}", "Delete a provider no route uses"),
 		guard("delete provider", func(ctx context.Context, in *IDPath) (*empty, error) { return nil, s.a.DeleteProvider(ctx, in.ID) }))
+
+	huma.Register(api, op("listLLMProviderModels", http.MethodGet, "/providers/{id}/models", "The provider's model catalog from its last sync"),
+		guard("list provider models", func(ctx context.Context, in *IDPath) ([]llm.ProviderModelView, error) {
+			return s.a.ProviderModels(ctx, in.ID)
+		}))
+	huma.Register(api, op("syncLLMProviderModels", http.MethodPost, "/providers/{id}/models/sync", "Read the provider's /models now and update its catalog"),
+		guard("sync provider models", func(ctx context.Context, in *IDPath) (llm.SyncResult, error) {
+			return s.a.SyncProviderModels(ctx, in.ID)
+		}))
+	huma.Register(api, op("updateLLMProviderModel", http.MethodPatch, "/provider-models/{id}", "Set a catalog entry's kind by hand"),
+		guard("update provider model", func(ctx context.Context, in *struct {
+			IDPath
+			Body struct {
+				Kind string `json:"kind" enum:"auto,chat,embedding,moderation,search,image,video,speech,transcription,rerank" doc:"auto goes back to the kind the metadata or name suggests."`
+			}
+		}) (llm.ProviderModelView, error) {
+			return s.a.SetProviderModelKind(ctx, in.ID, in.Body.Kind)
+		}))
+	huma.Register(api, op("probeLLMProviderModel", http.MethodPost, "/provider-models/{id}/probe", "Call the upstream model once as the given kind; a success records the kind"),
+		guard("probe provider model", func(ctx context.Context, in *struct {
+			IDPath
+			Body *struct {
+				Kind string `json:"kind,omitempty" enum:"chat,embedding,moderation,search,image" doc:"Defaults to the entry's kind. image generates one picture and is billed."`
+			} `required:"false"`
+		}) (llm.ProviderModelView, error) {
+			kind := ""
+			if in.Body != nil {
+				kind = in.Body.Kind
+			}
+			return s.a.ProbeProviderModel(ctx, in.ID, kind)
+		}))
+	huma.Register(api, op("adoptLLMProviderModel", http.MethodPost, "/provider-models/{id}/adopt", "Route a catalog entry: create the gateway model if needed, then the route"),
+		guard("adopt provider model", func(ctx context.Context, in *struct {
+			IDPath
+			Body llm.AdoptInput
+		}) (llm.AdoptResult, error) {
+			return s.a.AdoptProviderModel(ctx, in.ID, in.Body)
+		}))
+
+	huma.Register(api, op("getLLMUsage", http.MethodGet, "/usage", "Calls, errors, tokens and cost by provider, route, scene, access key or model"),
+		guard("usage", func(ctx context.Context, in *struct {
+			Days  int    `query:"days" enum:"1,7,30" default:"7"`
+			Group string `query:"group" enum:"provider,route,scene,key,model" default:"scene"`
+		}) (llm.UsageReport, error) {
+			return s.a.Usage(ctx, in.Days, in.Group)
+		}))
+	huma.Register(api, op("exportLLMConfig", http.MethodGet, "/config", "The whole gateway configuration by name, without provider keys or access key secrets"),
+		guard("export config", func(ctx context.Context, _ *struct{}) (llm.GatewayConfig, error) { return s.a.ExportConfig(ctx) }))
+	huma.Register(api, op("importLLMConfig", http.MethodPost, "/config/import", "Preview, or with apply=true write, an exported configuration; upserts by name and never deletes"),
+		guard("import config", func(ctx context.Context, in *struct {
+			Apply bool `query:"apply"`
+			Body  llm.GatewayConfig
+		}) (llm.ImportResult, error) {
+			return s.a.ImportConfig(ctx, in.Body, in.Apply)
+		}))
+	huma.Register(api, op("getLLMHealth", http.MethodGet, "/health", "Every route's breaker, load, limits and last-hour numbers"),
+		guard("health", func(ctx context.Context, _ *struct{}) ([]llm.RouteHealthView, error) { return s.a.Health(ctx) }))
+	huma.Register(api, op("resetLLMRouteCooldown", http.MethodPost, "/routes/{id}/reset-cooldown", "End a route's cooldown in every gateway process"),
+		guard("reset cooldown", func(ctx context.Context, in *IDPath) (*empty, error) { return nil, s.a.ResetCooldown(ctx, in.ID) }))
+	huma.Register(api, op("planLLMScene", http.MethodGet, "/scenes/{key}/plan", "The order a call to this scene would try routes in, right now"),
+		guard("plan scene", func(ctx context.Context, in *struct {
+			KeyPath
+			Affinity string `query:"affinity" maxLength:"128" doc:"A conversation id, to see where the weighted strategy pins it."`
+		}) (llm.ScenePlan, error) {
+			return s.a.PlanScene(ctx, in.Key, in.Affinity)
+		}))
 
 	huma.Register(api, op("listLLMModels", http.MethodGet, "/models", "List models"),
 		guard("list models", func(ctx context.Context, _ *struct{}) ([]llm.ModelView, error) { return s.a.Models(ctx) }))

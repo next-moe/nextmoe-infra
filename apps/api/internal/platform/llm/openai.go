@@ -141,6 +141,8 @@ type chunk struct {
 		CompletionTokensDetails *struct {
 			ReasoningTokens int `json:"reasoning_tokens"`
 		} `json:"completion_tokens_details"`
+		CostInUSDTicks int64 `json:"cost_in_usd_ticks"`
+		CostInNanoUSD  int64 `json:"cost_in_nano_usd"`
 	} `json:"usage"`
 	Error *struct {
 		Message string `json:"message"`
@@ -185,6 +187,7 @@ func (a *accumulator) apply(c *chunk, sink chatSink) {
 		if d := c.Usage.CompletionTokensDetails; d != nil {
 			a.result.Usage.ReasoningTokens = d.ReasoningTokens
 		}
+		a.result.Usage.ReportedNano = reportedNano(c.Usage.CostInUSDTicks, c.Usage.CostInNanoUSD)
 	}
 	for _, ch := range c.Choices {
 		d := ch.Delta
@@ -274,7 +277,7 @@ func streamChat(ctx context.Context, client *http.Client, t chatTarget, body []b
 	}
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-		return out, classifyHTTP(resp.StatusCode, string(raw))
+		return out, httpError(resp, string(raw))
 	}
 
 	acc := &accumulator{tools: map[int]*ToolCall{}}

@@ -49,6 +49,7 @@ type Call struct {
 	Extra       map[string]json.RawMessage
 	Site        string
 	UserID      int64
+	AccessKeyID int64
 	probe       bool
 }
 
@@ -72,6 +73,18 @@ type Usage struct {
 	OutputTokens    int
 	ReasoningTokens int
 	Estimated       bool
+	Units           int
+	ReportedNano    int64
+}
+
+// reportedNano reads the cost an upstream states in its usage block. xAI gives
+// cost_in_usd_ticks, 1e10 ticks to the dollar (a 0.02 USD picture came back as
+// 2e8), and sometimes cost_in_nano_usd as well.
+func reportedNano(ticks, nano int64) int64 {
+	if nano > 0 {
+		return nano
+	}
+	return ticks / 10
 }
 
 type Result struct {

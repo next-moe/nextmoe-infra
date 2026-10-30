@@ -21,6 +21,7 @@ type caller struct {
 	SiteName string
 	ClientID string
 	IP       string
+	Token    string
 }
 
 const localCaller = "agent_caller"
@@ -92,6 +93,7 @@ func authenticate(verifier *oidctoken.Verifier, clients *siteRepo.OAuthClientRep
 				return problem(c, fiber.StatusUnauthorized, CodeInvalidToken, "invalid or expired access token")
 			}
 			who.UserID, who.ClientID = int64(claims.ID), strings.Clone(claims.ClientID)
+			who.Token = strings.Clone(strings.TrimPrefix(auth, "Bearer "))
 		case strings.HasPrefix(auth, "Basic ") && !requireUser:
 			raw, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(auth, "Basic "))
 			id, secret, ok := strings.Cut(string(raw), ":")

@@ -44,7 +44,7 @@ func NewAdmin(db *gorm.DB, kek []byte, gw *Gateway) *Admin {
 func (a *Admin) KEKConfigured() bool { return len(a.kek) > 0 }
 
 func (a *Admin) changed(ctx context.Context, kind, detail string, routeID, providerID int64) {
-	_ = a.db.WithContext(ctx).Create(&RouteEvent{RouteID: routeID, ProviderID: providerID, Kind: kind, Detail: detail, CreatedAt: a.now()}).Error
+	_ = a.db.WithContext(ctx).Create(&RouteEvent{RouteID: routeID, ProviderID: providerID, Kind: kind, Detail: detail, Actor: ActorFrom(ctx), CreatedAt: a.now()}).Error
 	if a.gw != nil {
 		_ = a.gw.Refresh(context.WithoutCancel(ctx))
 	}
@@ -59,6 +59,7 @@ type ProviderView struct {
 	Headers            map[string]string `json:"headers"`
 	PriceMultiplierPPM int64             `json:"price_multiplier_ppm"`
 	Enabled            bool              `json:"enabled"`
+	CatalogSyncedAt    *time.Time        `json:"catalog_synced_at" doc:"Last successful read of the provider's model list."`
 	CreatedAt          time.Time         `json:"created_at"`
 	UpdatedAt          time.Time         `json:"updated_at"`
 }
@@ -67,7 +68,7 @@ func providerView(p Provider) ProviderView {
 	h := map[string]string{}
 	_ = json.Unmarshal(p.Headers, &h)
 	return ProviderView{ID: p.ID, Name: p.Name, BaseURL: p.BaseURL, KeyConfigured: len(p.KeyCipher) > 0 || p.KeyEnv != "",
-		KeyHint: p.KeyHint, Headers: h, PriceMultiplierPPM: p.PriceMultiplierPPM, Enabled: p.Enabled, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
+		KeyHint: p.KeyHint, Headers: h, PriceMultiplierPPM: p.PriceMultiplierPPM, Enabled: p.Enabled, CatalogSyncedAt: p.CatalogSyncedAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 }
 
 type ProviderInput struct {
@@ -200,7 +201,7 @@ func (a *Admin) DeleteProvider(ctx context.Context, id int64) error {
 type ModelView struct {
 	ID            int64     `json:"id"`
 	Key           string    `json:"key"`
-	Kind          string    `json:"kind" enum:"chat,embedding,moderation,search"`
+	Kind          string    `json:"kind" enum:"chat,embedding,moderation,search,image"`
 	ContextTokens int       `json:"context_tokens"`
 	MaxOutput     int       `json:"max_output"`
 	ToolCall      bool      `json:"tool_call"`
@@ -218,7 +219,7 @@ func modelView(m Model) ModelView {
 
 type ModelInput struct {
 	Key           *string `json:"key,omitempty" maxLength:"64"`
-	Kind          *string `json:"kind,omitempty" enum:"chat,embedding,moderation,search"`
+	Kind          *string `json:"kind,omitempty" enum:"chat,embedding,moderation,search,image"`
 	ContextTokens *int    `json:"context_tokens,omitempty" minimum:"0"`
 	MaxOutput     *int    `json:"max_output,omitempty" minimum:"0"`
 	ToolCall      *bool   `json:"tool_call,omitempty"`
@@ -327,9 +328,10 @@ func (a *Admin) DeleteModel(ctx context.Context, id int64) error {
 }
 
 type Price struct {
-	InputMicro  int64 `json:"input_micro" minimum:"0"`
-	CachedMicro int64 `json:"cached_micro" minimum:"0"`
-	OutputMicro int64 `json:"output_micro" minimum:"0"`
+	InputMicro   int64 `json:"input_micro" minimum:"0"`
+	CachedMicro  int64 `json:"cached_micro" minimum:"0"`
+	OutputMicro  int64 `json:"output_micro" minimum:"0"`
+	PerCallMicro int64 `json:"per_call_micro,omitempty" minimum:"0" doc:"Micro-USD per call, or per picture for an image route. A cost the upstream reports in its usage block wins over every price here."`
 }
 
 type RouteStats struct {
@@ -344,22 +346,27 @@ type RouteView struct {
 	ModelID      int64      `json:"model_id"`
 	ProviderID   int64      `json:"provider_id"`
 	UpstreamID   string     `json:"upstream_id"`
+	Protocol     string     `json:"protocol" enum:"chat,embeddings,moderations,responses,images"`
 	Priority     int        `json:"priority"`
 	Weight       int        `json:"weight"`
 	Status       string     `json:"status" enum:"active,disabled"`
 	StatusReason string     `json:"status_reason"`
+	MaxInFlight  int        `json:"max_in_flight" doc:"Concurrent calls this route may carry across all gateway processes; 0 is unlimited."`
+	RPM          int        `json:"rpm" doc:"Calls per minute across all gateway processes; 0 is unlimited."`
 	Price        *Price     `json:"price"`
 	Stats24h     RouteStats `json:"stats_24h"`
 }
 
 type RouteInput struct {
-	ModelID    *int64  `json:"model_id,omitempty"`
-	ProviderID *int64  `json:"provider_id,omitempty"`
-	UpstreamID *string `json:"upstream_id,omitempty" maxLength:"128"`
-	Priority   *int    `json:"priority,omitempty"`
-	Weight     *int    `json:"weight,omitempty" minimum:"1" maximum:"10000"`
-	Status     *string `json:"status,omitempty" enum:"active,disabled"`
-	Price      *Price  `json:"price,omitempty"`
+	ModelID     *int64  `json:"model_id,omitempty"`
+	ProviderID  *int64  `json:"provider_id,omitempty"`
+	UpstreamID  *string `json:"upstream_id,omitempty" maxLength:"128"`
+	Priority    *int    `json:"priority,omitempty"`
+	Weight      *int    `json:"weight,omitempty" minimum:"1" maximum:"10000"`
+	Status      *string `json:"status,omitempty" enum:"active,disabled"`
+	MaxInFlight *int    `json:"max_in_flight,omitempty" minimum:"0" maximum:"10000"`
+	RPM         *int    `json:"rpm,omitempty" minimum:"0" maximum:"1000000"`
+	Price       *Price  `json:"price,omitempty"`
 }
 
 func (a *Admin) Routes(ctx context.Context) ([]RouteView, error) {
@@ -394,11 +401,11 @@ func (a *Admin) Routes(ctx context.Context) ([]RouteView, error) {
 	}
 	out := make([]RouteView, len(rows))
 	for i, r := range rows {
-		out[i] = RouteView{ID: r.ID, ModelID: r.ModelID, ProviderID: r.ProviderID, UpstreamID: r.UpstreamID, Priority: r.Priority,
+		out[i] = RouteView{ID: r.ID, ModelID: r.ModelID, ProviderID: r.ProviderID, UpstreamID: r.UpstreamID, Protocol: r.Protocol, MaxInFlight: r.MaxConcurrency, RPM: r.RPM, Priority: r.Priority,
 			Weight: r.Weight, Status: r.Status, StatusReason: r.StatusReason, Stats24h: byRoute[r.ID]}
 		if r.PriceID != nil {
 			if p, ok := byPrice[*r.PriceID]; ok {
-				out[i].Price = &Price{InputMicro: p.InputMicro, CachedMicro: p.CachedMicro, OutputMicro: p.OutputMicro}
+				out[i].Price = &Price{InputMicro: p.InputMicro, CachedMicro: p.CachedMicro, OutputMicro: p.OutputMicro, PerCallMicro: p.PerCallMicro}
 			}
 		}
 	}
@@ -450,6 +457,12 @@ func (a *Admin) saveRoute(ctx context.Context, r *Route, in RouteInput, creating
 		if r.Weight <= 0 {
 			r.Weight = 100
 		}
+		if in.MaxInFlight != nil {
+			r.MaxConcurrency = *in.MaxInFlight
+		}
+		if in.RPM != nil {
+			r.RPM = *in.RPM
+		}
 		if in.Status != nil {
 			r.Status, r.StatusReason = *in.Status, ""
 		}
@@ -460,7 +473,7 @@ func (a *Admin) saveRoute(ctx context.Context, r *Route, in RouteInput, creating
 			return uniqueOr(err, "this model already has a route to this provider with that upstream id")
 		}
 		if in.Price != nil {
-			p := PriceRevision{RouteID: r.ID, InputMicro: in.Price.InputMicro, CachedMicro: in.Price.CachedMicro, OutputMicro: in.Price.OutputMicro, Source: "manual", CreatedAt: a.now()}
+			p := PriceRevision{RouteID: r.ID, InputMicro: in.Price.InputMicro, CachedMicro: in.Price.CachedMicro, OutputMicro: in.Price.OutputMicro, PerCallMicro: in.Price.PerCallMicro, Source: "manual", CreatedAt: a.now()}
 			if err := tx.Create(&p).Error; err != nil {
 				return err
 			}
@@ -481,6 +494,8 @@ func protocolFor(kind string) string {
 		return ProtocolModerations
 	case ModelSearch:
 		return ProtocolResponses
+	case ModelImage:
+		return ProtocolImages
 	}
 	return ProtocolChat
 }
@@ -532,6 +547,12 @@ type SceneView struct {
 	Key              string    `json:"key"`
 	ModelID          int64     `json:"model_id"`
 	FallbackModelIDs []int64   `json:"fallback_model_ids" nullable:"false"`
+	ContextFallback  []int64   `json:"context_fallback_model_ids" nullable:"false" doc:"Tried after a model rejects the input as too long."`
+	ContentFallback  []int64   `json:"content_fallback_model_ids" nullable:"false" doc:"Tried after a model's content filter refuses the request, before anything streamed."`
+	Strategy         string    `json:"strategy" enum:"weighted,least_busy,latency,cost"`
+	DailyBudgetMicro int64     `json:"daily_budget_micro" doc:"Micro-USD calls through this scene may spend per day (China Standard Time); 0 is unlimited."`
+	SpentTodayNano   int64     `json:"spent_today_nano"`
+	Ready            bool      `json:"ready" doc:"Whether any model of the main chain has an active route right now."`
 	Class            string    `json:"class" enum:"interactive,search,batch,moderation"`
 	Temperature      *float64  `json:"temperature" nullable:"true"`
 	MaxOutput        int       `json:"max_output"`
@@ -544,6 +565,10 @@ type SceneView struct {
 type SceneInput struct {
 	ModelID          int64    `json:"model_id"`
 	FallbackModelIDs []int64  `json:"fallback_model_ids" maxItems:"8" nullable:"false"`
+	ContextFallback  []int64  `json:"context_fallback_model_ids,omitempty" maxItems:"4"`
+	ContentFallback  []int64  `json:"content_fallback_model_ids,omitempty" maxItems:"4"`
+	DailyBudgetMicro int64    `json:"daily_budget_micro,omitempty" minimum:"0"`
+	Strategy         string   `json:"strategy,omitempty" enum:"weighted,least_busy,latency,cost" doc:"How routes of one priority tier are ordered: weighted keeps a conversation on one route (rendezvous on its key), least_busy prefers fewer calls in flight in this process, latency the lowest recent first-byte time (with a tenth of calls exploring), cost the cheapest price."`
 	Class            string   `json:"class" enum:"interactive,search,batch,moderation"`
 	Temperature      *float64 `json:"temperature" minimum:"0" maximum:"2" nullable:"true"`
 	MaxOutput        int      `json:"max_output" minimum:"0"`
@@ -553,9 +578,15 @@ type SceneInput struct {
 }
 
 func sceneView(s Scene) SceneView {
-	fb := []int64{}
+	fb, cf, nf := []int64{}, []int64{}, []int64{}
 	_ = json.Unmarshal(s.FallbackModelIDs, &fb)
-	return SceneView{Key: s.Key, ModelID: s.ModelID, FallbackModelIDs: fb, Class: s.Class, Temperature: s.Temperature,
+	_ = json.Unmarshal(s.ContextFallback, &cf)
+	_ = json.Unmarshal(s.ContentFallback, &nf)
+	strategy := s.Strategy
+	if strategy == "" {
+		strategy = StrategyWeighted
+	}
+	return SceneView{Key: s.Key, ModelID: s.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, DailyBudgetMicro: s.DailyBudgetMicro, Class: s.Class, Temperature: s.Temperature,
 		MaxOutput: s.MaxOutput, TTFTMs: s.TTFTMs, IdleMs: s.IdleMs, TotalMs: s.TotalMs, UpdatedAt: s.UpdatedAt}
 }
 
@@ -565,8 +596,21 @@ func (a *Admin) Scenes(ctx context.Context) ([]SceneView, error) {
 		return nil, err
 	}
 	out := make([]SceneView, len(rows))
+	day := budgetDay(a.now())
+	keys := make([]string, len(rows))
+	for i, s := range rows {
+		keys[i] = SceneSpendKey(s.Key, day)
+	}
+	spent := a.spend(ctx, keys)
+	if a.gw != nil {
+		_ = a.gw.Refresh(ctx)
+	}
 	for i, s := range rows {
 		out[i] = sceneView(s)
+		out[i].SpentTodayNano = spent[keys[i]]
+		if a.gw != nil {
+			_, out[i].Ready = a.gw.Ready(s.Key)
+		}
 	}
 	return out, nil
 }
@@ -577,6 +621,8 @@ func (a *Admin) PutScene(ctx context.Context, key string, in SceneInput) (SceneV
 	}
 	db := a.db.WithContext(ctx)
 	ids := append([]int64{in.ModelID}, in.FallbackModelIDs...)
+	ids = append(ids, in.ContextFallback...)
+	ids = append(ids, in.ContentFallback...)
 	var models []Model
 	if err := db.Where("id IN ?", ids).Find(&models).Error; err != nil {
 		return SceneView{}, err
@@ -597,7 +643,13 @@ func (a *Admin) PutScene(ctx context.Context, key string, in SceneInput) (SceneV
 		return SceneView{}, invalid("the primary model cannot also be a fallback")
 	}
 	fb, _ := json.Marshal(nonNil(in.FallbackModelIDs))
-	s := Scene{Key: key, ModelID: in.ModelID, FallbackModelIDs: fb, Class: in.Class, Temperature: in.Temperature,
+	cf, _ := json.Marshal(nonNil(in.ContextFallback))
+	nf, _ := json.Marshal(nonNil(in.ContentFallback))
+	strategy := in.Strategy
+	if strategy == "" {
+		strategy = StrategyWeighted
+	}
+	s := Scene{Key: key, ModelID: in.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, DailyBudgetMicro: in.DailyBudgetMicro, Class: in.Class, Temperature: in.Temperature,
 		MaxOutput: in.MaxOutput, TTFTMs: in.TTFTMs, IdleMs: in.IdleMs, TotalMs: in.TotalMs, UpdatedAt: a.now()}
 	if s.Class == "" {
 		s.Class = ClassInteractive
@@ -638,25 +690,28 @@ func (a *Admin) DeleteScene(ctx context.Context, key string) error {
 }
 
 type AccessKeyView struct {
-	ID            int64      `json:"id"`
-	Name          string     `json:"name"`
-	Prefix        string     `json:"prefix"`
-	AllowedModels []string   `json:"allowed_models"`
-	Enabled       bool       `json:"enabled"`
-	LastUsedAt    *time.Time `json:"last_used_at"`
-	CreatedAt     time.Time  `json:"created_at"`
+	ID               int64      `json:"id"`
+	Name             string     `json:"name"`
+	Prefix           string     `json:"prefix"`
+	AllowedModels    []string   `json:"allowed_models"`
+	Enabled          bool       `json:"enabled"`
+	DailyBudgetMicro int64      `json:"daily_budget_micro" doc:"Micro-USD this key may spend per day (China Standard Time); 0 is unlimited."`
+	SpentTodayNano   int64      `json:"spent_today_nano"`
+	LastUsedAt       *time.Time `json:"last_used_at"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 type AccessKeyInput struct {
-	Name          *string   `json:"name,omitempty" maxLength:"64"`
-	AllowedModels *[]string `json:"allowed_models,omitempty" maxItems:"64"`
-	Enabled       *bool     `json:"enabled,omitempty"`
+	Name             *string   `json:"name,omitempty" maxLength:"64"`
+	AllowedModels    *[]string `json:"allowed_models,omitempty" maxItems:"64"`
+	Enabled          *bool     `json:"enabled,omitempty"`
+	DailyBudgetMicro *int64    `json:"daily_budget_micro,omitempty" minimum:"0"`
 }
 
 func accessKeyView(k AccessKey) AccessKeyView {
 	allowed := []string{}
 	_ = json.Unmarshal(k.AllowedModels, &allowed)
-	return AccessKeyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, AllowedModels: allowed, Enabled: k.Enabled, LastUsedAt: k.LastUsedAt, CreatedAt: k.CreatedAt}
+	return AccessKeyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, AllowedModels: allowed, Enabled: k.Enabled, DailyBudgetMicro: k.DailyBudgetMicro, LastUsedAt: k.LastUsedAt, CreatedAt: k.CreatedAt}
 }
 
 func (a *Admin) AccessKeys(ctx context.Context) ([]AccessKeyView, error) {
@@ -665,10 +720,24 @@ func (a *Admin) AccessKeys(ctx context.Context) ([]AccessKeyView, error) {
 		return nil, err
 	}
 	out := make([]AccessKeyView, len(rows))
+	day := budgetDay(a.now())
+	keys := make([]string, len(rows))
+	for i, k := range rows {
+		keys[i] = KeySpendKey(k.ID, day)
+	}
+	spent := a.spend(ctx, keys)
 	for i, k := range rows {
 		out[i] = accessKeyView(k)
+		out[i].SpentTodayNano = spent[keys[i]]
 	}
 	return out, nil
+}
+
+func (a *Admin) spend(ctx context.Context, keys []string) map[string]int64 {
+	if a.gw == nil || a.gw.coord == nil {
+		return map[string]int64{}
+	}
+	return a.gw.coord.Spend(ctx, keys)
 }
 
 const accessKeyPrefix = "nmk_"
@@ -690,6 +759,9 @@ func (a *Admin) CreateAccessKey(ctx context.Context, in AccessKeyInput) (AccessK
 	k := AccessKey{Name: strings.TrimSpace(*in.Name), Prefix: secret[:len(accessKeyPrefix)+4], Hash: HashAccessKey(secret), AllowedModels: raw, Enabled: true}
 	if in.Enabled != nil {
 		k.Enabled = *in.Enabled
+	}
+	if in.DailyBudgetMicro != nil {
+		k.DailyBudgetMicro = *in.DailyBudgetMicro
 	}
 	if err := a.db.WithContext(ctx).Create(&k).Error; err != nil {
 		return AccessKeyView{}, "", uniqueOr(err, "an access key with this name exists")
@@ -714,6 +786,9 @@ func (a *Admin) UpdateAccessKey(ctx context.Context, id int64, in AccessKeyInput
 	}
 	if in.Enabled != nil {
 		k.Enabled = *in.Enabled
+	}
+	if in.DailyBudgetMicro != nil {
+		k.DailyBudgetMicro = *in.DailyBudgetMicro
 	}
 	if err := a.db.WithContext(ctx).Save(&k).Error; err != nil {
 		return AccessKeyView{}, uniqueOr(err, "an access key with this name exists")
@@ -740,6 +815,7 @@ type EventView struct {
 	ProviderID int64     `json:"provider_id"`
 	Kind       string    `json:"kind"`
 	Detail     string    `json:"detail"`
+	Actor      string    `json:"actor" doc:"Who made the change; empty for the gateway's own events."`
 	CreatedAt  time.Time `json:"created_at"`
 }
 
@@ -750,7 +826,7 @@ func (a *Admin) Events(ctx context.Context, limit int) ([]EventView, error) {
 	}
 	out := make([]EventView, len(rows))
 	for i, e := range rows {
-		out[i] = EventView{ID: e.ID, RouteID: e.RouteID, ProviderID: e.ProviderID, Kind: e.Kind, Detail: e.Detail, CreatedAt: e.CreatedAt}
+		out[i] = EventView{ID: e.ID, RouteID: e.RouteID, ProviderID: e.ProviderID, Kind: e.Kind, Detail: e.Detail, Actor: e.Actor, CreatedAt: e.CreatedAt}
 	}
 	return out, nil
 }
