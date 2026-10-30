@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -32,6 +31,7 @@ var (
 	ErrSizeMismatch  = stderrors.New("artifact: uploaded size does not match declared size")
 	ErrBadRequest    = stderrors.New("artifact: bad request")
 	ErrNotResumable  = stderrors.New("artifact: upload is not resumable (already completed or failed)")
+	ErrIncomplete    = stderrors.New("artifact: multipart upload is missing parts")
 	ErrRenameRefused = stderrors.New("artifact: rename refused")
 )
 
@@ -41,11 +41,28 @@ type dispositionStore interface {
 	SetContentDisposition(ctx context.Context, key, downloadName, contentType string) error
 }
 
-const maxS3Parts = 10000
+const (
+	maxS3Parts  = 10000
+	minPartSize = 5 << 20
+	maxPartSize = 5 << 30
+)
+
+type objectStore interface {
+	PresignPut(ctx context.Context, key string, ttl time.Duration) (string, error)
+	PresignGet(ctx context.Context, key, downloadName string, ttl time.Duration) (string, error)
+	CreateMultipart(ctx context.Context, key, downloadName, contentType string) (string, error)
+	PresignUploadPart(ctx context.Context, key, uploadID string, partNumber int32, ttl time.Duration) (string, error)
+	ListParts(ctx context.Context, key, uploadID string) ([]storage.UploadedPart, error)
+	CompleteMultipart(ctx context.Context, key, uploadID string, parts []storage.CompletedPart) error
+	Exists(ctx context.Context, key string) (bool, error)
+	HeadSize(ctx context.Context, key string) (int64, error)
+	Delete(ctx context.Context, key string) error
+	SetContentDisposition(ctx context.Context, key, downloadName, contentType string) error
+}
 
 type Service struct {
 	repo        *repository.ArtifactRepository
-	store       *storage.Client
+	store       objectStore
 	disposition dispositionStore
 	quota       *quota.Checker
 }
@@ -108,17 +125,14 @@ func (s *Service) InitUpload(ctx context.Context, req dto.InitUploadRequest, p I
 	}
 
 	uploadTTL := time.Duration(keys.ArtifactPresignUploadTTLSeconds.Get()) * time.Second
-	partSize := keys.ArtifactPartSizeBytes.Get()
 	threshold := keys.ArtifactMultipartThresholdBytes.Get()
 
 	expiresAt := time.Now().Add(uploadTTL).UTC().Format(time.RFC3339)
 	resp := &dto.InitUploadResponse{UUID: id, ExpiresAt: expiresAt}
 
 	if req.FileSize >= threshold {
+		partSize := choosePartSize(req.FileSize, req.PartSize, keys.ArtifactPartSizeBytes.Get())
 		numParts := (req.FileSize + partSize - 1) / partSize
-		if numParts > maxS3Parts {
-			return nil, ErrTooBig
-		}
 		uploadID, err := s.store.CreateMultipart(ctx, fileKey, a.Name, a.MimeType)
 		if err != nil {
 			return nil, err
@@ -189,23 +203,21 @@ func (s *Service) ResumeUpload(ctx context.Context, uuidStr, site, owner string)
 
 	uploaded, err := s.store.ListParts(ctx, a.FileKey, a.UploadID)
 	if err != nil {
+		if storage.IsNoSuchUpload(err) {
+			return nil, ErrNotResumable
+		}
 		return nil, err
 	}
-	have := make(map[int32]struct{}, len(uploaded))
-	for _, p := range uploaded {
-		have[p.PartNumber] = struct{}{}
+	good, missing := planParts(a.ReportedSize, a.PartSize, uploaded)
+	for _, p := range good {
 		resp.UploadedParts = append(resp.UploadedParts, dto.UploadedPart{
 			PartNumber: p.PartNumber, ETag: p.ETag, Size: p.Size,
 		})
 	}
 
-	numParts := (a.ReportedSize + a.PartSize - 1) / a.PartSize
 	resp.Multipart = true
 	resp.PartSize = a.PartSize
-	for n := int32(1); int64(n) <= numParts; n++ {
-		if _, ok := have[n]; ok {
-			continue
-		}
+	for _, n := range missing {
 		url, err := s.store.PresignUploadPart(ctx, a.FileKey, a.UploadID, n, uploadTTL)
 		if err != nil {
 			return nil, err
@@ -230,27 +242,21 @@ func (s *Service) CompleteUpload(ctx context.Context, uuidStr, site, owner strin
 		return s.persistManifestAndRespond(ctx, a, req.Manifest)
 	}
 
+	if a.Status != model.StatusUploading {
+		return nil, ErrNotResumable
+	}
+
 	if a.IsMultipart() {
-		if len(req.Parts) == 0 {
-			return nil, ErrBadRequest
-		}
-		parts := make([]storage.CompletedPart, 0, len(req.Parts))
-		for _, p := range req.Parts {
-			parts = append(parts, storage.CompletedPart{PartNumber: p.PartNumber, ETag: p.ETag})
-		}
-		sort.Slice(parts, func(i, j int) bool { return parts[i].PartNumber < parts[j].PartNumber })
-		if err := s.store.CompleteMultipart(ctx, a.FileKey, a.UploadID, parts); err != nil {
-			if abErr := s.store.AbortMultipart(ctx, a.FileKey, a.UploadID); abErr != nil {
-				slog.Warn("artifact: abort multipart on complete-failure", "uuid", a.UUID, "err", abErr)
-			}
-			s.markFailed(ctx, a)
+		if err := s.completeMultipart(ctx, a); err != nil {
 			return nil, err
 		}
 	}
 
 	actual, err := s.store.HeadSize(ctx, a.FileKey)
 	if err != nil {
-		s.markFailed(ctx, a)
+		if storage.IsNotFound(err) {
+			return nil, ErrIncomplete
+		}
 		return nil, err
 	}
 	if actual != a.ReportedSize {
@@ -362,6 +368,61 @@ func (s *Service) List(ctx context.Context, site string, offset, limit int) ([]d
 		out = append(out, *toResponse(&items[i]))
 	}
 	return out, total, nil
+}
+
+// completeMultipart leaves the upload resumable on every error except a
+// vanished upload: a transient B2 failure used to abort it, so one 5xx on
+// the final call threw away every part of a multi-gigabyte upload.
+func (s *Service) completeMultipart(ctx context.Context, a *model.Artifact) error {
+	assembled, err := s.store.Exists(ctx, a.FileKey)
+	if err != nil || assembled {
+		return err
+	}
+	uploaded, err := s.store.ListParts(ctx, a.FileKey, a.UploadID)
+	if err != nil {
+		if storage.IsNoSuchUpload(err) {
+			s.markFailed(ctx, a)
+			return ErrNotResumable
+		}
+		return err
+	}
+	good, missing := planParts(a.ReportedSize, a.PartSize, uploaded)
+	if len(missing) > 0 {
+		return ErrIncomplete
+	}
+	parts := make([]storage.CompletedPart, 0, len(good))
+	for _, p := range good {
+		parts = append(parts, storage.CompletedPart{PartNumber: p.PartNumber, ETag: p.ETag})
+	}
+	return s.store.CompleteMultipart(ctx, a.FileKey, a.UploadID, parts)
+}
+
+func choosePartSize(fileSize, requested, configured int64) int64 {
+	size := configured
+	if requested > 0 {
+		size = min(max(requested, minPartSize), maxPartSize)
+	}
+	return max(size, (fileSize+maxS3Parts-1)/maxS3Parts)
+}
+
+func planParts(fileSize, partSize int64, uploaded []storage.UploadedPart) (good []storage.UploadedPart, missing []int32) {
+	numParts := (fileSize + partSize - 1) / partSize
+	byNumber := make(map[int32]storage.UploadedPart, len(uploaded))
+	for _, p := range uploaded {
+		byNumber[p.PartNumber] = p
+	}
+	for n := int32(1); int64(n) <= numParts; n++ {
+		want := partSize
+		if int64(n) == numParts {
+			want = fileSize - (numParts-1)*partSize
+		}
+		if p, ok := byNumber[n]; ok && p.Size == want {
+			good = append(good, p)
+		} else {
+			missing = append(missing, n)
+		}
+	}
+	return good, missing
 }
 
 func (s *Service) markFailed(ctx context.Context, a *model.Artifact) {
