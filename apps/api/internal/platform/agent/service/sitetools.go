@@ -13,7 +13,6 @@ import (
 	"api/internal/platform/agent/model"
 	"api/internal/platform/agent/tools"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 )
 
@@ -32,10 +31,10 @@ type SiteTools struct {
 }
 
 type siteToolList struct {
-	tools []*mcp.Tool
-	err   error
-	at    time.Time
-	stamp time.Time
+	listing tools.Listing
+	err     error
+	at      time.Time
+	stamp   time.Time
 }
 
 func NewSiteTools(db *gorm.DB, client *http.Client) *SiteTools {
@@ -68,7 +67,8 @@ func (st *SiteTools) For(ctx context.Context, siteID int64, token string) []tool
 		var allowed []string
 		_ = json.Unmarshal(row.Allowed, &allowed)
 		server := st.server(row, token)
-		for _, t := range listed {
+		server.Instructions = listed.Instructions
+		for _, t := range listed.Tools {
 			if len(allowed) == 0 || slices.Contains(allowed, t.Name) {
 				out = append(out, tools.NewMCPTool(server, t))
 			}
@@ -77,7 +77,7 @@ func (st *SiteTools) For(ctx context.Context, siteID int64, token string) []tool
 	return out
 }
 
-func (st *SiteTools) list(ctx context.Context, row model.SiteTool, token string) ([]*mcp.Tool, error) {
+func (st *SiteTools) list(ctx context.Context, row model.SiteTool, token string) (tools.Listing, error) {
 	now := st.now()
 	st.mu.Lock()
 	cached, ok := st.lists[row.ID]
@@ -88,7 +88,7 @@ func (st *SiteTools) list(ctx context.Context, row model.SiteTool, token string)
 			ttl = siteToolFailedTTL
 		}
 		if now.Sub(cached.at) < ttl {
-			return cached.tools, cached.err
+			return cached.listing, cached.err
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -98,12 +98,12 @@ func (st *SiteTools) list(ctx context.Context, row model.SiteTool, token string)
 		slog.Warn("agent: list site tools", "site", row.SiteID, "server", row.Name, "err", err)
 	}
 	st.mu.Lock()
-	st.lists[row.ID] = siteToolList{tools: listed, err: err, at: now, stamp: row.UpdatedAt}
+	st.lists[row.ID] = siteToolList{listing: listed, err: err, at: now, stamp: row.UpdatedAt}
 	st.mu.Unlock()
 	return listed, err
 }
 
-func (st *SiteTools) Probe(ctx context.Context, row model.SiteTool, token string) ([]*mcp.Tool, error) {
+func (st *SiteTools) Probe(ctx context.Context, row model.SiteTool, token string) (tools.Listing, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return st.server(row, token).ListTools(ctx)

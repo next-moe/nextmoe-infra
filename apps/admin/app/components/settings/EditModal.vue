@@ -183,6 +183,14 @@ const emitSave = () => {
         </p>
       </div>
 
+      <KunTextarea
+        v-else-if="row.kind === 'string' && row.multiline"
+        v-model="stringValue"
+        :rows="10"
+        :aria-label="row.key"
+        description="留空表示不使用这段提示词"
+      />
+
       <KunInput v-else-if="row.kind === 'string'" v-model="stringValue" />
 
       <div v-else-if="row.kind === 'string_list'">

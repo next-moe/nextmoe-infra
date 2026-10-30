@@ -5,6 +5,8 @@ import {
   LLM_SCENE_CHAINS,
   LLM_SCENE_CLASS_OPTIONS,
   LLM_SCENE_DEFAULTS,
+  LLM_SCENE_REASONING_META,
+  LLM_SCENE_REASONING_OPTIONS,
   LLM_SCENE_STRATEGY_META,
   LLM_SCENE_STRATEGY_OPTIONS
 } from '~/constants/llm'
@@ -41,6 +43,7 @@ watch(open, (v) => {
         context_fallback_model_ids: [...s.context_fallback_model_ids],
         content_fallback_model_ids: [...s.content_fallback_model_ids],
         strategy: s.strategy,
+        reasoning: s.reasoning,
         daily_budget_micro: s.daily_budget_micro,
         class: s.class,
         temperature: s.temperature,
@@ -154,6 +157,12 @@ const save = async () => {
           label="路由策略"
           :options="LLM_SCENE_STRATEGY_OPTIONS"
           :description="LLM_SCENE_STRATEGY_META[form.strategy].hint"
+        />
+        <KunSelect
+          v-model="form.reasoning"
+          label="思考等级"
+          :options="LLM_SCENE_REASONING_OPTIONS"
+          :description="LLM_SCENE_REASONING_META[form.reasoning].hint"
         />
         <p class="text-default-400 text-xs">
           以下三条链都只能选与主模型同类型的模型。

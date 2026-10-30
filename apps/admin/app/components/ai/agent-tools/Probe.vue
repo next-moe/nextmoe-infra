@@ -107,6 +107,16 @@ const save = async () => {
     </p>
 
     <template v-else>
+      <div class="bg-default-100 rounded-lg p-3 text-xs">
+        <p class="text-default-500 mb-1">服务说明(会加进助手的提示词)</p>
+        <p
+          v-if="probe.instructions"
+          class="text-foreground whitespace-pre-wrap"
+        >
+          {{ probe.instructions }}
+        </p>
+        <p v-else class="text-default-400">服务没有提供说明</p>
+      </div>
       <KunSwitch
         v-model="allowAll"
         label="允许全部"

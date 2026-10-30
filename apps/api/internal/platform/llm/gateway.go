@@ -178,7 +178,7 @@ func (g *Gateway) attempt(ctx context.Context, s *snapshot, sc *Scene, c candida
 	if c.model.MaxOutput > 0 && (maxTokens == 0 || maxTokens > c.model.MaxOutput) {
 		maxTokens = c.model.MaxOutput
 	}
-	body, err := chatRequestBody(call, c.route.UpstreamID, sc.Temperature, maxTokens)
+	body, err := chatRequestBody(call, c.route.UpstreamID, sc.Temperature, maxTokens, reasoningFields(thinkingStyle(c.route), sceneReasoning(sc, call.Reasoning), ProtocolChat))
 	if err != nil {
 		return Result{}, false, &Error{Kind: ErrKindBadRequest, Msg: err.Error()}
 	}

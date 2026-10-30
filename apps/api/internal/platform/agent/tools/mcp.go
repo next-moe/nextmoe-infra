@@ -15,12 +15,18 @@ import (
 )
 
 type MCPServer struct {
-	Name       string
-	URL        string
-	CardPrefix string
-	Token      string
-	Timeout    time.Duration
-	HTTP       *http.Client
+	Name         string
+	URL          string
+	CardPrefix   string
+	Token        string
+	Timeout      time.Duration
+	HTTP         *http.Client
+	Instructions string
+}
+
+type Listing struct {
+	Tools        []*mcp.Tool
+	Instructions string
 }
 
 type bearer struct {
@@ -46,20 +52,23 @@ func (s MCPServer) connect(ctx context.Context) (*mcp.ClientSession, error) {
 	return client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: s.URL, HTTPClient: hc, MaxRetries: -1, DisableStandaloneSSE: true}, nil)
 }
 
-func (s MCPServer) ListTools(ctx context.Context) ([]*mcp.Tool, error) {
+func (s MCPServer) ListTools(ctx context.Context) (Listing, error) {
 	session, err := s.connect(ctx)
 	if err != nil {
-		return nil, err
+		return Listing{}, err
 	}
 	defer session.Close()
-	var out []*mcp.Tool
+	var out Listing
+	if init := session.InitializeResult(); init != nil {
+		out.Instructions = strings.TrimSpace(init.Instructions)
+	}
 	params := &mcp.ListToolsParams{}
 	for {
 		res, err := session.ListTools(ctx, params)
 		if err != nil {
-			return nil, err
+			return Listing{}, err
 		}
-		out = append(out, res.Tools...)
+		out.Tools = append(out.Tools, res.Tools...)
 		if res.NextCursor == "" {
 			return out, nil
 		}
@@ -93,6 +102,8 @@ func (t *mcpTool) Spec() llm.Tool {
 }
 
 func (t *mcpTool) Timeout() time.Duration { return t.server.Timeout }
+
+func (t *mcpTool) SiteInstructions() string { return t.server.Instructions }
 
 func (t *mcpTool) Run(ctx context.Context, args json.RawMessage) (Output, error) {
 	var arguments map[string]any
@@ -136,11 +147,16 @@ type siteCard struct {
 	Subtitle     string `json:"subtitle,omitempty"`
 	Cover        string `json:"cover,omitempty"`
 	Summary      string `json:"summary,omitempty"`
+	Facts        []Fact `json:"facts,omitempty"`
 	URL          string `json:"url"`
 	ContentLimit string `json:"content_limit,omitempty"`
+	SameAs       string `json:"same_as,omitempty"`
 }
 
-var siteKindSuffix = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`)
+var (
+	siteKindSuffix = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`)
+	sharedEntity   = regexp.MustCompile(`^(work|character|person|company|series|tag):[0-9]{1,20}$`)
+)
 
 // SiteCards keeps only well-formed cards of the site's own kinds, so a site
 // tool can neither pass itself off as a shared NextMoe entity nor link out of
@@ -169,7 +185,18 @@ func SiteCards(prefix string, structured any) []Card {
 		if c.Cover != "" && !strings.HasPrefix(c.Cover, "https://") {
 			c.Cover = ""
 		}
+		if !sharedEntity.MatchString(c.SameAs) {
+			c.SameAs = ""
+		}
 		c.Title, c.Subtitle, c.Summary = clipRunes(c.Title, 120), clipRunes(c.Subtitle, 120), clipRunes(c.Summary, 300)
+		var facts []Fact
+		for _, f := range c.Facts {
+			f.Label, f.Value = clipRunes(strings.TrimSpace(f.Label), 16), clipRunes(strings.TrimSpace(f.Value), 120)
+			if f.Label != "" && f.Value != "" && len(facts) < 8 {
+				facts = append(facts, f)
+			}
+		}
+		c.Facts = facts
 		data, _ := json.Marshal(c)
 		out = append(out, Card{ID: c.Kind + "-" + c.ID, Data: data})
 		if len(out) == 12 {

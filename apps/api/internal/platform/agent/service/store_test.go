@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 
 func resetAgent(t *testing.T) {
 	t.Helper()
-	for _, tbl := range []string{"agent_run", "agent_message", "agent_conversation"} {
+	for _, tbl := range []string{"agent_run", "agent_message", "agent_conversation", "agent_summary", "agent_memory", "agent_preference", "agent_embedding"} {
 		if err := testDB.Exec("TRUNCATE " + tbl + " RESTART IDENTITY CASCADE").Error; err != nil {
 			t.Fatal(err)
 		}

@@ -1,6 +1,9 @@
 package model
 
 import (
+	"database/sql/driver"
+	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/datatypes"
@@ -45,6 +48,7 @@ type Conversation struct {
 	Starred       bool   `gorm:"not null;default:false"`
 	HeadMessageID *int64
 	PersonaID     *int64
+	ScannedAt     *time.Time
 	CreatedAt     time.Time
 	UpdatedAt     time.Time `gorm:"index:idx_agent_conversation_user,priority:2"`
 }
@@ -152,3 +156,64 @@ type SiteTool struct {
 }
 
 func (SiteTool) TableName() string { return "agent_site_tool" }
+
+type Summary struct {
+	ID             int64  `gorm:"primaryKey"`
+	ConversationID int64  `gorm:"not null;index"`
+	UptoMessageID  int64  `gorm:"not null;uniqueIndex"`
+	Content        string `gorm:"type:text;not null"`
+	CreatedAt      time.Time
+}
+
+func (Summary) TableName() string { return "agent_summary" }
+
+const (
+	MemoryExplicit = "explicit"
+	MemoryAuto     = "auto"
+)
+
+type Memory struct {
+	ID             int64  `gorm:"primaryKey"`
+	UserID         int64  `gorm:"not null;index:idx_agent_memory_user,priority:1"`
+	SiteID         int64  `gorm:"not null;index:idx_agent_memory_user,priority:2"`
+	Content        string `gorm:"size:500;not null"`
+	Origin         string `gorm:"size:16;not null;default:'explicit'"`
+	ConversationID *int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+func (Memory) TableName() string { return "agent_memory" }
+
+type Preference struct {
+	UserID    int64 `gorm:"primaryKey;autoIncrement:false"`
+	SiteID    int64 `gorm:"primaryKey;autoIncrement:false"`
+	Memory    bool  `gorm:"not null;default:true"`
+	History   bool  `gorm:"not null;default:true"`
+	UpdatedAt time.Time
+}
+
+func (Preference) TableName() string { return "agent_preference" }
+
+type Embedding struct {
+	MessageID      int64  `gorm:"primaryKey;autoIncrement:false"`
+	ConversationID int64  `gorm:"not null;index"`
+	UserID         int64  `gorm:"not null;index:idx_agent_embedding_user,priority:1"`
+	SiteID         int64  `gorm:"not null;index:idx_agent_embedding_user,priority:2"`
+	Vector         Vector `gorm:"type:real[];not null"`
+	CreatedAt      time.Time
+}
+
+// GORM expands a plain slice argument into a row constructor ("expression is
+// of type record"), so a vector goes to Postgres as its array literal.
+type Vector []float32
+
+func (v Vector) Value() (driver.Value, error) {
+	parts := make([]string, len(v))
+	for i, x := range v {
+		parts[i] = strconv.FormatFloat(float64(x), 'g', -1, 32)
+	}
+	return "{" + strings.Join(parts, ",") + "}", nil
+}
+
+func (Embedding) TableName() string { return "agent_embedding" }

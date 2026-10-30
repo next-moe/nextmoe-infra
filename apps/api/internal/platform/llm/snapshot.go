@@ -122,7 +122,7 @@ func (s *snapshot) target(scene, model string) (*Scene, *Model, error) {
 	if m == nil {
 		return nil, nil, fmt.Errorf("%w %q", ErrUnknownModel, model)
 	}
-	return &Scene{Key: "model:" + m.Key, ModelID: m.ID, FallbackModelIDs: []byte("[]"), Class: ClassBatch,
+	return &Scene{Key: "model:" + m.Key, ModelID: m.ID, FallbackModelIDs: []byte("[]"), Class: ClassBatch, Reasoning: ReasoningDefault,
 		TTFTMs: 60_000, IdleMs: 60_000, TotalMs: 600_000}, m, nil
 }
 

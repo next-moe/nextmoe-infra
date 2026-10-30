@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,8 +46,21 @@ type Turn struct {
 	History     []model.Message
 	Reservation Reservation
 	SiteName    string
+	SiteTools   bool
+	SiteNotes   []string
 	Uploads     map[string]*model.Upload
 	UserToken   string
+	Web         bool
+	Titles      []PastTitle
+	Summary     *model.Summary
+	Memory      bool
+	Memories    []model.Memory
+	PastChats   bool
+}
+
+type PastTitle struct {
+	Title string
+	At    time.Time
 }
 
 func (r *Runner) Start(t Turn) {
@@ -127,9 +141,10 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	w.Emit(map[string]any{"type": "start", "messageId": strconv.FormatInt(run.AssistantMessageID, 10)})
 	w.Emit(map[string]any{"type": "data-run", "data": map[string]any{"run_id": run.ID, "conversation_id": strconv.FormatInt(run.ConversationID, 10)}})
 
-	reg := r.tools(run.SiteID, t.UserToken)
+	reg := r.tools(run.SiteID, t.UserToken).Add(r.userTools(t)...)
+	t.SiteTools, t.SiteNotes = reg.SiteNotes()
 	var skip []string
-	if !run.WebSearch {
+	if !t.Web {
 		skip = webTools
 	}
 	maxSteps := int(keys.AgentTurnMaxSteps.Get())
@@ -140,6 +155,8 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		scene = llm.SceneVision
 	}
 	var parts []Part
+	var found []foundCards
+	var browses []tools.BrowseLink
 	usedWeb := false
 	fin := Finish{Status: model.RunCompleted}
 	titled := make(chan bool, 1)
@@ -164,6 +181,8 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		}
 		if !last {
 			call.Tools, call.ToolChoice = reg.Specs(skip...), llm.ToolChoiceAuto
+		} else if note := strings.TrimSpace(keys.AgentPromptLastStep.ForSite(uint(run.SiteID))); step > 0 && note != "" {
+			call.Messages = append(slices.Clone(msgs), llm.Message{Role: llm.RoleUser, Content: note})
 		}
 		res, err := r.gw.Stream(ctx, call, st.on)
 		st.close()
@@ -193,16 +212,23 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 			var input any
 			_ = json.Unmarshal([]byte(tc.Arguments), &input)
 			w.Emit(map[string]any{"type": "tool-input-available", "toolCallId": tc.ID, "toolName": tc.Name, "input": input})
-			if contains(webTools, tc.Name) {
-				usedWeb = true
-			}
 			out := trun.Call(ctx, tc.Name, tc.Arguments)
-			summary := map[string]any{"cards": len(out.Cards), "sources": len(out.Sources)}
-			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
-			parts = append(parts, toolPart(tc, input, summary))
-			for _, c := range out.Cards {
-				w.Emit(map[string]any{"type": "data-entity-card", "id": c.ID, "data": c.Data})
-				parts = append(parts, Part{Type: "data-entity-card", ID: c.ID, Data: c.Data})
+			if out.Err != nil {
+				slog.Warn("agent: tool failed", "run", run.ID, "tool", tc.Name, "err", out.Err)
+				errText := toolErrorText(out.Err)
+				w.Emit(map[string]any{"type": "tool-output-error", "toolCallId": tc.ID, "errorText": errText})
+				parts = append(parts, toolPart(tc, input, nil, errText))
+			} else {
+				if contains(webTools, tc.Name) {
+					usedWeb = true
+				}
+				summary := stepOutput(out)
+				w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
+				parts = append(parts, toolPart(tc, input, summary, ""))
+			}
+			found = append(found, foundCards{cards: out.Cards, lookup: isLookup(tc.Name)})
+			if out.Browse != nil && out.Browse.Total > 0 {
+				browses = append(browses, *out.Browse)
 			}
 			for _, s := range out.Sources {
 				w.Emit(map[string]any{"type": "source-url", "sourceId": s.URL, "url": s.URL, "title": s.Title})
@@ -213,12 +239,22 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 		w.Emit(map[string]any{"type": "finish-step"})
 	}
 
+	for _, c := range pickCards(found, answerText(parts)) {
+		w.Emit(map[string]any{"type": "data-entity-card", "id": c.ID, "data": c.Data})
+		parts = append(parts, Part{Type: "data-entity-card", ID: c.ID, Data: c.Data})
+	}
+	if fin.Status == model.RunCompleted {
+		for _, b := range browseLinks(browses) {
+			w.Emit(map[string]any{"type": "data-browse", "id": b.ID, "data": b.Data})
+			parts = append(parts, Part{Type: "data-browse", ID: b.ID, Data: b.Data})
+		}
+	}
 	fin.Parts = dedupeCards(parts)
 	settleCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if fin.Status == model.RunCompleted {
 		price := t.Reservation.Price
-		if run.WebSearch && !usedWeb {
+		if t.Web && !usedWeb {
 			price = max(price-int(keys.AgentPriceWebSurcharge.Get()), 0)
 		}
 		s := r.quota.Settle(settleCtx, run.UserID, t.Reservation, price, run.ID, run.Mode)
@@ -237,19 +273,57 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 	}
 	if err := r.store.FinishRun(settleCtx, run, fin); err != nil {
 		slog.Error("agent: persist finished run", "run", run.ID, "err", err)
+	} else if fin.Status == model.RunCompleted && keys.AgentContextSummary.Get() {
+		r.wg.Add(1)
+		go func() {
+			defer r.wg.Done()
+			r.compact(t, fin.Parts)
+		}()
 	}
 	if ok := <-titled; !ok && fin.Status == model.RunCompleted {
 		r.titleConversation(t, nil)
 	}
 }
 
-func toolPart(tc llm.ToolCall, input any, summary map[string]any) Part {
+const maxStepEntities = 12
+
+func stepOutput(out tools.Output) map[string]any {
+	entities := make([]json.RawMessage, 0, min(len(out.Cards), maxStepEntities))
+	for _, c := range out.Cards {
+		if len(entities) == maxStepEntities {
+			break
+		}
+		entities = append(entities, c.Data)
+	}
+	links := make([]tools.Source, 0, len(out.Sources))
+	links = append(links, out.Sources...)
+	m := map[string]any{"cards": len(out.Cards), "sources": len(out.Sources), "entities": entities, "links": links}
+	if out.Total > 0 {
+		m["total"] = out.Total
+	}
+	if len(out.Meta) > 0 {
+		m["meta"] = out.Meta
+	}
+	return m
+}
+
+func toolPart(tc llm.ToolCall, input any, summary map[string]any, errText string) Part {
 	in, err := json.Marshal(input)
 	if err != nil || input == nil {
 		in, _ = json.Marshal(tc.Arguments)
 	}
+	if errText != "" {
+		return Part{Type: "tool-" + tc.Name, ToolCallID: tc.ID, State: "output-error", Input: in, ErrorText: errText}
+	}
 	out, _ := json.Marshal(summary)
 	return Part{Type: "tool-" + tc.Name, ToolCallID: tc.ID, State: "output-available", Input: in, Output: out}
+}
+
+func toolErrorText(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "查询超时"
+	}
+	return "暂时无法使用"
 }
 
 func userFacingError(kind string) string {
@@ -306,7 +380,7 @@ func (r *Runner) titleConversation(t Turn, w *stream.Writer) bool {
 	res, err := r.gw.Stream(ctx, llm.Call{
 		Scene: llm.SceneTitle, Buffered: true, MaxTokens: 512, Site: t.SiteName, UserID: t.Run.UserID,
 		Messages: []llm.Message{
-			{Role: llm.RoleSystem, Content: "用不超过 16 个字概括用户这个问题的主题，作为标题。不要回答问题，不要写出任何答案、数字或结论。只输出标题本身，不要引号、不要句号。"},
+			{Role: llm.RoleSystem, Content: keys.AgentPromptTitle.ForSite(uint(t.Run.SiteID))},
 			{Role: llm.RoleUser, Content: content + "\n/no_think"},
 		},
 	}, nil)

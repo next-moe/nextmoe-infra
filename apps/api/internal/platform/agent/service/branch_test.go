@@ -91,8 +91,8 @@ func TestRegenerateEditSwitchStarAndFeedback(t *testing.T) {
 	}
 	other, _ := s.CreateConversation(ctx, 7, 14, model.ModeAssistant, nil)
 	yes, no := true, false
-	starred, _ := s.ListConversations(ctx, 7, 14, &yes, time.Time{}, 0, 10)
-	plain, _ := s.ListConversations(ctx, 7, 14, &no, time.Time{}, 0, 10)
+	starred, _ := s.ListConversations(ctx, 7, 14, &yes, "", time.Time{}, 0, 10)
+	plain, _ := s.ListConversations(ctx, 7, 14, &no, "", time.Time{}, 0, 10)
 	if len(starred) != 1 || starred[0].ID != c.ID || len(plain) != 1 || plain[0].ID != other.ID {
 		t.Fatalf("starred filter: starred=%v plain=%v", starred, plain)
 	}

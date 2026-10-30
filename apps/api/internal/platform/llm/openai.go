@@ -41,7 +41,7 @@ type attemptOutcome struct {
 	firstByte time.Duration
 }
 
-func chatRequestBody(c Call, upstream string, temperature *float64, maxTokens int) ([]byte, error) {
+func chatRequestBody(c Call, upstream string, temperature *float64, maxTokens int, reasoning map[string]any) ([]byte, error) {
 	type fn struct {
 		Name      string `json:"name"`
 		Arguments string `json:"arguments"`
@@ -98,6 +98,9 @@ func chatRequestBody(c Call, upstream string, temperature *float64, maxTokens in
 	}
 	if c.JSON {
 		body["response_format"] = map[string]any{"type": "json_object"}
+	}
+	for k, v := range reasoning {
+		body[k] = v
 	}
 	for k, v := range c.Extra {
 		if !reservedBodyKeys[k] {

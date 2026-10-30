@@ -77,20 +77,21 @@ func (m *Model) kind() string {
 }
 
 type Route struct {
-	ID             int64  `gorm:"primaryKey"`
-	ModelID        int64  `gorm:"not null;uniqueIndex:uq_llm_route,priority:1"`
-	ProviderID     int64  `gorm:"not null;uniqueIndex:uq_llm_route,priority:2"`
-	UpstreamID     string `gorm:"size:128;not null;uniqueIndex:uq_llm_route,priority:3"`
-	Protocol       string `gorm:"size:16;not null;default:'chat'"`
-	Priority       int    `gorm:"not null;default:0"`
-	Weight         int    `gorm:"not null;default:100"`
-	Status         string `gorm:"size:16;not null;default:'active'"`
-	StatusReason   string `gorm:"size:255;not null;default:''"`
-	MaxConcurrency int    `gorm:"not null;default:0"`
-	RPM            int    `gorm:"column:rpm;not null;default:0"`
-	PriceID        *int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID              int64  `gorm:"primaryKey"`
+	ModelID         int64  `gorm:"not null;uniqueIndex:uq_llm_route,priority:1"`
+	ProviderID      int64  `gorm:"not null;uniqueIndex:uq_llm_route,priority:2"`
+	UpstreamID      string `gorm:"size:128;not null;uniqueIndex:uq_llm_route,priority:3"`
+	Protocol        string `gorm:"size:16;not null;default:'chat'"`
+	Priority        int    `gorm:"not null;default:0"`
+	Weight          int    `gorm:"not null;default:100"`
+	Status          string `gorm:"size:16;not null;default:'active'"`
+	StatusReason    string `gorm:"size:255;not null;default:''"`
+	MaxConcurrency  int    `gorm:"not null;default:0"`
+	RPM             int    `gorm:"column:rpm;not null;default:0"`
+	ThinkingControl string `gorm:"size:16;not null;default:'auto'"`
+	PriceID         *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func (Route) TableName() string { return "llm_route" }
@@ -152,6 +153,7 @@ type Scene struct {
 	ContextFallback  datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
 	ContentFallback  datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
 	Strategy         string         `gorm:"size:16;not null;default:'weighted'"`
+	Reasoning        string         `gorm:"size:8;not null;default:'off'"`
 	DailyBudgetMicro int64          `gorm:"not null;default:0"`
 	Class            string         `gorm:"size:16;not null;default:'interactive'"`
 	Temperature      *float64

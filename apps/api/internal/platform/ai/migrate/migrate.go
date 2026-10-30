@@ -47,6 +47,13 @@ func Run(db *gorm.DB) error {
 	// (0 for in-process callers; older rows read as 0), llm_event.actor, and
 	// llm_usage_hourly, which the ai service fills from llm_attempt every ten
 	// minutes; raw attempts older than 30 days are then pruned. Additive.
+	//
+	// Same day, thinking: llm_scene.reasoning (default 'off') and
+	// llm_route.thinking_control (default 'auto'). The column default fills
+	// every existing scene with 'off' on purpose: reasoning models in configured
+	// scenes stop thinking (or think at their lowest effort) until ren raises
+	// the level, which is the behaviour asked for. Direct /v1 calls by model
+	// name are not scenes and keep the model's own default.
 	if err := db.AutoMigrate(llm.Tables()...); err != nil {
 		return fmt.Errorf("llm gateway automigrate: %w", err)
 	}

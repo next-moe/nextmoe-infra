@@ -42,6 +42,7 @@ type ConfigRoute struct {
 	Status      string `json:"status"`
 	MaxInFlight int    `json:"max_in_flight"`
 	RPM         int    `json:"rpm"`
+	Thinking    string `json:"thinking_control,omitempty"`
 	Price       *Price `json:"price"`
 }
 
@@ -52,6 +53,7 @@ type ConfigScene struct {
 	ContextFallback  []string `json:"context_fallback"`
 	ContentFallback  []string `json:"content_fallback"`
 	Strategy         string   `json:"strategy"`
+	Reasoning        string   `json:"reasoning,omitempty"`
 	DailyBudgetMicro int64    `json:"daily_budget_micro"`
 	Class            string   `json:"class"`
 	Temperature      *float64 `json:"temperature"`
@@ -132,7 +134,7 @@ func (a *Admin) ExportConfig(ctx context.Context) (GatewayConfig, error) {
 	}
 	for _, r := range routes {
 		cr := ConfigRoute{Model: mKey[r.ModelID], Provider: pName[r.ProviderID], UpstreamID: r.UpstreamID, Priority: r.Priority,
-			Weight: r.Weight, Status: r.Status, MaxInFlight: r.MaxConcurrency, RPM: r.RPM}
+			Weight: r.Weight, Status: r.Status, MaxInFlight: r.MaxConcurrency, RPM: r.RPM, Thinking: thinkingControl(r)}
 		if r.PriceID != nil && price[*r.PriceID] != nil {
 			p := price[*r.PriceID]
 			cr.Price = &Price{InputMicro: p.InputMicro, CachedMicro: p.CachedMicro, OutputMicro: p.OutputMicro, PerCallMicro: p.PerCallMicro}
@@ -141,7 +143,7 @@ func (a *Admin) ExportConfig(ctx context.Context) (GatewayConfig, error) {
 	}
 	for _, s := range scenes {
 		cfg.Scenes = append(cfg.Scenes, ConfigScene{Key: s.Key, Model: mKey[s.ModelID], Fallbacks: keysOf(s.FallbackModelIDs),
-			ContextFallback: keysOf(s.ContextFallback), ContentFallback: keysOf(s.ContentFallback), Strategy: s.Strategy,
+			ContextFallback: keysOf(s.ContextFallback), ContentFallback: keysOf(s.ContentFallback), Strategy: s.Strategy, Reasoning: reasoningOrOff(s.Reasoning),
 			DailyBudgetMicro: s.DailyBudgetMicro, Class: s.Class, Temperature: s.Temperature, MaxOutput: s.MaxOutput,
 			TTFTMs: s.TTFTMs, IdleMs: s.IdleMs, TotalMs: s.TotalMs})
 	}
@@ -266,7 +268,7 @@ func (a *Admin) ImportConfig(ctx context.Context, cfg GatewayConfig, apply bool)
 					return err
 				}
 				cur = Route{ModelID: mid, ProviderID: pid, UpstreamID: cr.UpstreamID, Protocol: protocolFor(m.Kind), Priority: cr.Priority,
-					Weight: max(cr.Weight, 1), Status: cr.Status, MaxConcurrency: cr.MaxInFlight, RPM: cr.RPM}
+					Weight: max(cr.Weight, 1), Status: cr.Status, MaxConcurrency: cr.MaxInFlight, RPM: cr.RPM, ThinkingControl: thinkingOrAuto(cr.Thinking)}
 				if cur.Status == "" {
 					cur.Status = RouteActive
 				}
@@ -277,9 +279,10 @@ func (a *Admin) ImportConfig(ctx context.Context, cfg GatewayConfig, apply bool)
 			case err != nil:
 				return err
 			default:
-				if cur.Priority != cr.Priority || cur.Weight != cr.Weight || cur.Status != cr.Status || cur.MaxConcurrency != cr.MaxInFlight || cur.RPM != cr.RPM {
+				if cur.Priority != cr.Priority || cur.Weight != cr.Weight || cur.Status != cr.Status || cur.MaxConcurrency != cr.MaxInFlight || cur.RPM != cr.RPM ||
+					thinkingControl(cur) != thinkingOrAuto(cr.Thinking) {
 					if err := tx.Model(&cur).Updates(map[string]any{"priority": cr.Priority, "weight": max(cr.Weight, 1), "status": cr.Status,
-						"max_concurrency": cr.MaxInFlight, "rpm": cr.RPM}).Error; err != nil {
+						"max_concurrency": cr.MaxInFlight, "rpm": cr.RPM, "thinking_control": thinkingOrAuto(cr.Thinking)}).Error; err != nil {
 						return err
 					}
 					action = "update"
@@ -328,7 +331,7 @@ func (a *Admin) ImportConfig(ctx context.Context, cfg GatewayConfig, apply bool)
 			exists := tx.Where("key = ?", cs.Key).Take(&cur).Error == nil
 			raw := func(v []int64) datatypes.JSON { b, _ := json.Marshal(v); return b }
 			want := Scene{Key: cs.Key, ModelID: mID[cs.Model], FallbackModelIDs: raw(fb), ContextFallback: raw(cf), ContentFallback: raw(nf),
-				Strategy: cs.Strategy, DailyBudgetMicro: cs.DailyBudgetMicro, Class: cs.Class, Temperature: cs.Temperature,
+				Strategy: cs.Strategy, Reasoning: reasoningOrOff(cs.Reasoning), DailyBudgetMicro: cs.DailyBudgetMicro, Class: cs.Class, Temperature: cs.Temperature,
 				MaxOutput: cs.MaxOutput, TTFTMs: cs.TTFTMs, IdleMs: cs.IdleMs, TotalMs: cs.TotalMs}
 			if exists {
 				want.UpdatedAt = cur.UpdatedAt
@@ -391,9 +394,17 @@ func jsonEqual(a, b []byte) bool {
 	return reflect.DeepEqual(x, y)
 }
 
+func thinkingOrAuto(c string) string {
+	switch c {
+	case ThinkingNone, ThinkingEffort, ThinkingEffortNone, ThinkingTemplate, ThinkingToggle:
+		return c
+	}
+	return ThinkingAuto
+}
+
 func sceneEqual(a, b Scene) bool {
 	return a.ModelID == b.ModelID && jsonEqual(a.FallbackModelIDs, b.FallbackModelIDs) && jsonEqual(a.ContextFallback, b.ContextFallback) &&
-		jsonEqual(a.ContentFallback, b.ContentFallback) && a.Strategy == b.Strategy && a.DailyBudgetMicro == b.DailyBudgetMicro &&
+		jsonEqual(a.ContentFallback, b.ContentFallback) && a.Strategy == b.Strategy && reasoningOrOff(a.Reasoning) == reasoningOrOff(b.Reasoning) && a.DailyBudgetMicro == b.DailyBudgetMicro &&
 		a.Class == b.Class && reflect.DeepEqual(a.Temperature, b.Temperature) && a.MaxOutput == b.MaxOutput &&
 		a.TTFTMs == b.TTFTMs && a.IdleMs == b.IdleMs && a.TotalMs == b.TotalMs
 }

@@ -38,6 +38,7 @@ type KeyView struct {
 	Min        *float64      `json:"min,omitempty"`
 	Max        *float64      `json:"max,omitempty"`
 	Pattern    string        `json:"pattern,omitempty"`
+	Multiline  bool          `json:"multiline,omitempty" doc:"A long text such as a prompt; edit it in a text area."`
 	SiteScoped bool          `json:"site_scoped"`
 	Public     bool          `json:"public"`
 	Effective  any           `json:"effective"`
@@ -261,6 +262,7 @@ func keyView(e Entry, row *OverrideRow) KeyView {
 		Min:        m.Min,
 		Max:        m.Max,
 		Pattern:    m.Pattern,
+		Multiline:  m.Multiline,
 		SiteScoped: m.SiteScoped,
 		Public:     m.Public,
 		Effective:  e.Default(),

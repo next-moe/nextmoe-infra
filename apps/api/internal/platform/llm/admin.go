@@ -353,6 +353,8 @@ type RouteView struct {
 	StatusReason string     `json:"status_reason"`
 	MaxInFlight  int        `json:"max_in_flight" doc:"Concurrent calls this route may carry across all gateway processes; 0 is unlimited."`
 	RPM          int        `json:"rpm" doc:"Calls per minute across all gateway processes; 0 is unlimited."`
+	Thinking     string     `json:"thinking_control" enum:"auto,none,effort,effort_none,template,thinking" doc:"How a scene's reasoning level reaches this upstream: reasoning_effort (effort: off sends low; effort_none: off sends none), chat_template_kwargs.enable_thinking (template), thinking.type (thinking), nothing (none), or auto, guessed from the upstream id."`
+	ThinkingUsed string     `json:"thinking_effective" enum:"none,effort,effort_none,template,thinking" doc:"What auto resolves to for this upstream."`
 	Price        *Price     `json:"price"`
 	Stats24h     RouteStats `json:"stats_24h"`
 }
@@ -366,6 +368,7 @@ type RouteInput struct {
 	Status      *string `json:"status,omitempty" enum:"active,disabled"`
 	MaxInFlight *int    `json:"max_in_flight,omitempty" minimum:"0" maximum:"10000"`
 	RPM         *int    `json:"rpm,omitempty" minimum:"0" maximum:"1000000"`
+	Thinking    *string `json:"thinking_control,omitempty" enum:"auto,none,effort,effort_none,template,thinking"`
 	Price       *Price  `json:"price,omitempty"`
 }
 
@@ -402,6 +405,7 @@ func (a *Admin) Routes(ctx context.Context) ([]RouteView, error) {
 	out := make([]RouteView, len(rows))
 	for i, r := range rows {
 		out[i] = RouteView{ID: r.ID, ModelID: r.ModelID, ProviderID: r.ProviderID, UpstreamID: r.UpstreamID, Protocol: r.Protocol, MaxInFlight: r.MaxConcurrency, RPM: r.RPM, Priority: r.Priority,
+			Thinking: thinkingControl(r), ThinkingUsed: thinkingStyle(&r),
 			Weight: r.Weight, Status: r.Status, StatusReason: r.StatusReason, Stats24h: byRoute[r.ID]}
 		if r.PriceID != nil {
 			if p, ok := byPrice[*r.PriceID]; ok {
@@ -462,6 +466,9 @@ func (a *Admin) saveRoute(ctx context.Context, r *Route, in RouteInput, creating
 		}
 		if in.RPM != nil {
 			r.RPM = *in.RPM
+		}
+		if in.Thinking != nil {
+			r.ThinkingControl = *in.Thinking
 		}
 		if in.Status != nil {
 			r.Status, r.StatusReason = *in.Status, ""
@@ -550,6 +557,7 @@ type SceneView struct {
 	ContextFallback  []int64   `json:"context_fallback_model_ids" nullable:"false" doc:"Tried after a model rejects the input as too long."`
 	ContentFallback  []int64   `json:"content_fallback_model_ids" nullable:"false" doc:"Tried after a model's content filter refuses the request, before anything streamed."`
 	Strategy         string    `json:"strategy" enum:"weighted,least_busy,latency,cost"`
+	Reasoning        string    `json:"reasoning" enum:"off,low,medium,high,default"`
 	DailyBudgetMicro int64     `json:"daily_budget_micro" doc:"Micro-USD calls through this scene may spend per day (China Standard Time); 0 is unlimited."`
 	SpentTodayNano   int64     `json:"spent_today_nano"`
 	Ready            bool      `json:"ready" doc:"Whether any model of the main chain has an active route right now."`
@@ -568,6 +576,7 @@ type SceneInput struct {
 	ContextFallback  []int64  `json:"context_fallback_model_ids,omitempty" maxItems:"4"`
 	ContentFallback  []int64  `json:"content_fallback_model_ids,omitempty" maxItems:"4"`
 	DailyBudgetMicro int64    `json:"daily_budget_micro,omitempty" minimum:"0"`
+	Reasoning        string   `json:"reasoning,omitempty" enum:"off,low,medium,high,default" doc:"How hard reasoning models think in this scene; empty is off. off turns thinking off where the upstream allows it and asks for the lowest effort where it does not; default sends nothing and leaves the model's own default. Each route's thinking_control decides the parameter."`
 	Strategy         string   `json:"strategy,omitempty" enum:"weighted,least_busy,latency,cost" doc:"How routes of one priority tier are ordered: weighted keeps a conversation on one route (rendezvous on its key), least_busy prefers fewer calls in flight in this process, latency the lowest recent first-byte time (with a tenth of calls exploring), cost the cheapest price."`
 	Class            string   `json:"class" enum:"interactive,search,batch,moderation"`
 	Temperature      *float64 `json:"temperature" minimum:"0" maximum:"2" nullable:"true"`
@@ -586,7 +595,7 @@ func sceneView(s Scene) SceneView {
 	if strategy == "" {
 		strategy = StrategyWeighted
 	}
-	return SceneView{Key: s.Key, ModelID: s.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, DailyBudgetMicro: s.DailyBudgetMicro, Class: s.Class, Temperature: s.Temperature,
+	return SceneView{Key: s.Key, ModelID: s.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, Reasoning: reasoningOrOff(s.Reasoning), DailyBudgetMicro: s.DailyBudgetMicro, Class: s.Class, Temperature: s.Temperature,
 		MaxOutput: s.MaxOutput, TTFTMs: s.TTFTMs, IdleMs: s.IdleMs, TotalMs: s.TotalMs, UpdatedAt: s.UpdatedAt}
 }
 
@@ -649,7 +658,7 @@ func (a *Admin) PutScene(ctx context.Context, key string, in SceneInput) (SceneV
 	if strategy == "" {
 		strategy = StrategyWeighted
 	}
-	s := Scene{Key: key, ModelID: in.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, DailyBudgetMicro: in.DailyBudgetMicro, Class: in.Class, Temperature: in.Temperature,
+	s := Scene{Key: key, ModelID: in.ModelID, FallbackModelIDs: fb, ContextFallback: cf, ContentFallback: nf, Strategy: strategy, Reasoning: reasoningOrOff(in.Reasoning), DailyBudgetMicro: in.DailyBudgetMicro, Class: in.Class, Temperature: in.Temperature,
 		MaxOutput: in.MaxOutput, TTFTMs: in.TTFTMs, IdleMs: in.IdleMs, TotalMs: in.TotalMs, UpdatedAt: a.now()}
 	if s.Class == "" {
 		s.Class = ClassInteractive
@@ -669,6 +678,16 @@ func (a *Admin) PutScene(ctx context.Context, key string, in SceneInput) (SceneV
 	a.changed(ctx, "scene_saved", key, 0, 0)
 	return sceneView(s), nil
 }
+
+func reasoningOrOff(level string) string {
+	switch level {
+	case ReasoningLow, ReasoningMedium, ReasoningHigh, ReasoningDefault:
+		return level
+	}
+	return ReasoningOff
+}
+
+func thinkingControl(r Route) string { return thinkingOrAuto(r.ThinkingControl) }
 
 func nonNil(ids []int64) []int64 {
 	if ids == nil {

@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -84,6 +85,16 @@ func TestWebSearchRunsAtMostTwicePerAnswerAndCapsSources(t *testing.T) {
 	third := run.Call(context.Background(), "web_search", `{"query":"c"}`)
 	if calls != 2 || !strings.Contains(third.Text, "only 2 times") {
 		t.Fatalf("a third distinct search must be refused without calling out: calls=%d text=%q", calls, third.Text)
+	}
+}
+
+func TestAFailedSearchKeepsItsError(t *testing.T) {
+	ws := &WebSearch{Search: func(context.Context, string, string) (llm.SearchResult, error) {
+		return llm.SearchResult{}, errors.New("llm upstream (http 503)")
+	}}
+	out := NewRegistry(ws).NewRun(10).Call(context.Background(), "web_search", `{"query":"a"}`)
+	if out.Err == nil || !strings.Contains(out.Text, "503") || len(out.Sources) != 0 {
+		t.Fatalf("the runner must see the failure, the model its message: err=%v text=%q", out.Err, out.Text)
 	}
 }
 

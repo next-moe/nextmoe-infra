@@ -111,12 +111,13 @@ func main() {
 	}
 	webSearch := &tools.WebSearch{Search: func(ctx context.Context, query, instructions string) (llm.SearchResult, error) {
 		return gw.WebSearch(ctx, llm.SceneWebSearch, query, instructions, "agent", 0)
-	}}
+	}, Instructions: keys.AgentPromptWebSearch.Get}
 	readURL := &tools.ReadURL{HTTP: public}
 	siteTools := service.NewSiteTools(agentDB.DB(), &http.Client{Timeout: 30 * time.Second})
 	toolsFor := func(siteID int64, userToken string) *tools.Registry {
 		cat := catalogFor(siteID)
-		set := []tools.Tool{&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat}}
+		set := []tools.Tool{&tools.SearchCatalog{Client: cat}, &tools.GetWork{Client: cat}, &tools.SearchEntities{Client: cat}, &tools.GetEntity{Client: cat},
+			&tools.SearchTags{Client: cat}, &tools.BrowseWorks{Client: cat}, &tools.BrowseCharacters{Client: cat}}
 		if webReady() {
 			set = append(set, webSearch, readURL)
 		}
@@ -125,6 +126,7 @@ func main() {
 	}
 	broker := stream.NewBroker()
 	runner := service.NewRunner(store, gw, broker, quota, toolsFor)
+	go service.NewIndexer(store, gw).Run(ctx)
 
 	powVerifier, err := agentHandler.NewPowVerifier(cfg.LLM.PowKeys, rdb)
 	if err != nil {

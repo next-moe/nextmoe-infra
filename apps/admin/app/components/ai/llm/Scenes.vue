@@ -2,6 +2,7 @@
 import {
   LLM_API,
   LLM_SCENE_CLASS_META,
+  LLM_SCENE_REASONING_META,
   LLM_SCENE_STRATEGY_META
 } from '~/constants/llm'
 import type { LlmModel, LlmScene } from '~~/shared/types/llm'
@@ -147,6 +148,9 @@ const remove = async (s: LlmScene) => {
               <p>{{ LLM_SCENE_CLASS_META[s.class] ?? s.class }}</p>
               <p class="text-default-500 text-xs">
                 {{ LLM_SCENE_STRATEGY_META[s.strategy]?.label ?? s.strategy }}
+                · 思考{{
+                  LLM_SCENE_REASONING_META[s.reasoning]?.label ?? s.reasoning
+                }}
               </p>
             </td>
             <td class="px-3 py-2">

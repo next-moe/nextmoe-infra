@@ -14,6 +14,8 @@ import type {
   LlmScenePutRequest,
   LlmSceneClass,
   LlmSceneStrategy,
+  LlmSceneReasoning,
+  LlmThinkingControl,
   LlmUsageDays,
   LlmUsageGroup
 } from '~~/shared/types/llm'
@@ -158,6 +160,64 @@ export const LLM_SCENE_STRATEGY_OPTIONS = (
   Object.keys(LLM_SCENE_STRATEGY_META) as LlmSceneStrategy[]
 ).map((value) => ({ value, label: LLM_SCENE_STRATEGY_META[value].option }))
 
+export const LLM_SCENE_REASONING_META: Record<
+  LlmSceneReasoning,
+  { label: string; hint: string }
+> = {
+  off: {
+    label: '关闭',
+    hint: '能关掉思考的上游直接关掉，不能关的用最低档；最快、最省'
+  },
+  low: { label: '低', hint: '简单推理，适合大多数对话' },
+  medium: { label: '中', hint: '' },
+  high: { label: '高', hint: '最慢、输出 token 最多' },
+  default: {
+    label: '模型默认',
+    hint: '什么参数都不发，由模型自己决定（不少推理模型默认想得很久）'
+  }
+}
+
+export const LLM_SCENE_REASONING_OPTIONS = (
+  Object.keys(LLM_SCENE_REASONING_META) as LlmSceneReasoning[]
+).map((value) => ({ value, label: LLM_SCENE_REASONING_META[value].label }))
+
+export const LLM_THINKING_CONTROL_META: Record<
+  LlmThinkingControl,
+  { label: string; hint: string }
+> = {
+  auto: { label: '自动', hint: '按上游 id 推断' },
+  effort: {
+    label: 'reasoning_effort（关闭时发 low）',
+    hint: 'grok、OpenAI 等；上游不接受 none 时用它'
+  },
+  effort_none: {
+    label: 'reasoning_effort（关闭时发 none）',
+    hint: 'Workers AI 上的 qwen3、glm、deepseek'
+  },
+  template: {
+    label: 'chat_template_kwargs.enable_thinking',
+    hint: 'vLLM / SGLang 部署的 qwen3 等'
+  },
+  thinking: {
+    label: 'thinking.type',
+    hint: 'DeepSeek、智谱、Kimi 官方接口'
+  },
+  none: { label: '不控制', hint: '不是推理模型，或上游不支持' }
+}
+
+export const LLM_THINKING_SHORT: Record<LlmThinkingControl, string> = {
+  auto: '自动',
+  effort: 'effort',
+  effort_none: 'effort / none',
+  template: 'enable_thinking',
+  thinking: 'thinking.type',
+  none: '不控制'
+}
+
+export const LLM_THINKING_CONTROL_OPTIONS = (
+  Object.keys(LLM_THINKING_CONTROL_META) as LlmThinkingControl[]
+).map((value) => ({ value, label: LLM_THINKING_CONTROL_META[value].label }))
+
 export const LLM_SCENE_CHAINS: {
   key: LlmSceneChainKey
   label: string
@@ -186,6 +246,7 @@ export const LLM_SCENE_DEFAULTS: LlmScenePutRequest = {
   context_fallback_model_ids: [],
   content_fallback_model_ids: [],
   strategy: 'weighted',
+  reasoning: 'off',
   daily_budget_micro: 0,
   class: 'interactive',
   temperature: null,

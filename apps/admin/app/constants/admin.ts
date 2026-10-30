@@ -50,6 +50,12 @@ export const SIDEBAR_MENU: SidebarItem[] = [
     adminOnly: true
   },
   {
+    icon: 'lucide:user-round-pen',
+    label: 'AI 助手 · 人设',
+    to: '/ai/agent-personas',
+    adminOnly: true
+  },
+  {
     icon: 'lucide:heart-pulse',
     label: '应用监测',
     renOnly: true,

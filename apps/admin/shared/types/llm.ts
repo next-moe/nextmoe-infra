@@ -33,6 +33,8 @@ export type LlmRouteTestResult = Schemas['ProbeResult']
 export type LlmScene = Schemas['SceneView']
 export type LlmSceneClass = LlmScene['class']
 export type LlmSceneStrategy = LlmScene['strategy']
+export type LlmSceneReasoning = LlmScene['reasoning']
+export type LlmThinkingControl = LlmRoute['thinking_control']
 export type LlmScenePutRequest = Required<
   Omit<Schemas['SceneInput'], '$schema'>
 > & {
