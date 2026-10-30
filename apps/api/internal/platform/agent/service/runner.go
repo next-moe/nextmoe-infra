@@ -212,13 +212,20 @@ func (r *Runner) execute(ctx context.Context, t Turn, w *stream.Writer) {
 			var input any
 			_ = json.Unmarshal([]byte(tc.Arguments), &input)
 			w.Emit(map[string]any{"type": "tool-input-available", "toolCallId": tc.ID, "toolName": tc.Name, "input": input})
-			if contains(webTools, tc.Name) {
-				usedWeb = true
-			}
 			out := trun.Call(ctx, tc.Name, tc.Arguments)
-			summary := stepOutput(out)
-			w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
-			parts = append(parts, toolPart(tc, input, summary))
+			if out.Err != nil {
+				slog.Warn("agent: tool failed", "run", run.ID, "tool", tc.Name, "err", out.Err)
+				errText := toolErrorText(out.Err)
+				w.Emit(map[string]any{"type": "tool-output-error", "toolCallId": tc.ID, "errorText": errText})
+				parts = append(parts, toolPart(tc, input, nil, errText))
+			} else {
+				if contains(webTools, tc.Name) {
+					usedWeb = true
+				}
+				summary := stepOutput(out)
+				w.Emit(map[string]any{"type": "tool-output-available", "toolCallId": tc.ID, "output": summary})
+				parts = append(parts, toolPart(tc, input, summary, ""))
+			}
 			found = append(found, foundCards{cards: out.Cards, lookup: isLookup(tc.Name)})
 			if out.Browse != nil && out.Browse.Total > 0 {
 				browses = append(browses, *out.Browse)
@@ -300,13 +307,23 @@ func stepOutput(out tools.Output) map[string]any {
 	return m
 }
 
-func toolPart(tc llm.ToolCall, input any, summary map[string]any) Part {
+func toolPart(tc llm.ToolCall, input any, summary map[string]any, errText string) Part {
 	in, err := json.Marshal(input)
 	if err != nil || input == nil {
 		in, _ = json.Marshal(tc.Arguments)
 	}
+	if errText != "" {
+		return Part{Type: "tool-" + tc.Name, ToolCallID: tc.ID, State: "output-error", Input: in, ErrorText: errText}
+	}
 	out, _ := json.Marshal(summary)
 	return Part{Type: "tool-" + tc.Name, ToolCallID: tc.ID, State: "output-available", Input: in, Output: out}
+}
+
+func toolErrorText(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "查询超时"
+	}
+	return "暂时无法使用"
 }
 
 func userFacingError(kind string) string {

@@ -296,6 +296,8 @@ components:
       additionalProperties: false
       properties:
         data: {}
+        errorText:
+          type: string
         filename:
           type: string
         id:

@@ -1,12 +1,16 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"api/internal/platform/agent/model"
+	"api/internal/platform/llm"
 	"api/internal/platform/settings"
 	"api/internal/platform/settings/keys"
 )
@@ -74,6 +78,17 @@ func TestShownCardsRideOnTheNextQuestion(t *testing.T) {
 	}
 	if got := messageText(history[1], nil); got != "推荐《心跳文学部》。\n[本轮展示的卡片：心跳文学部(letmoe:game id 148)]" {
 		t.Fatalf("summaries and past-conversation reads keep the card note: %q", got)
+	}
+}
+
+func TestAFailedStepIsStoredAsAnError(t *testing.T) {
+	p := toolPart(llm.ToolCall{ID: "c1", Name: "web_search"}, map[string]any{"query": "今年的动画"}, nil, toolErrorText(errors.New("llm upstream (http 503)")))
+	raw, _ := json.Marshal(p)
+	if string(raw) != `{"type":"tool-web_search","toolCallId":"c1","state":"output-error","input":{"query":"今年的动画"},"errorText":"暂时无法使用"}` {
+		t.Fatalf("a failed step is an AI SDK output-error part, without the upstream's message: %s", raw)
+	}
+	if toolErrorText(fmt.Errorf("wrapped: %w", context.DeadlineExceeded)) != "查询超时" {
+		t.Fatal("a timeout says so")
 	}
 }
 

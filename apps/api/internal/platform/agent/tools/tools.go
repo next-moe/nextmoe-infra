@@ -35,6 +35,7 @@ type Output struct {
 	Total   int
 	Meta    map[string]any
 	Browse  *BrowseLink
+	Err     error
 }
 
 type BrowseLink struct {
@@ -174,7 +175,7 @@ func (r *Run) Call(ctx context.Context, name, rawArgs string) Output {
 		if errors.Is(err, context.DeadlineExceeded) {
 			msg = "tool timed out"
 		}
-		out = Output{Text: fmt.Sprintf(`{"error":%q}`, msg)}
+		out = Output{Text: fmt.Sprintf(`{"error":%q}`, msg), Err: err}
 	}
 	out.Text = clip(out.Text, modelOutputCap)
 	r.mu.Lock()

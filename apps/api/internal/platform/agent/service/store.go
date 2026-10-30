@@ -41,6 +41,7 @@ type Part struct {
 	State      string          `json:"state,omitempty"`
 	Input      json.RawMessage `json:"input,omitempty"`
 	Output     json.RawMessage `json:"output,omitempty"`
+	ErrorText  string          `json:"errorText,omitempty"`
 }
 
 type Store struct {

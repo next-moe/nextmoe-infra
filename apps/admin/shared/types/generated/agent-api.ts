@@ -562,6 +562,7 @@ export interface components {
         };
         Part: {
             data?: unknown;
+            errorText?: string;
             filename?: string;
             id?: string;
             input?: unknown;
