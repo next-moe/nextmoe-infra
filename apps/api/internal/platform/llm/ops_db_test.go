@@ -83,7 +83,8 @@ func TestBudgetsStopSpendAndRaiseAlerts(t *testing.T) {
 	if rolled != 2 {
 		t.Fatalf("the two calls from two hours ago are rolled up, the current hour is not: %d", rolled)
 	}
-	report, err := a.Usage(ctx, 1, "scene")
+	// Between 00:00 and 02:00 in the budget zone, the calls moved back two hours fall on yesterday, outside a one-day report.
+	report, err := a.Usage(ctx, 2, "scene")
 	if err != nil {
 		t.Fatal(err)
 	}
