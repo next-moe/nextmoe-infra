@@ -450,7 +450,7 @@ func loadExtractionMeta(ctx context.Context, src *gorm.DB, ids []int64) (map[int
 		Verdict   string
 		Metrics   string
 	}
-	if err := src.WithContext(ctx).Table(latestExtractions(settledVerdicts)).Select("entry_id, model, input_hash, verdict, coalesce(metrics::text, '{}') AS metrics").
+	if err := src.WithContext(ctx).Table(bestExtractions(settledVerdicts)).Select("entry_id, model, input_hash, verdict, coalesce(metrics::text, '{}') AS metrics").
 		Where("entry_id IN ?", ids).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

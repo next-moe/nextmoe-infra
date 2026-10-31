@@ -2821,3 +2821,16 @@ Users asked for a "recently viewed" list. History is personal and can be sensiti
 - **Merges, deletions, purge.** The table is excluded from merge rehang, because a moved row is copied into `catalog_merge_movement` and that copy would outlive "clear" and "off"; a merged-away work drops out of reads and its rows age out. A deleted work cascades. Account purge deletes the rows.
 
 **Spec 2.81.0**, additive. **Migration:** `go run ./cmd/migrate catalog` creates `catalog_user_work_view` (empty) and adds two `NOT NULL DEFAULT false` columns to `catalog_user_privacy`; the `migrate-catalog` deploy job runs it.
+
+## Walkthrough import coverage (2026-10-31)
+
+After the fidelity apply, the gate still passed charts that missed choices: `coverage` cut the missed list to 8 lines **before** computing the ratio, so a chart missing 40 of 60 lines scored 0.87. It counted lines the chart cannot hold as missed, too.
+
+- The ratio counts every missed line; `metrics.missed` still lists the first 8.
+- A page line is covered when what is left after removing every known text (longest first, legend lines included) has fewer than two letters or digits, so a line split across a step's `text` and `remark` counts once.
+- Lines that cannot be choices are not counted: start labels (`【はじめから】`, `【Y1】開始`, `「…」からスタート`, `Start`), the heading lines the repair step recognises, numbered `01■名前` lines, and the `A or B` connector between two known texts.
+- Headings now also include whole-line in-game time: `24日`, `日曜日`, `２周目`, `残り3日`, `ターン5`, `午後3時`.
+- Each stage reads an entry's **best** settled extraction (`ok` first, then higher coverage, then newer prompt), not its newest. grok-4.7 re-extracted the incomplete charts with `extract-v3`; where it did worse, the `extract-v2` chart stays.
+- `--llm-timeout` (default 180s) sets the gateway call timeout; a whole page through the cursor shim can take 10 minutes. The shim appends the `response_format` schema to the prompt, because the cursor agent never sees it and answered in prose.
+
+Over the 5,402 stored charts, 4,061 stay live, 91 live charts go to the 待补全 backlog with their missed lines, and 12 hidden ones go live. **No schema change.**

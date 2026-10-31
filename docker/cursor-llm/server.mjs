@@ -44,6 +44,14 @@ const renderPrompt = (messages) => {
   return [...system, body].filter(Boolean).join("\n\n");
 };
 
+// The agent never sees response_format. Without the schema in the prompt, grok
+// answered an extraction request with "先确认工作区里的 JSON schema…" instead of JSON.
+const withSchema = (prompt, format) => {
+  const schema = format?.type === "json_schema" ? format.json_schema?.schema : undefined;
+  if (!schema) return prompt;
+  return `${prompt}\n\nYou have no tools and no files; everything you need is in this message. Reply with one JSON object and nothing else, valid against this JSON Schema:\n${JSON.stringify(schema)}`;
+};
+
 let active = 0;
 const waiting = [];
 const acquire = () => (active < CONCURRENCY ? (active++, Promise.resolve()) : new Promise((r) => waiting.push(r)));
@@ -81,7 +89,7 @@ const complete = async (req, res) => {
   await acquire();
   try {
     const r = await withTimeout(
-      Agent.prompt(renderPrompt(body.messages), { model, tools: [], local: { cwd: WORKSPACE, settingSources: [] } }),
+      Agent.prompt(withSchema(renderPrompt(body.messages), body.response_format), { model, tools: [], local: { cwd: WORKSPACE, settingSources: [] } }),
       TIMEOUT_MS,
     );
     const u = r.usage ?? {};

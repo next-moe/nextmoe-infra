@@ -2,7 +2,9 @@ package extract
 
 import (
 	"regexp"
+	"slices"
 	"strings"
+	"unicode"
 
 	"api/internal/platform/catalog/walkthrough"
 )
@@ -28,10 +30,12 @@ type Metrics struct {
 }
 
 var (
-	endMarker   = regexp.MustCompile(`(END|ＥＮＤ|エンド)\s*[0-9０-９]*$`)
-	chartStart  = regexp.MustCompile(`(START|【セーブ|◆セーブ|はじめから)`)
-	markerLine  = regexp.MustCompile(`(セーブ|START|RESTART|から開始|END|ＥＮＤ|回収|終了|━)`)
-	whitespaces = regexp.MustCompile(`\s+`)
+	endMarker    = regexp.MustCompile(`(END|ＥＮＤ|エンド)\s*[0-9０-９]*$`)
+	chartStart   = regexp.MustCompile(`(START|【セーブ|◆セーブ|はじめから)`)
+	markerLine   = regexp.MustCompile(`(セーブ|(?i:start)|開始|はじめから|初めから|最初から|からスタート|END|ＥＮＤ|回収|終了|━)`)
+	numberedMark = regexp.MustCompile(`^[0-9０-９]*\s*■`)
+	orWord       = regexp.MustCompile(`(?i)\bor\b`)
+	whitespaces  = regexp.MustCompile(`\s+`)
 )
 
 func squash(s string) string { return whitespaces.ReplaceAllString(s, "") }
@@ -172,12 +176,12 @@ func coverage(text string, c walkthrough.Chart) (float64, []string) {
 		for _, st := range s.Steps {
 			if st.Text != nil {
 				add(*st.Text)
+				if st.Remark != nil {
+					add(*st.Text + *st.Remark)
+				}
 			}
 			for _, a := range st.Alt {
 				add(a)
-			}
-			if st.Remark != nil {
-				add(*st.Text + *st.Remark)
 			}
 		}
 		if s.Condition != nil {
@@ -196,32 +200,49 @@ func coverage(text string, c walkthrough.Chart) (float64, []string) {
 	for _, e := range c.Entries {
 		add(e.Label)
 	}
+	for _, l := range c.Legend {
+		add(l.Text)
+	}
+	slices.SortFunc(known, func(a, b string) int { return len(b) - len(a) })
 	var total int
 	var missed []string
 	for _, raw := range chartRegion(text) {
 		l := strings.TrimSpace(raw)
 		if l == "" || markerLine.MatchString(l) || strings.Contains(l, "│") || strings.HasPrefix(l, "※") ||
-			strings.HasPrefix(l, "■") || strings.HasPrefix(l, "[") {
+			numberedMark.MatchString(l) || strings.HasPrefix(l, "[") || isHeadingLine(l) {
 			continue
 		}
 		total++
-		sl := squash(l)
-		hit := false
-		for _, k := range known {
-			if strings.Contains(sl, k) || strings.Contains(k, sl) {
-				hit = true
-				break
-			}
-		}
-		if !hit {
+		if !covered(squash(l), known) {
 			missed = append(missed, l)
 		}
 	}
 	if total == 0 {
 		return 1, nil
 	}
+	ratio := 1 - float64(len(missed))/float64(total)
 	if len(missed) > 8 {
 		missed = missed[:8]
 	}
-	return 1 - float64(len(missed))/float64(total), missed
+	return ratio, missed
+}
+
+func covered(line string, known []string) bool {
+	rest := line
+	for _, k := range known {
+		if strings.Contains(k, line) {
+			return true
+		}
+		rest = strings.ReplaceAll(rest, k, "")
+	}
+	rest = orWord.ReplaceAllString(rest, "")
+	n := 0
+	for _, r := range rest {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			if n++; n >= 2 {
+				return false
+			}
+		}
+	}
+	return true
 }

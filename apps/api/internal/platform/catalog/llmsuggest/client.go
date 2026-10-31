@@ -28,6 +28,11 @@ func NewClient(baseURL, model string) *Client {
 	}
 }
 
+func (c *Client) WithTimeout(d time.Duration) *Client {
+	c.http.Timeout = d
+	return c
+}
+
 func (c *Client) applyAuth(req *http.Request) {
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
