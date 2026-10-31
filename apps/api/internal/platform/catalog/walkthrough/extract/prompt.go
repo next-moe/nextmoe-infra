@@ -1,6 +1,6 @@
 package extract
 
-const PromptVersion = "extract-v3"
+const PromptVersion = "extract-v4"
 
 const System = `You convert a Japanese visual-novel walkthrough (攻略チャート) into a JSON graph that follows the given JSON schema.
 
@@ -23,7 +23,10 @@ Markers (formats vary by site):
 
 Rules:
 - Every step text, alt, ending name, save label, section title, entry label and condition MUST be copied character-for-character from the input. Never translate, normalize width, or invent.
-- Cover the WHOLE chart in source order; do not skip any choice line. Skip site chrome: update dates, brand link lists, store/affiliate links, Tweet buttons, 共通説明, page shortcuts, 後記, promotion lines.
+- Cover the WHOLE chart in source order: every choice line and every progress line. Many walkthroughs (simulation, RPG, adventure) are a sequence of actions rather than choices; keep each such line in order. Turn, day, phase and counter lines (３回目, フェイズ６, ぶどうの月5日, 【期限まで:3日】) and labels that announce a choice (《下校ルート選択01》) are heading steps; movement and instructions (【移動】下→左→上, ⇒次の章へ進む) are action steps.
+- Whatever the player picks is a choice, however it is decorated: a place or person on a map (■瞳：通学路, 01■学園内：マリエル), a menu command (【喫茶店】⇒店, 目的地に移動するを選択), an event in a time slot (■1日目午前│【ミステリアスな女教師】│恭香), an answer. A line that starts with a day or time but names what to pick is a choice. heading is only for a line that says nothing but where the player is in time or in the story.
+- A choice written with a label, such as 選択肢「陣八が好きだ」, takes the text inside the quotes.
+- Skip site chrome only: update dates, brand link lists, store/affiliate links, Tweet buttons, image links (★拡大リンク★, ▼クリックで⇒参考画像表示▼), 共通説明, page shortcuts, 後記, promotion lines.
 - condition: a verbatim unlock condition line for the segment (e.g. ※誰か1人クリア後に), else null.
 - ending.characters: keys of the characters whose route the ending concludes (from the ending name and the section heading). Empty for bad/normal endings with no specific character.
 - characters: each story character once; merge "因幡 めぐる" and "めぐる" into one with aliases. Aliases are only other writings of the same person's name: a heading that names several people (アーデルハイト、九折坂 二人) gives one character each. Only characters who have routes, endings or headings — not the protagonist unless he has his own ending.

@@ -16,6 +16,7 @@ type Client struct {
 	baseURL string
 	model   string
 	apiKey  string
+	effort  string
 	http    *http.Client
 }
 
@@ -33,6 +34,11 @@ func (c *Client) WithTimeout(d time.Duration) *Client {
 	return c
 }
 
+func (c *Client) WithReasoningEffort(effort string) *Client {
+	c.effort = effort
+	return c
+}
+
 func (c *Client) applyAuth(req *http.Request) {
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
@@ -46,6 +52,7 @@ type chatRequest struct {
 	Temperature       float64        `json:"temperature"`
 	ChatTemplateKwarg map[string]any `json:"chat_template_kwargs"`
 	ResponseFormat    map[string]any `json:"response_format,omitempty"`
+	ReasoningEffort   string         `json:"reasoning_effort,omitempty"`
 }
 
 type chatMessage struct {
@@ -94,6 +101,7 @@ func (c *Client) ChatJSON(ctx context.Context, system, user, schemaName string, 
 		MaxTokens:         maxTokens,
 		Temperature:       0,
 		ChatTemplateKwarg: map[string]any{"enable_thinking": false},
+		ReasoningEffort:   c.effort,
 		Messages: []chatMessage{
 			{Role: "system", Content: system},
 			{Role: "user", Content: user},

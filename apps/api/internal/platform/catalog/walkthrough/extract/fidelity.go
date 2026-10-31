@@ -29,7 +29,9 @@ var (
 		`第?[0-9一二三四五六七八九十百]+\s*(話|章|部|幕)|最終(話|章)|final\s*chapter|序章|終章|` +
 		`day\s*[0-9]+|[0-9]+(st|nd|rd|th)\s*day|[0-9]{1,2}日|[月火水木金土日]曜日?|` +
 		`第?[0-9一二三四五六七八九十]+(週|周)(目)?\s*(第?[0-9一二三四五六七八九十]+日目)?|` +
-		`残り\s*[0-9]+\s*(日|回|週|ターン)|ターン\s*[0-9]+|(am|pm|午前|午後)\s*[0-9]{1,2}[:：時][0-9]{0,2}分?` +
+		`残り\s*[0-9]+\s*(日|回|週|ターン)|ターン\s*[0-9]+|(am|pm|午前|午後)\s*[0-9]{1,2}[:：時][0-9]{0,2}分?|` +
+		`[0-9]+\s*(回目|人目)|(フェイズ|phase)\s*[0-9]+|\S{1,4}の月\s*[0-9]+日|期限まで\s*[:：]?\s*[0-9]+\s*日|` +
+		`[0-9]{1,2}/[0-9]{1,2}|[0-9]{1,2}月[0-9]{1,2}日\s*([月火水木金土日]曜?日?|mon|tue|wed|thu|fri|sat|sun)?` +
 		`)\s*[』」】》〉)]?\s*[━─]*$`)
 
 	verdictRemark = regexp.MustCompile(`^[(\[【]?((推理)?(正解|不正解)|成功|失敗|[○◯×✕◎△]+)[)\]】]?$`)
@@ -151,6 +153,7 @@ func firstHit(at []int) int {
 func RepairFromSource(text string, c *walkthrough.Chart) {
 	s := newSourceLines(text)
 	dropRules(c)
+	pickRepeatedHeadings(c)
 	at := joinCutRoutes(s, c, stepLines(s, c))
 	restoreRemarks(s, c, at)
 	restoreHeadings(s, c, at)
@@ -158,6 +161,28 @@ func RepairFromSource(text string, c *walkthrough.Chart) {
 	markAchievements(c)
 	splitMergedCharacters(c)
 	nameEndingCharacters(c)
+}
+
+// A heading says where the player is, so the same text cannot be one three
+// times over: deepseek typed a map page's ■リーゼ (pick リーゼ), written a dozen
+// times, as a heading. Dates and counters do repeat and stay headings.
+func pickRepeatedHeadings(c *walkthrough.Chart) {
+	seen := map[string]int{}
+	for _, seg := range c.Segments {
+		for _, st := range seg.Steps {
+			if st.StepType == walkthrough.StepHeading && st.Text != nil {
+				seen[squash(*st.Text)]++
+			}
+		}
+	}
+	for i := range c.Segments {
+		for j := range c.Segments[i].Steps {
+			st := &c.Segments[i].Steps[j]
+			if st.StepType == walkthrough.StepHeading && st.Text != nil && seen[squash(*st.Text)] >= 3 && !isHeadingLine(*st.Text) {
+				st.StepType = walkthrough.StepChoice
+			}
+		}
+	}
 }
 
 func dropRules(c *walkthrough.Chart) {
