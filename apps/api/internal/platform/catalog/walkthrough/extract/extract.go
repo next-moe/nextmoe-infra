@@ -174,12 +174,12 @@ func coverage(text string, c walkthrough.Chart) (float64, []string) {
 		for _, st := range s.Steps {
 			if st.Text != nil {
 				add(*st.Text)
+				if st.Remark != nil {
+					add(*st.Text + *st.Remark)
+				}
 			}
 			for _, a := range st.Alt {
 				add(a)
-			}
-			if st.Remark != nil {
-				add(*st.Text + *st.Remark)
 			}
 		}
 		if s.Condition != nil {

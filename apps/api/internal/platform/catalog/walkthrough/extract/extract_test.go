@@ -128,3 +128,12 @@ func TestCoverageCountsEveryMissedLine(t *testing.T) {
 	assert.Len(t, missed, 8)
 	assert.NotContains(t, missed, "選ぶ")
 }
+
+func TestGateRejectsARemarkWithoutText(t *testing.T) {
+	remark := "推理正解"
+	c := walkthrough.Chart{Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+		{StepType: walkthrough.StepChoice, Remark: &remark},
+	}}}}
+	var m Metrics
+	assert.Equal(t, VerdictRejected, Gate(sampleText, c, &m))
+}
