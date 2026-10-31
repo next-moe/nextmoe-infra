@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"time"
 
 	"api/internal/infrastructure/database"
 	"api/internal/platform/catalog/llmsuggest"
@@ -48,6 +49,7 @@ func main() {
 	llmBase := flag.String("llm-base", config.LLMBaseURL(), "OpenAI-compatible gateway base URL (…/v1); the token is KUN_LLM_GATEWAY_KEY (legacy: KUN_AI_UPSTREAM_TOKEN)")
 	workers := flag.Int("workers", 6, "concurrent gateway calls")
 	maxTokens := flag.Int("max-tokens", 24000, "max_tokens per call")
+	llmTimeout := flag.Duration("llm-timeout", 180*time.Second, "per-call gateway timeout")
 	out := flag.String("out", "", "saves stage: the JSONL upload manifest to write")
 	flag.Parse()
 
@@ -85,7 +87,7 @@ func main() {
 			fmt.Println("BLOCKED: LLM gateway not configured (need KUN_LLM_GATEWAY_KEY, or --llm-base with KUN_AI_UPSTREAM_TOKEN).")
 			os.Exit(3)
 		}
-		return &llm{client: llmsuggest.NewClient(*llmBase, *model), model: *model}
+		return &llm{client: llmsuggest.NewClient(*llmBase, *model).WithTimeout(*llmTimeout), model: *model}
 	}
 
 	switch *stage {

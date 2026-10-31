@@ -2,6 +2,8 @@ package extract
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 
 	"api/internal/platform/catalog/walkthrough"
@@ -105,4 +107,48 @@ func TestGateSendsMissingEndingsToReview(t *testing.T) {
 	assert.Equal(t, 1, m.EndMarkers)
 	assert.Equal(t, 0, m.EndingsReached)
 	assert.Equal(t, VerdictReview, verdict, "the page has an END marker the chart never reaches")
+}
+
+func TestCoverageCountsEveryMissedLine(t *testing.T) {
+	var page strings.Builder
+	page.WriteString("START\n選ぶ\n")
+	for i := range 20 {
+		fmt.Fprintf(&page, "⇒デート%02d\n", i)
+	}
+	page.WriteString("寧々に声をかける\n寧々END\n")
+	text := func(s string) *string { return &s }
+	c := walkthrough.Chart{
+		Characters: []walkthrough.Character{{Key: "c1", Name: "寧々"}},
+		Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+			{StepType: walkthrough.StepChoice, Text: text("選ぶ")},
+		}}},
+	}
+	ratio, missed := coverage(page.String(), c)
+	assert.InDelta(t, 1.0/22, ratio, 1e-9, "all 21 missed lines count, not the 8 that are listed")
+	assert.Len(t, missed, 8)
+	assert.NotContains(t, missed, "選ぶ")
+}
+
+func TestCoverageSkipsLinesThatCannotBeChoices(t *testing.T) {
+	page := "【はじめから】\n01■楠田 友美\n10/23\n第3話\n「中に出す」or「ギリギリで抜く」\n【Y1】開始\n「想い出の並木道」からスタート\n寧々END"
+	text := func(s string) *string { return &s }
+	c := walkthrough.Chart{Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+		{StepType: walkthrough.StepChoice, Text: text("中に出す"), Alt: []string{"ギリギリで抜く"}},
+	}}}}
+	ratio, missed := coverage(page, c)
+	assert.Empty(t, missed)
+	assert.Equal(t, 1.0, ratio)
+
+	ratio, missed = coverage(page+"\n寧々に声をかける\n寧々END", c)
+	assert.Equal(t, []string{"寧々に声をかける"}, missed)
+	assert.Equal(t, 0.5, ratio)
+}
+
+func TestGateRejectsARemarkWithoutText(t *testing.T) {
+	remark := "推理正解"
+	c := walkthrough.Chart{Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+		{StepType: walkthrough.StepChoice, Remark: &remark},
+	}}}}
+	var m Metrics
+	assert.Equal(t, VerdictRejected, Gate(sampleText, c, &m))
 }
