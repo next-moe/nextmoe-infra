@@ -26,6 +26,7 @@ type TrustScanResult struct {
 	Tier0Matched   datatypes.JSON `gorm:"type:jsonb;column:tier0_matched" json:"tier0_matched,omitempty"`
 	DegradedReason *int16         `gorm:"column:degraded_reason" json:"degraded_reason"`
 	ScanAttempts   int16          `gorm:"not null;default:0;column:scan_attempts" json:"scan_attempts"`
+	NextScanAt     *time.Time     `gorm:"column:next_scan_at" json:"next_scan_at"`
 	CheckSkipped   bool           `gorm:"not null;default:false;column:check_skipped" json:"check_skipped"`
 }
 

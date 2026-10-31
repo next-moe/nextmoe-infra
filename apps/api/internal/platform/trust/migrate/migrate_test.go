@@ -443,3 +443,63 @@ func TestSubjectAuthorBackfillOnPopulatedTable(t *testing.T) {
 		t.Errorf("a re-run overwrote an author already set: got %v, want 999", got)
 	}
 }
+
+// TestScanRetryRearmOnPopulatedTable replays the upgrade that adds next_scan_at:
+// only recent gateway-failed rows are re-armed, and only on the deploy that adds
+// the column.
+func TestScanRetryRearmOnPopulatedTable(t *testing.T) {
+	db := testDB
+	if err := db.Exec("ALTER TABLE trust_scan_result DROP COLUMN IF EXISTS next_scan_at").Error; err != nil {
+		t.Fatalf("drop column: %v", err)
+	}
+	if err := db.Exec("TRUNCATE trust_scan_result RESTART IDENTITY CASCADE").Error; err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+	if err := db.Exec(
+		`INSERT INTO trust_scan_result
+		        (site, subject_kind, subject_id, content_text, status, mode, degraded_reason, scan_attempts, created_at)
+		 VALUES ('kungal','post','p-degraded-recent','t',2,0,3,3, now() - interval '2 days'),
+		        ('kungal','post','p-failed-recent','t',2,0,2,3, now() - interval '1 day'),
+		        ('kungal','post','p-unconfigured','t',2,0,1,3, now() - interval '1 day'),
+		        ('kungal','post','p-degraded-old','t',2,0,3,3, now() - interval '10 days'),
+		        ('kungal','post','p-scored','t',1,0,NULL,1, now())`).Error; err != nil {
+		t.Fatalf("seed pre-existing rows: %v", err)
+	}
+
+	if err := Run(db); err != nil {
+		t.Fatalf("migration failed on a populated table: %v", err)
+	}
+	armed := func(subject string) bool {
+		t.Helper()
+		var n int64
+		if err := db.Raw("SELECT count(*) FROM trust_scan_result WHERE subject_id = ? AND next_scan_at IS NOT NULL", subject).
+			Scan(&n).Error; err != nil {
+			t.Fatalf("reload %s: %v", subject, err)
+		}
+		return n == 1
+	}
+	for _, tc := range []struct {
+		subject string
+		want    bool
+	}{
+		{"p-degraded-recent", true},
+		{"p-failed-recent", true},
+		{"p-unconfigured", false},
+		{"p-degraded-old", false},
+		{"p-scored", false},
+	} {
+		if got := armed(tc.subject); got != tc.want {
+			t.Errorf("%s re-armed = %v, want %v", tc.subject, got, tc.want)
+		}
+	}
+
+	if err := db.Exec("UPDATE trust_scan_result SET next_scan_at = NULL WHERE subject_id = 'p-degraded-recent'").Error; err != nil {
+		t.Fatalf("exhaust row: %v", err)
+	}
+	if err := Run(db); err != nil {
+		t.Fatalf("second deploy: %v", err)
+	}
+	if armed("p-degraded-recent") {
+		t.Fatal("a later deploy re-armed a row whose retries were already spent")
+	}
+}

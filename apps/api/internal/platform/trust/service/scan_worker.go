@@ -117,40 +117,46 @@ func (w *ScanWorker) ScorePending(ctx context.Context) (int, error) {
 	err := w.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var pending []model.TrustScanResult
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
-			Where("status = ? OR (status = ? AND scan_attempts < ?)",
-				model.ScanStatusPending, model.ScanStatusDegraded, maxScanAttempts).
+			Where("status = ? OR (status = ? AND next_scan_at <= ?)",
+				model.ScanStatusPending, model.ScanStatusDegraded, w.now()).
 			Order("status ASC, id ASC").Limit(w.batchSize).Find(&pending).Error; err != nil {
 			return err
 		}
 		for i := range pending {
-			if err := w.scoreOne(ctx, tx, &pending[i]); err != nil {
+			outage, err := w.scoreOne(ctx, tx, &pending[i])
+			if err != nil {
 				return err
 			}
 			processed++
+			// One failed call is enough to tell the gateway is down. Dialing the
+			// rest of the batch would only spend their attempts on the same outage.
+			if outage {
+				break
+			}
 		}
 		return nil
 	})
 	return processed, err
 }
 
-func (w *ScanWorker) scoreOne(ctx context.Context, tx *gorm.DB, r *model.TrustScanResult) error {
+func (w *ScanWorker) scoreOne(ctx context.Context, tx *gorm.DB, r *model.TrustScanResult) (outage bool, err error) {
 	tier0, decision, matched := w.tier0Matched(ctx, r)
 	pol := w.policyFor(r.Site)
 
 	if r.CheckSkipped && (decision == DecisionDeny || decision == DecisionHold) {
 		if err := w.enforceSkippedCheck(tx, r, decision, matched); err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	if !w.gateway.Configured() {
-		return w.markDegraded(tx, r, tier0, pol, model.ScanDegradedGatewayUnconfigured)
+		return false, w.markDegraded(tx, r, tier0, pol, model.ScanDegradedGatewayUnconfigured)
 	}
 	verdict, err := w.gateway.Moderate(ctx, r.Site, r.ContentText, r.SubjectKind, r.AuthorID)
 	if err != nil {
 		slog.Warn("trust scan gateway call failed; draining to degraded",
 			"scan_id", r.ID, "attempt", r.ScanAttempts+1, "err", err)
-		return w.markDegraded(tx, r, tier0, pol, model.ScanDegradedGatewayCallFailed)
+		return true, w.markDegraded(tx, r, tier0, pol, model.ScanDegradedGatewayCallFailed)
 	}
 	if verdict.Degraded {
 		// The gateway reported its own fail-open path (upstream down / over budget /
@@ -162,9 +168,9 @@ func (w *ScanWorker) scoreOne(ctx context.Context, tx *gorm.DB, r *model.TrustSc
 		slog.Warn("trust scan gateway returned a degraded verdict; draining to degraded",
 			"scan_id", r.ID, "site", r.Site, "attempt", r.ScanAttempts+1,
 			"channel", verdict.Channel)
-		return w.markDegraded(tx, r, tier0, pol, model.ScanDegradedGatewayDegraded)
+		return true, w.markDegraded(tx, r, tier0, pol, model.ScanDegradedGatewayDegraded)
 	}
-	return w.markScored(tx, r, verdict, tier0, pol)
+	return false, w.markScored(tx, r, verdict, tier0, pol)
 }
 
 func (w *ScanWorker) tier0Matched(ctx context.Context, r *model.TrustScanResult) (datatypes.JSON, string, []string) {
@@ -194,6 +200,7 @@ func (w *ScanWorker) markScored(tx *gorm.DB, r *model.TrustScanResult, v Gateway
 		"scored_at":       w.now(),
 		"scan_attempts":   r.ScanAttempts + 1,
 		"degraded_reason": nil,
+		"next_scan_at":    nil,
 	}
 	if tier0 != nil {
 		updates["tier0_matched"] = tier0
@@ -226,11 +233,17 @@ func (w *ScanWorker) markScored(tx *gorm.DB, r *model.TrustScanResult, v Gateway
 }
 
 func (w *ScanWorker) markDegraded(tx *gorm.DB, r *model.TrustScanResult, tier0 datatypes.JSON, pol ResolvedPolicy, reason int16) error {
+	attempts := r.ScanAttempts + 1
+	var next any
+	if reason != model.ScanDegradedGatewayUnconfigured && attempts < maxScanAttempts {
+		next = w.now().Add(scanRetryBackoff[attempts-1])
+	}
 	updates := map[string]any{
 		"status":          model.ScanStatusDegraded,
 		"mode":            pol.ScanMode,
 		"degraded_reason": reason,
-		"scan_attempts":   r.ScanAttempts + 1,
+		"scan_attempts":   attempts,
+		"next_scan_at":    next,
 	}
 	if tier0 != nil {
 		updates["tier0_matched"] = tier0
