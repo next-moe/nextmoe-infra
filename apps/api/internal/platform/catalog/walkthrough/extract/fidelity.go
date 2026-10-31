@@ -25,6 +25,12 @@ var (
 	barTail     = regexp.MustCompile(`[━─]{2,}$`)
 	barOnly     = regexp.MustCompile(`^[━─―ー\-=＝_]+$`)
 	chapterHead = regexp.MustCompile(`(?i)^[■□▼▽◆◇●]?\s*(第?[0-9一二三四五六七八九十百]+\s*(話|章|部|幕|日目|週目)|episode|chapter|prologue|epilogue|プロローグ|エピローグ)`)
+	timeHead    = regexp.MustCompile(`(?i)^[■□▼▽◆◇●○]?\s*[『「【《〈(]?\s*(` +
+		`第?[0-9一二三四五六七八九十百]+\s*(話|章|部|幕)|最終(話|章)|final\s*chapter|序章|終章|` +
+		`day\s*[0-9]+|[0-9]+(st|nd|rd|th)\s*day|[0-9]{1,2}日|[月火水木金土日]曜日?|` +
+		`第?[0-9一二三四五六七八九十]+(週|周)(目)?\s*(第?[0-9一二三四五六七八九十]+日目)?|` +
+		`残り\s*[0-9]+\s*(日|回|週|ターン)|ターン\s*[0-9]+|(am|pm|午前|午後)\s*[0-9]{1,2}[:：時][0-9]{0,2}分?` +
+		`)\s*[』」】》〉)]?\s*[━─]*$`)
 
 	verdictRemark = regexp.MustCompile(`^[(\[【]?((推理)?(正解|不正解)|成功|失敗|[○◯×✕◎△]+)[)\]】]?$`)
 	effectItem    = `(?:[\p{L}\p{N}ー々・]{0,16}?\+[0-9]+|[\p{L}ー々・]*[\p{Han}\p{Hiragana}\p{Katakana}][\p{L}ー々・]*[\-−][0-9]+)`
@@ -79,7 +85,7 @@ func (s sourceLines) isHeading(i int) bool {
 	if t == "" || utf8.RuneCountInString(t) > 40 || markerWord.MatchString(t) {
 		return false
 	}
-	return walkthrough.IsHeading(t) || chapterHead.MatchString(t) || headingMark.MatchString(t) && barTail.MatchString(t)
+	return walkthrough.IsHeading(t) || chapterHead.MatchString(t) || timeHead.MatchString(t) || headingMark.MatchString(t) && barTail.MatchString(t)
 }
 
 func (s sourceLines) isFiller(i int) bool {

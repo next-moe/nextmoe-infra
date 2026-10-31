@@ -139,3 +139,14 @@ func TestSplitMergedCharactersMovesAnAliasToItsOwner(t *testing.T) {
 	assert.Equal(t, []string{"一ノ瀬 ことみ"}, c.Characters[0].Aliases)
 	assert.Equal(t, []string{"古河 渚"}, c.Characters[1].Aliases)
 }
+
+func TestTimeHeadings(t *testing.T) {
+	for s, want := range map[string]bool{
+		"２４日": true, "残り１０日": true, "ターン１１": true, "Day8": true, "3rd Day": true, "最終話": true,
+		"『第十話』": true, "第二週一日目": true, "ＰＭ０４：００": true, "土曜日": true, "FinalChapter": true, "○４週目": true,
+		"残り物を食べる": false, "３日後に会う": false, "日曜日に出かける": false, "ターンエンド": false,
+	} {
+		s := sourceLines{raw: []string{s}}
+		assert.Equal(t, want, s.isHeading(0), s.raw[0])
+	}
+}
