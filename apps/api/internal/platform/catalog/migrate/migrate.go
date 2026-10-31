@@ -156,6 +156,13 @@ func Run(db *gorm.DB) error {
 		// Tag canonical layer (step 74, doc 70a): the cross-source convergence
 		// vocabulary ABOVE the original tag layers. catalog_tag before
 		// catalog_tag_source_map so the tag_id FK can be created.
+		//
+		// 2026-10-30: catalog_tag_category (the nine browsing groups, seeded
+		// in rawSQL) before catalog_tag, which gains a nullable category_id
+		// with an ON DELETE SET NULL FK to it. Existing tags start NULL ("其他");
+		// the reviewed assignment is applied with cmd/tag-categories -curated,
+		// and the catalog-tag-parents job derives one for tags still NULL.
+		&model.CatalogTagCategory{},
 		&model.CatalogTag{},
 		&model.CatalogTagSourceMap{},
 		&model.CatalogTagIntro{}, // multilingual tag intros (refs/plans/10 W0 ruling 3)
@@ -538,6 +545,15 @@ func rawSQL(db *gorm.DB) error {
 			    FOREIGN KEY (primary_credit_name_id) REFERENCES catalog_credit_name(id)
 		`).Error; err != nil {
 			return fmt.Errorf("add primary_credit_name FK: %w", err)
+		}
+	}
+
+	// The tag categories are seeded once and then owned by the database:
+	// DO NOTHING keeps a renamed or reordered row as an operator left it.
+	for _, c := range model.TagCategorySeed {
+		if err := db.Exec(`INSERT INTO catalog_tag_category (id, slug, name, sort_order) VALUES (?, ?, ?, ?)
+			ON CONFLICT (id) DO NOTHING`, c.ID, c.Slug, c.Name, c.SortOrder).Error; err != nil {
+			return fmt.Errorf("seed catalog_tag_category %s: %w", c.Slug, err)
 		}
 	}
 
