@@ -667,6 +667,13 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_catalog_work_tag_name_source", `
 			CREATE INDEX IF NOT EXISTS idx_catalog_work_tag_name_source
 			    ON catalog_work_tag(name, source_id)`},
+		// works?tag_id= reads work_id straight from the index. With only
+		// (name, source_id) a popular tag fetched ~35k heap rows per page
+		// (836 ms on prod 2026-10-31; 185 ms with this index). Built
+		// CONCURRENTLY on prod by hand that day, so this is a no-op there.
+		{"idx_catalog_work_tag_name_source_work", `
+			CREATE INDEX IF NOT EXISTS idx_catalog_work_tag_name_source_work
+			    ON catalog_work_tag(name, source_id, work_id)`},
 		// Keyset lanes for the public works list (sort=updated) and the
 		// changes feed ((updated_at, id) ascending resume cursor).
 		{"idx_catalog_work_updated_id", `

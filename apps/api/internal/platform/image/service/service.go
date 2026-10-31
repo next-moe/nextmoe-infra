@@ -435,8 +435,10 @@ func (s *Service) ReferencePing(ctx context.Context, site string, hashes []strin
 			notFound = append(notFound, h)
 		}
 	}
-	updated, err := s.imgRepo.TouchReferenced(ctx, existing)
-	return updated, notFound, err
+	if _, err := s.imgRepo.TouchReferenced(ctx, existing); err != nil {
+		return 0, nil, err
+	}
+	return int64(len(existing)), notFound, nil
 }
 
 var _ = url.PathEscape
