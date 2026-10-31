@@ -203,6 +203,8 @@ var live = settings.NewRegistry(
 			AuthVerificationResendCooldownSeconds,
 			AuthRegisterGiftPoints,
 			AuthNameChangeCost,
+			AuthProfileCheckEnabled,
+			AuthProfileScanEnabled,
 			AuthSSOSessionIdleDays,
 			AuthSSOSessionMaxDays,
 			AuthCreatorApplicationCooldownHours,

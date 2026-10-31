@@ -6,16 +6,21 @@ import (
 	"time"
 
 	"api/internal/platform/auth/model"
+	"api/internal/platform/permissions"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
+var ordinaryUserSQL = "NOT EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = users.id AND r.name <> '" + permissions.RoleUser + "')"
+
 var userSortColumns = map[string]string{
-	"created_at":  "created_at",
-	"name":        "name",
-	"email":       "email",
-	"moemoepoint": "moemoepoint",
+	"created_at":     "created_at",
+	"name":           "name",
+	"email":          "email",
+	"moemoepoint":    "moemoepoint",
+	"last_login_at":  "last_login_at",
+	"last_active_at": "last_active_at",
 }
 
 type UserRepository struct {
@@ -278,6 +283,7 @@ func (r *UserRepository) FindAllPaginated(
 	page, limit int,
 	search string,
 	status *int,
+	role string,
 	sortBy string,
 	sortDesc bool,
 ) ([]model.User, int64, error) {
@@ -293,6 +299,14 @@ func (r *UserRepository) FindAllPaginated(
 
 	if status != nil {
 		query = query.Where("status = ?", *status)
+	}
+
+	switch role {
+	case "":
+	case permissions.RoleUser:
+		query = query.Where(ordinaryUserSQL)
+	default:
+		query = query.Where("EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = users.id AND r.name = ?)", role)
 	}
 
 	if err := query.Count(&total).Error; err != nil {

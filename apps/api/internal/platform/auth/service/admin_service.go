@@ -23,6 +23,13 @@ func adminProtected(u *model.User) bool {
 	return sitePerm.Resolver.Can(u.RoleNames(), sitePerm.AdminAccess)
 }
 
+func utcStamp(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.UTC().Format("2006-01-02T15:04:05Z")
+}
+
 func piiOrRedacted(canSeePII bool, value string) string {
 	if canSeePII {
 		return value
@@ -44,6 +51,7 @@ type AdminService struct {
 	siteRepo     *siterepo.SiteRepository
 	imgClient    *imageclient.Client
 	cdnBase      string
+	activityRepo *repository.ActivityRepository
 }
 
 func NewAdminService(
@@ -64,6 +72,11 @@ func NewAdminService(
 	}
 }
 
+func (s *AdminService) WithActivity(r *repository.ActivityRepository) *AdminService {
+	s.activityRepo = r
+	return s
+}
+
 func (s *AdminService) ListUsers(ctx context.Context, req *dto.UserListRequest, canSeePII bool) (*dto.UserListResponse, error) {
 	if req.Page < 1 {
 		req.Page = 1
@@ -72,7 +85,7 @@ func (s *AdminService) ListUsers(ctx context.Context, req *dto.UserListRequest, 
 		req.Limit = 20
 	}
 
-	users, total, err := s.userRepo.FindAllPaginated(ctx, req.Page, req.Limit, req.Search, req.Status, req.SortBy, req.SortDesc)
+	users, total, err := s.userRepo.FindAllPaginated(ctx, req.Page, req.Limit, req.Search, req.Status, req.Role, req.SortBy, req.SortDesc)
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +107,8 @@ func (s *AdminService) ListUsers(ctx context.Context, req *dto.UserListRequest, 
 			OriginalEmail:   origEmailForAdmin(canSeePII, user.OriginalEmail),
 			Roles:           user.RoleNames(),
 			CreatedAt:       user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+			LastLoginAt:     utcStamp(user.LastLoginAt),
+			LastActiveAt:    utcStamp(user.LastActiveAt),
 		}
 	}
 
@@ -137,6 +152,8 @@ func (s *AdminService) GetUser(ctx context.Context, uuid string, canSeePII bool)
 			OriginalEmail:   origEmailForAdmin(canSeePII, user.OriginalEmail),
 			Roles:           user.RoleNames(),
 			CreatedAt:       user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+			LastLoginAt:     utcStamp(user.LastLoginAt),
+			LastActiveAt:    utcStamp(user.LastActiveAt),
 		},
 		IP:           piiOrRedacted(canSeePII, user.IP),
 		SessionCount: int(sessionCount),

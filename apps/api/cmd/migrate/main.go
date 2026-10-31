@@ -160,6 +160,15 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// users.last_login_at + users.last_active_at (2026-10-31), added and
+	// backfilled from live sessions in one step before AutoMigrate would add
+	// them empty. Runs once: it does nothing when the columns exist. See
+	// authModel.AddUserActivityColumns for what existing rows get.
+	if err := authModel.AddUserActivityColumns(gormDB); err != nil {
+		slog.Error("failed to add the user activity columns", "error", err)
+		os.Exit(1)
+	}
+
 	// The reward-coupon tables are keyed by developer account, not application,
 	// since 2026-09-19; the re-key has to happen before AutoMigrate recreates
 	// store_coupon_shares with its new primary key. Idempotent. See
@@ -298,6 +307,7 @@ func getAllModels() []any {
 		// existing rows get '' and nothing is backfilled.
 		&authModel.User{},
 		&authModel.Session{},
+		&authModel.UserActiveHour{},
 		&authModel.OAuthAccount{},
 		&authModel.UserFollow{},
 		&authModel.UserSiteData{},

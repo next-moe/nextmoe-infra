@@ -144,6 +144,18 @@ var AuthNameChangeCost = settings.Int(settings.Meta{
 	Max:    settings.F(10000),
 }, 17)
 
+var AuthProfileCheckEnabled = settings.Bool(settings.Meta{
+	Name:   "auth.profile_check_enabled",
+	DescEN: "Whether an ordinary user's new username, bio or about is refused when it pairs a solicitation word with contact details, or hits a banned Trust & Safety word.",
+	DescZH: "普通用户新填的用户名、签名、about 同时出现招揽词和联系方式,或命中 Trust & Safety 禁用词时,是否直接拒绝。",
+}, false)
+
+var AuthProfileScanEnabled = settings.Bool(settings.Meta{
+	Name:   "auth.profile_scan_enabled",
+	DescEN: "Whether an ordinary user's new username, bio or about is sent to Trust & Safety for asynchronous review (subject kind user_profile).",
+	DescZH: "是否把普通用户新填的用户名、签名、about 送往 Trust & Safety 异步审核(主体类型 user_profile)。",
+}, false)
+
 var TrustReportRateWindowMinutes = settings.Int(settings.Meta{
 	Name:   "trust.report_rate_window_minutes",
 	DescEN: "Sliding window over which a reporter's submissions are counted for rate limiting.",

@@ -53,6 +53,12 @@ type AuthService struct {
 	verifier          *oidctoken.Verifier
 	codes             codeCache
 	perks             PerkSource
+	profileReview     *ProfileReview
+}
+
+func (s *AuthService) WithProfileReview(p *ProfileReview) *AuthService {
+	s.profileReview = p
+	return s
 }
 
 func (s *AuthService) WithLedger(l *ledgerService.Ledger) *AuthService {
@@ -158,6 +164,9 @@ func (s *AuthService) SendRegisterCode(ctx context.Context, name, email string) 
 	if nameExists {
 		return errors.NewWithCode(errors.ErrAuthNameExists)
 	}
+	if err := s.profileReview.Gate(ctx, 0, nil, name); err != nil {
+		return err
+	}
 	emailExists, err := s.userRepo.ExistsByEmail(ctx, email)
 	if err != nil {
 		return err
@@ -229,6 +238,9 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 	if exists {
 		return nil, nil, errors.NewWithCode(errors.ErrAuthNameExists)
 	}
+	if err := s.profileReview.Gate(ctx, 0, nil, req.Name); err != nil {
+		return nil, nil, err
+	}
 
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
@@ -270,6 +282,7 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 	_ = s.cache.Delete(redisKey)
 
 	s.grantRegisterGift(ctx, user)
+	s.profileReview.Submit(user)
 
 	return tokens, user, nil
 }
@@ -779,6 +792,38 @@ func (s *AuthService) SendEmailChangeCode(ctx context.Context, userUUID, newEmai
 }
 
 func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *dto.UpdateProfileRequest) (*model.User, error) {
+	user, err := s.updateProfile(ctx, userUUID, req)
+	if err == nil && (req.Name != nil || req.Bio != nil || req.About != nil) {
+		s.profileReview.Submit(user)
+	}
+	return user, err
+}
+
+func (s *AuthService) gateProfileEdit(ctx context.Context, userUUID string, req *dto.UpdateProfileRequest) error {
+	if s.profileReview == nil || !keys.AuthProfileCheckEnabled.Get() || (req.Name == nil && req.Bio == nil && req.About == nil) {
+		return nil
+	}
+	user, err := s.userRepo.FindByUUIDWithRoles(ctx, userUUID)
+	if err != nil {
+		return mapUserErr(err)
+	}
+	var texts []string
+	if req.Name != nil && *req.Name != user.Name {
+		texts = append(texts, *req.Name)
+	}
+	if req.Bio != nil && *req.Bio != user.Bio {
+		texts = append(texts, *req.Bio)
+	}
+	if req.About != nil && *req.About != user.About {
+		texts = append(texts, *req.About)
+	}
+	return s.profileReview.Gate(ctx, user.ID, user.RoleNames(), texts...)
+}
+
+func (s *AuthService) updateProfile(ctx context.Context, userUUID string, req *dto.UpdateProfileRequest) (*model.User, error) {
+	if err := s.gateProfileEdit(ctx, userUUID, req); err != nil {
+		return nil, err
+	}
 	fields := map[string]any{}
 	if req.AvatarImageHash != nil {
 		fields["avatar_image_hash"] = *req.AvatarImageHash

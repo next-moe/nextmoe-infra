@@ -35,6 +35,7 @@ const (
 	ErrAuthFederationConflict     = 10019
 	ErrAuthDeletionProtected      = 10020
 	ErrAuthCodeTooFrequent        = 10021
+	ErrAuthProfileRejected        = 10022
 
 	ErrOAuthInvalidClient        = 15001
 	ErrOAuthInvalidRedirectURI   = 15002
@@ -177,6 +178,7 @@ var codeMessages = map[int]string{
 	ErrAuthUserNotFound:           "用户不存在",
 	ErrAuthEmailExists:            "该邮箱已被注册",
 	ErrAuthNameExists:             "该用户名已被使用",
+	ErrAuthProfileRejected:        "用户名或签名含有广告招揽或违规内容，请修改后再提交",
 	ErrAuthPasswordRequired:       "需要重置密码",
 	ErrAuthInvalidEmail:           "邮箱格式不正确",
 	ErrAuthCodeInvalid:            "验证码无效",

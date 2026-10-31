@@ -30,3 +30,13 @@ export const primaryRole = (roles: string[] = []) =>
 export const STEP_UP_ROLES = ['admin', 'ren']
 export const needsStepUp = (roles: string[] = []) =>
   roles.some((r) => STEP_UP_ROLES.includes(r))
+
+export const USER_ROLE_FILTER_ALL = 'all'
+export const USER_ROLE_FILTER_OPTIONS = [
+  { value: USER_ROLE_FILTER_ALL, label: '全部角色' },
+  { value: 'user', label: '普通用户' },
+  ...['creator', 'editor', 'moderator', 'admin', 'ren'].map((r) => ({
+    value: r,
+    label: ROLE_LABEL[r]!,
+  })),
+]
