@@ -50,6 +50,7 @@ func main() {
 	workers := flag.Int("workers", 6, "concurrent gateway calls")
 	maxTokens := flag.Int("max-tokens", 24000, "max_tokens per call")
 	llmTimeout := flag.Duration("llm-timeout", 180*time.Second, "per-call gateway timeout")
+	effort := flag.String("reasoning-effort", "", "reasoning_effort sent to the gateway (empty: the model's default)")
 	out := flag.String("out", "", "saves stage: the JSONL upload manifest to write")
 	flag.Parse()
 
@@ -87,7 +88,7 @@ func main() {
 			fmt.Println("BLOCKED: LLM gateway not configured (need KUN_LLM_GATEWAY_KEY, or --llm-base with KUN_AI_UPSTREAM_TOKEN).")
 			os.Exit(3)
 		}
-		return &llm{client: llmsuggest.NewClient(*llmBase, *model).WithTimeout(*llmTimeout), model: *model}
+		return &llm{client: llmsuggest.NewClient(*llmBase, *model).WithTimeout(*llmTimeout).WithReasoningEffort(*effort), model: *model}
 	}
 
 	switch *stage {

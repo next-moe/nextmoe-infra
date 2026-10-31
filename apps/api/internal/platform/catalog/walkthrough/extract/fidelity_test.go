@@ -144,7 +144,10 @@ func TestTimeHeadings(t *testing.T) {
 	for s, want := range map[string]bool{
 		"２４日": true, "残り１０日": true, "ターン１１": true, "Day8": true, "3rd Day": true, "最終話": true,
 		"『第十話』": true, "第二週一日目": true, "ＰＭ０４：００": true, "土曜日": true, "FinalChapter": true, "○４週目": true,
+		"３回目": true, "２人目": true, "フェイズ６": true, "Phase3": true, "ぶどうの月5日": true, "【期限まで:3日】": true,
+		"○10/23": true, "【10月4日土曜日】": true, "8月3日Mon": true,
 		"残り物を食べる": false, "３日後に会う": false, "日曜日に出かける": false, "ターンエンド": false,
+		"２人目の客に話す": false, "月の光を見る": false, "フェイズシフト": false,
 	} {
 		s := sourceLines{raw: []string{s}}
 		assert.Equal(t, want, s.isHeading(0), s.raw[0])
