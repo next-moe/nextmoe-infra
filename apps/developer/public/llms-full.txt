@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 205 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 209 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -1400,6 +1400,7 @@ GET /v2/ratings/changes?limit=100
 | 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读）               | [本页](#works)                               |
 | 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                                     | [本页](#followed-companies)                  |
 | 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                                     | [本页](#blocked-tags)                        |
+| 浏览记录                       | `/v2/me/history`                                                                  | 用户令牌，无 scope；`scope=all` 读要 `history:read`    | [本页](#history)                             |
 | 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                                     | [本页](#calendar)                            |
 | 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                                         | [本页](#edit-capabilities)                   |
 | 编辑配额                       | `/v2/me/edit-quota`                                                               | `catalog:edit`                                         | [本页](#edit-quota)                          |
@@ -1456,6 +1457,23 @@ DELETE /v2/me/blocked-tags/{tag_id}
 `PUT` 的 body 可选，`mode` 是 `tree`（缺省）或 `exact`。已经屏蔽过的再 PUT，只改模式，除此之外不再写。未知标签是 404。超出 100 条是 422。
 
 `DELETE` 是 204，没有 body，本来就没屏蔽也是 204。单条 GET 在没屏蔽时是 404。
+
+## 浏览记录
+
+```http
+GET    /v2/me/history
+PUT    /v2/me/history/works/{work_id}
+DELETE /v2/me/history/works/{work_id}
+DELETE /v2/me/history
+```
+
+只要用户令牌，不需要 scope。浏览记录**按应用分开**：每个应用只读、只删自己记下的。用户在作品页真正停留之后再 `PUT`，不要在预取或服务端渲染时发；一分钟内重复的访问只算一次。`PUT` 和两个 `DELETE` 都是 204，没有 body。作品不在上线状态时 `PUT` 是 404。
+
+列表按最近一次访问排序，最新的在前，每一项只带 id，用 `/v2/catalog/works?ids=` 获取作品信息。全年龄站点要带 `content_limit=sfw`，这样用户在成人站看过的作品不会出现在它的页面上。记录保留 **90 天**，每个应用最多 **500** 条，超出的旧记录会被删掉。
+
+`scope=all` 按作品合并所有应用的记录。读要同时满足两件事：令牌带 `history:read`，并且用户在 `/v2/me/privacy` 把 `browsing_history_sharing` 设成了 `shared`。缺前者是 `403 SCOPE_REQUIRED`，缺后者是 `403 BROWSING_HISTORY_NOT_SHARED`。删除带 `scope=all` 时两者都不需要。
+
+用户在 `/v2/me/privacy` 把 `browsing_history` 设成 `off`，会立刻删掉所有应用的浏览记录；之后 `PUT` 仍然是 204，但服务器上什么都不存。站点可以读 `/v2/me/privacy` 来决定要不要显示「最近浏览」。第三方应用只能把这两个开关往更私密的方向改（关闭记录、取消共享），反过来改是 `422`，reason 为 `NOT_PERMITTED`。
 
 ## 我的发售月历
 
@@ -2835,7 +2853,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 
 # Problem types
 
-## 错误码注册表（顶层 `code`，共 51 个）
+## 错误码注册表（顶层 `code`，共 52 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -2885,6 +2903,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 | code | HTTP | title | description |
 | --- | --- | --- | --- |
 | `USER_IDENTITY_REQUIRED` | 403 | User identity required | An application key was used for an operation that needs a user token. |
+| `BROWSING_HISTORY_NOT_SHARED` | 403 | Browsing history not shared | scope=all asked for every app's browsing history, and the account keeps it per app. Only the account can change that, with browsing_history_sharing on PATCH /v2/me/privacy from a first-party app; this app still reads what it recorded itself with scope=app. |
 | `SITE_NOT_BOUND` | 403 | Site not bound | The client behind the token is not bound to a catalog site. |
 | `RELEASE_CREATION_DISABLED` | 403 | Release creation disabled | The proposal tried to create a release. This is a product constraint, not a defect. |
 | `ALREADY_EXISTS` | 409 | Already exists | The same subject already has a live record for this target. |
@@ -3457,7 +3476,7 @@ Closed · 12 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：182
+- 端点数：186
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -3470,6 +3489,8 @@ Closed · 12 tokens
 > /v2/me/followed-companies 与 /v2/me/calendar 同样只要用户令牌、不需要任何 scope。关注列表只对本人可见，公开的只有 /v2/catalog/companies/{id} 详情上的 follower_count；/v2/me/calendar 与公开月历同参数，只列关注厂商的作品，且缺省不按语言、不排除同人。
 
 > /v2/me/blocked-tags 同样只要用户令牌、不需要任何 scope，最多 100 个，只对本人可见。目录不会自动套用它：客户端把 mode=tree 的 id 放进 exclude_tag_tree、mode=exact 的放进 exclude_tag_id，传给 /v2/catalog/works 与两个月历。tree 会连同 tag 层级里它下面的所有 tag 一起排除（Tag.descendant_count 是数量）。站点自己的表出的列表用 /v2/catalog/tag-exclusion 取同参数要剔除的作品 id 集，在本地查询里剔掉。
+
+> /v2/me/history 是浏览记录：只要用户令牌、不需要 scope，每个应用只读写自己记下的（默认 scope=app）。用户在作品页真正停留后再 PUT /v2/me/history/works/{work_id}，一分钟内重复只算一次；记录保留 90 天，每个应用最多 500 条。scope=all 合并所有应用的记录：读要 history:read，且用户在 /v2/me/privacy 把 browsing_history_sharing 设为 shared，否则 403；删不需要。用户把 browsing_history 设为 off 会立刻清空所有应用的记录，此后 PUT 照常 204 但什么都不存。全年龄站点读时带 content_limit=sfw，用户在成人站看过的作品就不会出现。第三方应用只能把这两个开关往更私密的方向拨。
 
 > /v2/me/ratings 是评分：全网一人一作一份，在哪个站写的都是同一份。读写只要用户令牌、不需要 scope，任何应用都能写（同游玩时长）；第三方应用送来的短评由中央做内容检查，被拒绝是 422 VALIDATION_FAILED。/v2/me/work-records/{work_id} 一次事务写游玩状态、本应用的时长和评分，PUT 替换整条记录，缺省或为 null 的部分即删除（唯一例外：第三方应用不带评分时保留原评分）。
 
@@ -6278,6 +6299,95 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+### GET /v2/me/history
+
+List my browsing history
+
+The works the bearer opened, newest first. Browsing history is kept per app: each app reads and deletes what it recorded, and entries older than 90 days or past the newest 500 per app are deleted. An account that switched browsing_history off on PATCH /v2/me/privacy has no history on the server. scope=all merges every app's entries per work and is 403 BROWSING_HISTORY_NOT_SHARED unless the account set browsing_history_sharing to shared, and 403 SCOPE_REQUIRED without history:read. Works that are no longer live in the catalog are left out. Items carry ids only; read the works themselves from /v2/catalog/works?ids=. Requires a user access token. With the default scope=app any app may call this and no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+| `ids` | query | 否 | string | Comma-separated ids, max 100. Batch lane: no pagination. |
+| `refs` | query | 否 | string | Comma-separated source:external_id, max 100. Batch lane: no pagination. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
+| `sort` | query | 否 | string | Closed per-collection sort key. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `scope` | query | 否 | string | app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. A site that only shows sfw works passes sfw, so a work the account opened on an adult site never reaches its page. total counts after it. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/history" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### DELETE /v2/me/history
+
+Clear my browsing history
+
+Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `scope` | query | 否 | string | app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. |
+
+```bash
+curl -X DELETE "https://api.nextmoe.dev/v2/me/history" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### PUT /v2/me/history/works/{work_id}
+
+Record that I opened a work
+
+Moves the work to the top of this app's history for the bearer. Send it once the person has actually stayed on the work's page, not on prefetch or render. Visits less than a minute apart count once. 204 with no body, also when the account has browsing history off: then nothing is stored. 404 when the work is not live. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `work_id` | path | 是 | string | Catalog work id. |
+
+```bash
+curl -X PUT "https://api.nextmoe.dev/v2/me/history/works/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### DELETE /v2/me/history/works/{work_id}
+
+Remove one work from my browsing history
+
+Deletes the work from this app's history with the default scope=app, from every app's with scope=all. 204 with no body, also when there was nothing to delete. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `work_id` | path | 是 | string | Catalog work id. |
+| `scope` | query | 否 | string | app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. |
+
+```bash
+curl -X DELETE "https://api.nextmoe.dev/v2/me/history/works/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
 ### GET /v2/me/merge-candidates
 
 Suggest merge partners
@@ -6684,7 +6794,7 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/playtimes/1" \
 
 My privacy switches
 
-play_records says who may read the bearer's play states and playtimes on /v2/work-records. An account that never changed it answers public with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
+play_records says who may read the bearer's play states and playtimes on /v2/work-records; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers public, on and per_app with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6701,7 +6811,7 @@ curl "https://api.nextmoe.dev/v2/me/privacy" \
 
 Change my privacy switches
 
-Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next read of /v2/work-records. Requires a user access token. Any app may call this; no scope is required.
+Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6713,13 +6823,15 @@ Sets the switches the body names and leaves the others as they are; an empty bod
 
 | 字段 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
+| `browsing_history` | 否 | string | off erases every app's browsing history and stops recording it; on starts recording again. A third-party app may only send off. Absent leaves it as it is. 取值：on \| off |
+| `browsing_history_sharing` | 否 | string | shared lets an app holding history:read read every app's history. A third-party app may only send per_app. Absent leaves it as it is. 取值：per_app \| shared |
 | `play_records` | 否 | string | Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is. 取值：public \| private |
 
 ```bash
 curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"play_records":"private"}'
+  -d '{"browsing_history":"off","browsing_history_sharing":"per_app","play_records":"private"}'
 ```
 
 ### GET /v2/me/proposals

@@ -30,6 +30,7 @@ type Catalog struct {
 	EditTypes         *editing.Registry
 	Playtime          *catsvc.UserPlaytimeService
 	WorkStates        *catsvc.UserWorkStateService
+	BrowsingHistory   *catsvc.BrowsingHistoryService
 	Ratings           *catsvc.UserRatingService
 	WorkRecords       *catsvc.UserWorkRecordService
 	CompanyFollows    *catsvc.UserEntityFollowService

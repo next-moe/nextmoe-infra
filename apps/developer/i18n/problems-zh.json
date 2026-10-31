@@ -105,6 +105,9 @@
     "User identity required": "需要用户身份",
     "An application key was used for an operation that needs a user token.": "这个操作需要用户令牌，却用了应用密钥。",
 
+    "Browsing history not shared": "浏览记录未共享",
+    "scope=all asked for every app's browsing history, and the account keeps it per app. Only the account can change that, with browsing_history_sharing on PATCH /v2/me/privacy from a first-party app; this app still reads what it recorded itself with scope=app.": "scope=all 请求了所有应用的浏览记录，而该账号的浏览记录按应用分开保存。只有账号本人能在第一方应用里通过 PATCH /v2/me/privacy 的 browsing_history_sharing 改变这一点；本应用仍可用 scope=app 读取自己记下的记录。",
+
     "Site not bound": "客户端未绑定站点",
     "The client behind the token is not bound to a catalog site.": "令牌背后的客户端没有绑定到任何 catalog 站点。",
 

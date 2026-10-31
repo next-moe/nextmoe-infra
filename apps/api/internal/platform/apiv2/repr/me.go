@@ -256,8 +256,19 @@ type WorkStateBatchItem struct {
 }
 
 type UserPrivacy struct {
-	_           struct{} `json:"-" additionalProperties:"true"`
-	Object      string   `json:"object" enum:"privacy" doc:"Type discriminant. Always privacy."`
-	PlayRecords string   `json:"play_records" enum:"public,private" doc:"Who may read the account's play states and playtimes on /v2/work-records. public, the default, lets any application read them; private refuses everyone but the account itself with 403 PLAY_RECORDS_PRIVATE. Ratings are public either way, and a rating still carries its author's play state."`
-	UpdatedAt   *string  `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the last change. null while the account has never changed it."`
+	_                      struct{} `json:"-" additionalProperties:"true"`
+	Object                 string   `json:"object" enum:"privacy" doc:"Type discriminant. Always privacy."`
+	PlayRecords            string   `json:"play_records" enum:"public,private" doc:"Who may read the account's play states and playtimes on /v2/work-records. public, the default, lets any application read them; private refuses everyone but the account itself with 403 PLAY_RECORDS_PRIVATE. Ratings are public either way, and a rating still carries its author's play state."`
+	BrowsingHistory        string   `json:"browsing_history" enum:"on,off" doc:"Whether the server keeps the account's browsing history (/v2/me/history). on is the default. off erases every app's history at once, and from then on PUT /v2/me/history/works/{work_id} stores nothing."`
+	BrowsingHistorySharing string   `json:"browsing_history_sharing" enum:"per_app,shared" doc:"per_app, the default, lets each app read only the history it recorded. shared also lets an app holding history:read read every app's history merged, with scope=all."`
+	UpdatedAt              *string  `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the last change to any switch. null while the account has never changed one."`
+}
+
+type BrowsingHistoryEntry struct {
+	_             struct{} `json:"-" additionalProperties:"true"`
+	Object        string   `json:"object" enum:"work_view" doc:"Type discriminant. Always work_view."`
+	WorkID        string   `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id the bearer opened."`
+	FirstViewedAt string   `json:"first_viewed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the earliest visit still kept."`
+	LastViewedAt  string   `json:"last_viewed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the latest visit. The list is ordered by it, newest first."`
+	ViewCount     int64    `json:"view_count" minimum:"1" doc:"Visits recorded. Visits less than a minute apart count once."`
 }

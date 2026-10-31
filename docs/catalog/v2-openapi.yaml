@@ -176,6 +176,43 @@ components:
       required:
         - items
       type: object
+    BrowsingHistoryEntry:
+      additionalProperties: true
+      properties:
+        first_viewed_at:
+          description: RFC 3339 UTC of the earliest visit still kept.
+          format: date-time
+          maxLength: 32
+          type: string
+        last_viewed_at:
+          description: RFC 3339 UTC of the latest visit. The list is ordered by it, newest first.
+          format: date-time
+          maxLength: 32
+          type: string
+        object:
+          description: Type discriminant. Always work_view.
+          enum:
+            - work_view
+          type: string
+          x-vocabulary-closed: true
+        view_count:
+          description: Visits recorded. Visits less than a minute apart count once.
+          format: int64
+          minimum: 1
+          type: integer
+        work_id:
+          description: Catalog work id the bearer opened.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - object
+        - work_id
+        - first_viewed_at
+        - last_viewed_at
+        - view_count
+      type: object
     CalendarList:
       additionalProperties: true
       properties:
@@ -3639,6 +3676,62 @@ components:
           description: Members of this page. Empty array, never null.
           items:
             $ref: "#/components/schemas/Appearance"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
+    ListBrowsingHistoryEntry:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListBrowsingHistoryEntry.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/BrowsingHistoryEntry"
           type: array
         missing:
           description: ids requested but not visible. Present only on the ids=/refs= batch lane.
@@ -8636,6 +8729,24 @@ components:
           format: uri
           readOnly: true
           type: string
+        browsing_history:
+          description: off erases every app's browsing history and stops recording it; on starts recording again. A third-party app may only send off. Absent leaves it as it is.
+          enum:
+            - "on"
+            - "off"
+          examples:
+            - "off"
+          type: string
+          x-vocabulary-closed: true
+        browsing_history_sharing:
+          description: shared lets an app holding history:read read every app's history. A third-party app may only send per_app. Absent leaves it as it is.
+          enum:
+            - per_app
+            - shared
+          examples:
+            - per_app
+          type: string
+          x-vocabulary-closed: true
         play_records:
           description: Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is.
           enum:
@@ -12334,6 +12445,20 @@ components:
           format: uri
           readOnly: true
           type: string
+        browsing_history:
+          description: Whether the server keeps the account's browsing history (/v2/me/history). on is the default. off erases every app's history at once, and from then on PUT /v2/me/history/works/{work_id} stores nothing.
+          enum:
+            - "on"
+            - "off"
+          type: string
+          x-vocabulary-closed: true
+        browsing_history_sharing:
+          description: per_app, the default, lets each app read only the history it recorded. shared also lets an app holding history:read read every app's history merged, with scope=all.
+          enum:
+            - per_app
+            - shared
+          type: string
+          x-vocabulary-closed: true
         object:
           description: Type discriminant. Always privacy.
           enum:
@@ -12348,7 +12473,7 @@ components:
           type: string
           x-vocabulary-closed: true
         updated_at:
-          description: RFC 3339 UTC of the last change. null while the account has never changed it.
+          description: RFC 3339 UTC of the last change to any switch. null while the account has never changed one.
           format: date-time
           maxLength: 32
           type:
@@ -12357,6 +12482,8 @@ components:
       required:
         - object
         - play_records
+        - browsing_history
+        - browsing_history_sharing
         - updated_at
       type: object
     UserRating:
@@ -14164,7 +14291,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.80.0
+  version: 2.81.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -25842,6 +25969,402 @@ paths:
       summary: Follow a company
       tags:
         - me
+  /v2/me/history:
+    delete:
+      description: "Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. Requires a user access token. Any app may call this; no scope is required."
+      operationId: clearMyBrowsingHistory
+      parameters:
+        - description: "app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither."
+          explode: false
+          in: query
+          name: scope
+          schema:
+            description: "app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither."
+            examples:
+              - app
+            maxLength: 8
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Clear my browsing history
+      tags:
+        - me
+    get:
+      description: "The works the bearer opened, newest first. Browsing history is kept per app: each app reads and deletes what it recorded, and entries older than 90 days or past the newest 500 per app are deleted. An account that switched browsing_history off on PATCH /v2/me/privacy has no history on the server. scope=all merges every app's entries per work and is 403 BROWSING_HISTORY_NOT_SHARED unless the account set browsing_history_sharing to shared, and 403 SCOPE_REQUIRED without history:read. Works that are no longer live in the catalog are left out. Items carry ids only; read the works themselves from /v2/catalog/works?ids=. Requires a user access token. With the default scope=app any app may call this and no scope is required."
+      operationId: listMyBrowsingHistory
+      parameters:
+        - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
+            maxLength: 512
+            type: string
+        - description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+            maxLength: 8
+            type: string
+        - description: basic (default) or full. Closed vocabulary.
+          explode: false
+          in: query
+          name: view
+          schema:
+            description: basic (default) or full. Closed vocabulary.
+            maxLength: 16
+            type: string
+        - description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+          explode: false
+          in: query
+          name: include
+          schema:
+            description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+            maxLength: 1024
+            type: string
+        - description: Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+          explode: false
+          in: query
+          name: fields
+          schema:
+            description: Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+            maxLength: 1024
+            type: string
+        - description: "Comma-separated ids, max 100. Batch lane: no pagination."
+          explode: false
+          in: query
+          name: ids
+          schema:
+            description: "Comma-separated ids, max 100. Batch lane: no pagination."
+            maxLength: 4096
+            type: string
+        - description: "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+          explode: false
+          in: query
+          name: refs
+          schema:
+            description: "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+            maxLength: 4096
+            type: string
+        - description: true to include total. Only true or false.
+          explode: false
+          in: query
+          name: include_total
+          schema:
+            description: true to include total. Only true or false.
+            maxLength: 8
+            type: string
+        - description: Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET.
+          explode: false
+          in: query
+          name: facets
+          schema:
+            description: Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET.
+            maxLength: 512
+            type: string
+        - description: Closed per-collection sort key.
+          explode: false
+          in: query
+          name: sort
+          schema:
+            description: Closed per-collection sort key.
+            maxLength: 32
+            type: string
+        - description: true includes r18. false or absent hides r18. Only true or false.
+          explode: false
+          in: query
+          name: nsfw
+          schema:
+            description: true includes r18. false or absent hides r18. Only true or false.
+            maxLength: 8
+            type: string
+        - description: "app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither."
+          explode: false
+          in: query
+          name: scope
+          schema:
+            description: "app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither."
+            examples:
+              - app
+            maxLength: 8
+            type: string
+        - description: "Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. A site that only shows sfw works passes sfw, so a work the account opened on an adult site never reaches its page. total counts after it."
+          explode: false
+          in: query
+          name: content_limit
+          schema:
+            description: "Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. A site that only shows sfw works passes sfw, so a work the account opened on an adult site never reaches its page. total counts after it."
+            examples:
+              - sfw
+            maxLength: 32
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListBrowsingHistoryEntry"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: List my browsing history
+      tags:
+        - me
+  /v2/me/history/works/{work_id}:
+    delete:
+      description: Deletes the work from this app's history with the default scope=app, from every app's with scope=all. 204 with no body, also when there was nothing to delete. Requires a user access token. Any app may call this; no scope is required.
+      operationId: forgetMyWorkView
+      parameters:
+        - description: "app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither."
+          explode: false
+          in: query
+          name: scope
+          schema:
+            description: "app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither."
+            examples:
+              - app
+            maxLength: 8
+            type: string
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Remove one work from my browsing history
+      tags:
+        - me
+    put:
+      description: "Moves the work to the top of this app's history for the bearer. Send it once the person has actually stayed on the work's page, not on prefetch or render. Visits less than a minute apart count once. 204 with no body, also when the account has browsing history off: then nothing is stored. 404 when the work is not live. Requires a user access token. Any app may call this; no scope is required."
+      operationId: recordMyWorkView
+      parameters:
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Record that I opened a work
+      tags:
+        - me
   /v2/me/merge-candidates:
     get:
       description: "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name, then search hits for its name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
@@ -27464,7 +27987,7 @@ paths:
         - me
   /v2/me/privacy:
     get:
-      description: play_records says who may read the bearer's play states and playtimes on /v2/work-records. An account that never changed it answers public with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
+      description: play_records says who may read the bearer's play states and playtimes on /v2/work-records; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers public, on and per_app with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
       operationId: getMyPrivacy
       responses:
         "200":
@@ -27517,7 +28040,7 @@ paths:
       tags:
         - me
     patch:
-      description: Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next read of /v2/work-records. Requires a user access token. Any app may call this; no scope is required.
+      description: "Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required."
       operationId: patchMyPrivacy
       requestBody:
         content:
