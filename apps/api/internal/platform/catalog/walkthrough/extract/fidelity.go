@@ -80,8 +80,10 @@ func (s sourceLines) find(t string, from int) int {
 	return -1
 }
 
-func (s sourceLines) isHeading(i int) bool {
-	t := strings.TrimSpace(norm.NFKC.String(s.raw[i]))
+func (s sourceLines) isHeading(i int) bool { return isHeadingLine(s.raw[i]) }
+
+func isHeadingLine(raw string) bool {
+	t := strings.TrimSpace(norm.NFKC.String(raw))
 	if t == "" || utf8.RuneCountInString(t) > 40 || markerWord.MatchString(t) {
 		return false
 	}

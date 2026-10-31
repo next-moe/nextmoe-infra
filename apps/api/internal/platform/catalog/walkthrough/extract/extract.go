@@ -30,10 +30,12 @@ type Metrics struct {
 }
 
 var (
-	endMarker   = regexp.MustCompile(`(END|ＥＮＤ|エンド)\s*[0-9０-９]*$`)
-	chartStart  = regexp.MustCompile(`(START|【セーブ|◆セーブ|はじめから)`)
-	markerLine  = regexp.MustCompile(`(セーブ|START|RESTART|から開始|END|ＥＮＤ|回収|終了|━)`)
-	whitespaces = regexp.MustCompile(`\s+`)
+	endMarker    = regexp.MustCompile(`(END|ＥＮＤ|エンド)\s*[0-9０-９]*$`)
+	chartStart   = regexp.MustCompile(`(START|【セーブ|◆セーブ|はじめから)`)
+	markerLine   = regexp.MustCompile(`(セーブ|(?i:start)|開始|はじめから|初めから|最初から|からスタート|END|ＥＮＤ|回収|終了|━)`)
+	numberedMark = regexp.MustCompile(`^[0-9０-９]*\s*■`)
+	orWord       = regexp.MustCompile(`(?i)\bor\b`)
+	whitespaces  = regexp.MustCompile(`\s+`)
 )
 
 func squash(s string) string { return whitespaces.ReplaceAllString(s, "") }
@@ -207,7 +209,7 @@ func coverage(text string, c walkthrough.Chart) (float64, []string) {
 	for _, raw := range chartRegion(text) {
 		l := strings.TrimSpace(raw)
 		if l == "" || markerLine.MatchString(l) || strings.Contains(l, "│") || strings.HasPrefix(l, "※") ||
-			strings.HasPrefix(l, "■") || strings.HasPrefix(l, "[") {
+			numberedMark.MatchString(l) || strings.HasPrefix(l, "[") || isHeadingLine(l) {
 			continue
 		}
 		total++
@@ -233,6 +235,7 @@ func covered(line string, known []string) bool {
 		}
 		rest = strings.ReplaceAll(rest, k, "")
 	}
+	rest = orWord.ReplaceAllString(rest, "")
 	n := 0
 	for _, r := range rest {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
