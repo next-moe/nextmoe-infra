@@ -2,6 +2,8 @@ package extract
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 
 	"api/internal/platform/catalog/walkthrough"
@@ -105,4 +107,24 @@ func TestGateSendsMissingEndingsToReview(t *testing.T) {
 	assert.Equal(t, 1, m.EndMarkers)
 	assert.Equal(t, 0, m.EndingsReached)
 	assert.Equal(t, VerdictReview, verdict, "the page has an END marker the chart never reaches")
+}
+
+func TestCoverageCountsEveryMissedLine(t *testing.T) {
+	var page strings.Builder
+	page.WriteString("START\n選ぶ\n")
+	for i := range 20 {
+		fmt.Fprintf(&page, "⇒デート%02d\n", i)
+	}
+	page.WriteString("寧々に声をかける\n寧々END\n")
+	text := func(s string) *string { return &s }
+	c := walkthrough.Chart{
+		Characters: []walkthrough.Character{{Key: "c1", Name: "寧々"}},
+		Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+			{StepType: walkthrough.StepChoice, Text: text("選ぶ")},
+		}}},
+	}
+	ratio, missed := coverage(page.String(), c)
+	assert.InDelta(t, 1.0/22, ratio, 1e-9, "all 21 missed lines count, not the 8 that are listed")
+	assert.Len(t, missed, 8)
+	assert.NotContains(t, missed, "選ぶ")
 }

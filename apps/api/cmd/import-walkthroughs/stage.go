@@ -40,12 +40,13 @@ CREATE TABLE IF NOT EXISTS wt_stage.match (
   created_at  timestamptz NOT NULL DEFAULT now()
 );`
 
-// The extraction prompt moved to extract-v3 after every chart had been
-// extracted with v2, and nothing re-extracts a page whose text did not change,
-// so the stages read each entry's newest settled extraction, of any version.
-func latestExtractions(where string) string {
+// glm-5.2's v2 run left 965 charts incomplete, and grok-4.7's v3 re-run of
+// them is not better everywhere, so each entry reads its best extraction, not
+// its newest.
+func bestExtractions(where string) string {
 	return `(SELECT DISTINCT ON (entry_id) * FROM wt_stage.extraction WHERE ` + where +
-		` ORDER BY entry_id, substring(prompt_version from '[0-9]+$')::int DESC) AS x`
+		` ORDER BY entry_id, verdict <> 'ok', coalesce((metrics->>'coverage')::float8, 0) DESC,` +
+		` substring(prompt_version from '[0-9]+$')::int DESC) AS x`
 }
 
 const settledVerdicts = "verdict IN ('ok', 'review', 'no_chart')"

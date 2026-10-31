@@ -2,7 +2,9 @@ package extract
 
 import (
 	"regexp"
+	"slices"
 	"strings"
+	"unicode"
 
 	"api/internal/platform/catalog/walkthrough"
 )
@@ -196,6 +198,10 @@ func coverage(text string, c walkthrough.Chart) (float64, []string) {
 	for _, e := range c.Entries {
 		add(e.Label)
 	}
+	for _, l := range c.Legend {
+		add(l.Text)
+	}
+	slices.SortFunc(known, func(a, b string) int { return len(b) - len(a) })
 	var total int
 	var missed []string
 	for _, raw := range chartRegion(text) {
@@ -205,23 +211,35 @@ func coverage(text string, c walkthrough.Chart) (float64, []string) {
 			continue
 		}
 		total++
-		sl := squash(l)
-		hit := false
-		for _, k := range known {
-			if strings.Contains(sl, k) || strings.Contains(k, sl) {
-				hit = true
-				break
-			}
-		}
-		if !hit {
+		if !covered(squash(l), known) {
 			missed = append(missed, l)
 		}
 	}
 	if total == 0 {
 		return 1, nil
 	}
+	ratio := 1 - float64(len(missed))/float64(total)
 	if len(missed) > 8 {
 		missed = missed[:8]
 	}
-	return 1 - float64(len(missed))/float64(total), missed
+	return ratio, missed
+}
+
+func covered(line string, known []string) bool {
+	rest := line
+	for _, k := range known {
+		if strings.Contains(k, line) {
+			return true
+		}
+		rest = strings.ReplaceAll(rest, k, "")
+	}
+	n := 0
+	for _, r := range rest {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			if n++; n >= 2 {
+				return false
+			}
+		}
+	}
+	return true
 }
