@@ -51,7 +51,9 @@ const DESCRIPTIONS = {
   getCatalogTagExclusion:
     '解析一组排除 tag：给 exclude_tag_id / exclude_tag_tree，返回展开后的 tag id 与带有其中任一 tag 的全部作品 id，供站点在自建列表里剔除。',
   listCatalogTags:
-    '浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。',
+    '浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。category= 只看一个分组，sort=work_count 按作品数排。',
+  listCatalogTagCategories:
+    '列出标签的浏览分组（题材类型、角色、恋爱与关系……），一页取全。分组 id 喂给 listCatalogTags 的 category=。',
   getCatalogTrait: '按 id 取角色特征词表的一行。',
   listCatalogTraits:
     '浏览角色特征词表本身——用来发现 trait id。refs= 对它不解析：特征没有外部锚类型。',

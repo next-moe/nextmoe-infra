@@ -10,13 +10,14 @@ import (
 
 func (s *PublicService) TagDetail(ctx context.Context, id int64, withWorks, nsfw bool, limit, offset int) (dto.PublicTagDetail, bool, error) {
 	var head struct {
-		ID   int64
-		Name string
-		Tier int16
-		Kind int16
+		ID         int64
+		Name       string
+		Tier       int16
+		Kind       int16
+		CategoryID *int16
 	}
 	if err := s.db.WithContext(ctx).Raw(
-		`SELECT id, name, tier, kind FROM catalog_tag WHERE id = ?`, id).Scan(&head).Error; err != nil {
+		`SELECT id, name, tier, kind, category_id FROM catalog_tag WHERE id = ?`, id).Scan(&head).Error; err != nil {
 		return dto.PublicTagDetail{}, false, err
 	}
 	if head.ID == 0 {
@@ -35,6 +36,11 @@ func (s *PublicService) TagDetail(ctx context.Context, id int64, withWorks, nsfw
 		return dto.PublicTagDetail{}, false, err
 	}
 	rec.Sexual = sexual[id]
+	cats, err := s.tagCategoriesByID(ctx)
+	if err != nil {
+		return dto.PublicTagDetail{}, false, err
+	}
+	rec.Category = cats.ref(head.CategoryID)
 	intros, err := s.tagIntros(ctx, id)
 	if err != nil {
 		return dto.PublicTagDetail{}, false, err

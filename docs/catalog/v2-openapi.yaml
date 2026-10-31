@@ -6049,6 +6049,62 @@ components:
         - object
         - items
       type: object
+    ListTagCategory:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListTagCategory.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/TagCategory"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
     ListTrait:
       additionalProperties: true
       properties:
@@ -11702,6 +11758,11 @@ components:
           items:
             $ref: "#/components/schemas/TagRef"
           type: array
+        tag_category:
+          anyOf:
+            - $ref: "#/components/schemas/TagCategoryRef"
+            - type: "null"
+          description: "The browsing group this tag is filed under (GET /v2/catalog/tag-categories). null when it is in none: show it under an other group. Orthogonal to is_sexual: a sexual tag can sit in any group, and the adult group holds sexual acts and themes, not every sexual tag."
         tag_kind:
           description: Tag vocabulary class.
           enum:
@@ -11730,6 +11791,7 @@ components:
         - tag_kind
         - work_count
         - is_sexual
+        - tag_category
         - parents
         - child_count
         - descendant_count
@@ -11779,6 +11841,64 @@ components:
         - mode
         - created_at
         - updated_at
+      type: object
+    TagCategory:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: zh-Hans label. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Stable category slug, the value of category= on /v2/catalog/tags. A slug is never renamed; display_name and order may change.
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_]*$
+          type: string
+        object:
+          description: Type discriminant. Always tag_category.
+          enum:
+            - tag_category
+          type: string
+          x-vocabulary-closed: true
+        order:
+          description: Ascending display order. Values are spaced, not consecutive.
+          format: int64
+          minimum: 0
+          type: integer
+        tag_count:
+          description: Canonical tags filed under this category, before any nsfw or has_works filter.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - object
+        - id
+        - display_name
+        - order
+        - tag_count
+      type: object
+    TagCategoryRef:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: zh-Hans label. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Stable category slug, the value of category= on /v2/catalog/tags.
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_]*$
+          type: string
+        object:
+          description: Type discriminant. Always tag_category.
+          enum:
+            - tag_category
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - display_name
       type: object
     TagExclusion:
       additionalProperties: true
@@ -14044,7 +14164,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.79.0
+  version: 2.80.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18467,6 +18587,62 @@ paths:
       summary: Catalog totals
       tags:
         - catalog
+  /v2/catalog/tag-categories:
+    get:
+      description: The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+      operationId: listCatalogTagCategories
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListTagCategory"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: List tag categories
+      tags:
+        - catalog
   /v2/catalog/tag-exclusion:
     get:
       description: "What exclude_tag_id= and exclude_tag_tree= exclude, taking the same two parameters as /v2/catalog/works: the expanded tag ids and the ids of every work carrying one of them. A site that lists works from its own store applies a reader's blocked tags by dropping work_ids, and one with its own tag mirror can match tag_ids instead. At least one parameter is required. The body depends only on the parameters, so cache it per parameter set. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
@@ -18548,7 +18724,7 @@ paths:
         - catalog
   /v2/catalog/tags:
     get:
-      description: Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+      description: "Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group."
       operationId: listCatalogTags
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -18646,6 +18822,14 @@ paths:
           schema:
             description: true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag.
             maxLength: 8
+            type: string
+        - description: A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400.
+          explode: false
+          in: query
+          name: category
+          schema:
+            description: A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400.
+            maxLength: 64
             type: string
       responses:
         "200":

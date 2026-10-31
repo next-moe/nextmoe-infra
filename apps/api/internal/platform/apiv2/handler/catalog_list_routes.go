@@ -17,6 +17,9 @@ type listCompaniesOutput struct {
 type listTagsOutput struct {
 	Body repr.List[repr.Tag]
 }
+type listTagCategoriesOutput struct {
+	Body repr.List[repr.TagCategory]
+}
 type listSeriesOutput struct {
 	Body repr.List[repr.Series]
 }
@@ -65,6 +68,7 @@ type listCompaniesInput struct {
 type listTagsInput struct {
 	CollectionInput
 	HasWorks string `query:"has_works" maxLength:"8" doc:"true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag."`
+	Category string `query:"category" maxLength:"64" doc:"A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400."`
 }
 
 type listCharactersInput struct {
@@ -101,11 +105,20 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/tags",
 		Summary:            "List tags",
-		Description:        "Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.",
+		Description:        "Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
 	}, listCatalogTags(cat))
+	huma.Register(api, huma.Operation{
+		OperationID: "listCatalogTagCategories",
+		Method:      http.MethodGet,
+		Path:        "/v2/catalog/tag-categories",
+		Summary:     "List tag categories",
+		Description: "The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
+		Tags:        catalog,
+		Errors:      errs,
+	}, listCatalogTagCategories(cat))
 	huma.Register(api, huma.Operation{
 		OperationID:        "listCatalogSeries",
 		Method:             http.MethodGet,
@@ -230,11 +243,21 @@ func listCatalogTags(cat *Catalog) func(context.Context, *listTagsInput) (*listT
 			}
 			hasWorks = v
 		}
-		page, lerr := cat.ListTags(ctx, q, hasWorks)
+		page, lerr := cat.ListTags(ctx, q, hasWorks, in.Category)
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}
 		return &listTagsOutput{Body: page}, nil
+	}
+}
+
+func listCatalogTagCategories(cat *Catalog) func(context.Context, *struct{}) (*listTagCategoriesOutput, error) {
+	return func(ctx context.Context, _ *struct{}) (*listTagCategoriesOutput, error) {
+		page, err := cat.ListTagCategories(ctx)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &listTagCategoriesOutput{Body: page}, nil
 	}
 }
 

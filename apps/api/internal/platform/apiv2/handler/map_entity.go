@@ -73,9 +73,16 @@ func entityNamesFrom(in []dto.PublicAlias) []repr.EntityName {
 func tagFromListItem(it dto.PublicTagListItem) repr.Tag {
 	return repr.Tag{
 		Object: "tag", ID: repr.ID(it.ID), DisplayName: it.Name,
-		Tier: it.Tier, TagKind: it.Kind, WorkCount: it.WorkCount, IsSexual: it.Sexual,
+		Tier: it.Tier, TagKind: it.Kind, WorkCount: it.WorkCount, IsSexual: it.Sexual, TagCategory: tagCategoryRef(it.Category),
 		Parents: tagRefs(it.Parents), ChildCount: it.ChildCount, DescendantCount: it.DescendantCount,
 	}
+}
+
+func tagCategoryRef(in *dto.PublicTagCategoryRef) *repr.TagCategoryRef {
+	if in == nil {
+		return nil
+	}
+	return &repr.TagCategoryRef{Object: "tag_category", ID: in.Slug, DisplayName: in.Name}
 }
 
 func tagRefs(in []dto.PublicTagRef) []repr.TagRef {
@@ -139,7 +146,7 @@ func roleFromListItem(it dto.PublicRoleListItem) repr.Role {
 func tagFromDetail(rec dto.PublicTagDetail, include []string) repr.Tag {
 	out := repr.Tag{
 		Object: "tag", ID: repr.ID(rec.ID), DisplayName: rec.Name,
-		Tier: rec.Tier, TagKind: rec.Kind, WorkCount: rec.WorkCount, IsSexual: rec.Sexual,
+		Tier: rec.Tier, TagKind: rec.Kind, WorkCount: rec.WorkCount, IsSexual: rec.Sexual, TagCategory: tagCategoryRef(rec.Category),
 		Parents: tagRefs(rec.Parents), ChildCount: rec.ChildCount, DescendantCount: rec.DescendantCount,
 	}
 	for _, t := range include {

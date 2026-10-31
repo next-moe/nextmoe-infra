@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 181 个端点",
+    "d": "/v2 · 182 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1184,6 +1184,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "getCatalogStats /v2/catalog/stats get Catalog totals Live entity counts. Unauthenticated. LIVE 实体计数。无需凭据。"
   },
   {
+    "r": "/docs/v2/listCatalogTagCategories",
+    "t": "列出标签分类",
+    "s": "端点 · 目录",
+    "d": "GET /v2/catalog/tag-categories",
+    "b": "listCatalogTagCategories /v2/catalog/tag-categories get List tag categories The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 正典标签归入的浏览分组，按展示顺序一页返回全部。标签以 tag_category 携带所属分组；GET /v2/catalog/tags?category={id} 列出某一分组的标签，category=none 列出不属于任何分组的标签。id 稳定不变；显示名与顺序可能调整。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read"
+  },
+  {
     "r": "/docs/v2/getCatalogTagExclusion",
     "t": "解析一组 tag 排除",
     "s": "端点 · 目录",
@@ -1195,7 +1202,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出标签",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/tags",
-    "b": "listCatalogTags /v2/catalog/tags get List tags Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. keyset 分页的正典标签。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids=/refs= 是批量车道，不分页。has_works=true 只保留在同一 nsfw 门下有可见作品的标签。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw has_works"
+    "b": "listCatalogTags /v2/catalog/tags get List tags Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group. keyset 分页的正典标签。sort=id（默认）或 work_count：按同一 nsfw 门下的 work_count 降序（以每小时重算为准），再按 id。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids=/refs= 是批量车道，不分页。has_works=true 只保留在同一 nsfw 门下有可见作品的标签。category= 只保留一个浏览分组（GET /v2/catalog/tag-categories），none 则保留不属于任何分组的标签。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw has_works category"
   },
   {
     "r": "/docs/v2/getCatalogTag",

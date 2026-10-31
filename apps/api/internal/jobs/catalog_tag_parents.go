@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"api/internal/infrastructure/database"
+	"api/internal/jobs/tagcategory"
 	"api/internal/jobs/tagparents"
 	"api/pkg/config"
 )
@@ -22,12 +23,17 @@ func RunCatalogTagParents(ctx context.Context, cfg *config.Config) (Summary, err
 	if err != nil {
 		return nil, err
 	}
+	cats, err := tagcategory.Derive(ctx, pg.DB(), true)
+	if err != nil {
+		return nil, err
+	}
 	return Summary{
-		"vndb_tags": st.VNDBTags,
-		"mapped":    st.Mapped,
-		"edges":     st.Edges,
-		"added":     st.Added,
-		"deleted":   st.Deleted,
-		"cycles":    st.Cycles,
+		"vndb_tags":          st.VNDBTags,
+		"mapped":             st.Mapped,
+		"edges":              st.Edges,
+		"added":              st.Added,
+		"deleted":            st.Deleted,
+		"cycles":             st.Cycles,
+		"categories_derived": cats.Derived,
 	}, nil
 }

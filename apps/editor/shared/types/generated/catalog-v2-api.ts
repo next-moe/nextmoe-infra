@@ -692,6 +692,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/catalog/tag-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List tag categories
+         * @description The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         */
+        get: operations["listCatalogTagCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/catalog/tag-exclusion": {
         parameters: {
             query?: never;
@@ -721,7 +741,7 @@ export interface paths {
         };
         /**
          * List tags
-         * @description Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+         * @description Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group.
          */
         get: operations["listCatalogTags"];
         put?: never;
@@ -6678,6 +6698,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListTagCategory: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListTagCategory.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["TagCategory"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
         ListTrait: {
             /**
              * Format: uri
@@ -9845,6 +9900,8 @@ export interface components {
             object: "tag";
             /** @description Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents. */
             parents: components["schemas"]["TagRef"][];
+            /** @description The browsing group this tag is filed under (GET /v2/catalog/tag-categories). null when it is in none: show it under an other group. Orthogonal to is_sexual: a sexual tag can sit in any group, and the adult group holds sexual acts and themes, not every sexual tag. */
+            tag_category: components["schemas"]["TagCategoryRef"] | null;
             /**
              * @description Tag vocabulary class.
              * @enum {string}
@@ -9892,6 +9949,42 @@ export interface components {
              * @description When the mode last changed. Equal to created_at until then.
              */
             updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        TagCategory: {
+            /** @description zh-Hans label. Must not be used as a discriminant. */
+            display_name: string;
+            /** @description Stable category slug, the value of category= on /v2/catalog/tags. A slug is never renamed; display_name and order may change. */
+            id: string;
+            /**
+             * @description Type discriminant. Always tag_category.
+             * @enum {string}
+             */
+            object: "tag_category";
+            /**
+             * Format: int64
+             * @description Ascending display order. Values are spaced, not consecutive.
+             */
+            order: number;
+            /**
+             * Format: int64
+             * @description Canonical tags filed under this category, before any nsfw or has_works filter.
+             */
+            tag_count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        TagCategoryRef: {
+            /** @description zh-Hans label. Must not be used as a discriminant. */
+            display_name: string;
+            /** @description Stable category slug, the value of category= on /v2/catalog/tags. */
+            id: string;
+            /**
+             * @description Type discriminant. Always tag_category.
+             * @enum {string}
+             */
+            object: "tag_category";
         } & {
             [key: string]: unknown;
         };
@@ -14883,6 +14976,87 @@ export interface operations {
             };
         };
     };
+    listCatalogTagCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListTagCategory"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getCatalogTagExclusion: {
         parameters: {
             query?: {
@@ -15005,6 +15179,8 @@ export interface operations {
                 nsfw?: string;
                 /** @description true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag. */
                 has_works?: string;
+                /** @description A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400. */
+                category?: string;
             };
             header?: never;
             path?: never;

@@ -13,7 +13,7 @@
 
 List tags
 
-Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -33,6 +33,7 @@ Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP 
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `has_works` | query | 否 | string | true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag. |
+| `category` | query | 否 | string | A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/tags"
