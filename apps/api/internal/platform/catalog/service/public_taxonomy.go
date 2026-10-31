@@ -15,6 +15,7 @@ import (
 const (
 	taxonomyLaneLabels  = "labels"
 	taxonomyLaneTags    = "tags"
+	taxonomyLaneTagHeat = "tags_works"
 	taxonomyLaneEngines = "engines"
 	taxonomyLaneSeries  = "series"
 	taxonomyLaneRoles   = "roles"
@@ -28,12 +29,17 @@ type LabelsListFilter struct {
 }
 
 type TagsListFilter struct {
-	Tier     *int16
-	Kind     *int16
-	NSFW     bool
-	HasWorks bool
-	IDs      []int64
+	Tier          *int16
+	Kind          *int16
+	NSFW          bool
+	HasWorks      bool
+	IDs           []int64
+	Category      *int16
+	Uncategorized bool
+	Sort          string
 }
+
+const TagSortWorkCount = "work_count"
 
 type EnginesListFilter struct {
 	NSFW bool
@@ -151,7 +157,12 @@ func (s *PublicService) labelsWithRelations(ctx context.Context, ids []int64) (m
 }
 
 func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor string, limit int) (dto.PublicTagsListData, error) {
-	cur, err := decodePublicCursor(cursor, taxonomyLaneTags)
+	byWorks := f.Sort == TagSortWorkCount && len(f.IDs) == 0
+	lane := taxonomyLaneTags
+	if byWorks {
+		lane = taxonomyLaneTagHeat
+	}
+	cur, err := decodePublicCursor(cursor, lane)
 	if err != nil {
 		return dto.PublicTagsListData{}, err
 	}
@@ -176,19 +187,42 @@ func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor s
 		where = append(where, "id IN ?")
 		args = append(args, f.IDs)
 	}
+	switch {
+	case f.Uncategorized:
+		where = append(where, "category_id IS NULL")
+	case f.Category != nil:
+		where = append(where, "category_id = ?")
+		args = append(args, *f.Category)
+	}
 	filterWhere, filterArgs := append([]string(nil), where...), append([]any(nil), args...)
-	if cur.ID > 0 {
+
+	from, heat, order := `catalog_tag`, `0`, `id ASC`
+	if byWorks {
+		col := "n_sfw"
+		if f.NSFW {
+			col = "n_all"
+		}
+		from = `catalog_tag LEFT JOIN catalog_tag_work_count wc ON wc.tag_id = catalog_tag.id`
+		heat = `COALESCE(wc.` + col + `, 0)`
+		order = heat + ` DESC, id ASC`
+		if cur.ID > 0 {
+			where = append(where, `(`+heat+` < ? OR (`+heat+` = ? AND id > ?))`)
+			args = append(args, cur.Ord, cur.Ord, cur.ID)
+		}
+	} else if cur.ID > 0 {
 		where = append(where, "id > ?")
 		args = append(args, cur.ID)
 	}
 
 	var rows []struct {
-		ID   int64
-		Name string
-		Tier int16
-		Kind int16
+		ID         int64
+		Name       string
+		Tier       int16
+		Kind       int16
+		CategoryID *int16
+		Heat       int64
 	}
-	q := `SELECT id, name, tier, kind FROM catalog_tag ` + whereClause(where) + ` ORDER BY id ASC`
+	q := `SELECT id, name, tier, kind, category_id, ` + heat + ` AS heat FROM ` + from + ` ` + whereClause(where) + ` ORDER BY ` + order
 	q, args, paginated := applyBrowseLimit(q, args, limit+taxonomyOverFetch, f.IDs)
 	if err := s.db.WithContext(ctx).Raw(q, args...).Scan(&rows).Error; err != nil {
 		return dto.PublicTagsListData{}, err
@@ -214,18 +248,28 @@ func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor s
 	if err != nil {
 		return dto.PublicTagsListData{}, err
 	}
+	cats, err := s.tagCategoriesByID(ctx)
+	if err != nil {
+		return dto.PublicTagsListData{}, err
+	}
 	out := dto.PublicTagsListData{Items: make([]dto.PublicTagListItem, len(rows))}
 	for i, r := range rows {
 		out.Items[i] = dto.PublicTagListItem{
 			ID: r.ID, Name: r.Name, Tier: tagTierKey(r.Tier), Kind: tagKindKey(r.Kind),
-			WorkCount: counts[r.ID], Sexual: sexual[r.ID],
+			WorkCount: counts[r.ID], Sexual: sexual[r.ID], Category: cats.ref(r.CategoryID),
 			Parents: h.parentsOf(r.ID), ChildCount: h.children[r.ID], DescendantCount: h.descendants[r.ID],
 		}
 	}
 	if out.Total, err = s.taxonomyTotal(ctx, "catalog_tag", filterWhere, filterArgs); err != nil {
 		return dto.PublicTagsListData{}, err
 	}
-	out.NextCursor = taxonomyNextCursor(taxonomyLaneTags, ids, more)
+	if more && byWorks {
+		last := rows[len(rows)-1]
+		c := encodePublicCursor(publicCursor{Sort: lane, ID: last.ID, Ord: last.Heat})
+		out.NextCursor = &c
+		return out, nil
+	}
+	out.NextCursor = taxonomyNextCursor(lane, ids, more)
 	return out, nil
 }
 

@@ -1,21 +1,22 @@
 package repr
 
 type Tag struct {
-	_               struct{}   `json:"-" additionalProperties:"true"`
-	Object          string     `json:"object" enum:"tag" doc:"Type discriminant. Always tag."`
-	ID              string     `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog tag id."`
-	DisplayName     string     `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	Tier            string     `json:"tier" enum:"core,longtail,hidden" doc:"Tag inventory tier."`
-	TagKind         string     `json:"tag_kind" enum:"content,meta" doc:"Tag vocabulary class."`
-	WorkCount       int        `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount."`
-	IsSexual        bool       `json:"is_sexual" doc:"Whether this tag is in the sexual family. Filter on it before rendering a tag list to an SFW reader."`
-	Intros          *[]Intro   `json:"intros,omitempty" doc:"Tag descriptions, one per language. Present when include=intros, detail face only. Empty array if none. is_machine is always false here: the store carries no provenance for a tag description, so false records unknown, not human-written."`
-	Parents         []TagRef   `json:"parents" doc:"Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents."`
-	ChildCount      int        `json:"child_count" minimum:"0" doc:"Direct children."`
-	DescendantCount int        `json:"descendant_count" minimum:"0" doc:"Tags below this one at any depth, each counted once."`
-	Children        *[]TagRef  `json:"children,omitempty" doc:"Direct children, ordered by id. Present when include=children, detail face only. Empty array if none."`
-	Descendants     *[]TagNode `json:"descendants,omitempty" doc:"Every tag below this one at any depth, each listed once, nearest first (by shortest path, then id); its length is descendant_count. Each node's parent_ids name its direct parents among this tag and the other descendants, so the subtree can be drawn; a tag with several parents is drawn under each. These are the tags exclude_tag_tree adds for this id. Present when include=descendants, detail face only. Empty array if none."`
-	Ancestors       *[]TagNode `json:"ancestors,omitempty" doc:"Every tag above this one at any depth, each listed once, nearest first; the first level is parents. Each node's parent_ids name all its direct parents, so every path up to a root can be drawn. A reader who blocked any of these with exclude_tag_tree does not see works carrying this tag. Present when include=ancestors, detail face only. Empty array for a root."`
+	_               struct{}        `json:"-" additionalProperties:"true"`
+	Object          string          `json:"object" enum:"tag" doc:"Type discriminant. Always tag."`
+	ID              string          `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog tag id."`
+	DisplayName     string          `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
+	Tier            string          `json:"tier" enum:"core,longtail,hidden" doc:"Tag inventory tier."`
+	TagKind         string          `json:"tag_kind" enum:"content,meta" doc:"Tag vocabulary class."`
+	WorkCount       int             `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount."`
+	IsSexual        bool            `json:"is_sexual" doc:"Whether this tag is in the sexual family. Filter on it before rendering a tag list to an SFW reader."`
+	TagCategory     *TagCategoryRef `json:"tag_category" doc:"The browsing group this tag is filed under (GET /v2/catalog/tag-categories). null when it is in none: show it under an other group. Orthogonal to is_sexual: a sexual tag can sit in any group, and the adult group holds sexual acts and themes, not every sexual tag."`
+	Intros          *[]Intro        `json:"intros,omitempty" doc:"Tag descriptions, one per language. Present when include=intros, detail face only. Empty array if none. is_machine is always false here: the store carries no provenance for a tag description, so false records unknown, not human-written."`
+	Parents         []TagRef        `json:"parents" doc:"Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents."`
+	ChildCount      int             `json:"child_count" minimum:"0" doc:"Direct children."`
+	DescendantCount int             `json:"descendant_count" minimum:"0" doc:"Tags below this one at any depth, each counted once."`
+	Children        *[]TagRef       `json:"children,omitempty" doc:"Direct children, ordered by id. Present when include=children, detail face only. Empty array if none."`
+	Descendants     *[]TagNode      `json:"descendants,omitempty" doc:"Every tag below this one at any depth, each listed once, nearest first (by shortest path, then id); its length is descendant_count. Each node's parent_ids name its direct parents among this tag and the other descendants, so the subtree can be drawn; a tag with several parents is drawn under each. These are the tags exclude_tag_tree adds for this id. Present when include=descendants, detail face only. Empty array if none."`
+	Ancestors       *[]TagNode      `json:"ancestors,omitempty" doc:"Every tag above this one at any depth, each listed once, nearest first; the first level is parents. Each node's parent_ids name all its direct parents, so every path up to a root can be drawn. A reader who blocked any of these with exclude_tag_tree does not see works carrying this tag. Present when include=ancestors, detail face only. Empty array for a root."`
 }
 
 type TagNode struct {
@@ -32,6 +33,22 @@ type TagExclusion struct {
 	Object  string   `json:"object" enum:"tag_exclusion" doc:"Type discriminant. Always tag_exclusion."`
 	TagIDs  []string `json:"tag_ids" doc:"Every tag the parameters exclude: the exact ids, and each tree id with every tag below it. Ascending. Never null."`
 	WorkIDs []string `json:"work_ids" doc:"Every catalog work that carries any of tag_ids, from any source, at any spoiler level and under any rating. Ascending. Never null. These are the works /v2/catalog/works drops for the same parameters, so a site listing works from its own store drops them to match."`
+}
+
+type TagCategoryRef struct {
+	_           struct{} `json:"-" additionalProperties:"true"`
+	Object      string   `json:"object" enum:"tag_category" doc:"Type discriminant. Always tag_category."`
+	ID          string   `json:"id" pattern:"^[a-z][a-z0-9_]*$" maxLength:"64" doc:"Stable category slug, the value of category= on /v2/catalog/tags."`
+	DisplayName string   `json:"display_name" maxLength:"512" doc:"zh-Hans label. Must not be used as a discriminant."`
+}
+
+type TagCategory struct {
+	_           struct{} `json:"-" additionalProperties:"true"`
+	Object      string   `json:"object" enum:"tag_category" doc:"Type discriminant. Always tag_category."`
+	ID          string   `json:"id" pattern:"^[a-z][a-z0-9_]*$" maxLength:"64" doc:"Stable category slug, the value of category= on /v2/catalog/tags. A slug is never renamed; display_name and order may change."`
+	DisplayName string   `json:"display_name" maxLength:"512" doc:"zh-Hans label. Must not be used as a discriminant."`
+	Order       int      `json:"order" minimum:"0" doc:"Ascending display order. Values are spaced, not consecutive."`
+	TagCount    int      `json:"tag_count" minimum:"0" doc:"Canonical tags filed under this category, before any nsfw or has_works filter."`
 }
 
 type TagRef struct {

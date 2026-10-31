@@ -817,6 +817,14 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "listCatalogTagCategories",
+    "method": "GET",
+    "path": "/v2/catalog/tag-categories",
+    "summary": "List tag categories",
+    "needs_key": false,
+    "params": []
+  },
+  {
     "name": "listCatalogTags",
     "method": "GET",
     "path": "/v2/catalog/tags",
@@ -834,7 +842,8 @@ export const mcpTools = [
       "facets",
       "sort",
       "nsfw",
-      "has_works"
+      "has_works",
+      "category"
     ]
   },
   {
