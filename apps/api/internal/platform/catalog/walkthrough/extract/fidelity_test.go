@@ -156,7 +156,9 @@ func TestTimeHeadings(t *testing.T) {
 
 func TestRepeatedHeadingsArePicks(t *testing.T) {
 	text := func(s string) *string { return &s }
-	heading := func(s string) walkthrough.Step { return walkthrough.Step{StepType: walkthrough.StepHeading, Text: text(s)} }
+	heading := func(s string) walkthrough.Step {
+		return walkthrough.Step{StepType: walkthrough.StepHeading, Text: text(s)}
+	}
 	c := walkthrough.Chart{Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
 		heading("■リーゼ"), heading("第1話"), heading("■リーゼ"), heading("第1話"), heading("■ステラ"), heading("■リーゼ"), heading("第1話"),
 	}}}}
