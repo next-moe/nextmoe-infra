@@ -115,6 +115,7 @@ var mergeRefExclusions = map[string]string{
 	"catalog_split_request.new_work_id":          "the split's own record of the work it created; undo merges that work back into entity_id",
 	"catalog_work.product_work_id":               "a product-side claim id, not a catalog entity id; retireSource frees it",
 	"catalog_user_work_rating_tombstone.work_id": "deletion log, addressed to the work the rating was on when it was deleted",
+	"catalog_user_work_view.work_id":             "browsing history; a moved row would leave its copy in catalog_merge_movement, which survives the user clearing or switching off history. The retired id drops out of reads and the 90-day sweep deletes the row",
 	"catalog_work_media_order.work_id":           "the order of the source work's own images; the target keeps its own order, merged-in images sort after it, and an unmerge revives the source with its order intact",
 }
 

@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 错误码注册表（顶层 `code`，共 51 个）
+## 错误码注册表（顶层 `code`，共 52 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -59,6 +59,7 @@
 | code | HTTP | title | description |
 | --- | --- | --- | --- |
 | `USER_IDENTITY_REQUIRED` | 403 | User identity required | An application key was used for an operation that needs a user token. |
+| `BROWSING_HISTORY_NOT_SHARED` | 403 | Browsing history not shared | scope=all asked for every app's browsing history, and the account keeps it per app. Only the account can change that, with browsing_history_sharing on PATCH /v2/me/privacy from a first-party app; this app still reads what it recorded itself with scope=app. |
 | `SITE_NOT_BOUND` | 403 | Site not bound | The client behind the token is not bound to a catalog site. |
 | `RELEASE_CREATION_DISABLED` | 403 | Release creation disabled | The proposal tried to create a release. This is a product constraint, not a defect. |
 | `ALREADY_EXISTS` | 409 | Already exists | The same subject already has a live record for this target. |

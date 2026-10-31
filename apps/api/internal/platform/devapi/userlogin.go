@@ -31,6 +31,7 @@ var selfServiceUserScopes = []string{
 	"openid", "profile", "email",
 	ScopePlaytimeRead, ScopePlaytimeWrite,
 	ScopeFolderRead, ScopeFolderWrite,
+	ScopeHistoryRead,
 	ScopeCatalogEdit,
 	ScopeCatalogRead,
 	ScopePreferences,
@@ -44,6 +45,9 @@ const (
 	// convention and demands an explicit consent.
 	ScopeFolderRead  = "folder:read"
 	ScopeFolderWrite = "folder:write"
+	// Reads every app's browsing history merged (/v2/me/history?scope=all).
+	// An app reads what it recorded itself without it.
+	ScopeHistoryRead = "history:read"
 	// Enforced too, over the whole editing plane. v1's UserGate demanded it
 	// across /api/v1/user/catalog; wave R3 deleted that surface and carried
 	// nothing over, so from that day /v2/me/proposals accepted an
@@ -61,7 +65,7 @@ var (
 	ErrRedirectURIRequired = errors.New("devapi: user login needs at least one redirect URI")
 	ErrTooManyRedirectURIs = errors.New("devapi: too many redirect URIs (max 5)")
 	ErrRedirectURIInvalid  = errors.New("devapi: redirect URI must be https://, or http:// on the 127.0.0.1 / [::1] loopback for a native app")
-	ErrUserScopeNotAllowed = errors.New("devapi: scope not permitted for a self-service app (want openid/profile/email/playtime:read/playtime:write/folder:read/folder:write/catalog:edit/catalog:read/preferences)")
+	ErrUserScopeNotAllowed = errors.New("devapi: scope not permitted for a self-service app (want openid/profile/email/playtime:read/playtime:write/folder:read/folder:write/history:read/catalog:edit/catalog:read/preferences)")
 	ErrAppNameReserved     = errors.New("devapi: application name may not claim to be NextMoe or an official application")
 )
 

@@ -221,6 +221,7 @@ var batchRefusingFaces = map[string]string{
 	"/v2/ratings/changes":       "collect.RatingChangeSpec is NoBatch: mirror feed, cursor only",
 	"/v2/work-records":          "collect.WorkRecordSpec is NoBatch; user_id= addresses this face",
 	"/v2/me/work-records":       "collect.WorkRecordSpec is NoBatch; the bearer addresses this face",
+	"/v2/me/history":            "collect.BrowsingHistorySpec is NoBatch; the bearer addresses this face",
 	"/v2/me/calendar":           "feedNoBatch: the calendar is a window, not a set of ids",
 	"/v2/me/proposals":          "collect.MyProposalListSpec is NoBatch; the list lane has no hydration",
 	"/v2/me/works":              "collect.UserWorkSpec is NoBatch; work_ids= is this lane's batch",

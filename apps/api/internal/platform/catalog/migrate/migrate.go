@@ -98,17 +98,23 @@ func Run(db *gorm.DB) error {
 		// NULL on every existing row and stay that way until backfill-work-ratings
 		// runs again (it is in the bgm weekly, so untouched trees self-heal there).
 		&model.CatalogWorkRating{},
-		&model.CatalogWorkTag{},            // bodyless verbatim folksonomy tags (step 58b media-aggregation facet B)
-		&model.CatalogWorkPopularity{},     // bodyless per-metric popularity counters (step 62 popularity facet)
-		&model.CatalogWorkPlaytime{},       // per-source playtime estimates (step 91 playtime facet — no claimed bridge)
-		&model.CatalogUserPlaytime{},       // per-user/per-client playtime reports; aggregates INTO the row above as source nextmoe
-		&model.CatalogUserWorkState{},      // per-user per-work play state (state/rating track P1); backfilled below from playtime statuses only while that column still exists
-		&model.CatalogUserFolder{},         // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
-		&model.CatalogUserFolderItem{},     // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
-		&model.CatalogUserFolderImport{},   // source-collection provenance for the favorites import (since retired); made that backfill re-runnable
-		&model.CatalogUserEntityFollow{},   // per-user follows of catalog entities; companies only, see the CHECK
-		&model.CatalogUserTagBlock{},       // per-user tag blocks that clients pass as exclude_tag_id / exclude_tag_tree (2026-10); new, no backfill
-		&model.CatalogUserPrivacy{},        // per-account privacy switches (2026-10-13); created empty on purpose: no row means public, so every existing account's play states and playtimes become readable on /v2/work-records — a product decision taken knowing the forum had told its users play records were private
+		&model.CatalogWorkTag{},          // bodyless verbatim folksonomy tags (step 58b media-aggregation facet B)
+		&model.CatalogWorkPopularity{},   // bodyless per-metric popularity counters (step 62 popularity facet)
+		&model.CatalogWorkPlaytime{},     // per-source playtime estimates (step 91 playtime facet — no claimed bridge)
+		&model.CatalogUserPlaytime{},     // per-user/per-client playtime reports; aggregates INTO the row above as source nextmoe
+		&model.CatalogUserWorkState{},    // per-user per-work play state (state/rating track P1); backfilled below from playtime statuses only while that column still exists
+		&model.CatalogUserFolder{},       // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
+		&model.CatalogUserFolderItem{},   // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
+		&model.CatalogUserFolderImport{}, // source-collection provenance for the favorites import (since retired); made that backfill re-runnable
+		&model.CatalogUserEntityFollow{}, // per-user follows of catalog entities; companies only, see the CHECK
+		&model.CatalogUserTagBlock{},     // per-user tag blocks that clients pass as exclude_tag_id / exclude_tag_tree (2026-10); new, no backfill
+		&model.CatalogUserPrivacy{},      // per-account privacy switches (2026-10-13); created empty on purpose: no row means public, so every existing account's play states and playtimes become readable on /v2/work-records — a product decision taken knowing the forum had told its users play records were private
+		// Browsing history (2026-10-27): a new empty table of the works a person
+		// opened, one row per (user, app, work), kept 90 days and 500 per app;
+		// nothing is backfilled. The same wave adds browsing_history_off and
+		// browsing_history_shared to catalog_user_privacy as NOT NULL DEFAULT
+		// false, so every existing account records history and keeps it per app.
+		&model.CatalogUserWorkView{},
 		&model.CatalogSeries{},             // work series entity (step 94, dlsite lane first)
 		&model.CatalogSeriesMember{},       // series membership (step 94)
 		&model.CatalogSeriesIntro{},        // multilingual series intros (refs/plans/10 W0 ruling 3)
@@ -780,6 +786,11 @@ func rawSQL(db *gorm.DB) error {
 		// Losing the release only loses that note, not the walkthrough.
 		{"catalog_walkthrough", "fk_catalog_walkthrough_release",
 			`FOREIGN KEY (release_id) REFERENCES catalog_release(id) ON DELETE SET NULL`},
+		// 2026-10-27: a deleted work takes its browsing history rows with it.
+		// A merge does not move them (mergeRefExclusions), so a merged-away work
+		// keeps its rows until the 90-day sweep.
+		{"catalog_user_work_view", "fk_catalog_user_work_view_work",
+			`FOREIGN KEY (work_id) REFERENCES catalog_work(id) ON DELETE CASCADE`},
 	} {
 		exists, err := constraintExists(db, fk.table, fk.name)
 		if err != nil {

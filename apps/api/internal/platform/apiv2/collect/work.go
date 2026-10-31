@@ -231,6 +231,16 @@ func WorkStateSpec() Spec {
 	}
 }
 
+func BrowsingHistorySpec() Spec {
+	return Spec{
+		Sort:    []string{"viewed_desc"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "work_id", "first_viewed_at", "last_viewed_at", "view_count"},
+		NoBatch: true,
+	}
+}
+
 func CompanyFollowSpec() Spec {
 	return Spec{
 		Sort:    []string{"followed_desc"},

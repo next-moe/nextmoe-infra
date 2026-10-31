@@ -68,6 +68,7 @@ const (
 	CodeEntityDeleted                = "ENTITY_DELETED"
 	CodePlayRecordsPrivate           = "PLAY_RECORDS_PRIVATE"
 	CodeUserIdentityRequired         = "USER_IDENTITY_REQUIRED"
+	CodeBrowsingHistoryNotShared     = "BROWSING_HISTORY_NOT_SHARED"
 	CodeSiteNotBound                 = "SITE_NOT_BOUND"
 	CodeReleaseCreationDisabled      = "RELEASE_CREATION_DISABLED"
 	CodeAlreadyExists                = "ALREADY_EXISTS"
@@ -149,6 +150,7 @@ var Codes = []Def{
 	{CodeEntityDeleted, DomainCatalog, http.StatusGone, "Entity deleted", "The entity was deleted through a reviewed deletion request. object, deleted_reason and deleted_at are present. A reviewer may restore it under the same id, so treat it as hidden, not as never having existed."},
 	{CodePlayRecordsPrivate, DomainCatalog, http.StatusForbidden, "Play records private", "The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings."},
 	{CodeUserIdentityRequired, DomainMe, http.StatusForbidden, "User identity required", "An application key was used for an operation that needs a user token."},
+	{CodeBrowsingHistoryNotShared, DomainMe, http.StatusForbidden, "Browsing history not shared", "scope=all asked for every app's browsing history, and the account keeps it per app. Only the account can change that, with browsing_history_sharing on PATCH /v2/me/privacy from a first-party app; this app still reads what it recorded itself with scope=app."},
 	{CodeSiteNotBound, DomainMe, http.StatusForbidden, "Site not bound", "The client behind the token is not bound to a catalog site."},
 	{CodeReleaseCreationDisabled, DomainMe, http.StatusForbidden, "Release creation disabled", "The proposal tried to create a release. This is a product constraint, not a defect."},
 	{CodeAlreadyExists, DomainMe, http.StatusConflict, "Already exists", "The same subject already has a live record for this target."},
