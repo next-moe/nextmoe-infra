@@ -2834,3 +2834,17 @@ After the fidelity apply, the gate still passed charts that missed choices: `cov
 - `--llm-timeout` (default 180s) sets the gateway call timeout; a whole page through the cursor shim can take 10 minutes. The shim appends the `response_format` schema to the prompt, because the cursor agent never sees it and answered in prose.
 
 Over the 5,402 stored charts, 4,061 stay live, 91 live charts go to the 待补全 backlog with their missed lines, and 12 hidden ones go live. **No schema change.**
+
+## Walkthrough import v4: sectioned extraction (2026-10-31)
+
+After the coverage gate, 280 charts were in review and 160 rejected. Most of what they missed were progress lines on game-system pages (map picks, menu commands, time-slot events) that `extract-v3` typed as headings or dropped. Long pages also failed outright, because a whole 10k+ rune page took 10 to 15 minutes per call.
+
+- **`extract-v4`** asks for every choice and every progress line. Whatever the player picks is a `choice`, however the page decorates it (`■瞳：通学路`, `【喫茶店】⇒店`, `■1日目午前│…│恭香`, `選択肢「…」` → the quoted text). `heading` is only for a line that says nothing but where the player is in time or in the story. Site chrome (`★拡大リンク★`, `▼クリックで⇒参考画像表示▼`) is skipped, and the coverage gate skips it too.
+- **Long pages are extracted in parts.** `extract.SplitPage` cuts a page over `PartRunes` (5,000) after an END line, falling back to a route start or a heading, with a hard cut at 1.5×. Each later part is told the characters, sections, entries, saves and endings the earlier parts defined. `extract.Merge` joins the parts: it matches characters by name or alias, sections by title, entries and saves by label, and prefixes the new keys with `p{k}_`. It resolves a part's key with or without that prefix, because deepseek defined `p2_s7` and then filed segments under `s7`.
+- **The repair step** turns a heading that repeats at least three times and is not a time line (`■リーゼ`) into a choice. It also drops a step left with no text.
+- **Headings** also cover `3回目`, `フェイズ2`, `期限まで：5日`, `10/23` and `4月5日（月）`.
+- **A worse run never replaces a stored one.** `storeExtraction` keeps the stored row unless the new one is not an error and ranks at least as high (`ok` > `review` > `no_chart` > `rejected`, then coverage), or the page itself changed. Before this, a timed-out call overwrote a v3 chart with an error row. `regate` still rewrites in place. Translation rows likewise keep a good row over a failed one.
+- **Translation reuses strings.** `translate` sends only the strings that the entry's previous translation does not already hold (`--redo` sends all of them). A mixed row's model is `prev+model`.
+- `--reasoning-effort` passes `reasoning_effort` to the provider.
+
+The runs used Cloudflare Workers AI, through its OpenAI-compatible endpoint, instead of the cursor shim, whose quota ran out: two passes of `deepseek-v4.1-flash` over 803 charts, then `deepseek-v4-pro` on 168 charts that were still not ok. `glm-5.3` is unusable under a `json_schema` response format, because it returns empty output or whitespace. Best settled charts went from 5,111 ok / 280 review / 160 rejected to 5,389 ok / 124 review / 11 rejected (646 pages have no chart). **No schema change.**
