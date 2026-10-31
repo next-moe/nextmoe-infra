@@ -246,6 +246,7 @@ func walkthroughNode(n walkthrough.Node) repr.WalkthroughNode {
 func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string) map[string]repr.LocalizedText) *repr.WalkthroughChart {
 	out := &repr.WalkthroughChart{
 		Sections: make([]repr.WalkthroughSection, 0, len(c.Sections)),
+		Legend:   make([]repr.WalkthroughLegendLine, 0, len(c.Legend)),
 		Entries:  make([]repr.WalkthroughEntry, 0, len(c.Entries)),
 		Saves:    make([]repr.WalkthroughSave, 0, len(c.Saves)),
 		Endings:  make([]repr.WalkthroughEnding, 0, len(c.Endings)),
@@ -256,11 +257,16 @@ func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string
 			Key: s.Key, Title: s.Title, Localized: walkthroughLocalized(s.TitleZh), CharacterKeys: orEmptyStrings(s.Characters),
 		})
 	}
+	for _, l := range c.Legend {
+		out.Legend = append(out.Legend, repr.WalkthroughLegendLine{Text: l.Text, Localized: walkthroughLocalized(l.TextZh)})
+	}
 	for _, e := range c.Entries {
-		out.Entries = append(out.Entries, repr.WalkthroughEntry{Key: e.Key, Label: e.Label, UnlockedByEndingKey: e.UnlockedBy})
+		out.Entries = append(out.Entries, repr.WalkthroughEntry{
+			Key: e.Key, Label: e.Label, Localized: walkthroughLocalized(e.LabelZh), UnlockedByEndingKey: e.UnlockedBy,
+		})
 	}
 	for _, s := range c.Saves {
-		out.Saves = append(out.Saves, repr.WalkthroughSave{Key: s.Key, Label: s.Label})
+		out.Saves = append(out.Saves, repr.WalkthroughSave{Key: s.Key, Label: s.Label, Localized: walkthroughLocalized(s.LabelZh)})
 	}
 	for _, e := range c.Endings {
 		out.Endings = append(out.Endings, repr.WalkthroughEnding{
@@ -271,11 +277,13 @@ func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string
 		seg := repr.WalkthroughSegment{
 			Key: s.Key, SectionKey: s.Section, FromNode: walkthroughNode(s.From), ToNode: walkthroughNode(s.To),
 			Condition: s.Condition, ConditionLocalized: walkthroughLocalized(s.ConditionZh),
-			Steps: make([]repr.WalkthroughStep, 0, len(s.Steps)),
+			RequiresEndingKeys: orEmptyStrings(s.RequiresEndings),
+			Steps:              make([]repr.WalkthroughStep, 0, len(s.Steps)),
 		}
 		for _, st := range s.Steps {
 			step := repr.WalkthroughStep{
 				StepType: st.StepType, Text: st.Text, Localized: walkthroughLocalized(st.TextZh),
+				Remark: st.Remark, RemarkLocalized: walkthroughLocalized(st.RemarkZh),
 				Achievement: st.Achievement, SaveKey: st.Save,
 				Alternatives: make([]repr.WalkthroughAlternative, 0, len(st.Alt)),
 			}

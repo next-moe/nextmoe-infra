@@ -12,6 +12,8 @@ import (
 	"api/internal/platform/catalog/llmsuggest"
 )
 
+var errNotJSON = errors.New("reply is not the requested JSON")
+
 type llm struct {
 	client *llmsuggest.Client
 	model  string
@@ -41,7 +43,7 @@ func (l *llm) chatJSON(ctx context.Context, system, user, name string, schema ma
 			if err = json.Unmarshal([]byte(res.Content), out); err == nil {
 				return res, nil
 			}
-			err = fmt.Errorf("unmarshal %s: %w", name, err)
+			err = fmt.Errorf("unmarshal %s: %w: %w", name, errNotJSON, err)
 			if attempt >= 2 {
 				return res, err
 			}

@@ -3,7 +3,13 @@ import { cn } from '@kungal/ui-core'
 import type { KunDropdownItem } from '@kungal/ui-vue'
 import type { WtStep, WtStepType } from '#shared/types/walkthrough'
 import { WT_STEP_META } from '~/constants/walkthrough'
-import { blankStep, cloneChart, keysOf, nextKey } from '~/utils/walkthrough/doc'
+import {
+  blankStep,
+  cloneChart,
+  keysOf,
+  nextKey,
+  takesRemark
+} from '~/utils/walkthrough/doc'
 import {
   composing,
   focusSibling,
@@ -22,8 +28,17 @@ const props = defineProps<{
 const doc = useWalkthroughDocument()
 const drag = useStepDrag()
 const alts = ref<{ open: () => void } | null>(null)
+const remark = ref<{ open: () => void } | null>(null)
 
 const meta = computed(() => WT_STEP_META[props.step.step_type])
+
+const STEP_TONE: Record<WtStepType, string> = {
+  choice: 'text-primary-600 hover:bg-primary-100',
+  action: 'bg-default-100 text-default-600',
+  save: 'bg-success-100 text-success-700',
+  heading: 'bg-info-100 text-info-700',
+  note: 'bg-warning-100 text-warning-700'
+}
 const issues = computed(() =>
   doc.issuesOf({ kind: 'segment', key: props.segmentKey, step: props.index })
 )
@@ -110,7 +125,8 @@ const onKeydown = (event: KeyboardEvent, field: 'text' | 'zh') => {
     field === 'text' &&
     !props.step.text &&
     !props.step.text_zh &&
-    !props.step.alt.length
+    !props.step.alt.length &&
+    props.step.remark === null
   ) {
     event.preventDefault()
     remove('previous')
@@ -166,6 +182,10 @@ const setType = (item: KunDropdownItem) => {
     } else {
       if (st.step_type === 'save') Object.assign(st, blankStep(type))
       st.step_type = type
+      if (!takesRemark(type)) {
+        st.remark = null
+        st.remark_zh = null
+      }
     }
   })
 }
@@ -250,11 +270,7 @@ const inputClass =
           :class="
             cn(
               'mt-1 flex size-7 shrink-0 items-center justify-center rounded-md transition-colors',
-              props.step.step_type === 'save'
-                ? 'bg-success-100 text-success-700'
-                : props.step.step_type === 'action'
-                  ? 'bg-default-100 text-default-600'
-                  : 'text-primary-600 hover:bg-primary-100'
+              STEP_TONE[props.step.step_type]
             )
           "
           :title="`${meta.label}（点击切换类型）`"
@@ -320,6 +336,13 @@ const inputClass =
         @focus="onFocus"
         @blur="doc.breakCoalescing"
       />
+      <WalkthroughsEditorStepRemark
+        ref="remark"
+        :segment-key="props.segmentKey"
+        :index="props.index"
+        :step="props.step"
+        :translating="props.translating"
+      />
       <div v-if="props.step.alt.length" class="flex flex-wrap gap-1 px-2 pb-1">
         <button
           v-for="(alt, i) in props.step.alt"
@@ -338,7 +361,30 @@ const inputClass =
       v-if="props.step.step_type !== 'save'"
       class="mt-1 flex shrink-0 items-center"
     >
-      <KunTooltip text="☆ 标记（Alt + A）" position="top">
+      <KunTooltip
+        v-if="takesRemark(props.step.step_type)"
+        text="备注：选项后的结果或效果"
+        position="top"
+      >
+        <button
+          type="button"
+          tabindex="-1"
+          :disabled="doc.readonly.value"
+          :aria-pressed="props.step.remark !== null"
+          :class="
+            cn(
+              'flex size-7 items-center justify-center rounded-md transition-colors',
+              props.step.remark !== null
+                ? 'text-primary-500'
+                : 'text-default-300 hover:text-default-500 opacity-0 group-hover/step:opacity-100'
+            )
+          "
+          @click="remark?.open()"
+        >
+          <KunIcon name="lucide:message-square-text" class="size-4" />
+        </button>
+      </KunTooltip>
+      <KunTooltip text="成就（Alt + A）" position="top">
         <button
           type="button"
           tabindex="-1"

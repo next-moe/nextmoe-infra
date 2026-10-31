@@ -22,6 +22,7 @@ export const WT_LIMITS = {
   textRunes: 1024,
   conditionRunes: 1024,
   aliases: 32,
+  legend: 32,
   alts: 16,
   characters: 128,
   segments: 2000,
@@ -56,7 +57,17 @@ export const WT_STEP_META: Record<
     icon: 'lucide:footprints',
     placeholder: '需要做的事，例如「进入图书馆」'
   },
-  save: { label: '存档', icon: 'lucide:save', placeholder: '' }
+  save: { label: '存档', icon: 'lucide:save', placeholder: '' },
+  heading: {
+    label: '小标题',
+    icon: 'lucide:heading',
+    placeholder: '给下面几步分组的标题，例如「5月14日」「第一章」'
+  },
+  note: {
+    label: '说明',
+    icon: 'lucide:info',
+    placeholder: '写给玩家的提示，例如「※看过沙耶END时选“是”」'
+  }
 }
 
 export const WT_START_NODES: { value: WtNodeType; label: string }[] = [

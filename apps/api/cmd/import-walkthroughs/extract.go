@@ -91,7 +91,7 @@ func extractOne(ctx context.Context, src *gorm.DB, l *llm, schema map[string]any
 	var got extract.Extracted
 	res, err := l.chatJSON(ctx, extract.System, text, "walkthrough", schema, maxTokens, &got)
 	m := extract.Metrics{Seconds: time.Since(start).Seconds(), CompletionTokens: res.CompletionTokens}
-	row := extractionRow{EntryID: e.ID, Model: l.model, InputHash: hashText(text)}
+	row := extractionRow{EntryID: e.ID, PromptVersion: extract.PromptVersion, Model: l.model, InputHash: hashText(text)}
 	if err != nil {
 		row.Verdict, row.Error = extract.VerdictError, err.Error()
 		return row.Verdict, storeExtraction(ctx, src, row, m)
@@ -102,13 +102,14 @@ func extractOne(ctx context.Context, src *gorm.DB, l *llm, schema map[string]any
 }
 
 type extractionRow struct {
-	EntryID   int64
-	Model     string
-	InputHash string
-	Verdict   string
-	Chart     *walkthrough.Chart
-	Raw       string
-	Error     string
+	EntryID       int64
+	PromptVersion string
+	Model         string
+	InputHash     string
+	Verdict       string
+	Chart         *walkthrough.Chart
+	Raw           string
+	Error         string
 }
 
 func storeExtraction(ctx context.Context, src *gorm.DB, r extractionRow, m extract.Metrics) error {
@@ -133,7 +134,7 @@ VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, now())
 ON CONFLICT (entry_id, prompt_version) DO UPDATE SET
   model = EXCLUDED.model, input_hash = EXCLUDED.input_hash, verdict = EXCLUDED.verdict,
   chart = EXCLUDED.chart, raw = EXCLUDED.raw, metrics = EXCLUDED.metrics, error = EXCLUDED.error, created_at = now()`,
-		r.EntryID, extract.PromptVersion, r.Model, r.InputHash, r.Verdict, chartJSON, rawJSON, string(mj), r.Error).Error
+		r.EntryID, r.PromptVersion, r.Model, r.InputHash, r.Verdict, chartJSON, rawJSON, string(mj), r.Error).Error
 }
 
 func runRegate(ctx context.Context, src *gorm.DB, entries []sourceEntry) error {
@@ -142,15 +143,16 @@ func runRegate(ctx context.Context, src *gorm.DB, entries []sourceEntry) error {
 		byID[e.ID] = e
 	}
 	var rows []struct {
-		EntryID   int64
-		Model     string
-		InputHash string
-		Raw       string
-		Metrics   string
+		EntryID       int64
+		PromptVersion string
+		Model         string
+		InputHash     string
+		Raw           string
+		Metrics       string
 	}
 	if err := src.WithContext(ctx).Table("wt_stage.extraction").
-		Select("entry_id, model, input_hash, raw::text AS raw, metrics::text AS metrics").
-		Where("prompt_version = ? AND raw IS NOT NULL", extract.PromptVersion).Scan(&rows).Error; err != nil {
+		Select("entry_id, prompt_version, model, input_hash, raw::text AS raw, metrics::text AS metrics").
+		Where("raw IS NOT NULL").Scan(&rows).Error; err != nil {
 		return err
 	}
 	counts := map[string]int{}
@@ -170,7 +172,7 @@ func runRegate(ctx context.Context, src *gorm.DB, entries []sourceEntry) error {
 		var prev extract.Metrics
 		_ = json.Unmarshal([]byte(r.Metrics), &prev)
 		m := extract.Metrics{Seconds: prev.Seconds, CompletionTokens: prev.CompletionTokens}
-		row := extractionRow{EntryID: r.EntryID, Model: r.Model, InputHash: r.InputHash, Raw: r.Raw}
+		row := extractionRow{EntryID: r.EntryID, PromptVersion: r.PromptVersion, Model: r.Model, InputHash: r.InputHash, Raw: r.Raw}
 		row.Verdict, row.Chart = extract.Settle(text, got, &m)
 		if err := storeExtraction(ctx, src, row, m); err != nil {
 			return err

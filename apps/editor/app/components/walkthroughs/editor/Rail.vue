@@ -30,8 +30,11 @@ const hasTranslations = () =>
   doc.chart.value.segments.some(
     (s) =>
       s.condition_zh ||
-      s.steps.some((st) => st.text_zh || st.alt_zh.some(Boolean))
+      s.steps.some(
+        (st) => st.text_zh || st.remark_zh || st.alt_zh.some(Boolean)
+      )
   ) ||
+  doc.chart.value.legend.some((l) => l.text_zh) ||
   doc.chart.value.endings.some((e) => e.name_zh) ||
   doc.chart.value.sections.some((s) => s.title_zh)
 
@@ -122,6 +125,7 @@ watch(
       <WalkthroughsEditorRailLabels kind="save" />
       <WalkthroughsEditorRailLabels kind="entry" />
       <WalkthroughsEditorRailLabels kind="section" />
+      <WalkthroughsEditorRailLegend />
     </div>
   </div>
 </template>

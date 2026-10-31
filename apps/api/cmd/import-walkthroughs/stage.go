@@ -40,6 +40,16 @@ CREATE TABLE IF NOT EXISTS wt_stage.match (
   created_at  timestamptz NOT NULL DEFAULT now()
 );`
 
+// The extraction prompt moved to extract-v3 after every chart had been
+// extracted with v2, and nothing re-extracts a page whose text did not change,
+// so the stages read each entry's newest settled extraction, of any version.
+func latestExtractions(where string) string {
+	return `(SELECT DISTINCT ON (entry_id) * FROM wt_stage.extraction WHERE ` + where +
+		` ORDER BY entry_id, substring(prompt_version from '[0-9]+$')::int DESC) AS x`
+}
+
+const settledVerdicts = "verdict IN ('ok', 'review', 'no_chart')"
+
 func ensureStage(ctx context.Context, src *gorm.DB) error {
 	return src.WithContext(ctx).Exec(stageDDL).Error
 }

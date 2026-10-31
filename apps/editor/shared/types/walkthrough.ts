@@ -1,5 +1,5 @@
 export type WtNodeType = 'entry' | 'save' | 'ending' | 'collect' | 'open'
-export type WtStepType = 'choice' | 'action' | 'save'
+export type WtStepType = 'choice' | 'action' | 'save' | 'heading' | 'note'
 export type WtEndingType =
   'heroine' | 'harem' | 'true' | 'normal' | 'bad' | 'after' | 'other'
 export type WtLang = 'ja' | 'zh-Hans'
@@ -17,15 +17,22 @@ export interface WtSection {
   characters: string[]
 }
 
+export interface WtLegend {
+  text: string
+  text_zh: string | null
+}
+
 export interface WtEntry {
   key: string
   label: string
+  label_zh?: string | null
   unlocked_by: string | null
 }
 
 export interface WtSave {
   key: string
   label: string
+  label_zh?: string | null
 }
 
 export interface WtEnding {
@@ -47,6 +54,8 @@ export interface WtStep {
   text_zh: string | null
   alt: string[]
   alt_zh: (string | null)[]
+  remark: string | null
+  remark_zh: string | null
   achievement: boolean
   save: string | null
 }
@@ -57,6 +66,7 @@ export interface WtSegment {
   from: WtNode
   condition: string | null
   condition_zh: string | null
+  requires_endings?: string[]
   steps: WtStep[]
   to: WtNode
 }
@@ -64,6 +74,7 @@ export interface WtSegment {
 export interface WtChart {
   characters: WtCharacter[]
   sections: WtSection[]
+  legend: WtLegend[]
   entries: WtEntry[]
   saves: WtSave[]
   endings: WtEnding[]
@@ -76,7 +87,10 @@ export interface WtPin {
 }
 
 export type WtTarget =
-  | { kind: 'character' | 'section' | 'entry' | 'save' | 'ending'; key: string }
+  | {
+      kind: 'character' | 'section' | 'entry' | 'save' | 'ending' | 'legend'
+      key: string
+    }
   | { kind: 'segment'; key: string; step?: number }
 
 export interface WtIssue {

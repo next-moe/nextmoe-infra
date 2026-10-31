@@ -27,7 +27,15 @@ const selected = computed(
 const issues = computed(() =>
   doc.issuesOf({ kind: 'segment', key: props.segment.key })
 )
-const conditionOpen = ref(Boolean(props.segment.condition))
+const conditionOpen = ref(
+  Boolean(props.segment.condition || props.segment.requires_endings?.length)
+)
+
+const endingOptions = computed(() =>
+  doc.chart.value.endings
+    .filter((e) => e.key !== props.segment.to.key)
+    .map((e) => ({ value: e.key, label: e.name || e.key }))
+)
 
 const update = (mutate: (s: WtSegment) => void, coalesce?: string) =>
   doc.edit((d) => {
@@ -201,7 +209,7 @@ const onHeaderDragStart = (event: DragEvent) =>
         :class="
           cn(
             'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors',
-            props.segment.condition
+            props.segment.condition || props.segment.requires_endings?.length
               ? 'bg-info-50 text-info-700'
               : 'text-default-400 hover:bg-default-100 hover:text-default-600'
           )
@@ -266,6 +274,17 @@ const onHeaderDragStart = (event: DragEvent) =>
           )
         "
         @blur="doc.breakCoalescing"
+      />
+      <KunSelect
+        :model-value="props.segment.requires_endings ?? []"
+        :options="endingOptions"
+        size="sm"
+        placeholder="需要先看过的结局"
+        multiple
+        :disabled="doc.readonly.value || !endingOptions.length"
+        @update:model-value="
+          update((s) => (s.requires_endings = ($event as string[]) ?? []))
+        "
       />
     </div>
 
