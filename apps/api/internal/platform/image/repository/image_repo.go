@@ -78,14 +78,20 @@ func (r *ImageRepository) UpdateVariants(ctx context.Context, hash string, varia
 		Error
 }
 
+// referenceRefreshAfter skips rows renewed recently: GC only acts after 60
+// days cold, while the daily reference-ping rewrote all ~900k rows (a
+// non-HOT update, last_referenced_at is indexed) every day.
+const referenceRefreshAfter = 7 * 24 * time.Hour
+
 func (r *ImageRepository) TouchReferenced(ctx context.Context, hashes []string) (int64, error) {
 	if len(hashes) == 0 {
 		return 0, nil
 	}
+	now := time.Now()
 	res := r.db.WithContext(ctx).
 		Model(&model.Image{}).
-		Where("hash IN ? AND deleted_at IS NULL", hashes).
-		Update("last_referenced_at", time.Now())
+		Where("hash IN ? AND deleted_at IS NULL AND last_referenced_at < ?", hashes, now.Add(-referenceRefreshAfter)).
+		Update("last_referenced_at", now)
 	return res.RowsAffected, res.Error
 }
 

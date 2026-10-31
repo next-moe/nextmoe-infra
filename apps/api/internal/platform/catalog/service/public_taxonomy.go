@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"api/internal/platform/catalog/dto"
@@ -64,19 +65,24 @@ func (s *PublicService) LabelsList(ctx context.Context, f LabelsListFilter, curs
 		where = append(where, "kind = ?")
 		args = append(args, *f.Kind)
 	}
-	if f.HasWorks {
-		pred, pargs := workExistsClause(labelWorkEdge, "catalog_label.id", f.NSFW)
-		where = append(where, pred)
-		args = append(args, pargs...)
-	}
 	if len(f.IDs) > 0 {
 		where = append(where, "id IN ?")
 		args = append(args, f.IDs)
 	}
 	filterWhere, filterArgs := append([]string(nil), where...), append([]any(nil), args...)
+	if f.HasWorks {
+		pred, pargs := workExistsClause(labelWorkEdge, "catalog_label.id", f.NSFW, 0)
+		filterWhere = append(filterWhere, pred)
+		filterArgs = append(filterArgs, pargs...)
+	}
 	if cur.ID > 0 {
 		where = append(where, "id > ?")
 		args = append(args, cur.ID)
+	}
+	if f.HasWorks {
+		pred, pargs := workExistsClause(labelWorkEdge, "catalog_label.id", f.NSFW, cur.ID)
+		where = append(where, pred)
+		args = append(args, pargs...)
 	}
 
 	var rows []struct {
@@ -179,7 +185,7 @@ func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor s
 		args = append(args, *f.Kind)
 	}
 	if f.HasWorks {
-		pred, pargs := workExistsClause(tagWorkEdge, "catalog_tag.id", f.NSFW)
+		pred, pargs := workExistsClause(tagWorkEdge, "catalog_tag.id", f.NSFW, 0)
 		where = append(where, pred)
 		args = append(args, pargs...)
 	}
@@ -494,6 +500,39 @@ func (s *PublicService) workCountsLive(ctx context.Context, edge taxonomyEdge, i
 	if ids != nil && len(ids) == 0 {
 		return counts, nsfwWorks, nil
 	}
+	cacheKey := func(id int64, col string) string {
+		return edge.sql + "\x00" + strconv.FormatBool(nsfw) + "\x00" + col + strconv.FormatInt(id, 10)
+	}
+	if ids != nil {
+		var missing []int64
+		for _, id := range ids {
+			n, okN := s.workCounts.get(cacheKey(id, "n"))
+			x, okX := s.workCounts.get(cacheKey(id, "x"))
+			if !okN || !okX {
+				missing = append(missing, id)
+				continue
+			}
+			if n > 0 {
+				counts[id] = int(n)
+			}
+			if x > 0 {
+				nsfwWorks[id] = int(x)
+			}
+		}
+		if len(missing) == 0 {
+			return counts, nsfwWorks, nil
+		}
+		ids = missing
+		defer func() {
+			if err != nil {
+				return
+			}
+			for _, id := range missing {
+				s.workCounts.put(cacheKey(id, "n"), int64(counts[id]))
+				s.workCounts.put(cacheKey(id, "x"), int64(nsfwWorks[id]))
+			}
+		}()
+	}
 	visible, args := "TRUE", []any(nil)
 	if !nsfw {
 		sfw, sfwArgs := worksListPopulation(false)
@@ -533,9 +572,18 @@ func (s *PublicService) workCountsLive(ctx context.Context, edge taxonomyEdge, i
 	return counts, nsfwWorks, nil
 }
 
-func workExistsClause(edge taxonomyEdge, outerID string, nsfw bool) (string, []any) {
-	where, args := worksListPopulation(nsfw)
-	where = append([]string{"e.key_id = " + outerID}, where...)
+// afterID repeats the outer keyset cursor inside the EXISTS: the planner does
+// not carry "id > cursor" across the e.key_id = id equality, so the label list
+// merge-joined catalog_work_label from its first row on every page (5.2s on
+// prod for a page past id 11193, 2026-10-31; 83ms with the bound).
+func workExistsClause(edge taxonomyEdge, outerID string, nsfw bool, afterID int64) (string, []any) {
+	pop, popArgs := worksListPopulation(nsfw)
+	where, args := []string{"e.key_id = " + outerID}, []any(nil)
+	if afterID > 0 {
+		where = append(where, "e.key_id > ?")
+		args = append(args, afterID)
+	}
+	where, args = append(where, pop...), append(args, popArgs...)
 	return `EXISTS (SELECT 1 FROM ` + edge.sql + ` JOIN catalog_work w ON w.id = e.work_id WHERE ` +
 		strings.Join(where, " AND ") + `)`, args
 }

@@ -65,6 +65,11 @@ func main() {
 		slog.Error("images automigrate", "error", err)
 		os.Exit(1)
 	}
+	go func() {
+		if err := repository.EnsureIndexes(ctx, imagesDB.DB()); err != nil {
+			slog.Error("images ensure indexes", "error", err)
+		}
+	}()
 
 	s3Client, err := storage.NewClient(cfg.ImageS3)
 	if err != nil {
