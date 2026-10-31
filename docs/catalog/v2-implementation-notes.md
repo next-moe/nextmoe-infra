@@ -2708,7 +2708,109 @@ A user pointed out that Ren'Py (about 17k works) and TyranoScript (about 4.9k) o
 
 **Spec 2.74.0**, additive. **Zero migrations.**
 
-## Browsing history (spec 2.75.0, 2026-10-27)
+## The portrait follows votes and prefers official art (spec 2.75.0, 2026-10-28)
+
+The portrait a work showed ignored its cover votes, and works the legacy wiki had covered kept a user upload in front of the VNDB or Bangumi art they already held. On the 2026-10-24 local copy, 342 of the 400 works with votes did not show their top-voted cover, and 275 works showed an upload.
+
+- **Election order.** The `cover` slot (works detail, list, relation briefs) is now: an editor's pin (a pinned row in the curated lane, or an upstream row whose `portrait_pinned` carries human provenance; a measured landscape pin is still refused) → the cover row with strictly the most votes among the rows the reader may see (a tie elects neither, so the old ladder decides) → the existing ladder. Pins written by importers and `repin-portrait-covers` no longer beat a vote. The vote leader is taken whatever its shape or kind: the readers chose it.
+- **Official art first.** Covers from `user`, `curated` and `upscale` take part only while the work owns no official cover art (a non-packaging, non-censored row from any other source). An editor's pin keeps an upload in. The banner follows the same rule.
+- **Shelf.** `cover_art_all_explicit` grades the same set, so a work whose official art is all explicit stops resting on the sfw shelf behind a hand-censored upload. The `migrate-catalog` job replaces the trigger function, and its backfill flips the stored column (locally 53 works, 8 of them change shelf; those 8 get an `updated_at` bump so mirrors re-read `content_limit`).
+- **Backfill.** `cmd/backfill-official-covers` fetches, for live works that hold an upload, the largest portrait digital-edition (`dig`) release image from VNDB (Kana `/release`) and the Bangumi subject cover. It writes them as `vndb`/`dig` and `bangumi`/`main` rows, then lifts the machine pins of a work that gained a portrait, so the sharpest official portrait wins. Dry run by default; `KUN_BANGUMI_TOKEN` is needed for NSFW subjects (52 of 72 came back 404 without it). Locally: 123 works, 42 VNDB `dig` covers, 72 Bangumi covers.
+
+- **Editor saves kept no votes.** Saving `catalog.work.covers` deleted the whole curated lane and inserted it again. Every kept cover got a new row id, and `catalog_cover_vote.cover_id` cascades on delete, so each save erased the votes on every curated cover it kept. The save now deletes only the hashes that left the list and updates the rest in place.
+
+**Spec 2.75.0**: the `cover`, `Cover.vote_count` and `Cover.portrait_pinned` descriptions. `portrait_pinned` no longer names the portrait; read `cover`. **No schema change**; the trigger function is replaced by the catalog migration.
+
+## Hybrid works search (spec 2.76.0, 2026-10-28)
+
+Users describe a game they half remember ("魔王被逐后为解咒寻四宝石") as often as they type its title. Lexical ranking finds almost none of those. `GET /v2/catalog/works?q=…&search_mode=hybrid` also ranks `q` by meaning.
+
+- **Vectors.** `catalog_work_vectors` is its own kNN index (faiss HNSW, `on_disk` with 16x compression, cosine) with one 1024-dim `@cf/qwen/qwen3-embedding-0.6b` vector per live work. It also copies the works index's filter fields, so every filter `works?` accepts, plus the nsfw and ban gates, applies inside the kNN search. The vectors live outside `catalog_works` because that index's bulk upserts replace whole documents. A work's card is its titles, its tag names and one intro per language bucket. `cmd/embed-catalog` embeds only cards whose text hash changed. The catalog service's `docsync.Syncer` re-embeds edited works and deletes the vectors of works that left the population. `catalog_character_vectors` is built the same way but is not exposed yet: its ranking has no goldset.
+- **Ranking.** The lexical query (intros included) and the kNN query each fetch 100 candidates, fused by reciprocal rank fusion (k = 60, equal weights). Works whose compacted title equals `q` (`titles_kw`) are pinned first, so a title query ranks as it did. A query embedding carries Qwen3's retrieval instruction.
+- **Measured.** On a 238-query goldset over the local 110,276 works (`cmd/eval-search`, `search/testdata/goldset_nl.jsonl`):
+  - describe-style recall@20 is 0.083 lexical against 0.400 hybrid;
+  - title MRR@10 is 0.996 lexical against 0.985 fused without the pin;
+  - the retrieval instruction lifts kNN describe recall@20 from 0.242 to 0.367;
+  - 8x and 16x compression rank the same; the kNN graph takes 44 MB at 16x.
+- **Degrading.** The query embedding has a 3 s budget. When the embedder is unconfigured, slow or failing (Workers AI answered `3048 Unknown internal error` for minutes on 2026-10-27), the list is the lexical ranking and the response's `search_mode` says `lexical`.
+- **Contract.** `search_mode=lexical|hybrid` (default lexical). hybrid requires `q=`, ranks at most 100 hits (`total` ≤ 100), and is refused with `facets=`, `ids=`/`refs=` or a sort other than relevance. `ListWork.search_mode` is present only when the parameter is.
+- **Script folding (SchemaVersion 5).** The `zh` and `cjk_ngram` analyzers gain ICU `Traditional-Simplified` on both index and query sides, so 秋葉/秋叶 and 戀愛/恋爱 produce the same ngram tokens. The `ja` analyzer is unchanged. Only the ngram lane folds reliably: `icu_tokenizer` segments by dictionary before any token filter, so 秋葉 is one word and 秋叶 two characters. `TestChineseAnalyzersFoldTraditionalOntoSimplified` asks a live `_analyze` and fails without the filter.
+
+**Spec 2.76.0**, additive. **Zero migrations.**
+
+Deploy:
+- One `reindex-catalog -recreate` for SchemaVersion 5. The daily `reindex-catalog` refuses schema-4 indexes until then, and catalog search is empty for the length of the rebuild.
+- One `embed-catalog` run (about 55 minutes for 110k works on Workers AI), plus `embed-catalog -entity characters` if the character vectors should be warm.
+- The catalog service reads `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` for the query embedder.
+
+## Adult covers come from VNDB, not Bangumi (spec 2.77.0, 2026-10-28)
+
+Bangumi serves the covers of adult games blurred or mosaicked, and the ladder picked them because they are usually the sharper portrait.
+
+- **Election.** When the response may carry sexual art (the viewer opted in and the work is on the nsfw shelf), a work that holds a VNDB cover-art row drops its Bangumi cover rows from the pool, for the portrait and the banner alike. An editor's pin and the vote leader still come first. Without a VNDB cover, Bangumi stays.
+- **Backfill gap.** `cmd/backfill-vndb-covers` skipped every work that already held a cover from any official source, so a work with a Bangumi cover or a `censored` stand-in never got its VNDB cover. On production 3,456 vndb-anchored works had none (1,756 of them behind a Bangumi cover; v2868 was the report). The candidate gate now counts only VNDB's own non-packaging rows. The production run uploaded 2,396 covers; the 1,059 works left have no VNDB image.
+- **No portrait, sharpest wins.** When a work holds no portrait-shaped cover, the ladder took the first row by sort order, and importer rows all share sort order 0, so the image hash decided. After the backfill, work 30923 showed a 256x144 VNDB image over its 1668x940 Bangumi cover. The slot now takes the sharpest measured cover before falling back to the first row.
+
+**Spec 2.77.0**: the `cover` description. **No schema change.**
+
+## AI-redrawn covers (spec 2.78.0, 2026-10-28)
+
+Japanese games with real readers often have no usable portrait: the official art is landscape, or a portrait too small to show. Of the Japanese galgames viewed more than 100 times on the forum, the patch site or letmoe, 10,268 had none at 1080px on the long edge: 1,726 with only landscape art and 8,542 with portraits under the target.
+
+- **Source.** A new first-party source `ai_redraw` (id 24) holds covers grok's image edit made from the work's own official art: a 2:3 redraw of a landscape cover, or a faithful enlargement of a small portrait. Each row copies the kind, `sexual` and `violence` of the cover it was made from; the nightly grader then grades it like any machine row. It is not an upload, so the official-art-first rule does not hide it.
+- **Election.** `cmd/import-ai-covers` machine-pins each row it writes, so the redraw takes the portrait slot over landscape or small official art. Once the work holds an official portrait at least 1080px on its long edge that the reader may see, the redraw leaves the pool and that portrait wins. An editor's pin on a redraw keeps it. Votes still come before both.
+- **Import.** `cmd/import-ai-covers -dsn … -dir …` reads `<work_id>__<origin_hash>.<ext>` products, skips works that are gone, merged, already hold a redraw, or no longer carry the origin cover, uploads to the catalog image scope and writes the row. It never lifts an editor's pin. Dry run by default.
+
+**Spec 2.78.0**: the `cover` description. **No schema change**; `migrate-catalog` seeds the source row.
+
+## Walkthrough fidelity: step kinds, remarks, legend, re-alignment to the source (spec 2.79.0, 2026-10-30)
+
+Two reports, one root cause: the extraction model drops or reinterprets what it does not understand, and nothing checked the chart against the page beyond "every text is a substring of it".
+
+- **2026-10-28, forum, walkthrough 1039** (Little Busters!): long charts were hard to read. Every line was typed `choice`: 77 of its 794 choices were day headers, others ※ remarks and map routes.
+- **2026-10-30, user report, walkthrough 3046** (時計仕掛けのレイライン -残影の夜が明ける時-, seiya): every 推理正解 / 不正解 after a ★ choice was gone, so the D-rank normal route — which needs the wrong answers — read like the SSS route; ★ steps showed as achievements; 二人's route was cut at ■４話 into a stub ending `open` and a second segment "from START"; the heading アーデルハイト、九折坂 二人 became one character with 二人 as an alias, so アーデルハイト's chart key was pinned to 九折坂 二人 and 二人END had no character; and the zh-Hans for 我慢せず噴出す (burst out laughing) was 忍不住射出来.
+
+Measured over the 5,362 stored extractions (4,048 imported): 836 cut routes in 158 charts, ~11k dropped heading lines in 399 charts, trailing results/effects lost on ~1.4k steps, and 4,627 ★ steps in 472 charts flagged as achievements. ★ / ☆ mean whatever the page's legend says (an extra choice, a deduction answer, an H event, a timed choice); only 5 pages tie a mark to 実績 / トロフィー.
+
+**Repairs from the source** (`extract.RepairFromSource`, run by `Settle` after the model, so the import's `regate` and the draft face both get them). Every step is aligned back to the page line it was copied from, searching forward from the previous hit so a line repeated across routes resolves in the right route. Then, all deterministic and verbatim:
+
+- **Cut routes rejoin.** An `open` segment followed, in the same section and without a condition, by a segment from an entry is one segment when only headings, rule lines or ※ lines lie between them on the page.
+- **Headings return.** Heading lines (dates, in-game days, `第N話` / `■N話(EpisodeN)━━━`, chapters, floors, `■…━━` bars) between two aligned steps, or directly above a segment's first step, are inserted as `heading` steps. Rule-only lines (`━`) that the model kept as `action` are dropped.
+- **`remark`.** A trailing result or effect on the step's own line — `推理正解`, `不正解`, `○`, `好感度+1`, `淫乱+1＆独占欲+1`, `：雪乃+1` — becomes `remark`; one the model left inside `text` is split off. A minus effect needs a Japanese label, so `シナリオ1-02` and `Ｂ８－２` stay out. Lines that carry more than one step are left alone. A mark the model stripped from the start of the line (★ ☆ ⇒) is put back on `text`.
+- **`legend`.** Sentences of the page that define a mark the chart uses (`★の選択肢は…`, `（　）の選択肢は差分CG回収の為に…`, `⇒の選択肢は好きな順番に…`), at most 16; no other page prose is kept.
+- **`achievement`** is recomputed: true only when the step itself says 実績 / トロフィー or a legend line defines its mark as one. `Normalize` no longer strips ☆ into the flag.
+- **Characters.** An alias that is another character's name, or ends with one (`ことみ` aliased `古河 渚` beside `渚`), moves to that character. A section heading listing several names (`、` `/` `&` …) whose second name the model filed as an alias of the first gets a character of its own, and the section's `characters` become the listed names. An ending with no character whose name is a character's name or name part (`二人END`) gets that character.
+
+Over the stored extractions this rejoins 162 segments, inserts ~28.6k headings, restores ~1.4k remarks and keeps 1,291 legend lines in 1,060 charts; achievement flags drop from 10,947 to 48. 151 charts move from `review` to `ok` because their only missed lines were the headings now restored; `apply` now also writes `status` (unless a human set it), so they leave the 待补全 backlog and go live instead of staying hidden with no `import_review`.
+
+**`extract-v3` prompt**: adds `heading` / `note` / `remark` to the schema, says a heading never starts a segment, keeps marks in `text`, defines `achievement` by 実績 / トロフィー only, and splits multi-name headings into characters. Existing pages are not re-extracted: the stages read each entry's newest settled extraction of any prompt version, and `regate` re-settles every stored raw output.
+
+**Retyped steps** (from the 1039 report): `Normalize` retypes a `choice` with no alternatives from its NFKC text. A whole-line date, in-game day, chapter or floor is a `heading`; a line starting with ※ is a `note` (a few are real choices the page prefixed with ※; their text still shows, unnumbered); numbers joined by arrows (`１→２→３`) are an `action`. **`requires_endings`** (read face `requires_ending_keys`) is matched from the segment's condition against the chart's ending names after NFKC, uppercasing and dropping whitespace, longest name first; a condition saying either of two (`or`, `または`, `いずれか`, `どちらか`) or with a joiner next to a matched name on one side only is skipped, because a partial list would read as complete. **Bad endings take their section's character** when that section names exactly one. **`label_zh`** on saves and entries is read as `localized`.
+
+**`translate-v3`** (grok-4.7 through the cursor gateway, because glm-5.2 has answered 429 "at capacity" since 2026-10-27): every string is translated again — headings, remarks and legend lines included — and nothing is reused from v1/v2, so earlier mistranslations are replaced too. The prompt adds result/effect wording (推理正解 → 推理正确) and says a choice takes the everyday sense a player would read in the scene. A one-rune kept name stays unmasked at first, but the model wrote 鈴を追う as 追铃 and the keep-names guard dropped 1,556 choice steps, so a refused string is asked once more with one-rune names masked too.
+
+Editor: step types 小标题 / 说明, a 备注 field on choices and actions, a 符号说明 rail list, the segment's 前提 as a multi-select of required endings; `walkthrough.Validate` refuses a remark on any other step type, an empty legend line, or a required ending the chart lacks.
+
+**Rollout** (local staging, manual, not part of the deploy): `import-walkthroughs --stage regate`, `--stage match`, `--stage translate`, then `--stage apply --apply` on prod as in the import notes. Charts whose `chart` head is human-edited are kept as they are. **Spec 2.79.0**: `step_type` `heading` / `note`, `WalkthroughStep.remark` / `remark_localized`, `WalkthroughChart.legend`, `WalkthroughSave.localized`, `WalkthroughEntry.localized`, `WalkthroughSegment.requires_ending_keys`. **No schema change**; the chart is jsonb.
+
+## Tag categories (spec 2.80.0, 2026-10-30)
+
+letmoe's tag filter wanted to drill into a handful of broad groups. The hierarchy could not serve that: VNDB's five roots (Theme, Character, Setting, Plot, Style) resolve to no canonical tag, so 1,472 of 3,470 tags are roots and 1,219 of those have no children. The groups are NextMoe's data, so they live in the catalog and every site reads the same ones.
+
+- **`catalog_tag_category`** (`id`, `slug`, `name`, `sort_order`): nine groups, seeded once by `migrate-catalog` and then owned by the database (`ON CONFLICT DO NOTHING`), so a renamed or reordered row stays as an operator left it. The slug is the public id and is never renamed. In order: `genre` 题材类型, `character` 角色, `relationship` 恋爱与关系, `setting` 舞台与时代, `story` 剧情要素, `system` 玩法与系统, `presentation` 美术与演出, `format` 作品形式, `adult` 成人内容. Only `system` is game-specific; a light-novel, anime or manga site hides it.
+- **`catalog_tag.category_id`**: nullable, `ON DELETE SET NULL`. NULL is "其他". Deleting a group drops its tags back to 其他 rather than deleting them; a site that sends the deleted slug gets 400, so tell the sites first.
+- **What goes where.** The group is the dimension a tag describes, independent of `sexual`. A character's body, role or occupation is `character` even when the tag is sexual (人妻, 巨乳/爆乳, 扶她女主角); `adult` holds sexual acts, fetishes and sexual-content density (拔作). The NTR family, incest romance (骨科) and the romance pairings are `relationship`. Ratings, platforms, engines, fan-work origins (东方Project and the other franchise "universes"), adaptations and game jams are `format`. Routes and endings go to `system`, tone (治愈, 致郁, 燃) to `genre`.
+- **Reviewed assignment.** Every one of the 3,470 tags was classified by hand: VNDB's branch drafted the ~2,900 tags with a VNDB source, and the ~440 without one (mostly DLsite and Bangumi genres) were classified by name and, for the ambiguous DLsite ones, by the works carrying them (教育 is 調教, 暗示 is 催眠/暗示, 造孽 is 鬼畜). 13 junk tags (库存, 云过, dd2, …) are a reviewed 其他. Totals: 1,314 character, 765 adult, 261 system, 260 setting, 251 story, 201 genre, 166 format, 127 presentation, 112 relationship. The file is `apps/api/cmd/tag-categories/reviewed-2026-10-30.jsonl`.
+- **`cmd/tag-categories -curated <file.jsonl>`** applies `{tag_id, tag, category}` records (`category` a slug, `""` for 其他). Id and name must both match, every record is checked before any is written, and the writes go in one transaction. Each written tag is stamped `curated` in `field_provenance.category_id`. Dry unless `-apply`; re-applying the same file changes nothing.
+- **New tags.** The `catalog-tag-parents` job, after its edge sync, derives a group for tags that are NULL and carry no human stamp: the VNDB branch their source tags sit under (`tagcategory.byBranch`, then `byRoot`), first by a fixed precedence, and `adult` for a sexual tag unless it derived `character`. A tag with no VNDB source stays NULL until reviewed. Against the reviewed file the derivation agrees on 2,749 of the 3,036 tags it can classify; most of the rest are fan-work universes (VNDB: Setting, reviewed: format) and the NTR family (VNDB: Sexual Content, reviewed: relationship).
+- **Read face.** `GET /v2/catalog/tag-categories` (`listCatalogTagCategories`) returns all groups on one page in display order, with `tag_count`. `Tag.tag_category` (`{object: "tag_category", id, display_name}` or null) rides on the list, batch and detail lanes; it is named after `tag_kind`, since `Role.category` already exists with another shape. `/v2/catalog/tags` gains `category=<id>` (or `none`; an unknown id is 400 `UNKNOWN_ENUM_VALUE`) and `sort=work_count`, which orders by the hourly `catalog_tag_work_count` rollup under the request's nsfw gate, then id; its keyset cursor carries the count.
+- **Not done: editor field.** The group is changed with the curated file for now; `catalog.tag.category_id` is not yet an editor field.
+
+**Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) creates `catalog_tag_category` with its nine rows and adds `catalog_tag.category_id` with its index and FK. Additive; every tag starts NULL. Then, once: `tag-categories -dsn … -curated reviewed-2026-10-30.jsonl -apply` from the infra-tools image.
+
+**Spec 2.80.0.** Additive: `listCatalogTagCategories`, the `tag_category` object, `Tag.tag_category`, `category=` and `sort=work_count` on `listCatalogTags`.
+
+## Browsing history (spec 2.81.0, 2026-10-31)
 
 Users asked for a "recently viewed" list. History is personal and can be sensitive (adult works), so it is kept per app by default and the account can switch it off entirely.
 
@@ -2718,4 +2820,4 @@ Users asked for a "recently viewed" list. History is personal and can be sensiti
 - **Retention.** 90 days and the newest 500 entries per app. The cap is enforced on insert, expiry by an hourly sweep in the catalog process; reads also hide expired rows.
 - **Merges, deletions, purge.** The table is excluded from merge rehang, because a moved row is copied into `catalog_merge_movement` and that copy would outlive "clear" and "off"; a merged-away work drops out of reads and its rows age out. A deleted work cascades. Account purge deletes the rows.
 
-**Spec 2.75.0**, additive. **Migration:** `go run ./cmd/migrate catalog` creates `catalog_user_work_view` (empty) and adds two `NOT NULL DEFAULT false` columns to `catalog_user_privacy`; the `migrate-catalog` deploy job runs it.
+**Spec 2.81.0**, additive. **Migration:** `go run ./cmd/migrate catalog` creates `catalog_user_work_view` (empty) and adds two `NOT NULL DEFAULT false` columns to `catalog_user_privacy`; the `migrate-catalog` deploy job runs it.

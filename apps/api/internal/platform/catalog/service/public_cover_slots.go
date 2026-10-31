@@ -29,10 +29,14 @@ const (
 // (fillBannerFromScreenshots). Ranked as equals, the loser's sharper art took
 // the survivor's portrait and banner.
 func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *dto.PublicWorkCoverSlots {
-	own, merged := splitMergedCovers(rows)
+	chosen := s.chosenPortrait(rows, meta, allowSexual)
+	own, merged := splitMergedCovers(s.coverPool(s.yieldRedraws(rows, meta, allowSexual), allowSexual))
 	portraitRow, bannerRow := s.electSlotRows(own, meta, allowSexual)
 	if portraitRow == nil {
 		portraitRow, _ = s.electSlotRows(merged, meta, allowSexual)
+	}
+	if chosen != nil {
+		portraitRow = chosen
 	}
 	portrait, banner := s.coverSlot(portraitRow, meta), s.coverSlot(bannerRow, meta)
 	if portrait == nil && banner == nil {
@@ -54,6 +58,114 @@ func (s *PublicService) electSlotRows(rows []WorkCoverRow, meta map[string]Image
 		portrait = ghost.portrait()
 	}
 	return portrait, cand.banner()
+}
+
+func (s *PublicService) chosenPortrait(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *WorkCoverRow {
+	var top *WorkCoverRow
+	tied := false
+	for i := range rows {
+		c := &rows[i]
+		if (!allowSexual && c.Sexual >= model.SexualExplicit) || s.imageURL(c.ImageHash) == "" ||
+			s.sourceKey(c.SourceID) == model.CensoredSourceKey {
+			continue
+		}
+		if c.HumanPinned {
+			if m, ok := meta[c.ImageHash]; !ok || m.Width <= 0 || m.Height <= 0 || isPortraitDims(m.Width, m.Height) {
+				return c
+			}
+		}
+		switch {
+		case c.Votes == 0 || c.MergedIn:
+		case top == nil || c.Votes > top.Votes:
+			top, tied = c, false
+		case c.Votes == top.Votes:
+			tied = true
+		}
+	}
+	if tied {
+		return nil
+	}
+	return top
+}
+
+// The cover_art_all_explicit trigger (catalog migrate, cover_art_grade.go)
+// grades exactly the set this returns; change both or the shelf and the
+// election disagree about whether a safe cover exists.
+func (s *PublicService) officialCoversFirst(rows []WorkCoverRow) []WorkCoverRow {
+	official := false
+	for _, c := range rows {
+		if model.IsCoverArt(c.Kind) && !model.IsUploadedCoverSource(c.SourceID) &&
+			s.sourceKey(c.SourceID) != model.CensoredSourceKey && s.imageURL(c.ImageHash) != "" {
+			official = true
+			break
+		}
+	}
+	if !official {
+		return rows
+	}
+	out := make([]WorkCoverRow, 0, len(rows))
+	for _, c := range rows {
+		if !model.IsUploadedCoverSource(c.SourceID) || c.HumanPinned {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// Bangumi serves the covers of adult games blurred or mosaicked, so a reader
+// allowed sexual art gets the work's VNDB cover in their place.
+func (s *PublicService) coverPool(rows []WorkCoverRow, allowSexual bool) []WorkCoverRow {
+	rows = s.officialCoversFirst(rows)
+	if !allowSexual {
+		return rows
+	}
+	vndb := false
+	for _, c := range rows {
+		if c.SourceID == model.SourceVNDB && model.IsCoverArt(c.Kind) && s.imageURL(c.ImageHash) != "" {
+			vndb = true
+			break
+		}
+	}
+	if !vndb {
+		return rows
+	}
+	out := make([]WorkCoverRow, 0, len(rows))
+	for _, c := range rows {
+		if c.SourceID != model.SourceBangumi || c.HumanPinned {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+const redrawTargetEdge = 1080
+
+// AI redraws were made only for works without an official portrait at the
+// target edge, and they carry a machine pin; one arriving later takes the slot
+// back.
+func (s *PublicService) yieldRedraws(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) []WorkCoverRow {
+	official := false
+	for _, c := range rows {
+		if c.SourceID == model.SourceAIRedraw || model.IsUploadedCoverSource(c.SourceID) || !model.IsCoverArt(c.Kind) ||
+			s.sourceKey(c.SourceID) == model.CensoredSourceKey || s.imageURL(c.ImageHash) == "" ||
+			(!allowSexual && c.Sexual >= model.SexualExplicit) {
+			continue
+		}
+		if m, ok := meta[c.ImageHash]; ok && isPortraitDims(m.Width, m.Height) && max(m.Width, m.Height) >= redrawTargetEdge {
+			official = true
+			break
+		}
+	}
+	if !official {
+		return rows
+	}
+	out := make([]WorkCoverRow, 0, len(rows))
+	for _, c := range rows {
+		if c.SourceID != model.SourceAIRedraw || c.HumanPinned {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func splitMergedCovers(rows []WorkCoverRow) (own, merged []WorkCoverRow) {
@@ -109,7 +221,7 @@ type coverCandidates struct {
 	pinned                    *WorkCoverRow
 	portraitWide, portraitAny *WorkCoverRow
 	bannerWide, bannerAny     *WorkCoverRow
-	first                     *WorkCoverRow
+	sharpest, first           *WorkCoverRow
 }
 
 func (c coverCandidates) portrait() *WorkCoverRow {
@@ -120,6 +232,11 @@ func (c coverCandidates) portrait() *WorkCoverRow {
 		return c.portraitWide
 	case c.portraitAny != nil:
 		return c.portraitAny
+	// Without a portrait the first row by sort order took the slot, and rows
+	// share sort_order 0, so the hash decided: on 2026-10-28 work 30923 showed
+	// a 256x144 VNDB image over its 1668x940 Bangumi cover.
+	case c.sharpest != nil:
+		return c.sharpest
 	default:
 		return c.first
 	}
@@ -134,14 +251,14 @@ func (c coverCandidates) banner() *WorkCoverRow {
 
 func (c coverCandidates) complete() bool {
 	return c.pinned != nil && c.portraitWide != nil && c.portraitAny != nil &&
-		c.bannerWide != nil && c.bannerAny != nil && c.first != nil
+		c.bannerWide != nil && c.bannerAny != nil && c.sharpest != nil && c.first != nil
 }
 
 func (c *coverCandidates) fillFrom(other coverCandidates) {
 	for _, pair := range []struct{ dst, src **WorkCoverRow }{
 		{&c.pinned, &other.pinned}, {&c.portraitWide, &other.portraitWide},
 		{&c.portraitAny, &other.portraitAny}, {&c.bannerWide, &other.bannerWide},
-		{&c.bannerAny, &other.bannerAny}, {&c.first, &other.first},
+		{&c.bannerAny, &other.bannerAny}, {&c.sharpest, &other.sharpest}, {&c.first, &other.first},
 	} {
 		if *pair.dst == nil {
 			*pair.dst = *pair.src
@@ -177,6 +294,7 @@ func (s *PublicService) scanCovers(rows []WorkCoverRow, meta map[string]ImageMet
 		if !dimsKnown {
 			continue
 		}
+		out.sharpest = sharperCover(out.sharpest, c, meta)
 		switch {
 		case isPortraitDims(m.Width, m.Height):
 			out.portraitAny = sharperCover(out.portraitAny, c, meta)
@@ -248,7 +366,7 @@ func (s *PublicService) fillBannerFromScreenshots(
 	}
 	banner := s.bannerFromShots(ownShots, meta, allowSexual)
 	if banner == nil {
-		_, merged := splitMergedCovers(covers)
+		_, merged := splitMergedCovers(s.coverPool(covers, allowSexual))
 		_, row := s.electSlotRows(merged, meta, allowSexual)
 		banner = s.coverSlot(row, meta)
 	}

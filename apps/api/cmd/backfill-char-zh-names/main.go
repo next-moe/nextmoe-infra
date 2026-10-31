@@ -43,8 +43,8 @@ func main() {
 	applyCSV := flag.String("apply-csv", "", "write back a REVIEWED --mt CSV as machine provenance")
 	limit := flag.Int("limit", 0, "cap the candidates (passthrough/--mt/--auto) or accepted rows (--apply-csv) this run; 0 = all. --mt/--auto order by work-appearance count so a small batch covers the most-visible names first")
 	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
-	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
-	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
+	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", config.LLMBaseURL()), "OpenAI-compatible gateway base URL (…/v1)")
+	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", config.LLMToken()), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 4096, "--mt: max_tokens (thinking models spend most of it before the name)")
 	delayMS := flag.Int("delay-ms", 0, "--mt: delay between gateway calls (ms)")
 	samples := flag.Int("samples", 10, "how many sample rows to print")
@@ -71,7 +71,7 @@ func main() {
 		}
 		tr := newHTTPTranslator(*llmBase, *llmToken, *model, *maxTokens)
 		if !tr.Configured() {
-			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_AI_UPSTREAM_*).\n" +
+			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_LLM_GATEWAY_KEY / KUN_AI_UPSTREAM_*).\n" +
 				"This is a designed precondition for --mt/--auto, not a failure.")
 			os.Exit(3)
 		}

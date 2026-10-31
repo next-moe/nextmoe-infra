@@ -136,7 +136,11 @@ func main() {
 		slog.Error("editing: register catalog entity types", "error", err)
 		os.Exit(1)
 	}
-	searchSync := docsync.NewSyncer(catalogDB.DB(), searcher)
+	worksEmbedder := worksEmbedderFrom(cfg)
+	if worksEmbedder == nil {
+		slog.Warn("works search: no AI upstream configured — search_mode=hybrid answers with the lexical ranking and edits do not refresh vectors (set KUN_LLM_GATEWAY_KEY to a gateway access key)")
+	}
+	searchSync := docsync.NewSyncer(catalogDB.DB(), searcher).WithEmbedder(worksEmbedder)
 	editRegistry.Observe(searchSync.Observe)
 	searchSync.Start(permCtx)
 	editPolicy := editing.NewPolicyStore(catalogDB.DB(), editRegistry)
@@ -229,6 +233,13 @@ func main() {
 	}
 }
 
+func worksEmbedderFrom(cfg *config.Config) catalogSearch.Embedder {
+	if cfg.LLMGateway.URL == "" || cfg.LLMGateway.Key == "" {
+		return nil
+	}
+	return catalogSearch.NewOpenAIEmbedder(cfg.LLMGateway.URL, cfg.LLMGateway.Key, catalogSearch.DefaultEmbedModel)
+}
+
 func setupPublicCatalog(
 	application *app.App,
 	cfg *config.Config,
@@ -317,7 +328,7 @@ func setupPublicCatalog(
 	} else {
 		slog.Warn("news write face: news image client not configured — banner upload and any submission carrying a banner_hash answer 503 (set KUN_NEWS_IMAGE_CLIENT_ID/SECRET)")
 	}
-	publicSvc.WithWorksSearch(searcher)
+	publicSvc.WithWorksSearch(searcher).WithWorksEmbedder(worksEmbedderFrom(cfg))
 
 	var storeMinter storeService.Minter
 	if cfg.Store.ShortlinkBaseURL != "" && cfg.Store.ShortlinkAPIKey != "" {
@@ -409,7 +420,7 @@ func setupPublicCatalog(
 		},
 		LookupSite: bindingOfClient,
 		Catalog: &v2handler.Catalog{
-			WalkthroughDrafts: walkthroughdraft.NewService(catalogDB.DB(), cfg.AIUpstream.BaseURL, draftModel),
+			WalkthroughDrafts: walkthroughdraft.NewService(catalogDB.DB(), cfg.LLMGateway.URL, draftModel),
 			Public:            publicSvc,
 			Resolve:           resolveSvc,
 			StatsSvc:          statsSvc,

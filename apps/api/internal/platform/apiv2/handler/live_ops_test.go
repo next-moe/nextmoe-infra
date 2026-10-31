@@ -82,6 +82,7 @@ var liveReadPaths = []string{
 	"/v2/catalog/companies/{id}",
 	"/v2/catalog/companies/{id}/graph",
 	"/v2/catalog/tags",
+	"/v2/catalog/tag-categories",
 	"/v2/catalog/tag-exclusion",
 	"/v2/catalog/tags/{id}",
 	"/v2/catalog/series",

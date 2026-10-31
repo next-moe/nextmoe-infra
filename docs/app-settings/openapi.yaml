@@ -17,6 +17,126 @@ components:
           additionalProperties: true
           description: "Setting key to its effective value. Every property is optional: an app falls back to its built-in default for a key that is missing, and ignores a key it does not know."
           properties:
+            agent.anon.enabled:
+              default: true
+              description: Allows signed-out visitors to use the search mode on this site.
+              type: boolean
+            agent.anon.verify_mode:
+              default: none
+              description: "Human check a signed-out search must pass: none, or pow (proof of work)."
+              enum:
+                - none
+                - pow
+              type: string
+            agent.enabled:
+              default: false
+              description: Turns the AI assistant on for a site. Off answers every agent request from that site with 403.
+              type: boolean
+            agent.history.search:
+              default: true
+              description: Lets the assistant search and read the user's past conversations on this site when they refer to them.
+              type: boolean
+            agent.memory.enabled:
+              default: true
+              description: "Long-term memory on this site: the assistant keeps short notes about each user (tastes, works played, how they like answers) and sees them with every question. Users can view, edit, delete and turn it off."
+              type: boolean
+            agent.upload.document.enabled:
+              default: true
+              description: Lets users attach documents; their text is extracted and the layout dropped.
+              type: boolean
+            agent.upload.document.max_bytes:
+              default: 20971520
+              description: Largest document a user may attach, in bytes.
+              format: int64
+              maximum: 31457280
+              minimum: 1024
+              type: integer
+            agent.upload.document.types:
+              default:
+                - .pdf
+                - .docx
+              description: Document extensions accepted.
+              items:
+                pattern: ^\.(pdf|docx)$
+                type: string
+              type: array
+            agent.upload.image.enabled:
+              default: true
+              description: Lets users attach pictures. Also needs a ready agent.vision scene in the LLM gateway.
+              type: boolean
+            agent.upload.image.max_bytes:
+              default: 10485760
+              description: Largest picture a user may attach, in bytes. Pictures are scaled down before the model sees them.
+              format: int64
+              maximum: 31457280
+              minimum: 1024
+              type: integer
+            agent.upload.image.types:
+              default:
+                - image/png
+                - image/jpeg
+                - image/webp
+                - image/gif
+              description: Picture media types users may attach.
+              items:
+                pattern: ^image/(png|jpeg|webp|gif)$
+                type: string
+              type: array
+            agent.upload.max_files:
+              default: 4
+              description: Files one assistant message may carry. 0 hides the upload button.
+              format: int64
+              maximum: 10
+              minimum: 0
+              type: integer
+            agent.upload.text.enabled:
+              default: true
+              description: Lets users attach plain-text and code files.
+              type: boolean
+            agent.upload.text.max_bytes:
+              default: 524288
+              description: Largest text file a user may attach, in bytes.
+              format: int64
+              maximum: 10485760
+              minimum: 1024
+              type: integer
+            agent.upload.text.types:
+              default:
+                - .txt
+                - .md
+                - .markdown
+                - .json
+                - .yaml
+                - .yml
+                - .csv
+                - .tsv
+                - .log
+                - .srt
+                - .ass
+                - .ini
+                - .toml
+                - .xml
+                - .html
+                - .css
+                - .js
+                - .ts
+                - .py
+                - .go
+                - .java
+                - .c
+                - .cpp
+                - .rs
+                - .lua
+                - .sh
+              description: File extensions accepted as text, read as UTF-8.
+              items:
+                pattern: ^\.[a-z0-9]{1,10}$
+                type: string
+              type: array
+            agent.web.auto:
+              default: true
+              description: Lets the assistant decide on its own when a question needs a web search. Off searches only when the user turns on web search.
+              type: boolean
             app.kungal.home_rating_count:
               default: 6
               description: How many player ratings the kungal app shows on its home page; 0 hides the section.

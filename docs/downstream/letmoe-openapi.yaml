@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NextMoe letmoe Face
-  version: 1.0.0
+  version: 1.1.0
   x-stability: stable
   summary: Which download resources 一起萌 (www.letmoe.com) holds for a game.
   description: |
@@ -24,10 +24,11 @@ info:
     The exception is `GET /v2/letmoe/resources/{id}/file`, which answers the
     download options of a resource — letmoe's own hosted file as a direct
     link, off-site links with their share code and archive password, and
-    merged downloads — to a key holding the `letmoe:files` scope. An operator
-    grants that scope; it is not self-service, and every other key is refused
-    with `SCOPE_REQUIRED`. Each successful answer counts one download on the
-    resource, so ask when a reader asks to download, not ahead of time.
+    merged downloads — to a key holding the `letmoe:files` scope. Every
+    NextMoe key is minted with that scope; a key an operator has taken it off
+    is refused with `SCOPE_REQUIRED`. Each successful answer counts one view and one
+    download on the resource, so ask when a reader asks to download, not
+    ahead of time.
 
     ### Authentication
 
@@ -189,8 +190,8 @@ paths:
       tags: [resources]
       summary: The download options of a resource
       description: |
-        The links `Resource` withholds. Needs the operator-granted
-        `letmoe:files` scope.
+        The links `Resource` withholds. Needs the `letmoe:files` scope,
+        which every NextMoe key carries unless an operator removed it.
 
         A `hosted` mirror's `url` is a direct link to letmoe's own file,
         supporting `Range`. It is looked up for each answer and not promised
@@ -202,7 +203,8 @@ paths:
 
         Never cached: every answer, refusals included, is
         `Cache-Control: private, no-store`. Each successful answer counts one
-        download on the resource, so ask when a reader asks to download.
+        view and one download on the resource, so ask when a reader asks to
+        download.
       parameters:
         - $ref: '#/components/parameters/resourceId'
         - $ref: '#/components/parameters/nsfw'

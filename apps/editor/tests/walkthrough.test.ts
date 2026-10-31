@@ -91,9 +91,22 @@ describe('walkthrough document', () => {
     expect(c.segments[0]!.steps).toHaveLength(1)
 
     const d = chart()
+    d.segments[0]!.requires_endings = ['n1']
     removeEnding(d, 'n1')
     expect(d.segments[1]!.to).toEqual({ node_type: 'open', key: null })
+    expect(d.segments[0]!.requires_endings).toEqual([])
     expect(validateChart(d)).toEqual([])
+  })
+
+  it('names the empty step by its type and refuses a required ending the chart lacks', () => {
+    const c = chart()
+    expect(c.segments[0]!.requires_endings).toEqual([])
+    c.segments[0]!.steps.unshift({ ...blankStep('heading'), text: ' ' })
+    c.segments[0]!.requires_endings = ['n9']
+    expect(validateChart(c).map((i) => i.message)).toEqual([
+      '前提里要求的结局不存在',
+      '小标题还没有填写'
+    ])
   })
 
   it('hands out the first free key', () => {
@@ -154,5 +167,51 @@ describe('walkthrough diff', () => {
 
   it('reports nothing for equal charts', () => {
     expect(diffCharts(chart(), JSON.parse(JSON.stringify(chart())))).toEqual([])
+  })
+})
+
+describe('walkthrough remarks and legend', () => {
+  it('keeps the legend and remarks through normalization', () => {
+    const c = normalizeChart({
+      ...chart(),
+      legend: [{ text: '★の選択肢は推理ランクに影響します。' }],
+      segments: [
+        {
+          ...chart().segments[0]!,
+          steps: [{ step_type: 'choice', text: '★帰る', remark: '推理正解' }]
+        }
+      ]
+    })
+    expect(c.legend).toEqual([
+      { text: '★の選択肢は推理ランクに影響します。', text_zh: null }
+    ])
+    expect(c.segments[0]!.steps[0]).toMatchObject({
+      remark: '推理正解',
+      remark_zh: null
+    })
+    expect(chart().segments[0]!.steps[0]!.remark).toBeNull()
+  })
+
+  it('refuses a blank remark and a remark on a heading', () => {
+    const c = chart()
+    c.segments[0]!.steps[0]!.remark = ' '
+    c.segments[0]!.steps.push({
+      ...blankStep('heading'),
+      text: '■４話',
+      remark: '不正解'
+    })
+    c.legend.push({ text: '', text_zh: null })
+    const messages = validateChart(c).map((i) => i.message)
+    expect(messages).toContain('备注是空的，不需要就删掉')
+    expect(messages).toContain('小标题不能带备注')
+    expect(messages).toContain('符号说明还没有填写')
+  })
+
+  it('reports a legend change', () => {
+    const after = chart()
+    after.legend.push({ text: '⇒は順不同。', text_zh: null })
+    expect(diffCharts(chart(), after)).toEqual([
+      expect.objectContaining({ group: '符号说明', details: ['新增「⇒は順不同。」'] })
+    ])
   })
 })

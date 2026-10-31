@@ -1241,7 +1241,7 @@ components:
           maxLength: 256
           type: string
         portrait_pinned:
-          description: Whether this row is pinned as the portrait cover.
+          description: Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.
           type: boolean
         sexual:
           description: Sexual depiction. null means not assessed.
@@ -1284,7 +1284,7 @@ components:
             - "null"
           x-vocabulary-closed: true
         vote_count:
-          description: Net votes on this cover row.
+          description: Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.
           format: int64
           minimum: 0
           type: integer
@@ -6142,6 +6142,62 @@ components:
         - object
         - items
       type: object
+    ListTagCategory:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListTagCategory.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/TagCategory"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
     ListTrait:
       additionalProperties: true
       properties:
@@ -6684,6 +6740,13 @@ components:
           description: Type discriminant. Always list.
           enum:
             - list
+          type: string
+          x-vocabulary-closed: true
+        search_mode:
+          description: "Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable."
+          enum:
+            - lexical
+            - hybrid
           type: string
           x-vocabulary-closed: true
         total:
@@ -11806,6 +11869,11 @@ components:
           items:
             $ref: "#/components/schemas/TagRef"
           type: array
+        tag_category:
+          anyOf:
+            - $ref: "#/components/schemas/TagCategoryRef"
+            - type: "null"
+          description: "The browsing group this tag is filed under (GET /v2/catalog/tag-categories). null when it is in none: show it under an other group. Orthogonal to is_sexual: a sexual tag can sit in any group, and the adult group holds sexual acts and themes, not every sexual tag."
         tag_kind:
           description: Tag vocabulary class.
           enum:
@@ -11834,6 +11902,7 @@ components:
         - tag_kind
         - work_count
         - is_sexual
+        - tag_category
         - parents
         - child_count
         - descendant_count
@@ -11883,6 +11952,64 @@ components:
         - mode
         - created_at
         - updated_at
+      type: object
+    TagCategory:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: zh-Hans label. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Stable category slug, the value of category= on /v2/catalog/tags. A slug is never renamed; display_name and order may change.
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_]*$
+          type: string
+        object:
+          description: Type discriminant. Always tag_category.
+          enum:
+            - tag_category
+          type: string
+          x-vocabulary-closed: true
+        order:
+          description: Ascending display order. Values are spaced, not consecutive.
+          format: int64
+          minimum: 0
+          type: integer
+        tag_count:
+          description: Canonical tags filed under this category, before any nsfw or has_works filter.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - object
+        - id
+        - display_name
+        - order
+        - tag_count
+      type: object
+    TagCategoryRef:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: zh-Hans label. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Stable category slug, the value of category= on /v2/catalog/tags.
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_]*$
+          type: string
+        object:
+          description: Type discriminant. Always tag_category.
+          enum:
+            - tag_category
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - display_name
       type: object
     TagExclusion:
       additionalProperties: true
@@ -12879,6 +13006,11 @@ components:
           items:
             $ref: "#/components/schemas/WalkthroughEntry"
           type: array
+        legend:
+          description: The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WalkthroughLegendLine"
+          type: array
         saves:
           description: Save points the chart creates and resumes from. Empty array, never null.
           items:
@@ -12896,6 +13028,7 @@ components:
           type: array
       required:
         - sections
+        - legend
         - entries
         - saves
         - endings
@@ -13033,6 +13166,11 @@ components:
           description: The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant.
           maxLength: 256
           type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
+          type: object
         unlocked_by_ending_key:
           description: endings[].key whose completion unlocks this entry. null if it is open from the start.
           maxLength: 32
@@ -13043,6 +13181,7 @@ components:
       required:
         - key
         - label
+        - localized
         - unlocked_by_ending_key
       type: object
     WalkthroughImportReview:
@@ -13074,6 +13213,22 @@ components:
         - end_markers
         - endings_reached
         - coverage
+      type: object
+    WalkthroughLegendLine:
+      additionalProperties: true
+      properties:
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant."
+          type: object
+        text:
+          description: The definition as the source page writes it. Must not be used as a discriminant.
+          maxLength: 1024
+          type: string
+      required:
+        - text
+        - localized
       type: object
     WalkthroughNode:
       additionalProperties: true
@@ -13156,9 +13311,15 @@ components:
           description: The save point as the source page labels it. Must not be used as a discriminant.
           maxLength: 256
           type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant."
+          type: object
       required:
         - key
         - label
+        - localized
       type: object
     WalkthroughSection:
       additionalProperties: true
@@ -13212,6 +13373,11 @@ components:
           minLength: 1
           pattern: ^[A-Za-z0-9_]+$
           type: string
+        requires_ending_keys:
+          description: endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.
+          items:
+            type: string
+          type: array
         section_key:
           description: sections[].key this segment is listed under. null if the source lists it under no heading.
           maxLength: 32
@@ -13233,6 +13399,7 @@ components:
         - from_node
         - condition
         - condition_localized
+        - requires_ending_keys
         - steps
         - to_node
       type: object
@@ -13240,7 +13407,7 @@ components:
       additionalProperties: true
       properties:
         achievement:
-          description: The source marks this step as needed for an achievement only.
+          description: The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark.
           type: boolean
         alternatives:
           description: Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null.
@@ -13252,23 +13419,36 @@ components:
             $ref: "#/components/schemas/LocalizedText"
           description: "BCP-47 keys: machine translations of text. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."
           type: object
+        remark:
+          description: "What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant."
+          maxLength: 1024
+          type:
+            - string
+            - "null"
+        remark_localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: "BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant."
+          type: object
         save_key:
-          description: saves[].key this save step creates. null for choice and action steps.
+          description: saves[].key this save step creates. null for every other step_type.
           maxLength: 32
           pattern: ^[A-Za-z0-9_]+$
           type:
             - string
             - "null"
         step_type:
-          description: choice picks text; action is a non-choice step such as a minigame; save creates save_key here.
+          description: choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.
           enum:
             - choice
             - action
             - save
+            - heading
+            - note
           type: string
           x-vocabulary-closed: true
         text:
-          description: The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.
+          description: The step as the source page writes it. null for a save step. Must not be used as a discriminant.
           maxLength: 1024
           type:
             - string
@@ -13278,6 +13458,8 @@ components:
         - text
         - localized
         - alternatives
+        - remark
+        - remark_localized
         - achievement
         - save_key
       type: object
@@ -13358,7 +13540,7 @@ components:
           anyOf:
             - $ref: "#/components/schemas/CoverSlot"
             - type: "null"
-          description: Selected portrait image. null if none.
+          description: Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none.
         covers:
           description: Present when include=covers. Empty array if none.
           items:
@@ -14109,7 +14291,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.75.0
+  version: 2.81.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18532,6 +18714,62 @@ paths:
       summary: Catalog totals
       tags:
         - catalog
+  /v2/catalog/tag-categories:
+    get:
+      description: The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+      operationId: listCatalogTagCategories
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListTagCategory"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: List tag categories
+      tags:
+        - catalog
   /v2/catalog/tag-exclusion:
     get:
       description: "What exclude_tag_id= and exclude_tag_tree= exclude, taking the same two parameters as /v2/catalog/works: the expanded tag ids and the ids of every work carrying one of them. A site that lists works from its own store applies a reader's blocked tags by dropping work_ids, and one with its own tag mirror can match tag_ids instead. At least one parameter is required. The body depends only on the parameters, so cache it per parameter set. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
@@ -18613,7 +18851,7 @@ paths:
         - catalog
   /v2/catalog/tags:
     get:
-      description: Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+      description: "Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group."
       operationId: listCatalogTags
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -18711,6 +18949,14 @@ paths:
           schema:
             description: true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag.
             maxLength: 8
+            type: string
+        - description: A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400.
+          explode: false
+          in: query
+          name: category
+          schema:
+            description: A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400.
+            maxLength: 64
             type: string
       responses:
         "200":
@@ -19692,6 +19938,18 @@ paths:
             description: Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate.
             maxLength: 64
             type: string
+        - description: "lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable."
+          explode: false
+          in: query
+          name: search_mode
+          schema:
+            description: "lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable."
+            enum:
+              - lexical
+              - hybrid
+            maxLength: 16
+            type: string
+            x-vocabulary-closed: true
         - description: "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
           explode: false
           in: query

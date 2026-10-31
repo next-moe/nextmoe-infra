@@ -487,19 +487,20 @@ type PublicChangesData struct {
 }
 
 type PublicTagDetail struct {
-	ID              int64             `json:"id"`
-	Name            string            `json:"name"`
-	Tier            string            `json:"tier" doc:"core|longtail|hidden"`
-	Kind            string            `json:"kind" doc:"content|meta"`
-	WorkCount       int               `json:"work_count"`
-	Sexual          bool              `json:"sexual"`
-	Intros          []PublicIntro     `json:"intros" doc:"tag descriptions per language. machine is ALWAYS false on this face — catalog_tag_intro carries no provenance column, so the flag records \"unknown\", not \"human-written\"; do not read an absent machine here as a quality signal"`
-	Parents         []PublicTagRef    `json:"parents"`
-	ChildCount      int               `json:"child_count"`
-	DescendantCount int               `json:"descendant_count"`
-	Children        []PublicTagRef    `json:"children"`
-	Works           []PublicWorkBrief `json:"works,omitempty"`
-	NextOffset      *int              `json:"next_offset,omitempty"`
+	ID              int64                 `json:"id"`
+	Name            string                `json:"name"`
+	Tier            string                `json:"tier" doc:"core|longtail|hidden"`
+	Kind            string                `json:"kind" doc:"content|meta"`
+	WorkCount       int                   `json:"work_count"`
+	Sexual          bool                  `json:"sexual"`
+	Category        *PublicTagCategoryRef `json:"category"`
+	Intros          []PublicIntro         `json:"intros" doc:"tag descriptions per language. machine is ALWAYS false on this face — catalog_tag_intro carries no provenance column, so the flag records \"unknown\", not \"human-written\"; do not read an absent machine here as a quality signal"`
+	Parents         []PublicTagRef        `json:"parents"`
+	ChildCount      int                   `json:"child_count"`
+	DescendantCount int                   `json:"descendant_count"`
+	Children        []PublicTagRef        `json:"children"`
+	Works           []PublicWorkBrief     `json:"works,omitempty"`
+	NextOffset      *int                  `json:"next_offset,omitempty"`
 }
 
 type PublicLabelListItem struct {
@@ -523,15 +524,28 @@ type PublicLabelsListData struct {
 }
 
 type PublicTagListItem struct {
-	ID              int64          `json:"id"`
-	Name            string         `json:"name"`
-	Tier            string         `json:"tier" doc:"core|longtail|hidden"`
-	Kind            string         `json:"kind" doc:"content|meta"`
-	WorkCount       int            `json:"work_count"`
-	Sexual          bool           `json:"sexual"`
-	Parents         []PublicTagRef `json:"parents"`
-	ChildCount      int            `json:"child_count"`
-	DescendantCount int            `json:"descendant_count"`
+	ID              int64                 `json:"id"`
+	Name            string                `json:"name"`
+	Tier            string                `json:"tier" doc:"core|longtail|hidden"`
+	Kind            string                `json:"kind" doc:"content|meta"`
+	WorkCount       int                   `json:"work_count"`
+	Sexual          bool                  `json:"sexual"`
+	Category        *PublicTagCategoryRef `json:"category"`
+	Parents         []PublicTagRef        `json:"parents"`
+	ChildCount      int                   `json:"child_count"`
+	DescendantCount int                   `json:"descendant_count"`
+}
+
+type PublicTagCategoryRef struct {
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+}
+
+type PublicTagCategory struct {
+	Slug      string `json:"slug"`
+	Name      string `json:"name"`
+	SortOrder int    `json:"sort_order"`
+	TagCount  int    `json:"tag_count"`
 }
 
 type PublicTagRef struct {
@@ -614,11 +628,12 @@ type PublicEngine struct {
 }
 
 type PublicWorksSearchData struct {
-	Total  int64                       `json:"total"`
-	Page   int                         `json:"page"`
-	Limit  int                         `json:"limit"`
-	Items  []PublicWorkListItem        `json:"items"`
-	Facets map[string]map[string]int64 `json:"facets,omitempty"`
+	Total      int64                       `json:"total"`
+	Page       int                         `json:"page"`
+	Limit      int                         `json:"limit"`
+	Items      []PublicWorkListItem        `json:"items"`
+	Facets     map[string]map[string]int64 `json:"facets,omitempty"`
+	SearchMode string                      `json:"search_mode,omitempty"`
 }
 
 type PublicReleaseFeedItem struct {

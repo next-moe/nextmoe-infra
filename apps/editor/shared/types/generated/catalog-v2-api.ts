@@ -692,6 +692,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/catalog/tag-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List tag categories
+         * @description The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         */
+        get: operations["listCatalogTagCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/catalog/tag-exclusion": {
         parameters: {
             query?: never;
@@ -721,7 +741,7 @@ export interface paths {
         };
         /**
          * List tags
-         * @description Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+         * @description Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group.
          */
         get: operations["listCatalogTags"];
         put?: never;
@@ -3870,7 +3890,7 @@ export interface components {
             id: string;
             /** @description Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant. */
             identity: string;
-            /** @description Whether this row is pinned as the portrait cover. */
+            /** @description Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait. */
             portrait_pinned: boolean;
             /**
              * @description Sexual depiction. null means not assessed.
@@ -3893,7 +3913,7 @@ export interface components {
             violence: "tame" | "violent" | "brutal" | null;
             /**
              * Format: int64
-             * @description Net votes on this cover row.
+             * @description Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.
              */
             vote_count: number;
             /**
@@ -6787,6 +6807,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListTagCategory: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListTagCategory.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["TagCategory"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
         ListTrait: {
             /**
              * Format: uri
@@ -7124,6 +7179,11 @@ export interface components {
              * @enum {string}
              */
             object: "list";
+            /**
+             * @description Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable.
+             * @enum {string}
+             */
+            search_mode?: "lexical" | "hybrid";
             /**
              * Format: int64
              * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
@@ -9961,6 +10021,8 @@ export interface components {
             object: "tag";
             /** @description Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents. */
             parents: components["schemas"]["TagRef"][];
+            /** @description The browsing group this tag is filed under (GET /v2/catalog/tag-categories). null when it is in none: show it under an other group. Orthogonal to is_sexual: a sexual tag can sit in any group, and the adult group holds sexual acts and themes, not every sexual tag. */
+            tag_category: components["schemas"]["TagCategoryRef"] | null;
             /**
              * @description Tag vocabulary class.
              * @enum {string}
@@ -10008,6 +10070,42 @@ export interface components {
              * @description When the mode last changed. Equal to created_at until then.
              */
             updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        TagCategory: {
+            /** @description zh-Hans label. Must not be used as a discriminant. */
+            display_name: string;
+            /** @description Stable category slug, the value of category= on /v2/catalog/tags. A slug is never renamed; display_name and order may change. */
+            id: string;
+            /**
+             * @description Type discriminant. Always tag_category.
+             * @enum {string}
+             */
+            object: "tag_category";
+            /**
+             * Format: int64
+             * @description Ascending display order. Values are spaced, not consecutive.
+             */
+            order: number;
+            /**
+             * Format: int64
+             * @description Canonical tags filed under this category, before any nsfw or has_works filter.
+             */
+            tag_count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        TagCategoryRef: {
+            /** @description zh-Hans label. Must not be used as a discriminant. */
+            display_name: string;
+            /** @description Stable category slug, the value of category= on /v2/catalog/tags. */
+            id: string;
+            /**
+             * @description Type discriminant. Always tag_category.
+             * @enum {string}
+             */
+            object: "tag_category";
         } & {
             [key: string]: unknown;
         };
@@ -10575,6 +10673,8 @@ export interface components {
             endings: components["schemas"]["WalkthroughEnding"][];
             /** @description Places a playthrough starts from: the title screen, or a later unlock of it. Empty array, never null. */
             entries: components["schemas"]["WalkthroughEntry"][];
+            /** @description The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null. */
+            legend: components["schemas"]["WalkthroughLegendLine"][];
             /** @description Save points the chart creates and resumes from. Empty array, never null. */
             saves: components["schemas"]["WalkthroughSave"][];
             /** @description Headings of the source page that group segments, usually one per route. Empty array, never null. */
@@ -10658,6 +10758,10 @@ export interface components {
             key: string;
             /** @description The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant. */
             label: string;
+            /** @description BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
             /** @description endings[].key whose completion unlocks this entry. null if it is open from the start. */
             unlocked_by_ending_key: string | null;
         } & {
@@ -10681,6 +10785,16 @@ export interface components {
             endings_reached: number;
             /** @description Choice texts on the source page that the chart does not carry, as the page writes them. Empty array, never null. */
             missed: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughLegendLine: {
+            /** @description BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description The definition as the source page writes it. Must not be used as a discriminant. */
+            text: string;
         } & {
             [key: string]: unknown;
         };
@@ -10720,6 +10834,10 @@ export interface components {
             key: string;
             /** @description The save point as the source page labels it. Must not be used as a discriminant. */
             label: string;
+            /** @description BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
         } & {
             [key: string]: unknown;
         };
@@ -10748,6 +10866,8 @@ export interface components {
             from_node: components["schemas"]["WalkthroughNode"];
             /** @description Chart-local segment key. */
             key: string;
+            /** @description endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null. */
+            requires_ending_keys: string[];
             /** @description sections[].key this segment is listed under. null if the source lists it under no heading. */
             section_key: string | null;
             /** @description Steps in play order. Empty array, never null. */
@@ -10758,7 +10878,7 @@ export interface components {
             [key: string]: unknown;
         };
         WalkthroughStep: {
-            /** @description The source marks this step as needed for an achievement only. */
+            /** @description The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark. */
             achievement: boolean;
             /** @description Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null. */
             alternatives: components["schemas"]["WalkthroughAlternative"][];
@@ -10766,14 +10886,20 @@ export interface components {
             localized: {
                 [key: string]: components["schemas"]["LocalizedText"];
             };
-            /** @description saves[].key this save step creates. null for choice and action steps. */
+            /** @description What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant. */
+            remark: string | null;
+            /** @description BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant. */
+            remark_localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description saves[].key this save step creates. null for every other step_type. */
             save_key: string | null;
             /**
-             * @description choice picks text; action is a non-choice step such as a minigame; save creates save_key here.
+             * @description choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.
              * @enum {string}
              */
-            step_type: "choice" | "action" | "save";
-            /** @description The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant. */
+            step_type: "choice" | "action" | "save" | "heading" | "note";
+            /** @description The step as the source page writes it. null for a save step. Must not be used as a discriminant. */
             text: string | null;
         } & {
             [key: string]: unknown;
@@ -10819,7 +10945,7 @@ export interface components {
              * @enum {string}
              */
             content_rating: "all_ages" | "sensitive" | "r18";
-            /** @description Selected portrait image. null if none. */
+            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none. */
             cover: components["schemas"]["CoverSlot"] | null;
             /** @description Present when include=covers. Empty array if none. */
             covers?: components["schemas"]["Cover"][];
@@ -14981,6 +15107,87 @@ export interface operations {
             };
         };
     };
+    listCatalogTagCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListTagCategory"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getCatalogTagExclusion: {
         parameters: {
             query?: {
@@ -15103,6 +15310,8 @@ export interface operations {
                 nsfw?: string;
                 /** @description true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag. */
                 has_works?: string;
+                /** @description A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400. */
+                category?: string;
             };
             header?: never;
             path?: never;
@@ -15823,6 +16032,8 @@ export interface operations {
                 released_before?: string;
                 /** @description Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate. */
                 olang?: string;
+                /** @description lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable. */
+                search_mode?: "lexical" | "hybrid";
                 /** @description 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. */
                 page?: string;
             };

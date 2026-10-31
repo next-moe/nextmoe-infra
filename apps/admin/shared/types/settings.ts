@@ -30,6 +30,7 @@ export interface SettingsKeyView {
   min?: number
   max?: number
   pattern?: string
+  multiline?: boolean
   effective: SettingValue
   source: SettingSource
   override: SettingsOverrideView | null

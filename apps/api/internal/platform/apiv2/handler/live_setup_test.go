@@ -719,7 +719,7 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		WorkID: fx.Work, SourceID: model.SourceSeiya, SourceURL: "https://seiya-saiga.com/game/live.html",
 		ChartVersion: 1, SourceHash: "live", ExtractModel: "test",
 		Chart: datatypes.JSON(`{"characters":[{"key":"c1","name":"ライブ","aliases":[]}],"sections":[],` +
-			`"entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[{"key":"sv01","label":"セーブ01"}],` +
+			`"entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[{"key":"sv01","label":"セーブ01","label_zh":"存档01"}],` +
 			`"endings":[{"key":"e1","name":"ライブEND","name_zh":"直播END","ending_type":"heroine","characters":["c1"]}],` +
 			`"segments":[{"key":"g1","section":null,"from":{"node_type":"entry","key":"start"},"condition":null,"condition_zh":null,` +
 			`"steps":[{"step_type":"choice","text":"はい","text_zh":"是","alt":["いいえ"],"alt_zh":[null],"achievement":false,"save":null},` +

@@ -127,6 +127,8 @@ type WorkCoverRow struct {
 	SourceID       int16
 	Shared         bool
 	MergedIn       bool
+	HumanPinned    bool
+	Votes          int
 }
 
 type WorkScreenshotRow struct {
@@ -604,10 +606,17 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 		SourceID       int16  `gorm:"column:source_id"`
 		Shared         bool   `gorm:"column:shared"`
 		MergedIn       bool   `gorm:"column:merged_in"`
+		HumanPinned    bool   `gorm:"column:human_pinned"`
+		Votes          int    `gorm:"column:votes"`
 	}
 	if err := db.Raw(`WITH wc AS (
-			SELECT id, work_id, image_hash, sort_order, kind, portrait_pinned, sexual, violence, source_id, merged_in
+			SELECT id, work_id, image_hash, sort_order, kind, portrait_pinned, sexual, violence, source_id, merged_in,
+			       portrait_pinned AND (`+editspec.CuratedLaneSQL("vc.source_id")+` OR `+
+		editspec.HumanFieldProvenanceSQL("vc.field_provenance", "portrait_pinned")+` IS TRUE) AS human_pinned
 			FROM catalog_work_cover vc WHERE vc.work_id IN ? AND `+editspec.NotSuppressedWorkCoverSQL("vc")+`
+		), votes AS (
+			SELECT cover_id, count(*) AS votes FROM catalog_cover_vote
+			WHERE cover_id IN (SELECT id FROM wc) GROUP BY cover_id
 		), shared AS (
 			SELECT c.image_hash
 			FROM catalog_work_cover c
@@ -616,8 +625,8 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 			GROUP BY c.image_hash
 			HAVING count(*) >= ?
 		)
-		SELECT wc.*, shared.image_hash IS NOT NULL AS shared
-		FROM wc LEFT JOIN shared USING (image_hash)
+		SELECT wc.*, shared.image_hash IS NOT NULL AS shared, COALESCE(votes.votes, 0) AS votes
+		FROM wc LEFT JOIN shared USING (image_hash) LEFT JOIN votes ON votes.cover_id = wc.id
 		`+editspec.WorkMediaOrderJoinSQL("wc", model.WorkMediaOrderCover)+`
 		ORDER BY wc.work_id, mo.position NULLS LAST, wc.sort_order, wc.image_hash`,
 		workIDs, model.WorkStatusLive, sharedCoverMinWorks).Scan(&rows).Error; err != nil {
@@ -627,7 +636,7 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 		out[r.WorkID] = append(out[r.WorkID], WorkCoverRow{
 			ID: r.ID, ImageHash: r.ImageHash, Kind: r.Kind, PortraitPinned: r.PortraitPinned,
 			SortOrder: r.SortOrder, Sexual: r.Sexual, Violence: r.Violence, SourceID: r.SourceID,
-			Shared: r.Shared, MergedIn: r.MergedIn,
+			Shared: r.Shared, MergedIn: r.MergedIn, HumanPinned: r.HumanPinned, Votes: r.Votes,
 		})
 	}
 	return nil

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sort"
 	"strconv"
 
 	"api/internal/platform/apiv2/collect"
+	"api/internal/platform/apiv2/parse"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
 	catmodel "api/internal/platform/catalog/model"
@@ -70,9 +72,48 @@ func companyWantsDetail(include []string) bool {
 	return false
 }
 
-func (c *Catalog) ListTags(ctx context.Context, q collect.Query, hasWorks bool) (repr.List[repr.Tag], error) {
+const tagCategoryNone = "none"
+
+func (c *Catalog) ListTagCategories(ctx context.Context) (repr.List[repr.TagCategory], error) {
+	if c == nil || c.Public == nil {
+		return repr.List[repr.TagCategory]{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
+	}
+	rows, err := c.Public.TagCategories(ctx)
+	if err != nil {
+		return repr.List[repr.TagCategory]{}, err
+	}
+	items := make([]repr.TagCategory, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, repr.TagCategory{
+			Object: "tag_category", ID: r.Slug, DisplayName: r.Name, Order: r.SortOrder, TagCount: r.TagCount,
+		})
+	}
+	return repr.NewList(items, nil), nil
+}
+
+func (c *Catalog) ListTags(ctx context.Context, q collect.Query, hasWorks bool, category string) (repr.List[repr.Tag], error) {
 	if c == nil || c.Public == nil {
 		return repr.List[repr.Tag]{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
+	}
+	f := catsvc.TagsListFilter{NSFW: q.NSFW, HasWorks: hasWorks, Sort: q.Sort}
+	if category != "" {
+		cats, err := c.Public.TagCategoryIDs(ctx)
+		if err != nil {
+			return repr.List[repr.Tag]{}, err
+		}
+		allowed := []string{tagCategoryNone}
+		for slug := range cats {
+			allowed = append(allowed, slug)
+		}
+		sort.Strings(allowed[1:])
+		if _, perr := parse.Enum(category, "category", allowed); perr != nil {
+			return repr.List[repr.Tag]{}, withIdent(ctx, perr)
+		}
+		if id, ok := cats[category]; ok {
+			f.Category = &id
+		} else {
+			f.Uncategorized = true
+		}
 	}
 	ids, missing, err := c.batchEntityIDs(ctx, q, catmodel.EntityTypeTag)
 	if err != nil {
@@ -81,7 +122,7 @@ func (c *Catalog) ListTags(ctx context.Context, q collect.Query, hasWorks bool) 
 	if q.Batch && len(ids) == 0 {
 		return finishList([]repr.Tag{}, nil, 0, q, missing), nil
 	}
-	f := catsvc.TagsListFilter{NSFW: q.NSFW, IDs: ids, HasWorks: hasWorks}
+	f.IDs = ids
 	limit := q.Limit
 	if q.Batch {
 		limit = 100

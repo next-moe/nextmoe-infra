@@ -97,6 +97,7 @@ jobs:
           # here — an ungated spec is worse than an absent one, because it looks checked.
           go run ./cmd/gen-openapi -ai-admin -o ../../docs/ai/admin-openapi.yaml
           go run ./cmd/gen-openapi -telemetry-admin -o ../../docs/telemetry/admin-openapi.yaml
+          go run ./cmd/gen-openapi -agent -o ../../docs/agent/openapi.yaml
           # Same trap as -ai-admin, different generator: cmd/gen-v2-portal writes
           # the portal's problems.ts / vocabularies.ts / mcp-tools.mjs from the Go
           # registries and the v2 document, and no gate ran it — a new problem code
@@ -106,7 +107,7 @@ jobs:
           # other Go-side exports. Every file this generator writes belongs in the
           # diff below.
           go run ./cmd/gen-v2-portal -o ../developer/app/generated
-          git diff --exit-code -- ../../docs/artifact/ ../../docs/catalog/ ../../docs/chat/ ../../docs/app-settings/ ../../docs/community/ ../../docs/trust/ ../../docs/ai/ ../developer/app/generated/mcp-tools.mjs ../developer/app/generated/problems.ts ../developer/app/generated/vocabularies.ts
+          git diff --exit-code -- ../../docs/artifact/ ../../docs/agent/ ../../docs/catalog/ ../../docs/chat/ ../../docs/app-settings/ ../../docs/community/ ../../docs/trust/ ../../docs/ai/ ../developer/app/generated/mcp-tools.mjs ../developer/app/generated/problems.ts ../developer/app/generated/vocabularies.ts
 
   integration:
     name: integration (postgres + opensearch)

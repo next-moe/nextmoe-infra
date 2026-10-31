@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"api/internal/platform/ai/model"
+	"api/internal/platform/llm"
 
 	"gorm.io/gorm"
 )
@@ -21,6 +22,40 @@ func Run(db *gorm.DB) error {
 		&model.AIRouteBudget{},
 	); err != nil {
 		return fmt.Errorf("ai automigrate: %w", err)
+	}
+	// 2026-10-28: the LLM gateway tables (provider / model / route / price
+	// revision / scene / attempt / event / access key). All new and additive;
+	// no existing row changes. Provider API keys are stored sealed with
+	// KUN_LLM_KEK and managed from the admin console; on its first start the
+	// ai service seeds the providers, models, routes and scenes from the legacy
+	// KUN_AI_UPSTREAM_* / KUN_AI_OMNI_* env when llm_provider is empty, so this
+	// migration writes no rows.
+	//
+	// 2026-10-29: llm_provider_model (the per-provider catalog filled by the
+	// admin "sync models" action and a daily sync) and
+	// llm_price_revision.per_call_micro (per call / per picture, default 0, so
+	// every existing revision keeps its token-only price). Additive.
+	//
+	// Same day, routing: llm_route.rpm (0 = unlimited; max_concurrency is now
+	// enforced too), llm_scene.strategy (default 'weighted', today's behaviour),
+	// llm_scene.context_fallback / content_fallback (default '[]', none) and
+	// llm_provider.catalog_synced_at (null until the first sync). Additive;
+	// every existing route and scene keeps behaving as before.
+	//
+	// Same day, budgets and usage: llm_access_key.daily_budget_micro and
+	// llm_scene.daily_budget_micro (0 = unlimited), llm_attempt.access_key_id
+	// (0 for in-process callers; older rows read as 0), llm_event.actor, and
+	// llm_usage_hourly, which the ai service fills from llm_attempt every ten
+	// minutes; raw attempts older than 30 days are then pruned. Additive.
+	//
+	// Same day, thinking: llm_scene.reasoning (default 'off') and
+	// llm_route.thinking_control (default 'auto'). The column default fills
+	// every existing scene with 'off' on purpose: reasoning models in configured
+	// scenes stop thinking (or think at their lowest effort) until ren raises
+	// the level, which is the behaviour asked for. Direct /v1 calls by model
+	// name are not scenes and keep the model's own default.
+	if err := db.AutoMigrate(llm.Tables()...); err != nil {
+		return fmt.Errorf("llm gateway automigrate: %w", err)
 	}
 	return rawSQL(db)
 }

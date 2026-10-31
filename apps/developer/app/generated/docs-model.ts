@@ -5398,7 +5398,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",
@@ -5442,7 +5442,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "portrait_pinned",
                                     "required": true,
-                                    "doc": "Whether this row is pinned as the portrait cover.",
+                                    "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                     "type": "boolean"
                                   },
                                   {
@@ -5492,7 +5492,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "vote_count",
                                     "required": true,
-                                    "doc": "Net votes on this cover row.",
+                                    "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
@@ -15128,7 +15128,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -15172,7 +15172,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "portrait_pinned",
                                         "required": true,
-                                        "doc": "Whether this row is pinned as the portrait cover.",
+                                        "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                         "type": "boolean"
                                       },
                                       {
@@ -15222,7 +15222,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "vote_count",
                                         "required": true,
-                                        "doc": "Net votes on this cover row.",
+                                        "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -29651,7 +29651,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -29695,7 +29695,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "portrait_pinned",
                                         "required": true,
-                                        "doc": "Whether this row is pinned as the portrait cover.",
+                                        "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                         "type": "boolean"
                                       },
                                       {
@@ -29745,7 +29745,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "vote_count",
                                         "required": true,
-                                        "doc": "Net votes on this cover row.",
+                                        "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -68913,6 +68913,1293 @@ export const docsModel: DocsModel = {
               "curl": "curl \"https://api.nextmoe.dev/v2/catalog/stats\""
             },
             {
+              "id": "listCatalogTagCategories",
+              "method": "get",
+              "path": "/v2/catalog/tag-categories",
+              "summary": "List tag categories",
+              "description": "The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
+              "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
+              "params": [],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "OK",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "facets",
+                        "doc": "Named facet buckets. Present only when facets= is requested.",
+                        "type": "map",
+                        "itemsOf": {
+                          "nullable": true,
+                          "type": "array",
+                          "itemsOf": {
+                            "type": "object",
+                            "children": [
+                              {
+                                "name": "count",
+                                "required": true,
+                                "doc": "Hits in this bucket after the same filters as items.",
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              {
+                                "name": "display_name",
+                                "required": true,
+                                "doc": "Must not be used as a discriminant.",
+                                "type": "string"
+                              },
+                              {
+                                "name": "value",
+                                "required": true,
+                                "doc": "Token to pass back to the same filter. Must not be used as a discriminant.",
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "name": "items",
+                        "required": true,
+                        "doc": "Members of this page. Empty array, never null.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "zh-Hans label. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Stable category slug, the value of category= on /v2/catalog/tags. A slug is never renamed; display_name and order may change.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "object",
+                              "required": true,
+                              "doc": "Type discriminant. Always tag_category.",
+                              "enum": [
+                                "tag_category"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "order",
+                              "required": true,
+                              "doc": "Ascending display order. Values are spaced, not consecutive.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "tag_count",
+                              "required": true,
+                              "doc": "Canonical tags filed under this category, before any nsfw or has_works filter.",
+                              "format": "int64",
+                              "type": "integer"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "missing",
+                        "doc": "ids requested but not visible. Present only on the ids=/refs= batch lane.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "next_cursor",
+                        "doc": "Opaque keyset cursor. Omitted on the last page.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "required": true,
+                        "doc": "Type discriminant. Always list.",
+                        "enum": [
+                          "list"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "total",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "304",
+                  "description": "Not Modified. The representation is unchanged."
+                },
+                {
+                  "status": "400",
+                  "description": "Bad Request",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "401",
+                  "description": "Unauthorized",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "Forbidden",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "Too Many Requests",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "500",
+                  "description": "Internal Server Error",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "Service Unavailable",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/tag-categories\""
+            },
+            {
               "id": "getCatalogTagExclusion",
               "method": "get",
               "path": "/v2/catalog/tag-exclusion",
@@ -70320,7 +71607,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/tags",
               "summary": "List tags",
-              "description": "Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.",
+              "description": "Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -70412,6 +71699,13 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag."
+                },
+                {
+                  "name": "category",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400."
                 }
               ],
               "responses": [
@@ -70704,6 +71998,36 @@ export const docsModel: DocsModel = {
                                   }
                                 ]
                               }
+                            },
+                            {
+                              "name": "tag_category",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "display_name",
+                                  "required": true,
+                                  "doc": "zh-Hans label. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "Stable category slug, the value of category= on /v2/catalog/tags.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always tag_category.",
+                                  "enum": [
+                                    "tag_category"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "The browsing group this tag is filed under (GET /v2/catalog/tag-categories). null when it is in none: show it under an other group. Orthogonal to is_sexual: a sexual tag can sit in any group, and the adult group holds sexual acts and themes, not every sexual tag."
                             },
                             {
                               "name": "tag_kind",
@@ -72412,6 +73736,36 @@ export const docsModel: DocsModel = {
                             }
                           ]
                         }
+                      },
+                      {
+                        "name": "tag_category",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "display_name",
+                            "required": true,
+                            "doc": "zh-Hans label. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "Stable category slug, the value of category= on /v2/catalog/tags.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always tag_category.",
+                            "enum": [
+                              "tag_category"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "The browsing group this tag is filed under (GET /v2/catalog/tag-categories). null when it is in none: show it under an other group. Orthogonal to is_sexual: a sexual tag can sit in any group, and the adult group holds sexual acts and themes, not every sexual tag."
                       },
                       {
                         "name": "tag_kind",
@@ -77885,10 +79239,73 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
                                         "name": "unlocked_by_ending_key",
                                         "required": true,
                                         "nullable": true,
                                         "doc": "endings[].key whose completion unlocks this entry. null if it is open from the start.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "name": "legend",
+                                  "required": true,
+                                  "doc": "The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "name": "text",
+                                        "required": true,
+                                        "doc": "The definition as the source page writes it. Must not be used as a discriminant.",
                                         "type": "string"
                                       }
                                     ]
@@ -77913,6 +79330,29 @@ export const docsModel: DocsModel = {
                                         "required": true,
                                         "doc": "The save point as the source page labels it. Must not be used as a discriminant.",
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
                                       }
                                     ]
                                   }
@@ -78044,6 +79484,15 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "requires_ending_keys",
+                                        "required": true,
+                                        "doc": "endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.",
+                                        "type": "array",
+                                        "itemsOf": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      {
                                         "name": "section_key",
                                         "required": true,
                                         "nullable": true,
@@ -78061,7 +79510,7 @@ export const docsModel: DocsModel = {
                                             {
                                               "name": "achievement",
                                               "required": true,
-                                              "doc": "The source marks this step as needed for an achievement only.",
+                                              "doc": "The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark.",
                                               "type": "boolean"
                                             },
                                             {
@@ -78128,20 +79577,52 @@ export const docsModel: DocsModel = {
                                               }
                                             },
                                             {
+                                              "name": "remark",
+                                              "required": true,
+                                              "nullable": true,
+                                              "doc": "What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant.",
+                                              "type": "string"
+                                            },
+                                            {
+                                              "name": "remark_localized",
+                                              "required": true,
+                                              "doc": "BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant.",
+                                              "type": "map",
+                                              "itemsOf": {
+                                                "type": "object",
+                                                "children": [
+                                                  {
+                                                    "name": "is_machine",
+                                                    "required": true,
+                                                    "doc": "Whether this value is machine-translated.",
+                                                    "type": "boolean"
+                                                  },
+                                                  {
+                                                    "name": "value",
+                                                    "required": true,
+                                                    "doc": "Must not be used as a discriminant.",
+                                                    "type": "string"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            {
                                               "name": "save_key",
                                               "required": true,
                                               "nullable": true,
-                                              "doc": "saves[].key this save step creates. null for choice and action steps.",
+                                              "doc": "saves[].key this save step creates. null for every other step_type.",
                                               "type": "string"
                                             },
                                             {
                                               "name": "step_type",
                                               "required": true,
-                                              "doc": "choice picks text; action is a non-choice step such as a minigame; save creates save_key here.",
+                                              "doc": "choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.",
                                               "enum": [
                                                 "choice",
                                                 "action",
-                                                "save"
+                                                "save",
+                                                "heading",
+                                                "note"
                                               ],
                                               "type": "string"
                                             },
@@ -78149,7 +79630,7 @@ export const docsModel: DocsModel = {
                                               "name": "text",
                                               "required": true,
                                               "nullable": true,
-                                              "doc": "The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.",
+                                              "doc": "The step as the source page writes it. null for a save step. Must not be used as a discriminant.",
                                               "type": "string"
                                             }
                                           ]
@@ -79968,10 +81449,73 @@ export const docsModel: DocsModel = {
                                   "type": "string"
                                 },
                                 {
+                                  "name": "localized",
+                                  "required": true,
+                                  "doc": "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                  "type": "map",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "is_machine",
+                                        "required": true,
+                                        "doc": "Whether this value is machine-translated.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "value",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
                                   "name": "unlocked_by_ending_key",
                                   "required": true,
                                   "nullable": true,
                                   "doc": "endings[].key whose completion unlocks this entry. null if it is open from the start.",
+                                  "type": "string"
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "name": "legend",
+                            "required": true,
+                            "doc": "The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null.",
+                            "type": "array",
+                            "itemsOf": {
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "localized",
+                                  "required": true,
+                                  "doc": "BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant.",
+                                  "type": "map",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "is_machine",
+                                        "required": true,
+                                        "doc": "Whether this value is machine-translated.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "value",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "name": "text",
+                                  "required": true,
+                                  "doc": "The definition as the source page writes it. Must not be used as a discriminant.",
                                   "type": "string"
                                 }
                               ]
@@ -79996,6 +81540,29 @@ export const docsModel: DocsModel = {
                                   "required": true,
                                   "doc": "The save point as the source page labels it. Must not be used as a discriminant.",
                                   "type": "string"
+                                },
+                                {
+                                  "name": "localized",
+                                  "required": true,
+                                  "doc": "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant.",
+                                  "type": "map",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "is_machine",
+                                        "required": true,
+                                        "doc": "Whether this value is machine-translated.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "value",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
                                 }
                               ]
                             }
@@ -80127,6 +81694,15 @@ export const docsModel: DocsModel = {
                                   "type": "string"
                                 },
                                 {
+                                  "name": "requires_ending_keys",
+                                  "required": true,
+                                  "doc": "endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
                                   "name": "section_key",
                                   "required": true,
                                   "nullable": true,
@@ -80144,7 +81720,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "achievement",
                                         "required": true,
-                                        "doc": "The source marks this step as needed for an achievement only.",
+                                        "doc": "The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark.",
                                         "type": "boolean"
                                       },
                                       {
@@ -80211,20 +81787,52 @@ export const docsModel: DocsModel = {
                                         }
                                       },
                                       {
+                                        "name": "remark",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "remark_localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
                                         "name": "save_key",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "saves[].key this save step creates. null for choice and action steps.",
+                                        "doc": "saves[].key this save step creates. null for every other step_type.",
                                         "type": "string"
                                       },
                                       {
                                         "name": "step_type",
                                         "required": true,
-                                        "doc": "choice picks text; action is a non-choice step such as a minigame; save creates save_key here.",
+                                        "doc": "choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.",
                                         "enum": [
                                           "choice",
                                           "action",
-                                          "save"
+                                          "save",
+                                          "heading",
+                                          "note"
                                         ],
                                         "type": "string"
                                       },
@@ -80232,7 +81840,7 @@ export const docsModel: DocsModel = {
                                         "name": "text",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.",
+                                        "doc": "The step as the source page writes it. null for a save step. Must not be used as a discriminant.",
                                         "type": "string"
                                       }
                                     ]
@@ -82207,6 +83815,17 @@ export const docsModel: DocsModel = {
                   "doc": "Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate."
                 },
                 {
+                  "name": "search_mode",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable.",
+                  "enum": [
+                    "lexical",
+                    "hybrid"
+                  ]
+                },
+                {
                   "name": "page",
                   "in": "query",
                   "required": false,
@@ -83210,7 +84829,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",
@@ -83254,7 +84873,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "portrait_pinned",
                                     "required": true,
-                                    "doc": "Whether this row is pinned as the portrait cover.",
+                                    "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                     "type": "boolean"
                                   },
                                   {
@@ -83304,7 +84923,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "vote_count",
                                     "required": true,
-                                    "doc": "Net votes on this cover row.",
+                                    "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
@@ -84364,6 +85983,15 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always list.",
                         "enum": [
                           "list"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "search_mode",
+                        "doc": "Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable.",
+                        "enum": [
+                          "lexical",
+                          "hybrid"
                         ],
                         "type": "string"
                       },
@@ -86734,7 +88362,7 @@ export const docsModel: DocsModel = {
                           }
                         ],
                         "nullable": true,
-                        "doc": "Selected portrait image. null if none."
+                        "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                       },
                       {
                         "name": "covers",
@@ -86778,7 +88406,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "portrait_pinned",
                               "required": true,
-                              "doc": "Whether this row is pinned as the portrait cover.",
+                              "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                               "type": "boolean"
                             },
                             {
@@ -86828,7 +88456,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "vote_count",
                               "required": true,
-                              "doc": "Net votes on this cover row.",
+                              "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                               "format": "int64",
                               "type": "integer"
                             },
@@ -91727,7 +93355,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "portrait_pinned",
                               "required": true,
-                              "doc": "Whether this row is pinned as the portrait cover.",
+                              "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                               "type": "boolean"
                             },
                             {
@@ -91777,7 +93405,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "vote_count",
                               "required": true,
-                              "doc": "Net votes on this cover row.",
+                              "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                               "format": "int64",
                               "type": "integer"
                             },
@@ -102974,7 +104602,7 @@ export const docsModel: DocsModel = {
                                     }
                                   ],
                                   "nullable": true,
-                                  "doc": "Selected portrait image. null if none."
+                                  "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -103018,7 +104646,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "portrait_pinned",
                                         "required": true,
-                                        "doc": "Whether this row is pinned as the portrait cover.",
+                                        "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                         "type": "boolean"
                                       },
                                       {
@@ -103068,7 +104696,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "vote_count",
                                         "required": true,
-                                        "doc": "Net votes on this cover row.",
+                                        "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -138243,7 +139871,7 @@ export const docsModel: DocsModel = {
                                 }
                               ],
                               "nullable": true,
-                              "doc": "Selected portrait image. null if none."
+                              "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                             },
                             {
                               "name": "covers",
@@ -138287,7 +139915,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "portrait_pinned",
                                     "required": true,
-                                    "doc": "Whether this row is pinned as the portrait cover.",
+                                    "doc": "Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait.",
                                     "type": "boolean"
                                   },
                                   {
@@ -138337,7 +139965,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "vote_count",
                                     "required": true,
-                                    "doc": "Net votes on this cover row.",
+                                    "doc": "Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
@@ -279551,10 +281179,73 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
                                         "name": "unlocked_by_ending_key",
                                         "required": true,
                                         "nullable": true,
                                         "doc": "endings[].key whose completion unlocks this entry. null if it is open from the start.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "name": "legend",
+                                  "required": true,
+                                  "doc": "The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "name": "text",
+                                        "required": true,
+                                        "doc": "The definition as the source page writes it. Must not be used as a discriminant.",
                                         "type": "string"
                                       }
                                     ]
@@ -279579,6 +281270,29 @@ export const docsModel: DocsModel = {
                                         "required": true,
                                         "doc": "The save point as the source page labels it. Must not be used as a discriminant.",
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
                                       }
                                     ]
                                   }
@@ -279710,6 +281424,15 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "requires_ending_keys",
+                                        "required": true,
+                                        "doc": "endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null.",
+                                        "type": "array",
+                                        "itemsOf": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      {
                                         "name": "section_key",
                                         "required": true,
                                         "nullable": true,
@@ -279727,7 +281450,7 @@ export const docsModel: DocsModel = {
                                             {
                                               "name": "achievement",
                                               "required": true,
-                                              "doc": "The source marks this step as needed for an achievement only.",
+                                              "doc": "The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark.",
                                               "type": "boolean"
                                             },
                                             {
@@ -279794,20 +281517,52 @@ export const docsModel: DocsModel = {
                                               }
                                             },
                                             {
+                                              "name": "remark",
+                                              "required": true,
+                                              "nullable": true,
+                                              "doc": "What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant.",
+                                              "type": "string"
+                                            },
+                                            {
+                                              "name": "remark_localized",
+                                              "required": true,
+                                              "doc": "BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant.",
+                                              "type": "map",
+                                              "itemsOf": {
+                                                "type": "object",
+                                                "children": [
+                                                  {
+                                                    "name": "is_machine",
+                                                    "required": true,
+                                                    "doc": "Whether this value is machine-translated.",
+                                                    "type": "boolean"
+                                                  },
+                                                  {
+                                                    "name": "value",
+                                                    "required": true,
+                                                    "doc": "Must not be used as a discriminant.",
+                                                    "type": "string"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            {
                                               "name": "save_key",
                                               "required": true,
                                               "nullable": true,
-                                              "doc": "saves[].key this save step creates. null for choice and action steps.",
+                                              "doc": "saves[].key this save step creates. null for every other step_type.",
                                               "type": "string"
                                             },
                                             {
                                               "name": "step_type",
                                               "required": true,
-                                              "doc": "choice picks text; action is a non-choice step such as a minigame; save creates save_key here.",
+                                              "doc": "choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.",
                                               "enum": [
                                                 "choice",
                                                 "action",
-                                                "save"
+                                                "save",
+                                                "heading",
+                                                "note"
                                               ],
                                               "type": "string"
                                             },
@@ -279815,7 +281570,7 @@ export const docsModel: DocsModel = {
                                               "name": "text",
                                               "required": true,
                                               "nullable": true,
-                                              "doc": "The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant.",
+                                              "doc": "The step as the source page writes it. null for a save step. Must not be used as a discriminant.",
                                               "type": "string"
                                             }
                                           ]
@@ -366497,7 +368252,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/letmoe/resources/{id}/file",
               "summary": "The download options of a resource",
-              "description": "The links `Resource` withholds. Needs the operator-granted\n`letmoe:files` scope.\n\nA `hosted` mirror's `url` is a direct link to letmoe's own file,\nsupporting `Range`. It is looked up for each answer and not promised\nto last: a replaced or taken-down file stops downloading, so do not\nstore it. An `external_link` mirror is a\nlink its publisher hosts elsewhere, with the share code and archive\npassword it needs. A `composite` is the game and a moyu patch spliced\ninto one download at the edge.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Each successful answer counts one\ndownload on the resource, so ask when a reader asks to download.\n",
+              "description": "The links `Resource` withholds. Needs the `letmoe:files` scope,\nwhich every NextMoe key carries unless an operator removed it.\n\nA `hosted` mirror's `url` is a direct link to letmoe's own file,\nsupporting `Range`. It is looked up for each answer and not promised\nto last: a replaced or taken-down file stops downloading, so do not\nstore it. An `external_link` mirror is a\nlink its publisher hosts elsewhere, with the share code and archive\npassword it needs. A `composite` is the game and a moyu patch spliced\ninto one download at the edge.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Each successful answer counts one\nview and one download on the resource, so ask when a reader asks to\ndownload.\n",
               "scope": "letmoe:files",
               "params": [
                 {

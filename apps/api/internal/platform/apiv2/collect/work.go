@@ -358,11 +358,11 @@ func ClaimSpec() Spec {
 
 func TagSpec() Spec {
 	return Spec{
-		Sort:    []string{"id"},
+		Sort:    []string{"id", "work_count"},
 		Include: []string{"intros", "children", "descendants", "ancestors"},
 		FullSet: []string{"intros", "children"},
 		Fields: []string{
-			"object", "id", "display_name", "tier", "tag_kind", "work_count", "is_sexual", "intros",
+			"object", "id", "display_name", "tier", "tag_kind", "work_count", "is_sexual", "tag_category", "intros",
 			"parents", "child_count", "descendant_count", "children", "descendants", "ancestors",
 		},
 	}

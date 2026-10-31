@@ -25,6 +25,11 @@ type List[T any] struct {
 	Facets        *map[string][]FacetValue `json:"facets,omitempty" doc:"Named facet buckets. Present only when facets= is requested."`
 }
 
+type ListWork struct {
+	List[Work]
+	SearchMode *string `json:"search_mode,omitempty" enum:"lexical,hybrid" doc:"Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable."`
+}
+
 type FacetValue struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
 	Value       string   `json:"value" maxLength:"256" doc:"Token to pass back to the same filter. Must not be used as a discriminant."`
@@ -53,7 +58,7 @@ type Work struct {
 	ReleaseDate          *string                  `json:"release_date" format:"date" maxLength:"10" doc:"Calendar date of the work's release: its earliest dated default, digital or physical release. A trial or patch dates the work only when it has none of those, so a work with an undated full release is undated. null when release_status is announced, cancelled, or unknown."`
 	ReleaseDatePrecision *string                  `json:"release_date_precision" enum:"day,month,year" doc:"null when release_date is null. month dates sit on the 1st; year dates sit on January 1."`
 	ReleaseStatus        string                   `json:"release_status" enum:"released,dated,announced,cancelled,unknown" doc:"World state of the release, distinct from our knowledge gap."`
-	Cover                *CoverSlot               `json:"cover" doc:"Selected portrait image. null if none."`
+	Cover                *CoverSlot               `json:"cover" doc:"Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."`
 	Banner               *CoverSlot               `json:"banner" doc:"Selected landscape image. null if none. origin=screenshot marks the fallback for a work with no landscape cover."`
 	Claim                *Claim                   `json:"claim" doc:"null if unclaimed. Never omitted on view=basic."`
 	CreatedAt            string                   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`

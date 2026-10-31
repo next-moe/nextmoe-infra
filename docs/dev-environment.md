@@ -22,6 +22,7 @@ repo needs on top of that sits behind the `full` profile.
 | community | 9282 | `ghcr.io/next-moe/infra-community` | — |
 | trust | 9283 | `ghcr.io/next-moe/infra-trust` | — |
 | ai *(`full`)* | 9284 | `ghcr.io/next-moe/infra-ai` | — |
+| agent *(`full`)* | 9287 | `ghcr.io/next-moe/infra-agent` | — |
 | image-cdn-proxy (Caddy) | 9290 | `caddy:2-alpine` | — |
 | MinIO (S3) | 9000 / 9001 | `quay.io/minio/minio` | http://127.0.0.1:9001 (minioadmin/minioadmin) |
 | Mailpit | 1025 / 8025 | `axllent/mailpit` | http://127.0.0.1:8025 |
@@ -48,7 +49,14 @@ therefore starts neither group. This gives two modes:
   frontends. Ctrl-C stops the hot stack; the base keeps running. `pnpm dev:down`
   stops the base. Need ai for what you're working on? Add it:
   `docker compose -f docker-compose.dev.yml --profile full up -d ai`
-  (or hot-reload it with `go run ./cmd/ai` — Replace mode, below).
+  (or hot-reload it with `go run ./cmd/ai` — Replace mode, below). The AI
+  assistant (agent, :9287) is the same: `--profile full up -d agent`, or
+  `go run ./cmd/migrate agent && go run ./cmd/agent`. Its models come from the
+  LLM gateway in `kun_ai` (admin console `/ai/llm`, ren only; see
+  `docs/ai/llm-gateway.md`). An empty gateway is seeded once from
+  `KUN_AI_UPSTREAM_BASE_URL` / `KUN_AI_UPSTREAM_TOKEN` in `apps/api/.env`; set
+  `KUN_LLM_KEK` (base64 of 32 random bytes, same value for ai and agent) to
+  store keys sealed instead of read from the environment.
 - **Developing a product repo** (letmoe / forum / moyu / …) → you want the WHOLE
   platform from images, no source build. Use `--profile full`:
   `docker compose -f docker-compose.dev.yml --profile full up -d` (or, from the
@@ -101,7 +109,7 @@ sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'pick-your-own';"
 cd ~ && git clone <this repo> && cd nextmoe-infra
 
 printf 'KUN_PG_PASSWORD=pick-your-own\n' > .env   # root .env, gitignored
-./scripts/create-dev-databases.sh                 # creates the 12 databases
+./scripts/create-dev-databases.sh                 # creates the 15 databases
 pnpm install && pnpm dev
 ```
 
@@ -161,9 +169,9 @@ prints the fix.
 
    It reads your coordinates from the rendered compose config (so the `.env`
    above applies) and the database list from that same initdb hook, and skips
-   the ones that already exist. Twelve in total: `kun_galgame_infra`,
-   `kun_images`, `kun_artifacts`, `kun_catalog`, `kun_community`, `kun_trust`,
-   `kun_ai`, `kun_news`, plus the downstream repos' (`kungalgame`,
+   the ones that already exist. Fifteen in total: `kun_galgame_infra`,
+   `kun_images`, `kun_artifacts`, `kun_catalog`, `kun_community`, `kun_chat`,
+   `kun_trust`, `kun_ai`, `kun_agent`, `kun_news`, `kun_telemetry`, plus the downstream repos' (`kungalgame`,
    `kungalgame_patch`, `kungalgame_sticker`, `kun_letmoe`).
 
    A migrate job that exits 1 seconds after start is almost always one of these

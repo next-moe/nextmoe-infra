@@ -1,0 +1,212 @@
+<script setup lang="ts">
+import {
+  LLM_API,
+  LLM_PRICE_FIELDS,
+  LLM_ROUTE_STATUS_OPTIONS,
+  LLM_THINKING_CONTROL_META,
+  LLM_THINKING_CONTROL_OPTIONS
+} from '~/constants/llm'
+import type {
+  LlmModel,
+  LlmProvider,
+  LlmRoute,
+  LlmRouteStatus,
+  LlmThinkingControl
+} from '~~/shared/types/llm'
+
+const props = defineProps<{
+  route: LlmRoute | null
+  models: LlmModel[]
+  providers: LlmProvider[]
+}>()
+const open = defineModel<boolean>({ required: true })
+const emit = defineEmits<{ saved: [] }>()
+
+const api = useApi('ai')
+
+const modelId = ref(0)
+const providerId = ref(0)
+const upstreamId = ref('')
+const priority = ref(0)
+const weight = ref(1)
+const status = ref<LlmRouteStatus>('active')
+const maxInFlight = ref(0)
+const rpm = ref(0)
+const thinking = ref<LlmThinkingControl>('auto')
+const price = ref(llmPriceDraft())
+let initialPrice = ''
+const saving = ref(false)
+const error = ref('')
+
+const modelOptions = computed(() =>
+  props.models.map((m) => ({ value: m.id, label: `${m.key} · ${m.kind}` }))
+)
+const providerOptions = computed(() =>
+  props.providers.map((p) => ({ value: p.id, label: p.name }))
+)
+
+watch(open, (v) => {
+  if (!v) return
+  const r = props.route
+  modelId.value = r?.model_id ?? props.models[0]?.id ?? 0
+  providerId.value = r?.provider_id ?? props.providers[0]?.id ?? 0
+  upstreamId.value = r?.upstream_id ?? ''
+  priority.value = r?.priority ?? 0
+  weight.value = r?.weight ?? 1
+  status.value = r?.status ?? 'active'
+  maxInFlight.value = r?.max_in_flight ?? 0
+  rpm.value = r?.rpm ?? 0
+  thinking.value = r?.thinking_control ?? 'auto'
+  price.value = llmPriceDraft(r?.price)
+  initialPrice = JSON.stringify(price.value)
+  error.value = ''
+})
+
+const thinkable = computed(() => {
+  const kind = props.models.find((m) => m.id === modelId.value)?.kind
+  return kind === 'chat' || kind === 'search'
+})
+const thinkingHint = computed(() => {
+  const meta = LLM_THINKING_CONTROL_META[thinking.value]
+  const used = props.route?.thinking_effective
+  if (thinking.value !== 'auto' || !used) return meta.hint
+  return `${meta.hint}；当前推断为「${LLM_THINKING_CONTROL_META[used].label}」`
+})
+
+const save = async () => {
+  error.value = ''
+  const upstream = upstreamId.value.trim()
+  if (!upstream || !modelId.value || !providerId.value) {
+    error.value = '模型、供应商和上游模型 ID 是必填的'
+    return
+  }
+  const parsed = llmParsePrice(price.value)
+  if (parsed === 'invalid') {
+    error.value = '价格须为非负数(美元),留空表示不定价'
+    return
+  }
+  const priceChanged = JSON.stringify(price.value) !== initialPrice
+  const sendPrice = parsed && (!props.route || priceChanged) ? parsed : null
+  const statusChanged = !props.route || status.value !== props.route.status
+
+  const body = {
+    upstream_id: upstream,
+    priority: priority.value,
+    weight: weight.value,
+    max_in_flight: maxInFlight.value,
+    rpm: rpm.value,
+    thinking_control: thinking.value,
+    ...(statusChanged ? { status: status.value } : {}),
+    ...(sendPrice ? { price: sendPrice } : {})
+  }
+
+  saving.value = true
+  try {
+    const res = props.route
+      ? await api.patch<LlmRoute>(`${LLM_API}/routes/${props.route.id}`, body)
+      : await api.post<LlmRoute>(`${LLM_API}/routes`, {
+          model_id: modelId.value,
+          provider_id: providerId.value,
+          ...body
+        })
+    if (res.code !== 0) {
+      error.value = res.message || '保存失败'
+      return
+    }
+    useKunMessage(props.route ? '已保存' : '已创建', 'success')
+    open.value = false
+    emit('saved')
+  } finally {
+    saving.value = false
+  }
+}
+</script>
+
+<template>
+  <KunModal v-model="open" :title="route ? '编辑路由' : '新建路由'" size="lg">
+    <div class="space-y-4">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <KunSelect
+          v-model="modelId"
+          label="模型"
+          :options="modelOptions"
+          :disabled="!!route"
+        />
+        <KunSelect
+          v-model="providerId"
+          label="供应商"
+          :options="providerOptions"
+          :disabled="!!route"
+        />
+      </div>
+      <KunInput
+        v-model="upstreamId"
+        label="上游模型 ID"
+        placeholder="@cf/deepseek-ai/deepseek-v4-flash"
+        description="供应商那边的模型名,原样放进请求的 model 字段"
+        required
+      />
+      <div class="grid gap-3 sm:grid-cols-3">
+        <KunNumberInput
+          :model-value="priority"
+          label="优先级"
+          description="数值越大越先试"
+          @update:model-value="priority = $event ?? 0"
+        />
+        <KunNumberInput
+          :model-value="weight"
+          label="权重"
+          :min="0"
+          description="同一优先级内的流量占比"
+          @update:model-value="weight = $event ?? 0"
+        />
+        <KunSelect
+          v-model="status"
+          label="状态"
+          :options="LLM_ROUTE_STATUS_OPTIONS"
+        />
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <KunNumberInput
+          :model-value="maxInFlight"
+          label="最大并发"
+          :min="0"
+          description="所有网关进程合计同时进行的调用数;0 = 不限"
+          @update:model-value="maxInFlight = $event ?? 0"
+        />
+        <KunNumberInput
+          :model-value="rpm"
+          label="每分钟调用上限 (RPM)"
+          :min="0"
+          description="所有网关进程合计;0 = 不限"
+          @update:model-value="rpm = $event ?? 0"
+        />
+      </div>
+
+      <KunSelect
+        v-if="thinkable"
+        v-model="thinking"
+        label="思考控制"
+        :options="LLM_THINKING_CONTROL_OPTIONS"
+        :description="thinkingHint"
+      />
+
+      <AiLlmPriceFields
+        v-model="price"
+        :hint="route ? '修改后生成新的价格版本' : ''"
+      />
+
+      <div v-if="error" class="bg-danger-50 text-danger rounded-lg p-3 text-sm">
+        {{ error }}
+      </div>
+      <div class="flex justify-end gap-3">
+        <KunButton color="default" variant="flat" @click="open = false">
+          取消
+        </KunButton>
+        <KunButton color="primary" :loading="saving" @click="save">
+          保存
+        </KunButton>
+      </div>
+    </div>
+  </KunModal>
+</template>

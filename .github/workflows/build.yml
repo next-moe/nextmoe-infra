@@ -67,6 +67,7 @@ jobs:
       deploy_infra: ${{ steps.set.outputs.deploy_infra }}
       deploy_developer: ${{ steps.set.outputs.deploy_developer }}
       deploy_mcp: ${{ steps.set.outputs.deploy_mcp }}
+      deploy_agent: ${{ steps.set.outputs.deploy_agent }}
     steps:
       - uses: actions/checkout@v7
       # Diffing against event.before loses whatever a cancelled run was about to
@@ -161,6 +162,7 @@ jobs:
             {"name":"infra-trust","file":"docker/go.Dockerfile","args":"CMD=trust","group":"go"},
             {"name":"infra-ai","file":"docker/go.Dockerfile","args":"CMD=ai","group":"go"},
             {"name":"infra-mcp","file":"docker/go.Dockerfile","args":"CMD=mcp","group":"go"},
+            {"name":"infra-agent","file":"docker/go.Dockerfile","args":"CMD=agent","group":"go"},
             {"name":"infra-telemetry","file":"docker/go.Dockerfile","args":"CMD=telemetry","group":"go"},
             {"name":"infra-telemetry-worker","file":"docker/telemetry-worker.Dockerfile","args":"","group":"go"},
             {"name":"infra-account","file":"docker/nuxt.Dockerfile","args":"APP=account\nPUBLIC_API_BASE=https://account.nextmoe.com/api/v1\nPUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link","group":"account"},
@@ -187,6 +189,7 @@ jobs:
           echo "deploy_infra=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "go" or .group == "account" or .group == "admin" or .group == "editor")')" >> "$GITHUB_OUTPUT"
           echo "deploy_developer=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "developer")')" >> "$GITHUB_OUTPUT"
           echo "deploy_mcp=$(jq -n --argjson s "$sel" '$s | any(.[]; .name == "infra-mcp")')" >> "$GITHUB_OUTPUT"
+          echo "deploy_agent=$(jq -n --argjson s "$sel" '$s | any(.[]; .name == "infra-agent")')" >> "$GITHUB_OUTPUT"
           printf 'matrix={"include":%s}\n' "$sel" >> "$GITHUB_OUTPUT"
           echo "Selected $n image(s) to build:"
           jq -rn --argjson s "$sel" '$s[].name' | sed 's/^/  - /'
@@ -226,7 +229,8 @@ jobs:
     if: >-
       needs.changes.outputs.deploy_infra == 'true' ||
       needs.changes.outputs.deploy_developer == 'true' ||
-      needs.changes.outputs.deploy_mcp == 'true'
+      needs.changes.outputs.deploy_mcp == 'true' ||
+      needs.changes.outputs.deploy_agent == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Dokploy redeploys
@@ -234,9 +238,11 @@ jobs:
           DEPLOY_INFRA: ${{ needs.changes.outputs.deploy_infra }}
           DEPLOY_DEVELOPER: ${{ needs.changes.outputs.deploy_developer }}
           DEPLOY_MCP: ${{ needs.changes.outputs.deploy_mcp }}
+          DEPLOY_AGENT: ${{ needs.changes.outputs.deploy_agent }}
           WEBHOOK_INFRA: ${{ secrets.DOKPLOY_WEBHOOK_INFRA }}
           WEBHOOK_DEVELOPER: ${{ secrets.DOKPLOY_WEBHOOK_DEVELOPER }}
           WEBHOOK_MCP: ${{ secrets.DOKPLOY_WEBHOOK_MCP }}
+          WEBHOOK_AGENT: ${{ secrets.DOKPLOY_WEBHOOK_AGENT }}
           TITLE: ${{ github.event.head_commit.message || github.sha }}
         run: |
           set -uo pipefail
@@ -266,4 +272,5 @@ jobs:
           redeploy infra "$DEPLOY_INFRA" "$WEBHOOK_INFRA"
           redeploy developer "$DEPLOY_DEVELOPER" "$WEBHOOK_DEVELOPER"
           redeploy mcp "$DEPLOY_MCP" "$WEBHOOK_MCP"
+          redeploy agent "$DEPLOY_AGENT" "$WEBHOOK_AGENT"
           exit $failed

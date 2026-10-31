@@ -12,7 +12,7 @@ import (
 var analysisJSON []byte
 
 const (
-	SchemaVersion   = 4
+	SchemaVersion   = 5
 	maxResultWindow = 500000
 
 	IndexCreditNames = "catalog_credit_names"
