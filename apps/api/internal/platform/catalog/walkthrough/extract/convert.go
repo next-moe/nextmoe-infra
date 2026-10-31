@@ -78,7 +78,7 @@ func (x Extracted) Chart() walkthrough.Chart {
 			Section:   s.Section,
 			From:      s.From,
 			Condition: s.Condition,
-			Steps:     s.Steps,
+			Steps:     slices.DeleteFunc(slices.Clone(s.Steps), emptyStep),
 			To:        walkthrough.Node{NodeType: s.To.NodeType},
 		}
 		if seg.From.NodeType == walkthrough.NodeEnding {
@@ -95,6 +95,10 @@ func (x Extracted) Chart() walkthrough.Chart {
 	repairCharacterRefs(&c)
 	repairEntries(&c)
 	return c
+}
+
+func emptyStep(st walkthrough.Step) bool {
+	return st.StepType != walkthrough.StepSave && (st.Text == nil || strings.TrimSpace(*st.Text) == "") && len(st.Alt) == 0
 }
 
 var saveDecor = regexp.MustCompile(`^[◆◇■【\[]+|[】\]]+$|[（(][^）)]*[）)]$|から$`)

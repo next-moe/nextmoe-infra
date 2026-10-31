@@ -34,7 +34,8 @@ var (
 	chartStart   = regexp.MustCompile(`(START|【セーブ|◆セーブ|はじめから)`)
 	markerLine   = regexp.MustCompile(`(セーブ|(?i:start)|開始|はじめから|初めから|最初から|からスタート|END|ＥＮＤ|回収|終了|━)`)
 	numberedMark = regexp.MustCompile(`^[0-9０-９]*\s*■`)
-	orWord       = regexp.MustCompile(`(?i)\bor\b`)
+	orWord       = regexp.MustCompile(`(?i)\bor\b|選択肢`)
+	siteChrome   = regexp.MustCompile(`拡大リンク|クリックで.*表示|参考画像`)
 	whitespaces  = regexp.MustCompile(`\s+`)
 )
 
@@ -209,7 +210,7 @@ func coverage(text string, c walkthrough.Chart) (float64, []string) {
 	for _, raw := range chartRegion(text) {
 		l := strings.TrimSpace(raw)
 		if l == "" || markerLine.MatchString(l) || strings.Contains(l, "│") || strings.HasPrefix(l, "※") ||
-			numberedMark.MatchString(l) || strings.HasPrefix(l, "[") || isHeadingLine(l) {
+			numberedMark.MatchString(l) || strings.HasPrefix(l, "[") || isHeadingLine(l) || siteChrome.MatchString(l) {
 			continue
 		}
 		total++

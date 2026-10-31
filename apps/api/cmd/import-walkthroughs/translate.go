@@ -41,6 +41,7 @@ type translateJob struct {
 	Strings   []string
 	Glossary  []glossaryTerm
 	KeepNames []string
+	Known     map[string]string
 }
 
 func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sourceEntry, o extractOpts) error {
@@ -64,6 +65,10 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 	if err != nil {
 		return err
 	}
+	prev, err := loadTranslations(ctx, src, keysOf(charts))
+	if err != nil {
+		return err
+	}
 	var jobs []translateJob
 	for _, id := range keysOf(charts) {
 		if _, matched := pins[id]; !matched {
@@ -72,6 +77,9 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 		job := buildTranslateJob(id, charts[id], pins[id], rosters[works[id]])
 		if len(job.Strings) == 0 || !o.Redo && done[id] == translateHash(job) {
 			continue
+		}
+		if !o.Redo {
+			job.Known = prev[id].strings
 		}
 		jobs = append(jobs, job)
 	}
@@ -100,7 +108,7 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 				errText = err.Error()
 				slog.Warn("translate failed", "entry", job.EntryID, "err", err)
 			}
-			if err := storeTranslation(ctx, src, job, l.model, out, errText); err != nil {
+			if err := storeTranslation(ctx, src, job, translatedBy(prev[job.EntryID].model, l.model, st.asked), out, errText); err != nil {
 				slog.Error("store translation", "entry", job.EntryID, "err", err)
 			}
 			if n := finished.Add(1); n%25 == 0 || n == int64(len(jobs)) {
@@ -337,6 +345,10 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 	mask := newNameMask(job.KeepNames, 2)
 	var todo []string
 	for _, ja := range job.Strings {
+		if zh, ok := job.Known[ja]; ok {
+			out[ja] = zh
+			continue
+		}
 		if mask.onlyNames(ja) {
 			out[ja] = ja
 		} else {
@@ -493,6 +505,17 @@ func keepsNames(ja, zh string, names []string) bool {
 	return true
 }
 
+func translatedBy(prev, model string, asked int) string {
+	switch {
+	case prev == "" || prev == model:
+		return model
+	case asked == 0:
+		return prev
+	default:
+		return prev + "+" + model
+	}
+}
+
 func storeTranslation(ctx context.Context, src *gorm.DB, job translateJob, model string, out map[string]string, errText string) error {
 	b, err := json.Marshal(out)
 	if err != nil {
@@ -502,6 +525,7 @@ func storeTranslation(ctx context.Context, src *gorm.DB, job translateJob, model
 INSERT INTO wt_stage.translation (entry_id, prompt_version, model, input_hash, strings, error, created_at)
 VALUES (?, ?, ?, ?, ?::jsonb, ?, now())
 ON CONFLICT (entry_id, prompt_version) DO UPDATE SET model = EXCLUDED.model, input_hash = EXCLUDED.input_hash,
-  strings = EXCLUDED.strings, error = EXCLUDED.error, created_at = now()`,
+  strings = EXCLUDED.strings, error = EXCLUDED.error, created_at = now()
+WHERE EXCLUDED.error = '' OR wt_stage.translation.error <> ''`,
 		job.EntryID, translatePromptVersion, model, translateHash(job), string(b), errText).Error
 }

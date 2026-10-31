@@ -1,7 +1,6 @@
 package main
 
 import (
-	"api/internal/platform/catalog/walkthrough/extract"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,7 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"api/internal/platform/catalog/llmsuggest"
 	"api/internal/platform/catalog/walkthrough"
+	"api/internal/platform/catalog/walkthrough/extract"
 
 	"gorm.io/gorm"
 )
@@ -88,17 +89,38 @@ func settledExtractions(ctx context.Context, src *gorm.DB) (map[int64]string, er
 func extractOne(ctx context.Context, src *gorm.DB, l *llm, schema map[string]any, e sourceEntry, maxTokens int) (string, error) {
 	text := chartText(e.BodyHTML)
 	start := time.Now()
-	var got extract.Extracted
-	res, err := l.chatJSON(ctx, extract.System, text, "walkthrough", schema, maxTokens, &got)
-	m := extract.Metrics{Seconds: time.Since(start).Seconds(), CompletionTokens: res.CompletionTokens}
+	parts := extract.SplitPage(text)
+	got := extract.Extracted{NoChart: true}
+	var m extract.Metrics
+	var err error
+	for k, part := range parts {
+		var x extract.Extracted
+		var res llmsuggest.ChatResult
+		res, err = l.chatJSON(ctx, extract.System, extract.PartPrompt(part, k+1, len(parts), got), "walkthrough", schema, maxTokens, &x)
+		m.CompletionTokens += res.CompletionTokens
+		if err != nil {
+			err = fmt.Errorf("part %d of %d: %w", k+1, len(parts), err)
+			break
+		}
+		if len(parts) == 1 {
+			got = x
+		} else {
+			extract.Merge(&got, x, k+1)
+		}
+	}
+	m.Seconds = time.Since(start).Seconds()
 	row := extractionRow{EntryID: e.ID, PromptVersion: extract.PromptVersion, Model: l.model, InputHash: hashText(text)}
 	if err != nil {
 		row.Verdict, row.Error = extract.VerdictError, err.Error()
-		return row.Verdict, storeExtraction(ctx, src, row, m)
+		return row.Verdict, storeExtraction(ctx, src, row, m, false)
 	}
-	row.Raw = res.Content
+	raw, err := json.Marshal(got)
+	if err != nil {
+		return extract.VerdictError, err
+	}
+	row.Raw = string(raw)
 	row.Verdict, row.Chart = extract.Settle(text, got, &m)
-	return row.Verdict, storeExtraction(ctx, src, row, m)
+	return row.Verdict, storeExtraction(ctx, src, row, m, false)
 }
 
 type extractionRow struct {
@@ -112,7 +134,20 @@ type extractionRow struct {
 	Error         string
 }
 
-func storeExtraction(ctx context.Context, src *gorm.DB, r extractionRow, m extract.Metrics) error {
+// A new run replaces a stored result of the same page only when it settles
+// better (regate always replaces). On 2026-10-31 the cursor gateway answered
+// "You're out of usage" to 465 of 468 re-extractions and each error row
+// overwrote that entry's extract-v3 chart; deepseek's runs over the same 20
+// pages each rejected a different few for a one-off slip.
+func settleRank(row string) string {
+	return "-array_position(ARRAY['ok', 'review', 'no_chart', 'rejected'], " + row + ".verdict)"
+}
+
+func coverageOf(row string) string {
+	return "coalesce((" + row + ".metrics->>'coverage')::float8, 0)"
+}
+
+func storeExtraction(ctx context.Context, src *gorm.DB, r extractionRow, m extract.Metrics, replace bool) error {
 	var chartJSON, rawJSON any
 	if r.Chart != nil {
 		b, err := json.Marshal(r.Chart)
@@ -133,8 +168,10 @@ INSERT INTO wt_stage.extraction (entry_id, prompt_version, model, input_hash, ve
 VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, now())
 ON CONFLICT (entry_id, prompt_version) DO UPDATE SET
   model = EXCLUDED.model, input_hash = EXCLUDED.input_hash, verdict = EXCLUDED.verdict,
-  chart = EXCLUDED.chart, raw = EXCLUDED.raw, metrics = EXCLUDED.metrics, error = EXCLUDED.error, created_at = now()`,
-		r.EntryID, r.PromptVersion, r.Model, r.InputHash, r.Verdict, chartJSON, rawJSON, string(mj), r.Error).Error
+  chart = EXCLUDED.chart, raw = EXCLUDED.raw, metrics = EXCLUDED.metrics, error = EXCLUDED.error, created_at = now()
+WHERE ? OR wt_stage.extraction.verdict = 'error' OR EXCLUDED.input_hash <> wt_stage.extraction.input_hash OR
+  EXCLUDED.verdict <> 'error' AND (`+settleRank("EXCLUDED")+`, `+coverageOf("EXCLUDED")+`) >= (`+settleRank("wt_stage.extraction")+`, `+coverageOf("wt_stage.extraction")+`)`,
+		r.EntryID, r.PromptVersion, r.Model, r.InputHash, r.Verdict, chartJSON, rawJSON, string(mj), r.Error, replace).Error
 }
 
 func runRegate(ctx context.Context, src *gorm.DB, entries []sourceEntry) error {
@@ -174,7 +211,7 @@ func runRegate(ctx context.Context, src *gorm.DB, entries []sourceEntry) error {
 		m := extract.Metrics{Seconds: prev.Seconds, CompletionTokens: prev.CompletionTokens}
 		row := extractionRow{EntryID: r.EntryID, PromptVersion: r.PromptVersion, Model: r.Model, InputHash: r.InputHash, Raw: r.Raw}
 		row.Verdict, row.Chart = extract.Settle(text, got, &m)
-		if err := storeExtraction(ctx, src, row, m); err != nil {
+		if err := storeExtraction(ctx, src, row, m, true); err != nil {
 			return err
 		}
 		counts[row.Verdict]++
