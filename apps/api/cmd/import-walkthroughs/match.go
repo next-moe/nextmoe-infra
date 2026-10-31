@@ -134,9 +134,9 @@ func gatedCharts(ctx context.Context, src *gorm.DB, ids []int64) (map[int64]*wal
 		EntryID int64
 		Chart   string
 	}
-	if err := src.WithContext(ctx).Table("wt_stage.extraction").
+	if err := src.WithContext(ctx).Table(latestExtractions(settledVerdicts)).
 		Select("entry_id, chart::text AS chart").
-		Where("prompt_version = ? AND verdict IN ? AND entry_id IN ?", extract.PromptVersion, []string{extract.VerdictOK, extract.VerdictReview}, ids).
+		Where("verdict IN ? AND entry_id IN ?", []string{extract.VerdictOK, extract.VerdictReview}, ids).
 		Scan(&rows).Error; err != nil {
 		return nil, err
 	}

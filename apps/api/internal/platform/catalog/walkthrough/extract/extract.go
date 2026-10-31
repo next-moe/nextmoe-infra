@@ -44,6 +44,8 @@ func Settle(text string, got Extracted, m *Metrics) (string, *walkthrough.Chart)
 	walkthrough.Normalize(&chart)
 	m.DroppedConditions = dropUnquotedConditions(text, &chart)
 	quoteCharacterNames(text, &chart)
+	RepairFromSource(text, &chart)
+	walkthrough.Normalize(&chart)
 	return Gate(text, chart, m), &chart
 }
 
@@ -83,7 +85,13 @@ func notVerbatim(text string, c walkthrough.Chart) []string {
 			for _, a := range st.Alt {
 				check(a)
 			}
+			if st.Remark != nil {
+				check(*st.Remark)
+			}
 		}
+	}
+	for _, l := range c.Legend {
+		check(l.Text)
 	}
 	for _, e := range c.Endings {
 		check(e.Name)
@@ -167,6 +175,9 @@ func coverage(text string, c walkthrough.Chart) (float64, []string) {
 			}
 			for _, a := range st.Alt {
 				add(a)
+			}
+			if st.Remark != nil {
+				add(*st.Text + *st.Remark)
 			}
 		}
 		if s.Condition != nil {

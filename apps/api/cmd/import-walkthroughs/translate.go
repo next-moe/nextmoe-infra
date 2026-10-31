@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/http"
 	"regexp"
 	"slices"
 	"strings"
@@ -14,13 +16,20 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"api/internal/platform/catalog/llmsuggest"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/walkthrough"
 
 	"gorm.io/gorm"
 )
 
-const translateChunk = 80
+// A chunk is capped by length as well as count: 80 long strings took the
+// cursor gateway up to 620s, past the client's 180s timeout, and 19 charts
+// failed after every retry.
+const (
+	translateChunk      = 80
+	translateChunkRunes = 1500
+)
 
 type glossaryTerm struct {
 	Ja string `json:"ja"`
@@ -32,7 +41,6 @@ type translateJob struct {
 	Strings   []string
 	Glossary  []glossaryTerm
 	KeepNames []string
-	Earlier   map[string]string
 }
 
 func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sourceEntry, o extractOpts) error {
@@ -56,10 +64,6 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 	if err != nil {
 		return err
 	}
-	earlier, err := earlierTranslations(ctx, src)
-	if err != nil {
-		return err
-	}
 	var jobs []translateJob
 	for _, id := range keysOf(charts) {
 		if _, matched := pins[id]; !matched {
@@ -69,14 +73,13 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 		if len(job.Strings) == 0 || !o.Redo && done[id] == translateHash(job) {
 			continue
 		}
-		job.Earlier = earlier[id]
 		jobs = append(jobs, job)
 	}
 	fmt.Printf("\n=== import-walkthroughs translate model=%s prompt=%s charts=%d todo=%d ===\n",
 		l.model, translatePromptVersion, len(charts), len(jobs))
 
 	schema := mustSchema(translateSchemaJSON)
-	var finished, failed, refused, reused, asked atomic.Int64
+	var finished, failed, refused, asked atomic.Int64
 	sem := make(chan struct{}, max(o.Workers, 1))
 	var wg sync.WaitGroup
 	for _, job := range jobs {
@@ -90,7 +93,6 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 			defer func() { <-sem }()
 			out, st, err := translateOne(ctx, l, schema, job, o.MaxTokens)
 			refused.Add(int64(st.refused))
-			reused.Add(int64(st.reused))
 			asked.Add(int64(st.asked))
 			errText := ""
 			if err != nil {
@@ -102,13 +104,13 @@ func runTranslate(ctx context.Context, src, cat *gorm.DB, l *llm, entries []sour
 				slog.Error("store translation", "entry", job.EntryID, "err", err)
 			}
 			if n := finished.Add(1); n%25 == 0 || n == int64(len(jobs)) {
-				slog.Info("progress", "done", n, "of", len(jobs), "failed", failed.Load(), "reused", reused.Load(), "asked", asked.Load(), "refused", refused.Load())
+				slog.Info("progress", "done", n, "of", len(jobs), "failed", failed.Load(), "asked", asked.Load(), "refused", refused.Load())
 			}
 		}(job)
 	}
 	wg.Wait()
-	fmt.Printf("translated=%d failed=%d reused_strings=%d asked_strings=%d refused_strings=%d\n",
-		finished.Load()-failed.Load(), failed.Load(), reused.Load(), asked.Load(), refused.Load())
+	fmt.Printf("translated=%d failed=%d asked_strings=%d refused_strings=%d\n",
+		finished.Load()-failed.Load(), failed.Load(), asked.Load(), refused.Load())
 	return ctx.Err()
 }
 
@@ -205,13 +207,23 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 			for i := range st.Alt {
 				add(&st.Alt[i])
 			}
+			add(st.Remark)
 		}
+	}
+	for _, l := range c.Legend {
+		add(&l.Text)
 	}
 	for _, e := range c.Endings {
 		add(&e.Name)
 	}
 	for _, s := range c.Sections {
 		add(&s.Title)
+	}
+	for _, s := range c.Saves {
+		add(&s.Label)
+	}
+	for _, e := range c.Entries {
+		add(&e.Label)
 	}
 	keep := func(n string) {
 		for _, p := range nameParts(n) {
@@ -222,6 +234,7 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 	}
 	translated := map[string]bool{}
 	zhOf := map[int64]string{}
+	namesOf := map[int64][]string{}
 	for _, r := range roster {
 		// A zh-Hans alias that copies the Japanese name is no translation: taking it for one
 		// left 美紀 unprotected, and the model wrote 美纪.
@@ -229,6 +242,7 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 			r.Zh = ""
 		}
 		zhOf[r.CharacterID] = r.Zh
+		namesOf[r.CharacterID] = r.Names
 		for _, n := range r.Names {
 			if r.Zh != "" {
 				job.Glossary = append(job.Glossary, glossaryTerm{Ja: n, Zh: r.Zh})
@@ -239,12 +253,13 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 		}
 	}
 	for _, ch := range c.Characters {
-		zh := zhOf[pins[ch.Key].CharacterID]
+		id := pins[ch.Key].CharacterID
+		zh := zhOf[id]
 		for _, n := range append([]string{ch.Name}, ch.Aliases...) {
 			switch n = strings.TrimSpace(n); {
 			case n == "" || translated[nameKey(n)]:
 			case zh != "":
-				job.Glossary = append(job.Glossary, glossaryTerm{Ja: n, Zh: zh})
+				job.Glossary = append(job.Glossary, glossaryTerm{Ja: n, Zh: shortZh(n, namesOf[id], zh)})
 				translated[nameKey(n)] = true
 			default:
 				keep(n)
@@ -253,6 +268,40 @@ func buildTranslateJob(entryID int64, c *walkthrough.Chart, pins map[string]char
 	}
 	job.KeepNames = slices.DeleteFunc(job.KeepNames, func(n string) bool { return translated[nameKey(n)] })
 	return job
+}
+
+// A short name took its pin's full zh name, so grok wrote 憂緒に駆け寄る as
+// 跑向鹿谷忧绪. A kanji given or family name of a full name takes the matching
+// end of the zh name instead; anything else keeps the full name, which is
+// still the right person.
+func shortZh(short string, fullNames []string, zh string) string {
+	s, z := []rune(nameNoise.ReplaceAllString(short, "")), []rune(zh)
+	if !allHan(s) {
+		return zh
+	}
+	for _, full := range fullNames {
+		parts := strings.FieldsFunc(full, func(r rune) bool { return unicode.IsSpace(r) || r == '・' })
+		if len(parts) != 2 {
+			continue
+		}
+		joined := []rune(parts[0] + parts[1])
+		switch {
+		case parts[1] == string(s) && allHan([]rune(parts[1])) && len(z) > len(s):
+			return string(z[len(z)-len(s):])
+		case parts[0] == string(s) && len(joined) == len(z) && allHan(joined):
+			return string(z[:len(s)])
+		}
+	}
+	return zh
+}
+
+func allHan(rs []rune) bool {
+	for _, r := range rs {
+		if !unicode.Is(unicode.Han, r) {
+			return false
+		}
+	}
+	return len(rs) > 0
 }
 
 func translateHash(job translateJob) string {
@@ -278,54 +327,25 @@ func settledTranslations(ctx context.Context, src *gorm.DB) (map[int64]string, e
 	return out, err
 }
 
-func earlierTranslations(ctx context.Context, src *gorm.DB) (map[int64]map[string]string, error) {
-	var rows []struct {
-		EntryID int64
-		Strings string
-	}
-	if err := src.WithContext(ctx).Table("wt_stage.translation").
-		Select("entry_id, strings::text AS strings").
-		Where("prompt_version <> ? AND error = '' AND strings IS NOT NULL", translatePromptVersion).
-		Order("created_at").Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make(map[int64]map[string]string, len(rows))
-	for _, r := range rows {
-		m := map[string]string{}
-		if err := json.Unmarshal([]byte(r.Strings), &m); err != nil {
-			return nil, fmt.Errorf("entry %d translation: %w", r.EntryID, err)
-		}
-		if out[r.EntryID] == nil {
-			out[r.EntryID] = m
-			continue
-		}
-		maps.Copy(out[r.EntryID], m)
-	}
-	return out, nil
-}
-
 type translateStats struct {
-	reused, asked, refused int
+	asked, refused int
 }
 
 func translateOne(ctx context.Context, l *llm, schema map[string]any, job translateJob, maxTokens int) (map[string]string, translateStats, error) {
 	out := map[string]string{}
 	var st translateStats
-	mask := newNameMask(job.KeepNames)
+	mask := newNameMask(job.KeepNames, 2)
 	var todo []string
 	for _, ja := range job.Strings {
-		switch zh, ok := job.Earlier[ja]; {
-		case ok && keepsNames(ja, zh, job.KeepNames):
-			out[ja] = zh
-			st.reused++
-		case mask.onlyNames(ja):
+		if mask.onlyNames(ja) {
 			out[ja] = ja
-		default:
+		} else {
 			todo = append(todo, ja)
 		}
 	}
-	var run func(chunk []string) error
-	run = func(chunk []string) error {
+	var refused []string
+	var run func(mask nameMask, chunk []string) error
+	run = func(mask nameMask, chunk []string) error {
 		masked := make([]string, len(chunk))
 		for i, ja := range chunk {
 			masked[i] = mask.hide(ja)
@@ -340,38 +360,83 @@ func translateOne(ctx context.Context, l *llm, schema map[string]any, job transl
 		var got struct {
 			T []string `json:"t"`
 		}
-		if _, err := l.chatJSON(ctx, translateSystem, string(in), "translation", schema, maxTokens, &got); err != nil {
+		// grok answers a chunk it will not translate in prose (这…, 我…), and the
+		// cursor gateway blocks some with 422; either failed the whole chart, so
+		// a refused chunk is split like a short one.
+		if _, err := l.chatJSON(ctx, translateSystem, string(in), "translation", schema, maxTokens, &got); err != nil && !refusedChunk(err) {
 			return err
 		}
 		if len(got.T) != len(chunk) {
 			if len(chunk) == 1 {
 				st.asked++
-				st.refused++
+				refused = append(refused, chunk[0])
 				return nil
 			}
 			half := len(chunk) / 2
-			if err := run(chunk[:half]); err != nil {
+			if err := run(mask, chunk[:half]); err != nil {
 				return err
 			}
-			return run(chunk[half:])
+			return run(mask, chunk[half:])
 		}
 		st.asked += len(chunk)
 		for i, ja := range chunk {
 			zh, ok := mask.restore(masked[i], strings.TrimSpace(got.T[i]))
 			if !ok || zh == "" || !keepsNames(ja, zh, job.KeepNames) {
-				st.refused++
+				refused = append(refused, ja)
 				continue
 			}
 			out[ja] = zh
 		}
 		return nil
 	}
-	for start := 0; start < len(todo); start += translateChunk {
-		if err := run(todo[start:min(start+translateChunk, len(todo))]); err != nil {
-			return out, st, err
+	runAll := func(mask nameMask, todo []string) error {
+		for _, chunk := range chunkStrings(todo) {
+			if err := run(mask, chunk); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := runAll(mask, todo); err != nil {
+		return out, st, err
+	}
+	full := newNameMask(job.KeepNames, 1)
+	first := refused
+	todo, refused = nil, nil
+	for _, ja := range first {
+		if full.hide(ja) == mask.hide(ja) {
+			refused = append(refused, ja)
+		} else if full.onlyNames(ja) {
+			out[ja] = ja
+		} else {
+			todo = append(todo, ja)
 		}
 	}
-	return out, st, nil
+	err := runAll(full, todo)
+	st.refused = len(refused)
+	return out, st, err
+}
+
+func chunkStrings(todo []string) [][]string {
+	var out [][]string
+	start, runes := 0, 0
+	for i, s := range todo {
+		n := utf8.RuneCountInString(s)
+		if i > start && (i-start == translateChunk || runes+n > translateChunkRunes) {
+			out = append(out, todo[start:i])
+			start, runes = i, 0
+		}
+		runes += n
+	}
+	if start < len(todo) {
+		out = append(out, todo[start:])
+	}
+	return out
+}
+
+func refusedChunk(err error) bool {
+	var se *llmsuggest.StatusError
+	return errors.Is(err, errNotJSON) || errors.As(err, &se) && se.Status == http.StatusUnprocessableEntity
 }
 
 var placeholderRe = regexp.MustCompile(`\{N[0-9]+\}`)
@@ -380,13 +445,16 @@ var placeholderRe = regexp.MustCompile(`\{N[0-9]+\}`)
 // before a string reaches the model and swaps it back after: asked to keep
 // the names verbatim, glm-5.2 still transliterated them, and the keepsNames
 // guard dropped 40.9k of the 287k strings on 2026-10-25. A one-rune name
-// stays unmasked, because 愛 or 藍 is as often a word as a name.
+// stays unmasked at first, because 愛 or 藍 is as often a word as a name; but
+// the model then wrote 鈴を追う as 追铃, the guard refused it, and 1,556 choice
+// steps went without zh-Hans, so a refused string is asked once more with
+// one-rune names masked too.
 type nameMask struct {
 	hider, shower *strings.Replacer
 }
 
-func newNameMask(names []string) nameMask {
-	long := slices.DeleteFunc(slices.Clone(names), func(n string) bool { return utf8.RuneCountInString(n) < 2 })
+func newNameMask(names []string, minRunes int) nameMask {
+	long := slices.DeleteFunc(slices.Clone(names), func(n string) bool { return utf8.RuneCountInString(n) < minRunes })
 	slices.SortStableFunc(long, func(a, b string) int { return utf8.RuneCountInString(b) - utf8.RuneCountInString(a) })
 	var hide, show []string
 	for i, n := range long {
