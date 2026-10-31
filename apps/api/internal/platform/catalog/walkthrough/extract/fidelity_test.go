@@ -153,3 +153,17 @@ func TestTimeHeadings(t *testing.T) {
 		assert.Equal(t, want, s.isHeading(0), s.raw[0])
 	}
 }
+
+func TestRepeatedHeadingsArePicks(t *testing.T) {
+	text := func(s string) *string { return &s }
+	heading := func(s string) walkthrough.Step { return walkthrough.Step{StepType: walkthrough.StepHeading, Text: text(s)} }
+	c := walkthrough.Chart{Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+		heading("■リーゼ"), heading("第1話"), heading("■リーゼ"), heading("第1話"), heading("■ステラ"), heading("■リーゼ"), heading("第1話"),
+	}}}}
+	pickRepeatedHeadings(&c)
+	var types []string
+	for _, st := range c.Segments[0].Steps {
+		types = append(types, st.StepType)
+	}
+	assert.Equal(t, []string{"choice", "heading", "choice", "heading", "heading", "choice", "heading"}, types)
+}

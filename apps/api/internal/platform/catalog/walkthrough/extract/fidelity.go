@@ -153,6 +153,7 @@ func firstHit(at []int) int {
 func RepairFromSource(text string, c *walkthrough.Chart) {
 	s := newSourceLines(text)
 	dropRules(c)
+	pickRepeatedHeadings(c)
 	at := joinCutRoutes(s, c, stepLines(s, c))
 	restoreRemarks(s, c, at)
 	restoreHeadings(s, c, at)
@@ -160,6 +161,28 @@ func RepairFromSource(text string, c *walkthrough.Chart) {
 	markAchievements(c)
 	splitMergedCharacters(c)
 	nameEndingCharacters(c)
+}
+
+// A heading says where the player is, so the same text cannot be one three
+// times over: deepseek typed a map page's ■リーゼ (pick リーゼ), written a dozen
+// times, as a heading. Dates and counters do repeat and stay headings.
+func pickRepeatedHeadings(c *walkthrough.Chart) {
+	seen := map[string]int{}
+	for _, seg := range c.Segments {
+		for _, st := range seg.Steps {
+			if st.StepType == walkthrough.StepHeading && st.Text != nil {
+				seen[squash(*st.Text)]++
+			}
+		}
+	}
+	for i := range c.Segments {
+		for j := range c.Segments[i].Steps {
+			st := &c.Segments[i].Steps[j]
+			if st.StepType == walkthrough.StepHeading && st.Text != nil && seen[squash(*st.Text)] >= 3 && !isHeadingLine(*st.Text) {
+				st.StepType = walkthrough.StepChoice
+			}
+		}
+	}
 }
 
 func dropRules(c *walkthrough.Chart) {
