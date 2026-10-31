@@ -207,6 +207,46 @@ func preAutoMigrate(db *gorm.DB) error {
 	if err := db.Exec(addPurpose).Error; err != nil {
 		return fmt.Errorf("pre-migrate trust_term.purpose: %w", err)
 	}
+	return addScanRetrySchedule(db)
+}
+
+// addScanRetrySchedule adds trust_scan_result.next_scan_at, which replaces the
+// old "degraded and scan_attempts < 3" claim with a backoff schedule: the worker
+// retries a degraded row only once next_scan_at is due, and a NULL means it is
+// never retried again.
+//
+// Existing rows: every degraded row would come out NULL, i.e. final. The ones
+// whose gateway call failed or came back degraded (reasons 2 and 3) in the last
+// 7 days are re-armed for an immediate retry instead. That is the 2026-10-27..30
+// Workers AI capacity window, which used up the three tries of ~220 kungal
+// items, ad posts among them, before the upstream came back; scoring them now
+// may auto-hide content that has been public for days, which is the point.
+// Unconfigured (reason 1) rows stay final.
+//
+// The column add and the re-arm share one DO block guarded on the column not
+// existing yet, so the re-arm runs exactly once: on a later deploy those same
+// rows may have exhausted the new schedule and must stay final.
+func addScanRetrySchedule(db *gorm.DB) error {
+	stmt := fmt.Sprintf(`
+		DO $$
+		BEGIN
+		    IF to_regclass('trust_scan_result') IS NOT NULL AND NOT EXISTS (
+		        SELECT 1 FROM information_schema.columns
+		         WHERE table_schema = current_schema()
+		           AND table_name = 'trust_scan_result' AND column_name = 'next_scan_at'
+		    ) THEN
+		        ALTER TABLE trust_scan_result ADD COLUMN next_scan_at timestamptz;
+		        UPDATE trust_scan_result
+		           SET next_scan_at = now()
+		         WHERE status = %d
+		           AND degraded_reason IN (%d, %d)
+		           AND created_at >= now() - interval '7 days';
+		    END IF;
+		END $$;`,
+		model.ScanStatusDegraded, model.ScanDegradedGatewayCallFailed, model.ScanDegradedGatewayDegraded)
+	if err := db.Exec(stmt).Error; err != nil {
+		return fmt.Errorf("pre-migrate trust_scan_result.next_scan_at: %w", err)
+	}
 	return nil
 }
 
@@ -262,6 +302,12 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_trust_scan_result_status_id", `
 			CREATE INDEX IF NOT EXISTS idx_trust_scan_result_status_id
 			    ON trust_scan_result(status, id)`},
+		// Retry claim: degraded rows whose backoff is due. Partial, so the
+		// rows that reached their final verdict never enter it.
+		{"idx_trust_scan_result_retry_due", `
+			CREATE INDEX IF NOT EXISTS idx_trust_scan_result_retry_due
+			    ON trust_scan_result(next_scan_at)
+			    WHERE status = 2 AND next_scan_at IS NOT NULL`},
 		// Scan observation / calibration queries (step 03): per-site, per-kind,
 		// newest first.
 		{"idx_trust_scan_result_site_kind_created", `
