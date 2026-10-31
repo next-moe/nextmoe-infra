@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { USER_ROLE_FILTER_ALL, USER_ROLE_FILTER_OPTIONS } from '~/constants/roles'
+
 const api = useApi()
 
 const searchQuery = ref('') // bound to the input
 const appliedSearch = ref('') // committed on submit (so we don't refetch per keystroke)
 const currentPage = ref(1)
 const limit = 20
+const roleFilter = ref<string>(USER_ROLE_FILTER_ALL)
+watch(roleFilter, () => {
+  currentPage.value = 1
+})
 
 const { data, status, refresh } = await useApiFetch<{
   users: User[]
@@ -16,6 +22,7 @@ const { data, status, refresh } = await useApiFetch<{
     page: currentPage.value,
     limit,
     ...(appliedSearch.value ? { search: appliedSearch.value } : {}),
+    ...(roleFilter.value !== USER_ROLE_FILTER_ALL ? { role: roleFilter.value } : {}),
   })),
 })
 const users = computed(() => data.value?.users ?? [])
@@ -172,6 +179,12 @@ const handleEdit = (user: { uuid: string; name: string }) => {
           type="text"
           placeholder="搜索用户名或邮箱..."
           class="flex-1"
+        />
+        <KunSelect
+          v-model="roleFilter"
+          :options="USER_ROLE_FILTER_OPTIONS"
+          aria-label="按角色筛选"
+          class="w-36"
         />
         <KunButton color="primary" type="submit" :disabled="isLoading">
           <KunIcon name="lucide:search" class="mr-1 size-4" />

@@ -72,7 +72,7 @@
 
 | 路径 | 鉴权 | Handler | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /api/v1/admin/users` | admin | `adminH.ListUsers` | 已修 | 分页 + 搜索；#02 sort_by ORDER BY 注入(repo 白名单+handler 校验)；#15 avatar_image_hash |
+| `GET /api/v1/admin/users` | admin | `adminH.ListUsers` | 已修 | 分页 + 搜索；#02 sort_by ORDER BY 注入(repo 白名单+handler 校验)；#15 avatar_image_hash；`role`（`user` = 没有任何角色）；`last_login_at` / `last_active_at` |
 | `GET /api/v1/admin/users/:uuid` | admin | `adminH.GetUser` | 已修 | 含 session 数等；#15 avatar_image_hash |
 | `GET /api/v1/admin/users/:uuid/moemoepoint/log` | admin | `moemoepointH.AdminGetLog` | 已审计 | 流水**完整视图**（含 note/actor）|
 

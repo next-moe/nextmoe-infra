@@ -19,6 +19,7 @@ import (
 	"api/pkg/oidckeys"
 	"api/pkg/oidctoken"
 	"api/pkg/response"
+	"api/pkg/trustclient"
 
 	"api/internal/platform/auth/federation"
 	authHandler "api/internal/platform/auth/handler"
@@ -129,8 +130,9 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	oauthClientRepo := siteRepo.NewOAuthClientRepository(db)
 	siteRepository := siteRepo.NewSiteRepository(db)
 	signingKeyRepo := authRepo.NewSigningKeyRepository(db)
+	activityRepo := authRepo.NewActivityRepository(db)
 
-	app.StartCleanup(cleanupCtx, sessionRepo, authCodeRepo)
+	app.StartCleanup(cleanupCtx, sessionRepo, authCodeRepo, activityRepo)
 
 	mailer := mail.NewMailer(cfg.Mail)
 
@@ -149,7 +151,8 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 
 	authSvc := authService.NewAuthServiceFull(userRepo, sessionRepo, passwordResetRepo, mailer, a.Cache, cfg)
 	oauthSvc := authService.NewOAuthService(userRepo, authCodeRepo, sessionRepo, oauthClientRepo, siteRoleRepo, cfg)
-	adminSvc := authService.NewAdminService(userRepo, sessionRepo, siteRoleRepo, siteRepository, imgCli, cfg.ImageService.CDNBase)
+	adminSvc := authService.NewAdminService(userRepo, sessionRepo, siteRoleRepo, siteRepository, imgCli, cfg.ImageService.CDNBase).
+		WithActivity(activityRepo)
 	app.StartAccountDeletion(cleanupCtx, adminSvc)
 	userBatchSvc := authService.NewUserBatchService(userRepo, siteRoleRepo, cfg.ImageService.CDNBase)
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
@@ -165,6 +168,16 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	shop := shopService.New(a.DB.DB(), ledger, decorationStore, cfg.ImageService.CDNBase)
 	userBatchSvc.WithCosmetics(shop).WithPerks(shop)
 	authSvc.WithPerks(shop)
+	var profileTrust authService.ProfileTrust
+	if tc := trustclient.New(trustclient.Config{
+		BaseURL: cfg.TrustClient.BaseURL, ClientID: cfg.TrustClient.ClientID, ClientSecret: cfg.TrustClient.ClientSecret,
+	}); tc != nil {
+		profileTrust = tc
+		slog.Info("profile review: trust client configured", "base_url", cfg.TrustClient.BaseURL)
+	} else {
+		slog.Info("profile review: trust client unset (KUN_TRUST_CLIENT_*); only the local solicitation rule can apply")
+	}
+	authSvc.WithProfileReview(authService.NewProfileReview(profileTrust))
 	prefSvc := authService.NewPreferenceService(userRepo, authRepo.NewUserPreferenceRepository(db))
 
 	fedReg := federation.NewRegistry(cfg)
@@ -241,6 +254,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	// Traefik's single egress identity would otherwise share one rate bucket
 	// across every downstream face. Same placement as /healthz and /oauth/jwks.
 	a.Fiber.Get("/internal/devapi/forward-auth", fwdAuth.Handle)
+	a.Fiber.Post("/trust/callback", authHandler.ProfileTrustCallback(cfg.TrustCallbackSecret, authService.NewProfileEnforcer(userRepo)))
 
 	flushDone := make(chan struct{})
 	go func() {
@@ -448,6 +462,8 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	admin.Post("/shop/orders/:id/refund", shopGrant, shopH.Refund)
 	admin.Get("/stats/registrations", adminH.RegistrationStats)
 	admin.Get("/stats/registrations/hourly", adminH.HourlyRegistrationStats)
+	admin.Get("/stats/active", adminH.ActiveStats)
+	admin.Get("/stats/active/hourly", adminH.HourlyActiveStats)
 	if avatarUploadH != nil {
 		admin.Post("/users/:uuid/avatar", avatarUploadH.Upload)
 	}

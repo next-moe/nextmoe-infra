@@ -42,3 +42,26 @@ type HourlyStatsResponse struct {
 	Series   []HourlyRegistration `json:"series"`
 	Total    int                  `json:"total"`
 }
+
+type DailyActive struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+type ActiveSummary struct {
+	Today            int     `json:"today"`
+	DailyAverage     float64 `json:"daily_average"`
+	PeakDate         string  `json:"peak_date"`
+	PeakCount        int     `json:"peak_count"`
+	Unique           int     `json:"unique"`
+	PrevPeriodUnique int     `json:"prev_period_unique"`
+	GrowthPercent    float64 `json:"growth_percent"`
+	TrackedSince     string  `json:"tracked_since,omitempty"`
+}
+
+type ActiveStatsResponse struct {
+	RangeDays int           `json:"range_days"`
+	Timezone  string        `json:"timezone"`
+	Series    []DailyActive `json:"series"`
+	Summary   ActiveSummary `json:"summary"`
+}
