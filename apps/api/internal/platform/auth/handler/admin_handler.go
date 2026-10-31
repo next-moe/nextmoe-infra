@@ -92,6 +92,38 @@ func (h *AdminHandler) HourlyRegistrationStats(c fiber.Ctx) error {
 	return response.Success(c, result)
 }
 
+func (h *AdminHandler) ActiveStats(c fiber.Ctx) error {
+	var req dto.RegistrationStatsRequest
+	if err := c.Bind().Query(&req); err != nil {
+		return response.BadRequest(c, errors.ErrBadRequest)
+	}
+	if err := utils.Validate(&req); err != nil {
+		return response.BadRequestMsg(c, errors.ErrValidationFailed, err.Error())
+	}
+
+	result, err := h.adminService.ActiveStats(c.Context(), req.Days)
+	if err != nil {
+		return response.InternalError(c, errors.ErrOperationFailed)
+	}
+	return response.Success(c, result)
+}
+
+func (h *AdminHandler) HourlyActiveStats(c fiber.Ctx) error {
+	var req dto.HourlyStatsRequest
+	if err := c.Bind().Query(&req); err != nil {
+		return response.BadRequest(c, errors.ErrBadRequest)
+	}
+	if err := utils.Validate(&req); err != nil {
+		return response.BadRequestMsg(c, errors.ErrValidationFailed, err.Error())
+	}
+
+	result, err := h.adminService.HourlyActive(c.Context(), req.Date)
+	if err != nil {
+		return response.InternalError(c, errors.ErrOperationFailed)
+	}
+	return response.Success(c, result)
+}
+
 func (h *AdminHandler) GetUser(c fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	if uuid == "" {

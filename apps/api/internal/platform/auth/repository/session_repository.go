@@ -79,7 +79,11 @@ func (r *SessionRepository) RotateRefreshToken(ctx context.Context, id uint, old
 	if res.Error != nil {
 		return false, res.Error
 	}
-	return res.RowsAffected == 1, nil
+	if res.RowsAffected != 1 {
+		return false, nil
+	}
+	markSessionActive(ctx, r.db, id)
+	return true, nil
 }
 
 func (r *SessionRepository) MarkRotationLate(ctx context.Context, id uint, currentRefresh string) error {
@@ -124,21 +128,36 @@ func (r *SessionRepository) ExtendBrowserSSO(ctx context.Context, userID uint, b
 }
 
 func (r *SessionRepository) ExtendSSO(ctx context.Context, id uint, now time.Time, idle, max time.Duration) error {
-	return r.db.WithContext(ctx).Exec(`
+	res := r.db.WithContext(ctx).Exec(`
 		UPDATE sessions
 		SET expires_at = GREATEST(expires_at,
 		    LEAST(?::timestamptz, COALESCE(auth_time, created_at) + (? * interval '1 second'))),
 		    last_used_at = ?
 		WHERE id = ? AND client_id = '' AND expires_at > ?`,
-		now.Add(idle), int64(max.Seconds()), now, id, now).Error
+		now.Add(idle), int64(max.Seconds()), now, id, now)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 1 {
+		markSessionActive(ctx, r.db, id)
+	}
+	return nil
 }
 
 func (r *SessionRepository) TouchLastUsed(ctx context.Context, id uint, t time.Time) error {
-	return r.db.WithContext(ctx).Model(&model.Session{}).Where("id = ?", id).Update("last_used_at", t).Error
+	if err := r.db.WithContext(ctx).Model(&model.Session{}).Where("id = ?", id).Update("last_used_at", t).Error; err != nil {
+		return err
+	}
+	markSessionActive(ctx, r.db, id)
+	return nil
 }
 
 func (r *SessionRepository) Create(ctx context.Context, session *model.Session) error {
-	return r.db.WithContext(ctx).Create(session).Error
+	if err := r.db.WithContext(ctx).Create(session).Error; err != nil {
+		return err
+	}
+	markSignIn(ctx, r.db, session.UserID)
+	return nil
 }
 
 func (r *SessionRepository) Update(ctx context.Context, session *model.Session) error {

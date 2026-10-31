@@ -296,6 +296,12 @@ services:
       # oauth-clients admin UI does not write the image_* columns.
       KUN_IMAGE_CLIENT_ID: ${KUN_OAUTH_IMAGE_CLIENT_ID:-}
       KUN_IMAGE_CLIENT_SECRET: ${KUN_OAUTH_IMAGE_CLIENT_SECRET:-}
+      # Username/bio review (subject kind user_profile). A dedicated trust
+      # client: its site binding is the tenant the review items land in.
+      # Empty = no trust check or scan; only the local solicitation rule runs.
+      KUN_TRUST_CLIENT_ID: ${KUN_OAUTH_TRUST_CLIENT_ID:-}
+      KUN_TRUST_CLIENT_SECRET: ${KUN_OAUTH_TRUST_CLIENT_SECRET:-}
+      KUN_TRUST_CALLBACK_SECRET: ${KUN_OAUTH_TRUST_CALLBACK_SECRET:-}
       # galgame-image-refping runs in THIS container's scheduler, but galgame
       # covers were uploaded under site=galgame_wiki and reference-ping is
       # site-scoped — so the job must authenticate as the galgame_wiki client,

@@ -57,6 +57,9 @@ const isProtected = (user: User) =>
           <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-default-400">
             注册时间
           </th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-default-400">
+            最后登录
+          </th>
           <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-default-400">
             操作
           </th>
@@ -107,6 +110,12 @@ const isProtected = (user: User) =>
           </td>
           <td class="whitespace-nowrap px-6 py-4 text-default-400">
             {{ new Date(user.created_at).toLocaleDateString('zh-CN') }}
+          </td>
+          <td class="whitespace-nowrap px-6 py-4 text-default-400">
+            {{ user.last_login_at ? new Date(user.last_login_at).toLocaleDateString('zh-CN') : '——' }}
+            <div v-if="user.last_active_at" class="text-default-300 text-xs">
+              活跃 {{ new Date(user.last_active_at).toLocaleDateString('zh-CN') }}
+            </div>
           </td>
           <td class="whitespace-nowrap px-6 py-4 text-right">
             <KunPopover position="bottom-end">

@@ -20,6 +20,8 @@ var goldenNames = []string{
 	"auth.verification_resend_cooldown_seconds",
 	"auth.register_gift_points",
 	"auth.name_change_cost",
+	"auth.profile_check_enabled",
+	"auth.profile_scan_enabled",
 	"auth.sso_session_idle_days",
 	"auth.sso_session_max_days",
 	"auth.creator_application_cooldown_hours",
