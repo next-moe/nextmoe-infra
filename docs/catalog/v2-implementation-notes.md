@@ -2849,6 +2849,12 @@ After the coverage gate, 280 charts were in review and 160 rejected. Most of wha
 
 The runs used Cloudflare Workers AI, through its OpenAI-compatible endpoint, instead of the cursor shim, whose quota ran out: two passes of `deepseek-v4.1-flash` over 803 charts, then `deepseek-v4-pro` on 168 charts that were still not ok. `glm-5.3` is unusable under a `json_schema` response format, because it returns empty output or whitespace. Best settled charts went from 5,111 ok / 280 review / 160 rejected to 5,389 ok / 124 review / 11 rejected (646 pages have no chart). **No schema change.**
 
+## Cover list is not the portrait (spec 2.81.1, 2026-11-01)
+
+A downstream site rendered `covers[0]` as the work's portrait and got Bangumi's censored art of adult games, while the NextMoe sites showed a clear VNDB cover. `covers[]` and `/v2/catalog/works/{id}/covers` list every row in gallery order (editor media order, then `sort_order`), unranked, with every sexual grade whatever `nsfw` says; the election lives only in `cover`. And the VNDB-over-Bangumi swap runs only for `nsfw=true` on a work whose `content_limit` is `nsfw`. Locally, among r18 works that hold both a VNDB and a Bangumi cover, `sort_order` puts a Bangumi row first on 2,088 and a VNDB row first on 711.
+
+The `covers` and `cover` descriptions and the covers sub-resource description now say so, and the best-practices guide has a covers section. Description-only, so **spec 2.81.1**. **No schema change.**
+
 ## Rankings (spec 2.82.0, 2026-11-01)
 
 `GET /v2/catalog/rankings` ranks works by their ratings across every source (a consensus) or by one source, with every filter of the works search lane plus `year=`, `circulation=`, `platform=`, `playtime_min/max=`, `min_votes=`/`max_votes=`, `score_min/max=` and `min_sources=`. The contract is in 01 §11; this records what the data decided.
@@ -2865,4 +2871,3 @@ The runs used Cloudflare Workers AI, through its OpenAI-compatible endpoint, ins
 - **A full reindex fits the model first.** It fits in about 4 s over 125k rating rows. The works reindex on a copy of the catalog took about 60 s at batch 1,000; the dev OpenSearch (512 MB heap) tripped its parent circuit breaker at batch 5,000, already at 480 MB real usage before the request.
 
 Defaults and scale: `metric=lower` for `order=desc` and `metric=upper` for `order=asc`. On a copy of the catalog the default query answers in about 20 ms, and a scripted `sources=` subset in 60–140 ms. **Spec 2.82.0**, additive. **Migration:** `go run ./cmd/migrate catalog` creates `catalog_rating_model` (empty); the next `reindex-catalog` fits the first model and fills the new index fields.
-
