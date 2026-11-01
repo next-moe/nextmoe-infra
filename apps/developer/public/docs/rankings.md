@@ -93,6 +93,7 @@ curl "https://api.nextmoe.dev/v2/catalog/rankings?limit=20"
 | 争议作（各站分歧最大）         | `?metric=divergence`                                    |
 | 两极分化（同一站内评价分裂）   | `?by=bangumi&metric=spread&min_votes=100`               |
 | 地雷榜                         | `?order=asc&min_votes=50`                               |
+| 含普通游戏的全游戏榜           | `?scope=all`                                            |
 | 短篇佳作（10 小时以内）        | `?playtime_max=600`                                     |
 | Switch 平台榜                  | `?platform=swi`                                         |
 | 某会社 / 某系列 / 某标签内排名 | `?company_id=…` / `?series_id=…` / `?tag_id=…`          |
@@ -108,6 +109,7 @@ curl "https://api.nextmoe.dev/v2/catalog/rankings?limit=20"
 | `by`                            | `consensus`（默认）或来源键：`vndb`、`bangumi`、`dlsite`、`erogamescape`、`nextmoe`、`howlongtobeat`                                                                    |
 | `metric`                        | 共识：`lower`、`upper`、`mean`、`percentile`、`divergence`、`votes`、`sources`。单一来源：`lower`、`upper`、`mean`、`median`、`native`、`percentile`、`spread`、`votes` |
 | `order`                         | `desc`（默认）或 `asc`                                                                                                                                                  |
+| `scope`                         | `vn`（默认）只排视觉小说；`all` 连同目录里的家用机 / PC 普通游戏（RPG、动作等）一起排                                                                                   |
 | `sources`、`min_sources`        | 只用这些来源构成共识；至少被几个来源评过。仅 `by=consensus`                                                                                                             |
 | `min_votes`、`max_votes`        | `100` 作用于 `by`（共识时是总票数）；`erogamescape:50,bangumi:100` 按来源分别设下限 / 上限                                                                              |
 | `score_min`、`score_max`        | 按列表的 `unit` 过滤 `value`                                                                                                                                            |
@@ -124,6 +126,7 @@ curl "https://api.nextmoe.dev/v2/catalog/rankings?limit=20"
 
 - 排名读每夜重建的索引，新评分最晚第二天进榜；条目里的 `per_source` 是实时的。
 - 首次部署、模型还没拟合时返回 `503`。
+- 默认只排视觉小说：作品要有 VNDB 或 DLsite 关联、被站点认领、在 Bangumi 上被标为 Galgame / 视觉小说类，或是不在 Steam / HowLongToBeat 上的 R18 作品。规则看来源，少数边界作品会判错；要看全部游戏用 `scope=all`。
 - 名次是全榜位置，同值时按热度、id 排序，所以每个名次都唯一。
 - 一部作品只被一个来源评过时也有共识分，但区间更宽；按默认的 `lower` 排名时会自然靠后。
 

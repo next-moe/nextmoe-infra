@@ -7,6 +7,7 @@ type ListRanking struct {
 	By        string      `json:"by" enum:"consensus,vndb,bangumi,dlsite,erogamescape,nextmoe,howlongtobeat" doc:"What the list ranks by, as by= asked."`
 	Metric    string      `json:"metric" enum:"lower,upper,mean,median,native,percentile,spread,votes,sources,divergence" doc:"The statistic ranked on, as metric= asked or defaulted."`
 	Direction string      `json:"direction" enum:"desc,asc" doc:"The order= in effect. desc puts the highest value first."`
+	Scope     string      `json:"scope" enum:"vn,all" doc:"The scope= in effect. vn ranks visual novels only; all ranks every game."`
 	Unit      string      `json:"unit" enum:"deviation,percentile,native,votes,count,points" doc:"How to read each entry's value. deviation: a 偏差値, 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. percentile: 0-100, the share of rated works below. native: the source's own scale (model.sources[].scale_min/scale_max). votes: a vote count. count: a number of sources. points: percentile points between the sources that place the work highest and lowest."`
 	Model     RatingModel `json:"model" doc:"The fitted model every derived number on this page comes from."`
 }

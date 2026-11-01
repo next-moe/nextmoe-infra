@@ -2065,6 +2065,9 @@
           ],
           "type": "text"
         },
+        "not_vn": {
+          "type": "boolean"
+        },
         "olang": {
           "type": "keyword"
         },

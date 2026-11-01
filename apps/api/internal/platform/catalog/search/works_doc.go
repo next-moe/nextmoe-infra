@@ -59,6 +59,7 @@ type WorkDocInput struct {
 	Platforms       []string
 	Circulation     string
 	PlaytimeMinutes int
+	NotVN           bool
 }
 
 var alreadyBayesianRatingSources = []string{"vndb", "nextmoe"}
@@ -90,7 +91,7 @@ func BuildWorkDoc(in WorkDocInput) EntityDoc {
 		TagIDs: in.TagIDs, LabelIDs: in.LabelIDs,
 		EngineIDs: in.EngineIDs, SeriesIDs: in.SeriesIDs,
 		ReleasedOrd: in.ReleasedOrd, UpdatedTS: in.UpdatedTS,
-		Rank: in.Rank, Platforms: in.Platforms, Circulation: in.Circulation,
+		Rank: in.Rank, Platforms: in.Platforms, Circulation: in.Circulation, NotVN: in.NotVN,
 	}
 	if in.PlaytimeMinutes > 0 {
 		pt := in.PlaytimeMinutes

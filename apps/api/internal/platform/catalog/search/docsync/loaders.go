@@ -414,6 +414,10 @@ func forEachWorkInput(db *gorm.DB, s scope, batch int, fn func([]catalogSearch.W
 	if err != nil {
 		return err
 	}
+	nonVN, err := loadNonVNWorks(db, s)
+	if err != nil {
+		return err
+	}
 	lastID := int64(0)
 	for {
 		var rows []struct {
@@ -463,6 +467,7 @@ func forEachWorkInput(db *gorm.DB, s scope, batch int, fn func([]catalogSearch.W
 				EngineIDs: facets.engineIDs[r.ID], SeriesIDs: facets.seriesIDs[r.ID],
 				Ratings: ratings[r.ID], Rank: ranks[r.ID],
 				Platforms: platforms[r.ID], Circulation: circulation[r.ID], PlaytimeMinutes: playtime[r.ID],
+				NotVN: nonVN[r.ID],
 			}
 			for _, t := range titles[r.ID] {
 				in.Titles = append(in.Titles, catalogSearch.WorkDocTitle{Lang: t.lang, Title: t.title, Latin: t.latin})

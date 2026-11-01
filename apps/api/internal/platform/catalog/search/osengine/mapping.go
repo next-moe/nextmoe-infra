@@ -101,6 +101,7 @@ func propertiesFor(uid string) (map[string]any, error) {
 		props["platforms"] = keywordField()
 		props["circulation"] = keywordField()
 		props["playtime"] = map[string]any{"type": "integer"}
+		props["not_vn"] = map[string]any{"type": "boolean"}
 	case IndexCreditNames:
 		props["person_id"] = map[string]any{"type": "long"}
 	case IndexLabels:

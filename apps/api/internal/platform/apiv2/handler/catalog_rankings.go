@@ -30,6 +30,7 @@ type listRankingsInput struct {
 	NSFW           string `query:"nsfw" maxLength:"8" doc:"true includes r18. false or absent hides r18. Only true or false."`
 	By             string `query:"by" maxLength:"32" doc:"consensus (default) ranks by every source combined; a source key (vndb, bangumi, dlsite, erogamescape, nextmoe, howlongtobeat) ranks by that source alone."`
 	Metric         string `query:"metric" maxLength:"32" doc:"The statistic to rank by. With by=consensus: lower, upper, mean, percentile, divergence, votes, sources. With a source: lower, upper, mean, median, native, percentile, spread, votes. The default is lower for order=desc and upper for order=asc: the bottom of the 90% interval for a best-of list, so a handful of enthusiastic votes cannot outrank an established work, and its top for a worst-of list, so a work is listed as bad only when it is bad with confidence. mean ranks by the best estimate; native by the source's own published score; divergence by how much the sources disagree."`
+	Scope          string `query:"scope" maxLength:"8" doc:"vn (default) ranks visual novels only: works a visual-novel or adult-game source vouches for (VNDB, DLsite, a site that claimed the work, a Bangumi listing tagged as a galgame or novel game, or an adult rating with no Steam or HowLongToBeat listing). all also ranks the console and PC games the catalog's imports carry, such as RPGs and action games."`
 	Order          string `query:"order" maxLength:"8" doc:"desc (default, best first) or asc (worst first)."`
 	Sources        string `query:"sources" maxLength:"128" doc:"by=consensus only: comma-separated source keys to build the consensus from, for example erogamescape,bangumi. Absent = every source. Every number in consensus then covers only these sources."`
 	MinSources     string `query:"min_sources" maxLength:"2" doc:"by=consensus only: keep works at least this many of the consensus sources rated, 1-6."`
@@ -57,6 +58,11 @@ type listRankingsInput struct {
 	PageInput
 }
 
+const (
+	rankingScopeVN  = "vn"
+	rankingScopeAll = "all"
+)
+
 type listRankingsOutput struct {
 	Body repr.ListRanking
 }
@@ -71,7 +77,7 @@ func registerCatalogRankings(api huma.API, cat *Catalog) {
 			"Per source, mean is the work's own mean pulled toward what works with as many votes usually score, so a work with three votes cannot outrank one with three thousand on luck, with a 90% interval and the work's percentile in that source. " +
 			"The consensus puts the sources on one scale: each source's estimate becomes a normal score within that source, a one-factor model fitted on the works several sources share corrects for each source's audience, and the sources are combined weighted by how much each one knows about the work. It is read as a deviation score (偏差値): 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. " +
 			"The model is refitted from the data nightly and the ranking reads the search index, rebuilt nightly; model describes the fit in use. " +
-			"Every filter of GET /v2/catalog/works that the search index carries applies here, plus year=, circulation=, platform=, playtime_min/max=, vote floors and score bounds. page= selects page mode. Answers 503 until the first model is fitted. " +
+			"Every filter of GET /v2/catalog/works that the search index carries applies here, plus scope=, year=, circulation=, platform=, playtime_min/max=, vote floors and score bounds. page= selects page mode. Answers 503 until the first model is fitted. " +
 			"Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
 		Tags:               []string{"catalog"},
 		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
@@ -170,6 +176,13 @@ func parseRankings(in *listRankingsInput) (catsvc.RankingsFilter, *problem.Probl
 			return f, err
 		}
 		f.By = v
+	}
+	if in.Scope != "" {
+		v, err := parse.Enum(in.Scope, "scope", []string{rankingScopeVN, rankingScopeAll})
+		if err != nil {
+			return f, err
+		}
+		f.AllGames = v == rankingScopeAll
 	}
 	if in.Order != "" {
 		v, err := parse.Enum(in.Order, "order", []string{"desc", "asc"})
@@ -414,8 +427,12 @@ func rankingList(cat *Catalog, q collect.Query, f catsvc.RankingsFilter, data ca
 	if f.Asc {
 		order = "asc"
 	}
+	scope := rankingScopeVN
+	if f.AllGames {
+		scope = rankingScopeAll
+	}
 	return repr.ListRanking{
-		List: out, By: f.By, Metric: f.Metric, Direction: order, Unit: rankingUnit(f.By, f.Metric),
+		List: out, By: f.By, Metric: f.Metric, Direction: order, Scope: scope, Unit: rankingUnit(f.By, f.Metric),
 		Model: ratingModelRepr(data.Model),
 	}
 }

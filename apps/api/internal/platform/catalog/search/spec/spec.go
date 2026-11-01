@@ -79,6 +79,7 @@ type RankingQuery struct {
 	Circulation string
 	PlaytimeMin int
 	PlaytimeMax int
+	AllGames    bool
 
 	By              string
 	Field           string

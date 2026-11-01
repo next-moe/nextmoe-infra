@@ -45,6 +45,7 @@ type RankingsFilter struct {
 	Circulation string
 	PlaytimeMin int
 	PlaytimeMax int
+	AllGames    bool
 	By          string
 	Metric      string
 	Asc         bool
@@ -89,7 +90,7 @@ func (s *PublicService) Rankings(ctx context.Context, f RankingsFilter) (Ranking
 	conv := rankingScale(p, f.By, f.Metric)
 	q := spec.RankingQuery{
 		Filter: f.Works.worksFilter(""), Platforms: f.Platforms, Circulation: f.Circulation,
-		PlaytimeMin: f.PlaytimeMin, PlaytimeMax: f.PlaytimeMax,
+		PlaytimeMin: f.PlaytimeMin, PlaytimeMax: f.PlaytimeMax, AllGames: f.AllGames,
 		By: f.By, Field: rankingField(f.By, f.Metric, subset), Asc: f.Asc,
 		Sources: f.Sources, MinSources: f.MinSources, MinVotes: f.MinVotes, MaxVotes: f.MaxVotes, TotalVotes: f.TotalVotes, TotalMax: f.TotalMax,
 		Z: ratingmodel.Z, DivergenceVotes: map[string]float64{},

@@ -1963,6 +1963,7 @@ curl "https://api.nextmoe.dev/v2/catalog/rankings?limit=20"
 | 争议作（各站分歧最大）         | `?metric=divergence`                                    |
 | 两极分化（同一站内评价分裂）   | `?by=bangumi&metric=spread&min_votes=100`               |
 | 地雷榜                         | `?order=asc&min_votes=50`                               |
+| 含普通游戏的全游戏榜           | `?scope=all`                                            |
 | 短篇佳作（10 小时以内）        | `?playtime_max=600`                                     |
 | Switch 平台榜                  | `?platform=swi`                                         |
 | 某会社 / 某系列 / 某标签内排名 | `?company_id=…` / `?series_id=…` / `?tag_id=…`          |
@@ -1978,6 +1979,7 @@ curl "https://api.nextmoe.dev/v2/catalog/rankings?limit=20"
 | `by`                            | `consensus`（默认）或来源键：`vndb`、`bangumi`、`dlsite`、`erogamescape`、`nextmoe`、`howlongtobeat`                                                                    |
 | `metric`                        | 共识：`lower`、`upper`、`mean`、`percentile`、`divergence`、`votes`、`sources`。单一来源：`lower`、`upper`、`mean`、`median`、`native`、`percentile`、`spread`、`votes` |
 | `order`                         | `desc`（默认）或 `asc`                                                                                                                                                  |
+| `scope`                         | `vn`（默认）只排视觉小说；`all` 连同目录里的家用机 / PC 普通游戏（RPG、动作等）一起排                                                                                   |
 | `sources`、`min_sources`        | 只用这些来源构成共识；至少被几个来源评过。仅 `by=consensus`                                                                                                             |
 | `min_votes`、`max_votes`        | `100` 作用于 `by`（共识时是总票数）；`erogamescape:50,bangumi:100` 按来源分别设下限 / 上限                                                                              |
 | `score_min`、`score_max`        | 按列表的 `unit` 过滤 `value`                                                                                                                                            |
@@ -1994,6 +1996,7 @@ curl "https://api.nextmoe.dev/v2/catalog/rankings?limit=20"
 
 - 排名读每夜重建的索引，新评分最晚第二天进榜；条目里的 `per_source` 是实时的。
 - 首次部署、模型还没拟合时返回 `503`。
+- 默认只排视觉小说：作品要有 VNDB 或 DLsite 关联、被站点认领、在 Bangumi 上被标为 Galgame / 视觉小说类，或是不在 Steam / HowLongToBeat 上的 R18 作品。规则看来源，少数边界作品会判错；要看全部游戏用 `scope=all`。
 - 名次是全榜位置，同值时按热度、id 排序，所以每个名次都唯一。
 - 一部作品只被一个来源评过时也有共识分，但区间更宽；按默认的 `lower` 排名时会自然靠后。
 
@@ -4284,7 +4287,7 @@ curl "https://api.nextmoe.dev/v2/catalog/proposals/1"
 
 Rank works by their ratings
 
-Ranks works by their ratings on every source, or on one. Every source keeps its own published score (per_source[].score); next to it each entry carries what a fitted model makes of it. Per source, mean is the work's own mean pulled toward what works with as many votes usually score, so a work with three votes cannot outrank one with three thousand on luck, with a 90% interval and the work's percentile in that source. The consensus puts the sources on one scale: each source's estimate becomes a normal score within that source, a one-factor model fitted on the works several sources share corrects for each source's audience, and the sources are combined weighted by how much each one knows about the work. It is read as a deviation score (偏差値): 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. The model is refitted from the data nightly and the ranking reads the search index, rebuilt nightly; model describes the fit in use. Every filter of GET /v2/catalog/works that the search index carries applies here, plus year=, circulation=, platform=, playtime_min/max=, vote floors and score bounds. page= selects page mode. Answers 503 until the first model is fitted. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+Ranks works by their ratings on every source, or on one. Every source keeps its own published score (per_source[].score); next to it each entry carries what a fitted model makes of it. Per source, mean is the work's own mean pulled toward what works with as many votes usually score, so a work with three votes cannot outrank one with three thousand on luck, with a 90% interval and the work's percentile in that source. The consensus puts the sources on one scale: each source's estimate becomes a normal score within that source, a one-factor model fitted on the works several sources share corrects for each source's audience, and the sources are combined weighted by how much each one knows about the work. It is read as a deviation score (偏差値): 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. The model is refitted from the data nightly and the ranking reads the search index, rebuilt nightly; model describes the fit in use. Every filter of GET /v2/catalog/works that the search index carries applies here, plus scope=, year=, circulation=, platform=, playtime_min/max=, vote floors and score bounds. page= selects page mode. Answers 503 until the first model is fitted. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -4301,6 +4304,7 @@ Ranks works by their ratings on every source, or on one. Every source keeps its 
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `by` | query | 否 | string | consensus (default) ranks by every source combined; a source key (vndb, bangumi, dlsite, erogamescape, nextmoe, howlongtobeat) ranks by that source alone. |
 | `metric` | query | 否 | string | The statistic to rank by. With by=consensus: lower, upper, mean, percentile, divergence, votes, sources. With a source: lower, upper, mean, median, native, percentile, spread, votes. The default is lower for order=desc and upper for order=asc: the bottom of the 90% interval for a best-of list, so a handful of enthusiastic votes cannot outrank an established work, and its top for a worst-of list, so a work is listed as bad only when it is bad with confidence. mean ranks by the best estimate; native by the source's own published score; divergence by how much the sources disagree. |
+| `scope` | query | 否 | string | vn (default) ranks visual novels only: works a visual-novel or adult-game source vouches for (VNDB, DLsite, a site that claimed the work, a Bangumi listing tagged as a galgame or novel game, or an adult rating with no Steam or HowLongToBeat listing). all also ranks the console and PC games the catalog's imports carry, such as RPGs and action games. |
 | `order` | query | 否 | string | desc (default, best first) or asc (worst first). |
 | `sources` | query | 否 | string | by=consensus only: comma-separated source keys to build the consensus from, for example erogamescape,bangumi. Absent = every source. Every number in consensus then covers only these sources. |
 | `min_sources` | query | 否 | string | by=consensus only: keep works at least this many of the consensus sources rated, 1-6. |

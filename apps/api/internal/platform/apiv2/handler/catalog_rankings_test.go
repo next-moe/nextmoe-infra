@@ -14,6 +14,13 @@ func TestParseRankingsDefaults(t *testing.T) {
 	require.Equal(t, catsvc.RankByConsensus, f.By)
 	require.Equal(t, catsvc.RankMetricLower, f.Metric)
 	require.False(t, f.Asc)
+	require.False(t, f.AllGames, "visual novels only unless scope=all")
+
+	f, p = parseRankings(&listRankingsInput{Scope: "all"})
+	require.Nil(t, p)
+	require.True(t, f.AllGames)
+	_, p = parseRankings(&listRankingsInput{Scope: "games"})
+	require.NotNil(t, p)
 
 	f, p = parseRankings(&listRankingsInput{Order: "asc"})
 	require.Nil(t, p)

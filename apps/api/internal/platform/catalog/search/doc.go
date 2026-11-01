@@ -41,6 +41,7 @@ type EntityDoc struct {
 	Platforms   []string                      `json:"platforms,omitempty"`
 	Circulation string                        `json:"circulation,omitempty"`
 	Playtime    *int                          `json:"playtime,omitempty"`
+	NotVN       bool                          `json:"not_vn,omitempty"`
 
 	CatalogID   int64   `json:"catalog_id,omitempty"`
 	Gender      *int16  `json:"gender,omitempty"`

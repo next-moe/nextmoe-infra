@@ -31,6 +31,8 @@ func hasClause(t *testing.T, filters []any, want any) bool {
 	return false
 }
 
+var notVN = map[string]any{"bool": map[string]any{"must_not": []any{map[string]any{"term": map[string]any{"not_vn": true}}}}}
+
 func TestRankingBodyStoredField(t *testing.T) {
 	min := 60.0
 	body, drop := rankingSearchBody(spec.RankingQuery{
@@ -50,6 +52,7 @@ func TestRankingBodyStoredField(t *testing.T) {
 		map[string]any{"terms": map[string]any{"platforms": []string{"win", "swi"}}},
 		map[string]any{"term": map[string]any{"circulation": "doujin"}},
 		map[string]any{"range": map[string]any{"playtime": map[string]any{"lte": 600}}},
+		notVN,
 	} {
 		require.True(t, hasClause(t, filters, want), canonJSON(t, want))
 	}
@@ -62,9 +65,10 @@ func TestRankingBodyConsensusDefault(t *testing.T) {
 	body, _ := rankingSearchBody(spec.RankingQuery{
 		Filter: spec.WorksFilter{OLang: spec.OLang{All: true}},
 		By:     spec.RankConsensus, Field: "upper", Asc: true, MinSources: 3, TotalVotes: 100, TotalMax: 900,
-		MaxVotes: map[string]int{"vndb": 40}, Limit: 20,
+		MaxVotes: map[string]int{"vndb": 40}, AllGames: true, Limit: 20,
 	})
 	filters := rankingFilters(t, body)
+	require.False(t, hasClause(t, filters, notVN), "scope=all keeps every game")
 	require.True(t, hasClause(t, filters, map[string]any{"range": map[string]any{"rank.consensus.sources": map[string]any{"gte": 3.0}}}))
 	require.True(t, hasClause(t, filters, map[string]any{"range": map[string]any{"rank.consensus.votes": map[string]any{"gte": 100, "lte": 900}}}))
 	require.True(t, hasClause(t, filters, map[string]any{"range": map[string]any{"rank.vndb.votes": map[string]any{"lte": 40.0}}}))

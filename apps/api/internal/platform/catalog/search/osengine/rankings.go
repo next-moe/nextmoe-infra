@@ -57,6 +57,9 @@ func rankingSearchBody(q spec.RankingQuery) (map[string]any, bool) {
 	if q.PlaytimeMin > 0 || q.PlaytimeMax > 0 {
 		filters = append(filters, rangeClause("playtime", intBound(q.PlaytimeMin), intBound(q.PlaytimeMax)))
 	}
+	if !q.AllGames {
+		filters = append(filters, map[string]any{"bool": map[string]any{"must_not": []any{termClause("not_vn", true)}}})
+	}
 	for src, n := range q.MinVotes {
 		filters = append(filters, rangeClause(rankField(src, "votes"), float64(n), nil))
 	}
