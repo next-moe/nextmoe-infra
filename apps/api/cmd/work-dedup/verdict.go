@@ -19,6 +19,7 @@ const (
 	bucketBridged        bucket = "bridged"
 	bucketAliasOnly      bucket = "alias-only"
 	bucketRefCI          bucket = "ref-case"
+	bucketReleaseRef     bucket = "release-ref"
 )
 
 // dateNearDays tolerates cross-source date drift: sources record different
@@ -64,6 +65,8 @@ func classifyPair(r pairRow) bucket {
 	case r.RefOverlap:
 		// works 51010/222325 shared bangumi subject 524476 yet were filed manual because the year check ran first.
 		return bucketAuto
+	case r.SharedNorms == 0 && r.CrossRefOnly:
+		return bucketReleaseRef
 	case r.SharedNorms == 0:
 		return bucketRefCI
 	case r.SharedOfficial == 0:

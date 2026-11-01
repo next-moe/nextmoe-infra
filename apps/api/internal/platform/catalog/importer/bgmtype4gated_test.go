@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"fmt"
 	"testing"
 
 	"api/internal/platform/catalog/model"
@@ -202,6 +203,41 @@ func TestBgmType4GatedFoldedCollisions(t *testing.T) {
 	assert.Equal(t, model.WorkStatusQuarantine, workStatusOf(t, workIDByBgmExt(t, "3001")))
 	assert.Equal(t, model.WorkStatusQuarantine, workStatusOf(t, workIDByBgmExt(t, "3002")))
 	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workIDByBgmExt(t, "3003")))
+}
+
+// Bangumi 280923 "Hentai Girl Karen" was searched for and missing: a PC adult
+// puzzle game carries none of P, T or X, so the gate never minted it.
+func TestBgmType4GatedAdultSignal(t *testing.T) {
+	clean(t)
+	require.NoError(t, testDB.Exec(`ALTER TABLE games ADD COLUMN IF NOT EXISTS gamename text`).Error)
+	require.NoError(t, testDB.Exec(`TRUNCATE src_vndb.releases_titles`).Error)
+
+	seedSubject(t, 4001, "Hentai Girl Karen", "", `["PC","游戏","休闲"]`, "", true)
+	seedSubject(t, 4002, "Adult Meta Tag Only Game", "", `["PC","R18"]`, "", false)
+	seedSubject(t, 4003, "メタタグ無しの成人向け作品", "", `[]`, "", true)
+	seedSubject(t, 4004, "携帯専用の成人向け作品", "", `["Android","iOS","游戏"]`, "", true)
+	seedSubject(t, 4005, "Family Puzzle Game", "", `["PC","游戏","休闲"]`, "", false)
+	seedSubject(t, 4006, "Ascii Adult Corpus Hit", "", `["PC","游戏"]`, "", true)
+	seedDLsiteGame(t, "Ascii Adult Corpus Hit")
+
+	dry, err := New(testDB, testDB, Options{DryRun: true}).RunBgmType4Gated(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 1, dry.ExcludedConsoleMobile, "4004 mobile-only")
+	assert.Equal(t, 4, dry.SigA, "4001,4002,4003,4006")
+	assert.Equal(t, 3, dry.AOnly)
+	assert.Zero(t, dry.SkippedASCIIXOnly, "an adult subject is not an X-only hit")
+	assert.Equal(t, 4, dry.ToCreate)
+
+	st, err := New(testDB, testDB, Options{}).RunBgmType4Gated(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 4, st.WorksCreated)
+	for _, ext := range []string{"4001", "4002", "4003", "4006"} {
+		id := workIDByBgmExt(t, ext)
+		require.NotZero(t, id, ext)
+		assert.Equal(t, int64(model.ContentRatingR18), scalarInt(t, fmt.Sprintf(`SELECT content_rating FROM catalog_work WHERE id = %d`, id)), ext)
+	}
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_external_ref
+		WHERE matched_by='rule:bgm-type4-gated' AND external_id IN ('4004','4005')`))
 }
 
 func TestBgmType4GatedTrailingWaveDashCollides(t *testing.T) {
