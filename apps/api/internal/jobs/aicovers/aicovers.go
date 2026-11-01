@@ -37,6 +37,8 @@ type Opts struct {
 	Limit        int
 	ImageBaseURL string
 	UploadGap    time.Duration
+	Replace      bool
+	DropFile     string
 }
 
 type Stats struct {
@@ -53,12 +55,14 @@ type Stats struct {
 	Rejected   int
 	Errors     int
 	QuotaBreak bool
+	Replaced   int
+	Dropped    int
 }
 
 func (s Stats) String() string {
-	return fmt.Sprintf("files=%d bad_name=%d already_imported=%d no_origin=%d work_gone=%d candidates=%d uploaded=%d inserted=%d pinned=%d editor_pin_kept=%d rejected=%d errors=%d quota=%t",
-		s.Files, s.BadName, s.Imported, s.NoOrigin, s.WorkGone, s.Candidates, s.Uploaded, s.Inserted, s.Pinned, s.EditorPin,
-		s.Rejected, s.Errors, s.QuotaBreak)
+	return fmt.Sprintf("files=%d bad_name=%d already_imported=%d no_origin=%d work_gone=%d candidates=%d uploaded=%d inserted=%d replaced=%d pinned=%d editor_pin_kept=%d dropped=%d rejected=%d errors=%d quota=%t",
+		s.Files, s.BadName, s.Imported, s.NoOrigin, s.WorkGone, s.Candidates, s.Uploaded, s.Inserted, s.Replaced, s.Pinned, s.EditorPin,
+		s.Dropped, s.Rejected, s.Errors, s.QuotaBreak)
 }
 
 type product struct {
@@ -80,6 +84,7 @@ type runner struct {
 	db      *gorm.DB
 	cli     *imageclient.Client
 	gap     time.Duration
+	replace bool
 	stats   *Stats
 	touched []int64
 	fresh   []string
@@ -89,12 +94,22 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 	if opts.DSN == "" {
 		return nil, fmt.Errorf("--dsn is REQUIRED; refusing to guess a catalog database")
 	}
-	if opts.Dir == "" {
-		return nil, fmt.Errorf("--dir is REQUIRED")
+	if opts.Dir == "" && opts.DropFile == "" {
+		return nil, fmt.Errorf("--dir or --drop is REQUIRED")
 	}
-	products, bad, err := listProducts(opts.Dir)
-	if err != nil {
-		return nil, err
+	var products []product
+	var bad int
+	var err error
+	if opts.Dir != "" {
+		if products, bad, err = listProducts(opts.Dir); err != nil {
+			return nil, err
+		}
+	}
+	var drops []int64
+	if opts.DropFile != "" {
+		if drops, err = readWorkIDs(opts.DropFile); err != nil {
+			return nil, err
+		}
 	}
 	db, err := database.OpenJob(opts.DSN)
 	if err != nil {
@@ -106,8 +121,14 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 		}
 	}()
 
-	r := &runner{db: db, gap: opts.UploadGap, stats: &Stats{Files: len(products), BadName: bad}}
-	if opts.Apply {
+	r := &runner{db: db, gap: opts.UploadGap, replace: opts.Replace, stats: &Stats{Files: len(products), BadName: bad}}
+	for _, id := range drops {
+		if err := r.drop(ctx, id, opts.Apply); err != nil {
+			r.stats.Errors++
+			slog.Warn("drop ai cover", "work", id, "err", err)
+		}
+	}
+	if opts.Apply && len(products) > 0 {
 		if r.cli, err = newImageClient(ctx, cfg, opts.ImageBaseURL); err != nil {
 			return r.stats, err
 		}
@@ -141,7 +162,7 @@ func (r *runner) handle(ctx context.Context, p product, apply bool) (acted bool)
 	case !o.WorkLive:
 		r.stats.WorkGone++
 		return false
-	case o.Imported:
+	case o.Imported && (!r.replace || o.EditorPin):
 		r.stats.Imported++
 		return false
 	}
@@ -158,6 +179,55 @@ func (r *runner) handle(ctx context.Context, p product, apply bool) (acted bool)
 		slog.Warn("import ai cover", "work", p.workID, "err", err)
 	}
 	return true
+}
+
+func (r *runner) drop(ctx context.Context, workID int64, apply bool) error {
+	var editorPin bool
+	if err := r.db.WithContext(ctx).Raw(fmt.Sprintf(`
+		SELECT EXISTS (SELECT 1 FROM catalog_work_cover h WHERE h.work_id = ? AND h.portrait_pinned AND (%s OR %s))`,
+		editspec.CuratedLaneSQL("h.source_id"), editspec.HumanFieldProvenanceSQL("h.field_provenance", "portrait_pinned")),
+		workID).Scan(&editorPin).Error; err != nil {
+		return err
+	}
+	if editorPin {
+		r.stats.EditorPin++
+		return nil
+	}
+	if !apply {
+		var n int64
+		if err := r.db.WithContext(ctx).Model(&model.CatalogWorkCover{}).
+			Where("work_id = ? AND source_id = ?", workID, model.SourceAIRedraw).Count(&n).Error; err != nil {
+			return err
+		}
+		r.stats.Dropped += int(n)
+		return nil
+	}
+	res := r.db.WithContext(ctx).Exec(`DELETE FROM catalog_work_cover WHERE work_id = ? AND source_id = ?`,
+		workID, model.SourceAIRedraw)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected > 0 {
+		r.stats.Dropped += int(res.RowsAffected)
+		r.touched = append(r.touched, workID)
+	}
+	return nil
+}
+
+func readWorkIDs(path string) ([]int64, error) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var ids []int64
+	for _, f := range strings.Fields(string(body)) {
+		id, err := strconv.ParseInt(f, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("drop list: %q is not a work id", f)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 func listProducts(dir string) ([]product, int, error) {
@@ -223,6 +293,13 @@ func (r *runner) importOne(ctx context.Context, p product, o origin) error {
 		if err := tx.Raw(`SELECT COALESCE(MAX(sort_order), -1) + 1 FROM catalog_work_cover WHERE work_id = ?`,
 			p.workID).Scan(&next).Error; err != nil {
 			return err
+		}
+		if o.Imported {
+			if err := tx.Exec(`DELETE FROM catalog_work_cover WHERE work_id = ? AND source_id = ?`,
+				p.workID, model.SourceAIRedraw).Error; err != nil {
+				return err
+			}
+			r.stats.Replaced++
 		}
 		row := model.CatalogWorkCover{
 			WorkID: p.workID, ImageHash: res.Hash, SortOrder: next, Kind: o.Kind,
