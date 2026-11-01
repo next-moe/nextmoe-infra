@@ -582,6 +582,57 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 		assert.True(t, row.RefOverlapCI)
 		assert.Equal(t, bucketDateClash, verdict)
 	})
+
+	t.Run("k_release_ref_pairs_a_work_ref", func(t *testing.T) {
+		cleanPipeline(t)
+		medium := galgameMedium(t)
+		const vndb, bgm, dmm int16 = 2, 3, 15
+		a := mkWork(t, medium, "面影レイルバック・エピソード捌　泥亀の月", nil)
+		b := mkWork(t, medium, "泥亀の月", nil)
+		mkAnchor(t, a, vndb, "v21522")
+		mkAnchor(t, b, bgm, "226725")
+		mkAnchor(t, b, dmm, "hobc_0507")
+		mkReleaseRef(t, a, dmm, "hobc_0507")
+
+		c, err := buildCensus(ctx, testDB)
+		require.NoError(t, err)
+		row, verdict := findPair(t, c, a, b)
+		assert.True(t, row.CrossRefOnly)
+		assert.False(t, row.RefOverlap, "a cross-level id is a lead for the judge, not an auto merge")
+		assert.Equal(t, bucketReleaseRef, verdict)
+
+		var out bytes.Buffer
+		require.NoError(t, runSeed(ctx, testDB, &out, 1, true))
+		got := candidateOf(t, a, b)
+		assert.Equal(t, model.CandidateStatusNeedsManual, got.Status)
+		assert.Equal(t, model.CandidateReasonSharedExternalID, got.Reason)
+	})
+
+	t.Run("l_release_ref_vetoed_by_anchor_conflict", func(t *testing.T) {
+		cleanPipeline(t)
+		medium := galgameMedium(t)
+		const vndb, dmm int16 = 2, 15
+		a := mkWork(t, medium, "本編リリース参照作品", nil)
+		b := mkWork(t, medium, "追加ディスク参照作品", nil)
+		mkAnchor(t, a, vndb, "v1")
+		mkAnchor(t, b, vndb, "v2")
+		mkAnchor(t, b, dmm, "shared_0001")
+		mkReleaseRef(t, a, dmm, "shared_0001")
+
+		c, err := buildCensus(ctx, testDB)
+		require.NoError(t, err)
+		assert.False(t, hasPair(c, a, b), "two VNDB entries sharing a store page are two works")
+	})
+}
+
+func mkReleaseRef(t *testing.T, workID int64, sourceID int16, externalID string) {
+	t.Helper()
+	rel := &model.CatalogRelease{WorkID: workID, Kind: model.ReleaseKindDefault}
+	require.NoError(t, testDB.Create(rel).Error)
+	require.NoError(t, testDB.Create(&model.CatalogExternalRef{
+		EntityType: model.EntityTypeRelease, EntityID: rel.ID, SourceID: sourceID,
+		ExternalID: externalID, LinkKind: model.LinkKindExact, MatchedBy: "test:work-dedup",
+	}).Error)
 }
 
 func catalogMedium(t *testing.T, key string) int16 {
