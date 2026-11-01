@@ -143,3 +143,49 @@ func TestImportPinsTheRedrawAndSkipsWhatItMust(t *testing.T) {
 		edited).Scan(&editorPinned).Error)
 	assert.True(t, editorPinned, "an editor's pin is never lifted")
 }
+
+func TestReplaceSwapsTheEarlierRedrawAndDropRemovesIt(t *testing.T) {
+	reset(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	swapped := mkWork(t, model.WorkStatusLive)
+	mkCover(t, swapped, "origin-swapped", model.SourceVNDB, false, `{}`)
+	mkCover(t, swapped, "earlier-redraw", model.SourceAIRedraw, true, `{}`)
+	writeProduct(t, dir, swapped, "origin-swapped")
+
+	edited := mkWork(t, model.WorkStatusLive)
+	mkCover(t, edited, "origin-edited", model.SourceVNDB, false, `{}`)
+	mkCover(t, edited, "earlier-edited-redraw", model.SourceAIRedraw, true, `{"portrait_pinned":[{"source":"user"}]}`)
+	writeProduct(t, dir, edited, "origin-edited")
+
+	dropped := mkWork(t, model.WorkStatusLive)
+	mkCover(t, dropped, "origin-dropped", model.SourceVNDB, false, `{}`)
+	mkCover(t, dropped, "earlier-dropped-redraw", model.SourceAIRedraw, true, `{}`)
+	dropFile := filepath.Join(t.TempDir(), "drop.txt")
+	require.NoError(t, os.WriteFile(dropFile, []byte(fmt.Sprintf("%d\n%d\n", dropped, edited)), 0o644))
+
+	r := &runner{db: testDB, cli: fakeImageService(t), replace: true, stats: &Stats{}}
+	ids, err := readWorkIDs(dropFile)
+	require.NoError(t, err)
+	for _, id := range ids {
+		require.NoError(t, r.drop(ctx, id, true))
+	}
+	products, _, err := listProducts(dir)
+	require.NoError(t, err)
+	for _, p := range products {
+		r.handle(ctx, p, true)
+	}
+
+	assert.Equal(t, Stats{Imported: 1, Candidates: 1, Uploaded: 1, Inserted: 1, Replaced: 1, Pinned: 1, EditorPin: 1, Dropped: 1}, *r.stats)
+
+	hashes := func(work int64) []string {
+		var got []string
+		require.NoError(t, testDB.Raw(`SELECT image_hash FROM catalog_work_cover WHERE work_id = ? AND source_id = ? ORDER BY image_hash`,
+			work, model.SourceAIRedraw).Scan(&got).Error)
+		return got
+	}
+	assert.Equal(t, []string{"ai-1"}, hashes(swapped), "the earlier redraw is gone and the new one carries the pin")
+	assert.Equal(t, []string{"earlier-edited-redraw"}, hashes(edited), "an editor-pinned redraw is neither replaced nor dropped")
+	assert.Empty(t, hashes(dropped))
+}
