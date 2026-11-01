@@ -268,7 +268,7 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 186,
+  v2: 187,
   store: 4,
   moyu: 6,
   sticker: 9,

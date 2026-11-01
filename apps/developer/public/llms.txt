@@ -36,7 +36,7 @@
 
 ## 5 个 API
 
-- [Public API v2](https://developer.nextmoe.dev/docs/v2.md)：`/v2`，186 个端点，凭据 Authorization: Bearer nmk_live_…。
+- [Public API v2](https://developer.nextmoe.dev/docs/v2.md)：`/v2`，187 个端点，凭据 Authorization: Bearer nmk_live_…。
 - [DLsite 分销面](https://developer.nextmoe.dev/docs/store.md)：`/v2/store`，4 个端点，凭据 Authorization: Bearer nmk_live_…。
 - [moyu 补丁面](https://developer.nextmoe.dev/docs/moyu.md)：`/v2/moyu`，6 个端点，凭据 Authorization: Bearer nmk_live_…。
 - [sticker 表情包面](https://developer.nextmoe.dev/docs/sticker.md)：`/v2/sticker`，9 个端点，凭据 Authorization: Bearer nmk_live_…。
@@ -70,6 +70,7 @@
 - [接入用户数据](https://developer.nextmoe.dev/docs/user-data.md) — 用 OAuth 用户访问令牌接入 /v2/me。游玩记录与收藏夹各有专页；本页是其余用户面的入口，并写认领、编辑提案、封面投票、资讯投稿与审核队列。
 - [评分与游玩记录](https://developer.nextmoe.dev/docs/play-records.md) — 游玩状态、游玩时长、评分，以及把三者一次写完的 work-records：谁能写、短评检查、替换语义、公开读取、个人主页的游戏库、隐私开关与镜像入口。
 - [收藏夹](https://developer.nextmoe.dev/docs/folders.md) — /v2/me/folders 的收藏夹与条目、folder:read / folder:write、公开读取、持有者名单，以及审核面。
+- [评分排行榜](https://developer.nextmoe.dev/docs/rankings.md) — 用 /v2/catalog/rankings 做游戏排行：跨 VNDB、Bangumi、DLsite、批评空间、NextMoe、HowLongToBeat 的共识分，或任一来源单独排名；每个数字怎么读、常见榜单的现成查询、全部筛选项。
 - [原生桌面应用接入](https://developer.nextmoe.dev/docs/native-app.md) — Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用户访问令牌而不是塞进二进制的应用密钥，环回回调 + PKCE 的完整流程与两份代码骨架。
 - [生产最佳实践](https://developer.nextmoe.dev/docs/best-practices.md) — 把 NextMoe API 接进生产环境前该检查的事：密钥保管、客户端契约、请求数、错误处理、缓存与监控。
 - [moyu 补丁面接入](https://developer.nextmoe.dev/docs/moyu-patches.md) — 接入 /v2/moyu 只读面：一部游戏在 鲲 Galgame 补丁（www.moyu.moe）上有哪些补丁资源。任意有效应用密钥即可调用，无需 scope；refs= 批量反查、catalog_work_id 回填游戏信息、两种错误方言与缓存约定。
@@ -103,6 +104,7 @@
 - https://developer.nextmoe.dev/docs/user-data.md — 接入用户数据
 - https://developer.nextmoe.dev/docs/play-records.md — 评分与游玩记录
 - https://developer.nextmoe.dev/docs/folders.md — 收藏夹
+- https://developer.nextmoe.dev/docs/rankings.md — 评分排行榜
 - https://developer.nextmoe.dev/docs/native-app.md — 原生桌面应用接入
 - https://developer.nextmoe.dev/docs/best-practices.md — 生产最佳实践
 - https://developer.nextmoe.dev/docs/moyu-patches.md — moyu 补丁面接入

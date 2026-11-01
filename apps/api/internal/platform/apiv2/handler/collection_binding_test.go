@@ -252,7 +252,8 @@ func TestDeclaredIncludeTotalIsHonoured(t *testing.T) {
 			join = "&"
 		}
 		status, _, raw := liveDo(t, env, http.MethodGet, url+join+"include_total=true&limit=1", liveAuthPath(path), "")
-		if _, ok := batchUnobservable[path]; ok {
+		_, noBatch := batchUnobservable[path]
+		if _, noSearch := totalUnobservable[path]; noBatch || noSearch {
 			require.Equal(t, http.StatusServiceUnavailable, status, path)
 			skipped++
 			continue
@@ -320,6 +321,10 @@ func TestProposalListFieldVocabulary(t *testing.T) {
 // The refusal is real in production and unreachable here: catalog_search.go
 // answers 503 for an unbound service before it reaches feedNoBatch, and the
 // live fixture binds no OpenSearch.
+var totalUnobservable = map[string]string{
+	"/v2/catalog/rankings": "the live env binds no OpenSearch, so the face answers 503 here",
+}
+
 var batchUnobservable = map[string]string{
 	"/v2/catalog/search": "feedNoBatch(\"search\") sits behind the unbound-service 503 in this fixture",
 	"/v2/store/prices":   "the live env binds no price service, so the lane answers 503 here; TestLiveStorePrices covers missing[] over fake fetchers",

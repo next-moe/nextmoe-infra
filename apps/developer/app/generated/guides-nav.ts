@@ -92,6 +92,10 @@ export const guideNav: GuideNavSection[] = [
         "label": "收藏夹"
       },
       {
+        "to": "/docs/rankings",
+        "label": "评分排行榜"
+      },
+      {
         "to": "/docs/native-app",
         "label": "原生桌面应用接入"
       },
@@ -213,6 +217,12 @@ export const guideMeta: Record<string, GuideMeta> = {
     "title": "收藏夹",
     "eyebrow": "集成指南",
     "description": "/v2/me/folders 的收藏夹与条目、folder:read / folder:write、公开读取、持有者名单，以及审核面。"
+  },
+  "/docs/rankings": {
+    "slug": "rankings",
+    "title": "评分排行榜",
+    "eyebrow": "集成指南",
+    "description": "用 /v2/catalog/rankings 做游戏排行：跨 VNDB、Bangumi、DLsite、批评空间、NextMoe、HowLongToBeat 的共识分，或任一来源单独排名；每个数字怎么读、常见榜单的现成查询、全部筛选项。"
   },
   "/docs/native-app": {
     "slug": "native-app",

@@ -176,6 +176,7 @@ var liveReadsNotSwept = map[string]string{
 	"/v2/me/ratings/{work_id}":               "404 until a rating is written, which is TestLiveRatingLifecycle's job",
 	"/v2/ratings/{id}":                       "no rating survives seedLiveFixtures; TestLiveRatingLifecycle reads the one it writes",
 	"/v2/catalog/search":                     "the live env binds no OpenSearch, so this face is 503 here",
+	"/v2/catalog/rankings":                   "the live env binds no OpenSearch, so this face is 503 here",
 	"/v2/store/purchase-links/{product_id}":  "the live env binds no store service",
 	"/v2/store/stats":                        "the live env binds no store service",
 	"/v2/store/prices/{id}":                  "the live env binds no price service; live_wave_prices_test.go mounts one over fake fetchers",
