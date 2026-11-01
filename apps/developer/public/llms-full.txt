@@ -2267,6 +2267,12 @@ POST   /v2/me/folders/<id>/items             → 207，{"items":[{"work_id":"...
 - `content_rating`（事实分级）和 `content_limit`（编辑展示轴）是两个不同的东西，不要混用。
 - 别把 `nsfw=true` 硬编码进面向终端用户的读路径——那应该跟着用户自己的设置走。
 
+## 封面
+
+- **作品封面读 `cover`，不要取 `covers[0]`。** `cover` 是选举出来的竖版封面：编辑钉选、投票、官方封面排序、来源与清晰度都已经算进去，NextMoe 站点自己渲染的就是它。`covers[]`（以及 `/v2/catalog/works/{id}/covers`）是作品的全部封面行，按图库顺序排列，第一项只是排在最前，不是选出来的那张。
+- **成人作品要真封面就带 `nsfw=true`。** Bangumi 给成人游戏的封面是打码的；只有带 `nsfw=true` 且作品的 `content_limit` 为 `nsfw` 时，选举才会改用 VNDB 的封面。不带它，`cover` 可能是 Bangumi 的打码图，或者 `origin: "censored"` 的模糊替身——这是按设计给没选成人内容的读者的结果，不是 bug。
+- **自己遍历 `covers[]` 时先过滤。** 不论 `nsfw` 取什么，各种 `sexual` 等级的行都会列出，其中也有 Bangumi 打码图和 `source: "censored"` 的替身。按 `sexual` 与读者设置过滤，按 `source` 挑选。
+
 ## 监控
 
 - 给 `Deprecation` / `Sunset` 响应头设告警。它们出现的那天你还有从容迁移的时间。
@@ -4764,7 +4770,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/1/characters"
 
 List covers of one work
 
-Work cover rows. Same items as include=covers. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+Work cover rows. Same items as include=covers: every row in gallery order, of every sexual grade, so the first item is not the elected portrait; read the work's cover for that. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用

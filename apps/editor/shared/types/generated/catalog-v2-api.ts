@@ -921,7 +921,7 @@ export interface paths {
         };
         /**
          * List covers of one work
-         * @description Work cover rows. Same items as include=covers. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         * @description Work cover rows. Same items as include=covers: every row in gallery order, of every sexual grade, so the first item is not the elected portrait; read the work's cover for that. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
          */
         get: operations["getCatalogWorkCovers"];
         put?: never;
@@ -10945,9 +10945,9 @@ export interface components {
              * @enum {string}
              */
             content_rating: "all_ages" | "sensitive" | "r18";
-            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. When the response may carry sexual art, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none. */
+            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none. */
             cover: components["schemas"]["CoverSlot"] | null;
-            /** @description Present when include=covers. Empty array if none. */
+            /** @description Present when include=covers. Every cover row the work holds, in gallery order: not ranked by the election, so render cover, not covers[0], as the work's portrait. Rows of every sexual grade are listed whatever nsfw says, Bangumi's censored art of adult games and the blurred censored stand-in among them; filter on sexual and source before showing a row. Empty array if none. */
             covers?: components["schemas"]["Cover"][];
             /**
              * Format: date-time

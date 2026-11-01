@@ -2848,3 +2848,9 @@ After the coverage gate, 280 charts were in review and 160 rejected. Most of wha
 - `--reasoning-effort` passes `reasoning_effort` to the provider.
 
 The runs used Cloudflare Workers AI, through its OpenAI-compatible endpoint, instead of the cursor shim, whose quota ran out: two passes of `deepseek-v4.1-flash` over 803 charts, then `deepseek-v4-pro` on 168 charts that were still not ok. `glm-5.3` is unusable under a `json_schema` response format, because it returns empty output or whitespace. Best settled charts went from 5,111 ok / 280 review / 160 rejected to 5,389 ok / 124 review / 11 rejected (646 pages have no chart). **No schema change.**
+
+## Cover list is not the portrait (spec 2.81.1, 2026-11-01)
+
+A downstream site rendered `covers[0]` as the work's portrait and got Bangumi's censored art of adult games, while the NextMoe sites showed a clear VNDB cover. `covers[]` and `/v2/catalog/works/{id}/covers` list every row in gallery order (editor media order, then `sort_order`), unranked, with every sexual grade whatever `nsfw` says; the election lives only in `cover`. And the VNDB-over-Bangumi swap runs only for `nsfw=true` on a work whose `content_limit` is `nsfw`. Locally, among r18 works that hold both a VNDB and a Bangumi cover, `sort_order` puts a Bangumi row first on 2,088 and a VNDB row first on 711.
+
+The `covers` and `cover` descriptions and the covers sub-resource description now say so, and the best-practices guide has a covers section. Description-only, so **spec 2.81.1**. **No schema change.**
