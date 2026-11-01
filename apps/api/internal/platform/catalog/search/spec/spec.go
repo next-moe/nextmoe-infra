@@ -70,3 +70,31 @@ type CharacterQuery struct {
 	NSFW          bool
 	Genders       []int16
 }
+
+const RankConsensus = "consensus"
+
+type RankingQuery struct {
+	Filter      WorksFilter
+	Platforms   []string
+	Circulation string
+	PlaytimeMin int
+	PlaytimeMax int
+
+	By              string
+	Field           string
+	Asc             bool
+	Sources         []string
+	MinSources      int
+	MinVotes        map[string]int
+	MaxVotes        map[string]int
+	TotalVotes      int
+	TotalMax        int
+	Min             *float64
+	Max             *float64
+	Z               float64
+	DivergenceVotes map[string]float64
+
+	FacetAttrs []string
+	Page       int
+	Limit      int
+}

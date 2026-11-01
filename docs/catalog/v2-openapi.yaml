@@ -5302,6 +5302,115 @@ components:
         - object
         - items
       type: object
+    ListRanking:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListRanking.json
+          format: uri
+          readOnly: true
+          type: string
+        by:
+          description: What the list ranks by, as by= asked.
+          enum:
+            - consensus
+            - vndb
+            - bangumi
+            - dlsite
+            - erogamescape
+            - nextmoe
+            - howlongtobeat
+          type: string
+          x-vocabulary-closed: true
+        direction:
+          description: The order= in effect. desc puts the highest value first.
+          enum:
+            - desc
+            - asc
+          type: string
+          x-vocabulary-closed: true
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/RankingEntry"
+          type: array
+        metric:
+          description: The statistic ranked on, as metric= asked or defaulted.
+          enum:
+            - lower
+            - upper
+            - mean
+            - median
+            - native
+            - percentile
+            - spread
+            - votes
+            - sources
+            - divergence
+          type: string
+          x-vocabulary-closed: true
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        model:
+          $ref: "#/components/schemas/RatingModel"
+          description: The fitted model every derived number on this page comes from.
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+        unit:
+          description: "How to read each entry's value. deviation: a 偏差値, 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. percentile: 0-100, the share of rated works below. native: the source's own scale (model.sources[].scale_min/scale_max). votes: a vote count. count: a number of sources. points: percentile points between the sources that place the work highest and lowest."
+          enum:
+            - deviation
+            - percentile
+            - native
+            - votes
+            - count
+            - points
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - by
+        - metric
+        - direction
+        - unit
+        - model
+        - object
+        - items
+      type: object
     ListRating:
       additionalProperties: true
       properties:
@@ -9624,6 +9733,165 @@ components:
         - used
         - remaining
       type: object
+    RankingConsensus:
+      additionalProperties: true
+      properties:
+        divergence:
+          description: How far apart the sources place the work, in percentile points between the highest and the lowest; a source counts once it has four times its prior_votes in votes, so the estimate is mostly the work's own. null when fewer than two do.
+          format: double
+          maximum: 100
+          minimum: 0
+          type:
+            - number
+            - "null"
+        lower:
+          description: Lower end of the 90% interval of score. Few votes or one source widen the interval; ranking by it puts works that are good with confidence first.
+          format: double
+          maximum: 100
+          minimum: 0
+          type: number
+        percentile:
+          description: Share of all works with a consensus that score lower, in percent.
+          format: double
+          maximum: 100
+          minimum: 0
+          type: number
+        score:
+          description: "Deviation score (偏差値) of the consensus: 50 is the typical work rated by two or more sources, 60 one standard deviation above it."
+          format: double
+          maximum: 100
+          minimum: 0
+          type: number
+        source_count:
+          description: Sources that contributed.
+          format: int64
+          minimum: 1
+          type: integer
+        upper:
+          description: Upper end of the 90% interval of score.
+          format: double
+          maximum: 100
+          minimum: 0
+          type: number
+        vote_count:
+          description: Votes across the contributing sources.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - score
+        - lower
+        - upper
+        - percentile
+        - source_count
+        - vote_count
+        - divergence
+      type: object
+    RankingEntry:
+      additionalProperties: true
+      properties:
+        consensus:
+          anyOf:
+            - $ref: "#/components/schemas/RankingConsensus"
+            - type: "null"
+          description: The cross-source consensus, over sources= when given. null when none of those sources rated the work.
+        object:
+          description: Type discriminant. Always ranking_entry.
+          enum:
+            - ranking_entry
+          type: string
+          x-vocabulary-closed: true
+        per_source:
+          description: Every source that rated the work, in a fixed source order. Never null.
+          items:
+            $ref: "#/components/schemas/RankingSource"
+          type: array
+        rank:
+          description: 1-based position in the whole ranking, not in the page. Equal values keep distinct ranks, ordered by popularity then id.
+          format: int64
+          minimum: 1
+          type: integer
+        value:
+          description: The value ranked on, in the list's unit.
+          format: double
+          minimum: 0
+          type: number
+        work:
+          $ref: "#/components/schemas/Work"
+          description: The ranked work, shaped by view= and include= as on GET /v2/catalog/works.
+      required:
+        - object
+        - rank
+        - value
+        - work
+        - consensus
+        - per_source
+      type: object
+    RankingSource:
+      additionalProperties: true
+      properties:
+        lower:
+          description: Lower end of the 90% interval of mean.
+          format: double
+          minimum: 0
+          type: number
+        mean:
+          description: "Estimated true mean on the source's scale: the work's own mean pulled toward what works with as many votes usually score, by prior_votes. Few votes pull hard; many barely move it."
+          format: double
+          minimum: 0
+          type: number
+        median:
+          description: Median vote with the same pull applied; erogamescape's starts from its published median. null when the source publishes no histogram.
+          format: double
+          minimum: 0
+          type:
+            - number
+            - "null"
+        percentile:
+          description: Share of the works this source rated whose mean is lower, in percent.
+          format: double
+          maximum: 100
+          minimum: 0
+          type: number
+        score:
+          description: "The source's own published score, unchanged: vndb's Bayesian rating, bangumi's and dlsite's mean, erogamescape's median, nextmoe's smoothed mean, howlongtobeat's review score."
+          format: double
+          minimum: 0
+          type: number
+        source:
+          description: Source key.
+          maxLength: 64
+          type: string
+          x-vocabulary: sources
+          x-vocabulary-closed: false
+        spread:
+          description: Standard deviation of the votes, on the source's scale. null below two votes or when the source publishes no spread or histogram.
+          format: double
+          minimum: 0
+          type:
+            - number
+            - "null"
+        upper:
+          description: Upper end of the 90% interval of mean.
+          format: double
+          minimum: 0
+          type: number
+        vote_count:
+          description: Votes behind score.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - source
+        - score
+        - vote_count
+        - mean
+        - lower
+        - upper
+        - median
+        - spread
+        - percentile
+      type: object
     Rating:
       additionalProperties: true
       properties:
@@ -9948,6 +10216,89 @@ components:
         - gone
         - changed_at
         - rating
+      type: object
+    RatingModel:
+      additionalProperties: true
+      properties:
+        fitted_at:
+          description: When the model was fitted.
+          format: date-time
+          maxLength: 40
+          type: string
+        id:
+          description: Fit id. Changes when the model is refitted, nightly.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        interval:
+          description: Coverage of every lower/upper pair. Always 0.9.
+          format: double
+          maximum: 1
+          minimum: 0
+          type: number
+        object:
+          description: Type discriminant. Always rating_model.
+          enum:
+            - rating_model
+          type: string
+          x-vocabulary-closed: true
+        sources:
+          description: Per-source parameters, in the fixed source order.
+          items:
+            $ref: "#/components/schemas/RatingModelSource"
+          type: array
+        version:
+          description: Method version. A new version can change every derived number.
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - object
+        - id
+        - version
+        - fitted_at
+        - interval
+        - sources
+      type: object
+    RatingModelSource:
+      additionalProperties: true
+      properties:
+        in_consensus:
+          description: Whether this source contributes to the consensus. A source needs enough works shared with others to be calibrated.
+          type: boolean
+        prior_votes:
+          description: "How many votes the prior is worth: a work with this many votes has its mean pulled halfway. Estimated from the data."
+          format: double
+          minimum: 0
+          type: number
+        scale_max:
+          description: Highest score the source's scale allows.
+          format: double
+          minimum: 0
+          type: number
+        scale_min:
+          description: Lowest score the source's scale allows.
+          format: double
+          minimum: 0
+          type: number
+        source:
+          description: Source key.
+          maxLength: 64
+          type: string
+          x-vocabulary: sources
+          x-vocabulary-closed: false
+        works:
+          description: Works this source rated.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - source
+        - scale_min
+        - scale_max
+        - prior_votes
+        - works
+        - in_consensus
       type: object
     RatingStats:
       additionalProperties: true
@@ -14291,7 +14642,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.81.0
+  version: 2.82.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -17090,6 +17441,341 @@ paths:
         - userToken: []
         - {}
       summary: One proposal
+      tags:
+        - catalog
+  /v2/catalog/rankings:
+    get:
+      description: "Ranks works by their ratings on every source, or on one. Every source keeps its own published score (per_source[].score); next to it each entry carries what a fitted model makes of it. Per source, mean is the work's own mean pulled toward what works with as many votes usually score, so a work with three votes cannot outrank one with three thousand on luck, with a 90% interval and the work's percentile in that source. The consensus puts the sources on one scale: each source's estimate becomes a normal score within that source, a one-factor model fitted on the works several sources share corrects for each source's audience, and the sources are combined weighted by how much each one knows about the work. It is read as a deviation score (偏差値): 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. The model is refitted from the data nightly and the ranking reads the search index, rebuilt nightly; model describes the fit in use. Every filter of GET /v2/catalog/works that the search index carries applies here, plus year=, circulation=, platform=, playtime_min/max=, vote floors and score bounds. page= selects page mode. Answers 503 until the first model is fitted. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
+      operationId: listCatalogRankings
+      parameters:
+        - description: Opaque cursor from a prior next_cursor. Must start with cur_.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque cursor from a prior next_cursor. Must start with cur_.
+            maxLength: 512
+            type: string
+        - description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+            maxLength: 8
+            type: string
+        - description: basic (default) or full, for the work inside each entry.
+          explode: false
+          in: query
+          name: view
+          schema:
+            description: basic (default) or full, for the work inside each entry.
+            maxLength: 16
+            type: string
+        - description: Comma-separated blocks of the work inside each entry, as on GET /v2/catalog/works. Unknown token is 400 UNKNOWN_INCLUDE.
+          explode: false
+          in: query
+          name: include
+          schema:
+            description: Comma-separated blocks of the work inside each entry, as on GET /v2/catalog/works. Unknown token is 400 UNKNOWN_INCLUDE.
+            maxLength: 1024
+            type: string
+        - description: true to include total. Only true or false.
+          explode: false
+          in: query
+          name: include_total
+          schema:
+            description: true to include total. Only true or false.
+            maxLength: 8
+            type: string
+        - description: "Comma-separated facet names over the ranked population: tag_id, company_id, olang, content_rating, platform, circulation."
+          explode: false
+          in: query
+          name: facets
+          schema:
+            description: "Comma-separated facet names over the ranked population: tag_id, company_id, olang, content_rating, platform, circulation."
+            maxLength: 512
+            type: string
+        - description: true includes r18. false or absent hides r18. Only true or false.
+          explode: false
+          in: query
+          name: nsfw
+          schema:
+            description: true includes r18. false or absent hides r18. Only true or false.
+            maxLength: 8
+            type: string
+        - description: consensus (default) ranks by every source combined; a source key (vndb, bangumi, dlsite, erogamescape, nextmoe, howlongtobeat) ranks by that source alone.
+          explode: false
+          in: query
+          name: by
+          schema:
+            description: consensus (default) ranks by every source combined; a source key (vndb, bangumi, dlsite, erogamescape, nextmoe, howlongtobeat) ranks by that source alone.
+            maxLength: 32
+            type: string
+        - description: "The statistic to rank by. With by=consensus: lower, upper, mean, percentile, divergence, votes, sources. With a source: lower, upper, mean, median, native, percentile, spread, votes. The default is lower for order=desc and upper for order=asc: the bottom of the 90% interval for a best-of list, so a handful of enthusiastic votes cannot outrank an established work, and its top for a worst-of list, so a work is listed as bad only when it is bad with confidence. mean ranks by the best estimate; native by the source's own published score; divergence by how much the sources disagree."
+          explode: false
+          in: query
+          name: metric
+          schema:
+            description: "The statistic to rank by. With by=consensus: lower, upper, mean, percentile, divergence, votes, sources. With a source: lower, upper, mean, median, native, percentile, spread, votes. The default is lower for order=desc and upper for order=asc: the bottom of the 90% interval for a best-of list, so a handful of enthusiastic votes cannot outrank an established work, and its top for a worst-of list, so a work is listed as bad only when it is bad with confidence. mean ranks by the best estimate; native by the source's own published score; divergence by how much the sources disagree."
+            maxLength: 32
+            type: string
+        - description: desc (default, best first) or asc (worst first).
+          explode: false
+          in: query
+          name: order
+          schema:
+            description: desc (default, best first) or asc (worst first).
+            maxLength: 8
+            type: string
+        - description: "by=consensus only: comma-separated source keys to build the consensus from, for example erogamescape,bangumi. Absent = every source. Every number in consensus then covers only these sources."
+          explode: false
+          in: query
+          name: sources
+          schema:
+            description: "by=consensus only: comma-separated source keys to build the consensus from, for example erogamescape,bangumi. Absent = every source. Every number in consensus then covers only these sources."
+            maxLength: 128
+            type: string
+        - description: "by=consensus only: keep works at least this many of the consensus sources rated, 1-6."
+          explode: false
+          in: query
+          name: min_sources
+          schema:
+            description: "by=consensus only: keep works at least this many of the consensus sources rated, 1-6."
+            maxLength: 2
+            type: string
+        - description: Vote floors, comma-separated. A bare number applies to by= (the total over the consensus sources for by=consensus); source:number applies to that source, for example erogamescape:50,bangumi:100. Every floor must hold.
+          explode: false
+          in: query
+          name: min_votes
+          schema:
+            description: Vote floors, comma-separated. A bare number applies to by= (the total over the consensus sources for by=consensus); source:number applies to that source, for example erogamescape:50,bangumi:100. Every floor must hold.
+            maxLength: 256
+            type: string
+        - description: "Vote ceilings, in the same form as min_votes, for lists of lesser-known works: min_votes=5&max_votes=50 keeps works between five and fifty votes."
+          explode: false
+          in: query
+          name: max_votes
+          schema:
+            description: "Vote ceilings, in the same form as min_votes, for lists of lesser-known works: min_votes=5&max_votes=50 keeps works between five and fifty votes."
+            maxLength: 256
+            type: string
+        - description: Keep works whose value (in the list's unit) is at least this.
+          explode: false
+          in: query
+          name: score_min
+          schema:
+            description: Keep works whose value (in the list's unit) is at least this.
+            maxLength: 16
+            type: string
+        - description: Keep works whose value (in the list's unit) is at most this.
+          explode: false
+          in: query
+          name: score_max
+          schema:
+            description: Keep works whose value (in the list's unit) is at most this.
+            maxLength: 16
+            type: string
+        - description: Release year, or an inclusive range such as 2015-2020. Cannot be combined with released_after or released_before.
+          explode: false
+          in: query
+          name: year
+          schema:
+            description: Release year, or an inclusive range such as 2015-2020. Cannot be combined with released_after or released_before.
+            maxLength: 9
+            type: string
+        - description: YYYY-MM-DD inclusive, on each work's release_date.
+          explode: false
+          in: query
+          name: released_after
+          schema:
+            description: YYYY-MM-DD inclusive, on each work's release_date.
+            maxLength: 10
+            type: string
+        - description: YYYY-MM-DD inclusive, on each work's release_date.
+          explode: false
+          in: query
+          name: released_before
+          schema:
+            description: YYYY-MM-DD inclusive, on each work's release_date.
+            maxLength: 10
+            type: string
+        - description: "commercial: a game brand made or sold it. doujin: only a doujin circle did. Works with neither credit match neither."
+          explode: false
+          in: query
+          name: circulation
+          schema:
+            description: "commercial: a game brand made or sold it. doujin: only a doujin circle did. Works with neither credit match neither."
+            maxLength: 16
+            type: string
+        - description: Comma-separated platform tokens (win, ps4, swi, …), any of. Open vocabulary; unknown values match nothing.
+          explode: false
+          in: query
+          name: platform
+          schema:
+            description: Comma-separated platform tokens (win, ps4, swi, …), any of. Open vocabulary; unknown values match nothing.
+            maxLength: 256
+            type: string
+        - description: Minutes. Keep works whose playtime is at least this; playtime is the median of the sources' estimates.
+          explode: false
+          in: query
+          name: playtime_min
+          schema:
+            description: Minutes. Keep works whose playtime is at least this; playtime is the median of the sources' estimates.
+            maxLength: 8
+            type: string
+        - description: Minutes. Keep works whose playtime is at most this.
+          explode: false
+          in: query
+          name: playtime_max
+          schema:
+            description: Minutes. Keep works whose playtime is at most this.
+            maxLength: 8
+            type: string
+        - description: "Closed: all_ages, sensitive, r18. r18 requires nsfw=true."
+          explode: false
+          in: query
+          name: content_rating
+          schema:
+            description: "Closed: all_ages, sensitive, r18. r18 requires nsfw=true."
+            maxLength: 16
+            type: string
+        - description: "Comma-separated closed editorial axis: sfw, nsfw."
+          explode: false
+          in: query
+          name: content_limit
+          schema:
+            description: "Comma-separated closed editorial axis: sfw, nsfw."
+            maxLength: 32
+            type: string
+        - description: true or false. Absent = no gate.
+          explode: false
+          in: query
+          name: claimed
+          schema:
+            description: true or false. Absent = no gate.
+            maxLength: 8
+            type: string
+        - description: Catalog company id.
+          explode: false
+          in: query
+          name: company_id
+          schema:
+            description: Catalog company id.
+            maxLength: 20
+            type: string
+        - description: Comma-separated canonical tag ids, AND, max 10.
+          explode: false
+          in: query
+          name: tag_id
+          schema:
+            description: Comma-separated canonical tag ids, AND, max 10.
+            maxLength: 256
+            type: string
+        - description: Comma-separated canonical tag ids, max 100. Drops every work that carries any of them.
+          explode: false
+          in: query
+          name: exclude_tag_id
+          schema:
+            description: Comma-separated canonical tag ids, max 100. Drops every work that carries any of them.
+            maxLength: 2048
+            type: string
+        - description: Comma-separated canonical tag ids, max 100. As exclude_tag_id, and each id also drops the works carrying any tag below it.
+          explode: false
+          in: query
+          name: exclude_tag_tree
+          schema:
+            description: Comma-separated canonical tag ids, max 100. As exclude_tag_id, and each id also drops the works carrying any tag below it.
+            maxLength: 2048
+            type: string
+        - description: Catalog series id.
+          explode: false
+          in: query
+          name: series_id
+          schema:
+            description: Catalog series id.
+            maxLength: 20
+            type: string
+        - description: Catalog engine id.
+          explode: false
+          in: query
+          name: engine_id
+          schema:
+            description: Catalog engine id.
+            maxLength: 20
+            type: string
+        - description: Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing.
+          explode: false
+          in: query
+          name: olang
+          schema:
+            description: Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing.
+            maxLength: 64
+            type: string
+        - description: "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
+          explode: false
+          in: query
+          name: page
+          schema:
+            description: "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
+            maxLength: 8
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListRanking"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: Rank works by their ratings
       tags:
         - catalog
   /v2/catalog/redirects:

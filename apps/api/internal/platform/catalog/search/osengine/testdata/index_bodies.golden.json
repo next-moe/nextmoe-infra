@@ -1984,6 +1984,12 @@
           ],
           "type": "text"
         },
+        "catalog_id": {
+          "type": "long"
+        },
+        "circulation": {
+          "type": "keyword"
+        },
         "claim_state": {
           "type": "keyword"
         },
@@ -2062,8 +2068,263 @@
         "olang": {
           "type": "keyword"
         },
+        "platforms": {
+          "type": "keyword"
+        },
+        "playtime": {
+          "type": "integer"
+        },
         "popularity": {
           "type": "float"
+        },
+        "rank": {
+          "properties": {
+            "bangumi": {
+              "properties": {
+                "den": {
+                  "type": "float"
+                },
+                "lower": {
+                  "type": "float"
+                },
+                "mean": {
+                  "type": "float"
+                },
+                "median": {
+                  "type": "float"
+                },
+                "native": {
+                  "type": "float"
+                },
+                "num": {
+                  "type": "float"
+                },
+                "pct": {
+                  "type": "float"
+                },
+                "spread": {
+                  "type": "float"
+                },
+                "upper": {
+                  "type": "float"
+                },
+                "votes": {
+                  "type": "float"
+                }
+              }
+            },
+            "consensus": {
+              "properties": {
+                "divergence": {
+                  "type": "float"
+                },
+                "lower": {
+                  "type": "float"
+                },
+                "sources": {
+                  "type": "float"
+                },
+                "theta": {
+                  "type": "float"
+                },
+                "upper": {
+                  "type": "float"
+                },
+                "votes": {
+                  "type": "float"
+                }
+              }
+            },
+            "dlsite": {
+              "properties": {
+                "den": {
+                  "type": "float"
+                },
+                "lower": {
+                  "type": "float"
+                },
+                "mean": {
+                  "type": "float"
+                },
+                "median": {
+                  "type": "float"
+                },
+                "native": {
+                  "type": "float"
+                },
+                "num": {
+                  "type": "float"
+                },
+                "pct": {
+                  "type": "float"
+                },
+                "spread": {
+                  "type": "float"
+                },
+                "upper": {
+                  "type": "float"
+                },
+                "votes": {
+                  "type": "float"
+                }
+              }
+            },
+            "erogamescape": {
+              "properties": {
+                "den": {
+                  "type": "float"
+                },
+                "lower": {
+                  "type": "float"
+                },
+                "mean": {
+                  "type": "float"
+                },
+                "median": {
+                  "type": "float"
+                },
+                "native": {
+                  "type": "float"
+                },
+                "num": {
+                  "type": "float"
+                },
+                "pct": {
+                  "type": "float"
+                },
+                "spread": {
+                  "type": "float"
+                },
+                "upper": {
+                  "type": "float"
+                },
+                "votes": {
+                  "type": "float"
+                }
+              }
+            },
+            "howlongtobeat": {
+              "properties": {
+                "den": {
+                  "type": "float"
+                },
+                "lower": {
+                  "type": "float"
+                },
+                "mean": {
+                  "type": "float"
+                },
+                "median": {
+                  "type": "float"
+                },
+                "native": {
+                  "type": "float"
+                },
+                "num": {
+                  "type": "float"
+                },
+                "pct": {
+                  "type": "float"
+                },
+                "spread": {
+                  "type": "float"
+                },
+                "upper": {
+                  "type": "float"
+                },
+                "votes": {
+                  "type": "float"
+                }
+              }
+            },
+            "nextmoe": {
+              "properties": {
+                "den": {
+                  "type": "float"
+                },
+                "lower": {
+                  "type": "float"
+                },
+                "mean": {
+                  "type": "float"
+                },
+                "median": {
+                  "type": "float"
+                },
+                "native": {
+                  "type": "float"
+                },
+                "num": {
+                  "type": "float"
+                },
+                "pct": {
+                  "type": "float"
+                },
+                "spread": {
+                  "type": "float"
+                },
+                "upper": {
+                  "type": "float"
+                },
+                "votes": {
+                  "type": "float"
+                }
+              }
+            },
+            "vndb": {
+              "properties": {
+                "den": {
+                  "type": "float"
+                },
+                "lower": {
+                  "type": "float"
+                },
+                "mean": {
+                  "type": "float"
+                },
+                "median": {
+                  "type": "float"
+                },
+                "native": {
+                  "type": "float"
+                },
+                "num": {
+                  "type": "float"
+                },
+                "pct": {
+                  "type": "float"
+                },
+                "spread": {
+                  "type": "float"
+                },
+                "upper": {
+                  "type": "float"
+                },
+                "votes": {
+                  "type": "float"
+                }
+              }
+            }
+          }
+        },
+        "rating": {
+          "properties": {
+            "bangumi": {
+              "type": "float"
+            },
+            "dlsite": {
+              "type": "float"
+            },
+            "erogamescape": {
+              "type": "float"
+            },
+            "nextmoe": {
+              "type": "float"
+            },
+            "vndb": {
+              "type": "float"
+            }
+          }
         },
         "released_ord": {
           "type": "integer"
@@ -2107,28 +2368,6 @@
         },
         "updated_ts": {
           "type": "long"
-        },
-        "catalog_id": {
-          "type": "long"
-        },
-        "rating": {
-          "properties": {
-            "bangumi": {
-              "type": "float"
-            },
-            "dlsite": {
-              "type": "float"
-            },
-            "erogamescape": {
-              "type": "float"
-            },
-            "nextmoe": {
-              "type": "float"
-            },
-            "vndb": {
-              "type": "float"
-            }
-          }
         }
       }
     },

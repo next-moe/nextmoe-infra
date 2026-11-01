@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"testing"
 
@@ -228,8 +229,8 @@ func TestPageDeclaredOnPageModeOperations(t *testing.T) {
 		}
 	}
 	sort.Strings(ops)
-	want := []string{"listCatalogCharacters", "listCatalogWorks", "searchCatalog"}
-	if len(ops) != len(want) || ops[0] != want[0] || ops[1] != want[1] || ops[2] != want[2] {
+	want := []string{"listCatalogCharacters", "listCatalogRankings", "listCatalogWorks", "searchCatalog"}
+	if !slices.Equal(ops, want) {
 		t.Fatalf("page ops=%v want %v", ops, want)
 	}
 }
