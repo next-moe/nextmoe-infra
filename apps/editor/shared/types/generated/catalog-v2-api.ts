@@ -432,6 +432,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/catalog/rankings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rank works by their ratings
+         * @description Ranks works by their ratings on every source, or on one. Every source keeps its own published score (per_source[].score); next to it each entry carries what a fitted model makes of it. Per source, mean is the work's own mean pulled toward what works with as many votes usually score, so a work with three votes cannot outrank one with three thousand on luck, with a 90% interval and the work's percentile in that source. The consensus puts the sources on one scale: each source's estimate becomes a normal score within that source, a one-factor model fitted on the works several sources share corrects for each source's audience, and the sources are combined weighted by how much each one knows about the work. It is read as a deviation score (偏差値): 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. The model is refitted from the data nightly and the ranking reads the search index, rebuilt nightly; model describes the fit in use. Every filter of GET /v2/catalog/works that the search index carries applies here, plus scope=, year=, circulation=, platform=, playtime_min/max=, vote floors and score bounds. page= selects page mode. Answers 503 until the first model is fitted. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         */
+        get: operations["listCatalogRankings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/catalog/redirects": {
         parameters: {
             query?: never;
@@ -6282,6 +6302,68 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListRanking: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListRanking.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description What the list ranks by, as by= asked.
+             * @enum {string}
+             */
+            by: "consensus" | "vndb" | "bangumi" | "dlsite" | "erogamescape" | "nextmoe" | "howlongtobeat";
+            /**
+             * @description The order= in effect. desc puts the highest value first.
+             * @enum {string}
+             */
+            direction: "desc" | "asc";
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["RankingEntry"][];
+            /**
+             * @description The statistic ranked on, as metric= asked or defaulted.
+             * @enum {string}
+             */
+            metric: "lower" | "upper" | "mean" | "median" | "native" | "percentile" | "spread" | "votes" | "sources" | "divergence";
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description The fitted model every derived number on this page comes from. */
+            model: components["schemas"]["RatingModel"];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * @description The scope= in effect. vn ranks visual novels only; all ranks every game.
+             * @enum {string}
+             */
+            scope: "vn" | "all";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+            /**
+             * @description How to read each entry's value. deviation: a 偏差値, 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. percentile: 0-100, the share of rated works below. native: the source's own scale (model.sources[].scale_min/scale_max). votes: a vote count. count: a number of sources. points: percentile points between the sources that place the work highest and lowest.
+             * @enum {string}
+             */
+            unit: "deviation" | "percentile" | "native" | "votes" | "count" | "points";
+        } & {
+            [key: string]: unknown;
+        };
         ListRating: {
             /**
              * Format: uri
@@ -8816,6 +8898,116 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        RankingConsensus: {
+            /**
+             * Format: double
+             * @description How far apart the sources place the work, in percentile points between the highest and the lowest; a source counts once it has four times its prior_votes in votes, so the estimate is mostly the work's own. null when fewer than two do.
+             */
+            divergence: number | null;
+            /**
+             * Format: double
+             * @description Lower end of the 90% interval of score. Few votes or one source widen the interval; ranking by it puts works that are good with confidence first.
+             */
+            lower: number;
+            /**
+             * Format: double
+             * @description Share of all works with a consensus that score lower, in percent.
+             */
+            percentile: number;
+            /**
+             * Format: double
+             * @description Deviation score (偏差値) of the consensus: 50 is the typical work rated by two or more sources, 60 one standard deviation above it.
+             */
+            score: number;
+            /**
+             * Format: int64
+             * @description Sources that contributed.
+             */
+            source_count: number;
+            /**
+             * Format: double
+             * @description Upper end of the 90% interval of score.
+             */
+            upper: number;
+            /**
+             * Format: int64
+             * @description Votes across the contributing sources.
+             */
+            vote_count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        RankingEntry: {
+            /** @description The cross-source consensus, over sources= when given. null when none of those sources rated the work. */
+            consensus: components["schemas"]["RankingConsensus"] | null;
+            /**
+             * @description Type discriminant. Always ranking_entry.
+             * @enum {string}
+             */
+            object: "ranking_entry";
+            /** @description Every source that rated the work, in a fixed source order. Never null. */
+            per_source: components["schemas"]["RankingSource"][];
+            /**
+             * Format: int64
+             * @description 1-based position in the whole ranking, not in the page. Equal values keep distinct ranks, ordered by popularity then id.
+             */
+            rank: number;
+            /**
+             * Format: double
+             * @description The value ranked on, in the list's unit.
+             */
+            value: number;
+            /** @description The ranked work, shaped by view= and include= as on GET /v2/catalog/works. */
+            work: components["schemas"]["Work"];
+        } & {
+            [key: string]: unknown;
+        };
+        RankingSource: {
+            /**
+             * Format: double
+             * @description Lower end of the 90% interval of mean.
+             */
+            lower: number;
+            /**
+             * Format: double
+             * @description Estimated true mean on the source's scale: the work's own mean pulled toward what works with as many votes usually score, by prior_votes. Few votes pull hard; many barely move it.
+             */
+            mean: number;
+            /**
+             * Format: double
+             * @description Median vote with the same pull applied; erogamescape's starts from its published median. null when the source publishes no histogram.
+             */
+            median: number | null;
+            /**
+             * Format: double
+             * @description Share of the works this source rated whose mean is lower, in percent.
+             */
+            percentile: number;
+            /**
+             * Format: double
+             * @description The source's own published score, unchanged: vndb's Bayesian rating, bangumi's and dlsite's mean, erogamescape's median, nextmoe's smoothed mean, howlongtobeat's review score.
+             */
+            score: number;
+            /** @description Source key. */
+            source: string;
+            /**
+             * Format: double
+             * @description Standard deviation of the votes, on the source's scale. null below two votes or when the source publishes no spread or histogram.
+             */
+            spread: number | null;
+            /**
+             * Format: double
+             * @description Upper end of the 90% interval of mean.
+             */
+            upper: number;
+            /**
+             * Format: int64
+             * @description Votes behind score.
+             */
+            vote_count: number;
+        } & {
+            [key: string]: unknown;
+        };
         Rating: {
             /** @description Vote histogram on the source-native scale, ascending and sparse: a value with no votes has no bucket. Present on the work detail face and on works/{id}/ratings only, never on a list face. The bars do not share one denominator: bangumi, dlsite and howlongtobeat publish the histogram beside the aggregate, so their bars sum to vote_count; erogamescape bars come from an independently synced reviews mirror, so their sum is its own denominator and need not equal vote_count; vndb bars omit votes held on private lists, so they sum to at most vote_count. */
             distribution?: components["schemas"]["RatingBucket"][];
@@ -9019,6 +9211,62 @@ export interface components {
             rating: components["schemas"]["UserRating"] | null;
             /** @description Work the rating is on; on a gone entry, the work it was on when it was deleted. */
             work_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        RatingModel: {
+            /**
+             * Format: date-time
+             * @description When the model was fitted.
+             */
+            fitted_at: string;
+            /** @description Fit id. Changes when the model is refitted, nightly. */
+            id: string;
+            /**
+             * Format: double
+             * @description Coverage of every lower/upper pair. Always 0.9.
+             */
+            interval: number;
+            /**
+             * @description Type discriminant. Always rating_model.
+             * @enum {string}
+             */
+            object: "rating_model";
+            /** @description Per-source parameters, in the fixed source order. */
+            sources: components["schemas"]["RatingModelSource"][];
+            /**
+             * Format: int64
+             * @description Method version. A new version can change every derived number.
+             */
+            version: number;
+        } & {
+            [key: string]: unknown;
+        };
+        RatingModelSource: {
+            /** @description Whether this source contributes to the consensus. A source needs enough works shared with others to be calibrated. */
+            in_consensus: boolean;
+            /**
+             * Format: double
+             * @description How many votes the prior is worth: a work with this many votes has its mean pulled halfway. Estimated from the data.
+             */
+            prior_votes: number;
+            /**
+             * Format: double
+             * @description Highest score the source's scale allows.
+             */
+            scale_max: number;
+            /**
+             * Format: double
+             * @description Lowest score the source's scale allows.
+             */
+            scale_min: number;
+            /** @description Source key. */
+            source: string;
+            /**
+             * Format: int64
+             * @description Works this source rated.
+             */
+            works: number;
         } & {
             [key: string]: unknown;
         };
@@ -13664,6 +13912,167 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCatalogRankings: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from a prior next_cursor. Must start with cur_. */
+                cursor?: string;
+                /** @description Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. */
+                limit?: string;
+                /** @description basic (default) or full, for the work inside each entry. */
+                view?: string;
+                /** @description Comma-separated blocks of the work inside each entry, as on GET /v2/catalog/works. Unknown token is 400 UNKNOWN_INCLUDE. */
+                include?: string;
+                /** @description true to include total. Only true or false. */
+                include_total?: string;
+                /** @description Comma-separated facet names over the ranked population: tag_id, company_id, olang, content_rating, platform, circulation. */
+                facets?: string;
+                /** @description true includes r18. false or absent hides r18. Only true or false. */
+                nsfw?: string;
+                /** @description consensus (default) ranks by every source combined; a source key (vndb, bangumi, dlsite, erogamescape, nextmoe, howlongtobeat) ranks by that source alone. */
+                by?: string;
+                /** @description The statistic to rank by. With by=consensus: lower, upper, mean, percentile, divergence, votes, sources. With a source: lower, upper, mean, median, native, percentile, spread, votes. The default is lower for order=desc and upper for order=asc: the bottom of the 90% interval for a best-of list, so a handful of enthusiastic votes cannot outrank an established work, and its top for a worst-of list, so a work is listed as bad only when it is bad with confidence. mean ranks by the best estimate; native by the source's own published score; divergence by how much the sources disagree. */
+                metric?: string;
+                /** @description vn (default) ranks visual novels only: works a visual-novel or adult-game source vouches for (VNDB, DLsite, a site that claimed the work, a Bangumi listing tagged as a galgame or novel game, or an adult rating with no Steam or HowLongToBeat listing). all also ranks the console and PC games the catalog's imports carry, such as RPGs and action games. */
+                scope?: string;
+                /** @description desc (default, best first) or asc (worst first). */
+                order?: string;
+                /** @description by=consensus only: comma-separated source keys to build the consensus from, for example erogamescape,bangumi. Absent = every source. Every number in consensus then covers only these sources. */
+                sources?: string;
+                /** @description by=consensus only: keep works at least this many of the consensus sources rated, 1-6. */
+                min_sources?: string;
+                /** @description Vote floors, comma-separated. A bare number applies to by= (the total over the consensus sources for by=consensus); source:number applies to that source, for example erogamescape:50,bangumi:100. Every floor must hold. */
+                min_votes?: string;
+                /** @description Vote ceilings, in the same form as min_votes, for lists of lesser-known works: min_votes=5&max_votes=50 keeps works between five and fifty votes. */
+                max_votes?: string;
+                /** @description Keep works whose value (in the list's unit) is at least this. */
+                score_min?: string;
+                /** @description Keep works whose value (in the list's unit) is at most this. */
+                score_max?: string;
+                /** @description Release year, or an inclusive range such as 2015-2020. Cannot be combined with released_after or released_before. */
+                year?: string;
+                /** @description YYYY-MM-DD inclusive, on each work's release_date. */
+                released_after?: string;
+                /** @description YYYY-MM-DD inclusive, on each work's release_date. */
+                released_before?: string;
+                /** @description commercial: a game brand made or sold it. doujin: only a doujin circle did. Works with neither credit match neither. */
+                circulation?: string;
+                /** @description Comma-separated platform tokens (win, ps4, swi, …), any of. Open vocabulary; unknown values match nothing. */
+                platform?: string;
+                /** @description Minutes. Keep works whose playtime is at least this; playtime is the median of the sources' estimates. */
+                playtime_min?: string;
+                /** @description Minutes. Keep works whose playtime is at most this. */
+                playtime_max?: string;
+                /** @description Closed: all_ages, sensitive, r18. r18 requires nsfw=true. */
+                content_rating?: string;
+                /** @description Comma-separated closed editorial axis: sfw, nsfw. */
+                content_limit?: string;
+                /** @description true or false. Absent = no gate. */
+                claimed?: string;
+                /** @description Catalog company id. */
+                company_id?: string;
+                /** @description Comma-separated canonical tag ids, AND, max 10. */
+                tag_id?: string;
+                /** @description Comma-separated canonical tag ids, max 100. Drops every work that carries any of them. */
+                exclude_tag_id?: string;
+                /** @description Comma-separated canonical tag ids, max 100. As exclude_tag_id, and each id also drops the works carrying any tag below it. */
+                exclude_tag_tree?: string;
+                /** @description Catalog series id. */
+                series_id?: string;
+                /** @description Catalog engine id. */
+                engine_id?: string;
+                /** @description Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. */
+                olang?: string;
+                /** @description 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. */
+                page?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListRanking"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

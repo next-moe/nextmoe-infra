@@ -98,6 +98,24 @@ func (a *osAdapter) SearchWorks(ctx context.Context, q spec.WorksQuery) (WorksRe
 	return out, nil
 }
 
+func (a *osAdapter) SearchRankings(ctx context.Context, q spec.RankingQuery) (RankingResult, error) {
+	res, err := a.eng.SearchRankings(ctx, q)
+	if err != nil {
+		return RankingResult{}, err
+	}
+	out := RankingResult{Total: res.Total, Facets: res.Facets}
+	for i, docID := range res.DocIDs {
+		id, ok := WorkDocIDToWorkID(docID)
+		if !ok {
+			slog.Warn("rankings search: hit with unparseable doc id dropped", "doc_id", docID)
+			continue
+		}
+		out.IDs = append(out.IDs, id)
+		out.Values = append(out.Values, res.Values[i])
+	}
+	return out, nil
+}
+
 func (a *osAdapter) SearchCharacters(ctx context.Context, q spec.CharacterQuery) (CharactersResult, error) {
 	res, err := a.eng.SearchCharacters(ctx, q)
 	if err != nil {

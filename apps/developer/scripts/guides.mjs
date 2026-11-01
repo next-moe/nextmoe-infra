@@ -40,6 +40,7 @@ export const GUIDE_SECTIONS = [
       'user-data',
       'play-records',
       'folders',
+      'rankings',
       'native-app',
       'best-practices'
     ]

@@ -12,6 +12,7 @@ import (
 	"api/internal/platform/catalog/dto"
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/ratingmodel"
 	catsearch "api/internal/platform/catalog/search"
 	"api/pkg/imageclient"
 
@@ -34,6 +35,7 @@ type PublicService struct {
 	worksEmbed   catsearch.Embedder
 	traitCounts  *traitCountCache
 	engineRaters engineRatersCache
+	ratingModel  *ratingmodel.Cache
 }
 
 // FlushTotals empties the include_total count cache so the next read recounts.
@@ -45,7 +47,8 @@ func (s *PublicService) FlushTotals() {
 func NewPublicService(db *gorm.DB, read *ReadService, resolve *ResolveService, cdnBase string) *PublicService {
 	s := &PublicService{db: db, read: read, resolve: resolve,
 		mediums: map[int16]string{}, sources: map[int16]string{}, cdnBase: cdnBase,
-		totals: newTotalsCache(), workCounts: newTotalsCache(), traitCounts: newTraitCountCache()}
+		totals: newTotalsCache(), workCounts: newTotalsCache(), traitCounts: newTraitCountCache(),
+		ratingModel: ratingmodel.NewCache(db)}
 	var rows []struct {
 		ID  int16
 		Key string
