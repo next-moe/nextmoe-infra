@@ -14,11 +14,22 @@ ask "why this way and not the obvious way", answer it here.>
 
 ## Your environment
 
-- You run under a kernel sandbox: you may write inside this repository, `/tmp` and `~/.grok`,
-  and nowhere else on this machine. A write outside those fails with `Permission denied` — that
-  is the sandbox, not a bug, and it is not to be worked around.
-- Reads are unrestricted, but **do not read or print `apps/api/.env` or any credential file**
-  (it carries live tokens). If a task seems to need one, stop and report it.
+- You run under a kernel sandbox (`workspace`). You may write this repository, `/tmp`,
+  `/var/tmp`, and `~/.grok`, and nowhere else. These paths inside `~/.grok` stay read-only:
+  `config.toml`, `trusted_folders.toml`, `managed_config.toml`, `requirements.toml`,
+  `sandbox.toml`, `hooks/`, `hooks-paths`, `bundled/`, `bundles/`. A write outside the
+  writable set fails with `Permission denied`. That is the sandbox. Do not work around it.
+- Reads are unrestricted, but **do not read or print `apps/api/.env`, the repo-root `.env`,
+  or any credential file**. Those two `.env` files are also blocked by a permission rule.
+  While that rule is in force the terminal refuses a command whose files it cannot name:
+  command substitution (`$(…)` and backticks), background `&`, control flow, a glob that
+  might match a blocked file, and a recursive search of a tree that contains one. Search a
+  narrower path (`apps/api/internal`, `apps/api/cmd`) or use your grep tool. Name files by
+  absolute path: a literal `sh -c` script is checked, but a relative path after `cd` is not.
+  If a task seems to need a credential, stop and report it.
+- <Delete if not applicable:> Paths outside this task's scope are blocked for writing by a
+  permission rule; a refusal there means the plan is wrong — stop and report, do not route around
+  it.
 - You have a shell. You may run **only** these commands, and nothing else:
   - `<exact list — e.g. go build ./..., go vet ./<pkg>, gofmt -l <paths>, go test ./<pkg>, rg, git log/diff/status>`
   - Run them. A change that does not compile is not finished work. The orchestrator re-runs
