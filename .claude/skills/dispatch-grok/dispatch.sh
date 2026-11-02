@@ -5,9 +5,9 @@
 #
 # Expects <GROK_OUT_ROOT>/<slug>/task.md to exist. Writes run.json, stderr.log and
 # debug.log beside it. Extra arguments are passed straight through to grok — that is
-# where the per-task --allow 'Write(<glob>)' / 'Edit(<glob>)' rules go.
+# where the per-task --deny 'Write(<glob>)' rules for out-of-scope paths go.
 #
-# Knobs: GROK_SANDBOX_PROFILE (default workspace), GROK_PERMISSION_MODE (unset),
+# Knobs: GROK_SANDBOX_PROFILE (default workspace; read-only for audits),
 # GROK_MAX_TURNS (default 200).
 #
 # Run this in the background: a real dispatch takes minutes.
@@ -20,19 +20,21 @@ root="${GROK_OUT_ROOT:?set GROK_OUT_ROOT to a writable directory under /tmp}"
 out="$root/$slug"
 [ -f "$out/task.md" ] || { echo "dispatch: missing $out/task.md" >&2; exit 2; }
 
-# The sandbox is the only fence left (SKILL.md §2): since grok 1.0.30 + this box's
-# always-approve config, --allow rules enforce nothing and the executor has a shell.
-# `workspace` = kernel-enforced write access to the repo, /tmp and ~/.grok, nothing
-# else; reads and the network stay open. `read-only` and `strict` are NOT options
-# here — they need bubblewrap to bind /run/containerd and die before the first turn.
-MODE_ARGS=()
-[ -n "${GROK_PERMISSION_MODE:-}" ] && MODE_ARGS=(--permission-mode "$GROK_PERMISSION_MODE")
+repo="$(git rev-parse --show-toplevel)"
+
+# --allow is not a closed allowlist, so it is not a fence (SKILL.md §2). Without
+# --always-approve a headless refusal prints "permission required:" and can still
+# exit 0. --cwd is the repo root: workspace writes the session directory.
+DENY_ARGS=()
+for f in "$repo/apps/api/.env" "$repo/.env"; do
+  DENY_ARGS+=(--deny "Read($f)" --deny "Write($f)")
+done
 
 grok --prompt-file "$out/task.md" \
+     --cwd "$repo" \
+     --always-approve \
      --sandbox "${GROK_SANDBOX_PROFILE:-workspace}" \
-     "${MODE_ARGS[@]+"${MODE_ARGS[@]}"}" \
-     --allow "Write($out/**)" \
-     --allow "Read($out/**)" \
+     "${DENY_ARGS[@]}" \
      --output-format json \
      --max-turns "${GROK_MAX_TURNS:-200}" \
      --debug-file "$out/debug.log" \
@@ -48,17 +50,27 @@ fi
 stop=$(jq -r '.stopReason // "?"' "$out/run.json")
 turns=$(jq -r '.num_turns // "?"' "$out/run.json")
 cost=$(jq -r '.total_cost_usd // "?"' "$out/run.json")
-printf 'stopReason=%s turns=%s cost_usd=%s out=%s\n' "$stop" "$turns" "$cost" "$out"
+# A refusal comes back to the model as a tool result and the run still ends end_turn,
+# and the model need not repeat it in .text; the debug log records each one.
+denied=$(grep -c -e 'deny rule matched' -e 'could not be checked against the permission rules' "$out/debug.log" 2>/dev/null || true)
+denied=${denied:-0}
+printf 'stopReason=%s turns=%s cost_usd=%s refused_tool_calls=%s out=%s\n' "$stop" "$turns" "$cost" "$denied" "$out"
 
 [ -s "$out/stderr.log" ] && { echo '--- stderr ---' >&2; tail -c 2000 "$out/stderr.log" >&2; }
 
+if [ "$denied" != "0" ]; then
+  echo "dispatch: $denied tool call(s) refused by a deny rule or as uncheckable — check the report for routed-around steps" >&2
+fi
+
+# Headless prints this once and can still exit 0. --always-approve makes it unreachable
+# unless a later flag overrides the mode.
+if [ -s "$out/stderr.log" ] && grep -q 'permission required:' "$out/stderr.log"; then
+  echo 'dispatch: a tool call was refused because headless cannot prompt; the process may still have exited 0' >&2
+  exit 1
+fi
+
 if [ "$stop" != "end_turn" ]; then
-  # stopReason "cancelled" covers both a denied tool call and turn exhaustion.
-  # Only the debug log distinguishes them, which is why it is always written.
-  if rg -q 'PermissionCancelled' "$out/debug.log" 2>/dev/null; then
-    echo 'dispatch: a tool call was DENIED — a missing --allow rule under GROK_PERMISSION_MODE, or a deny rule' >&2
-    rg -o 'confirmation floor tool="[^"]*"' "$out/debug.log" | sort -u >&2 || true
-  elif [ "$turns" -ge "${GROK_MAX_TURNS:-200}" ] 2>/dev/null; then
+  if [ "$turns" -ge "${GROK_MAX_TURNS:-200}" ] 2>/dev/null; then
     echo 'dispatch: turn budget exhausted — raise GROK_MAX_TURNS or split the task' >&2
   else
     echo "dispatch: run ended as '$stop'; inspect $out/debug.log" >&2
