@@ -102,7 +102,7 @@ echo "dump timestamp: $(cat dump/TIMESTAMP 2>/dev/null || echo unknown)"
 # Every staged table must be present BEFORE the first TRUNCATE: each file is
 # its own transaction, so a file missing halfway through would leave earlier
 # tables replaced and later ones stale — a torn staging schema.
-FILES="vn vn_titles chars chars_names chars_vns images vn_relations staff staff_alias
+FILES="vn vn_titles chars chars_names chars_vns images vn_screenshots vn_relations staff staff_alias
 vn_staff vn_seiyuu traits traits_parents chars_traits tags tags_parents tags_vn
 producers releases releases_vn releases_producers releases_platforms
 releases_titles engines extlinks releases_extlinks vn_extlinks producers_extlinks

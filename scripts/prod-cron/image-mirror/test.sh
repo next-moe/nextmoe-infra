@@ -20,6 +20,7 @@ install_fakes() {
   : > "$td/vndb/.lock"
   printf 'cv/50/150.jpg\n' > "$td/ctl/files/covers"
   printf 'ch/50/250.jpg\nch/12/12.jpg\n' > "$td/ctl/files/portraits"
+  printf 'sf/09/9.jpg\n' > "$td/ctl/files/shots"
   printf 'RJ01\nVJ02\n' > "$td/ctl/files/dlsite"
   printf '101\n102\n' > "$td/ctl/files/bgmcovers"
   printf '7\n9\n' > "$td/ctl/files/bgmlogos"
@@ -103,6 +104,7 @@ script=$3
 case "$script" in
   *backfill-vndb-covers*) tool=covers ;;
   *backfill-character-portraits*) tool=portraits ;;
+  *backfill-vndb-screenshots*) tool=shots ;;
   *backfill-dlsite-media*) tool=dlsite ;;
   *backfill-bangumi-covers*) tool=bgmcovers ;;
   *backfill-label-logos*) tool=bgmlogos ;;
@@ -135,6 +137,7 @@ else
   case "$key" in
     covers+dry) echo 'INFO backfill-vndb-covers summary result="candidates=1168 no_image=1006 portrait=150 landscape=12 planned=162 uploaded=0 dedup=0 rejected=0 errors=0 local=0 quota=false unrated=0 missing=0 to_fetch=1"' ;;
     portraits+dry) echo 'INFO char-portraits DRY forecast candidates=154912 skipped_has_hash=147947 local_present=0 missing_file=2 bad_id=0' ;;
+    shots+dry) echo 'INFO backfill-vndb-screenshots summary result="candidates=46750 no_shots=30335 unrated=12 works=1 planned=1 to_fetch=1 incomplete=0 uploaded=0 dedup=0 rejected=0 errors=0 quota=false"' ;;
     dlsite+dry) echo 'INFO dlsite-media done summary="map[apply:false candidates:10751 errors:0 unmirrored_works:2]"' ;;
     *) echo "fake-ok $key" ;;
   esac
@@ -212,7 +215,7 @@ exit_is() { [ "$(cat "$1/ctl/exit")" = "$2" ]; }
 has_stamp() { [ -f "$1/base/state/last-success" ]; }
 has_alert() { [ -s "$1/ctl/alerts" ]; }
 applied() { n=$(grep -c "${2:-.}" "$1/ctl/apply.log" 2>/dev/null || true); echo "${n:-0}"; }
-vndb_applied() { applied "$1" 'backfill-vndb-covers\|backfill-character-portraits'; }
+vndb_applied() { applied "$1" 'backfill-vndb-covers\|backfill-character-portraits\|backfill-vndb-screenshots'; }
 dlsite_applied() { applied "$1" 'backfill-dlsite-media'; }
 bgm_applied() { applied "$1" 'backfill-bangumi-covers\|backfill-label-logos\|backfill-person-photos'; }
 rsynced() { [ -f "$1/ctl/rsync.args" ]; }
@@ -232,7 +235,7 @@ expect_dlsite_blocked() {
   if has_stamp "$1"; then fail "stamp written"; fi
   if ! has_alert "$1"; then fail "no alert"; fi
   if [ "$(dlsite_applied "$1")" != 0 ]; then fail "dlsite uploads ran"; fi
-  if [ "$(vndb_applied "$1")" != 2 ]; then fail "the vndb lane did not run on its own"; fi
+  if [ "$(vndb_applied "$1")" != 3 ]; then fail "the vndb lane did not run on its own"; fi
   if [ "$(bgm_applied "$1")" != 3 ]; then fail "the bangumi lane did not run on its own"; fi
   if [ -f "$1/base/env.dlsite" ]; then fail "env.dlsite left behind"; fi
 }
@@ -242,7 +245,7 @@ expect_bgm_blocked() {
   if has_stamp "$1"; then fail "stamp written"; fi
   if ! has_alert "$1"; then fail "no alert"; fi
   if [ "$(bgm_applied "$1")" != 0 ]; then fail "bangumi uploads ran"; fi
-  if [ "$(vndb_applied "$1")" != 2 ] || [ "$(dlsite_applied "$1")" != 1 ]; then fail "the other lanes did not run"; fi
+  if [ "$(vndb_applied "$1")" != 3 ] || [ "$(dlsite_applied "$1")" != 1 ]; then fail "the other lanes did not run"; fi
 }
 
 # --- T1: the happy path fetches exactly the listed files, uploads mirror-only, and cleans up ---
@@ -251,14 +254,15 @@ td=$(mktemp -d); install_fakes "$td"; run_job "$td"
 exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit"): $(tail -3 "$td/ctl/stdout")"
 has_stamp "$td" || fail "no stamp"
 has_alert "$td" && fail "alerted"
-printf 'ch/12/12.jpg\nch/50/250.jpg\ncv/50/150.jpg\n' > "$td/ctl/want.list"
+printf 'ch/12/12.jpg\nch/50/250.jpg\ncv/50/150.jpg\nsf/09/9.jpg\n' > "$td/ctl/want.list"
 cmp -s "$td/ctl/want.list" "$td/ctl/rsync.list" || fail "fetch list: $(cat "$td/ctl/rsync.list" 2>/dev/null)"
 grep -qx 'rsync://fake/vndb-img/' "$td/ctl/rsync.args" || fail "rsync source"
 grep -qx 'mirror/vndb/' "$td/ctl/rsync.args" || fail "rsync destination"
 cat > "$td/ctl/want.apply" <<'EOF'
 backfill-vndb-covers --from-dump --image-dir /w/mirror/vndb --mirror-only --workers 2 --upload-gap 200ms --apply
 backfill-character-portraits --vndb-image-dir /w/mirror/vndb --upload-gap 100ms --apply
-backfill-dlsite-media --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --upload-gap 100ms --apply
+backfill-vndb-screenshots --image-dir /w/mirror/vndb --limit 3000 --workers 4 --upload-gap 100ms --apply
+backfill-dlsite-media --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --workers 4 --upload-gap 100ms --apply
 backfill-bangumi-covers --bangumi-mirror /w/mirror/bangumi/covers --allow-landscape --upload-gap 100ms --apply
 backfill-label-logos --source bangumi --mirror-dir /w/mirror/bangumi/persons --upload-gap 100ms --apply
 backfill-person-photos --mirror-dir /w/mirror/bangumi/persons --upload-gap 100ms --apply
@@ -309,7 +313,7 @@ td=$(mktemp -d); install_fakes "$td"
 echo 'ch/50/250.jpg' > "$td/ctl/rsync-gone"
 run_job "$td"
 exit_is "$td" 0 || fail "rc 23 failed the run"
-[ "$(vndb_applied "$td")" = 2 ] || fail "uploads after rc 23: $(vndb_applied "$td")"
+[ "$(vndb_applied "$td")" = 3 ] || fail "uploads after rc 23: $(vndb_applied "$td")"
 rm -rf "$td"
 td=$(mktemp -d); install_fakes "$td"
 echo 10 > "$td/ctl/rc/rsync"
@@ -322,13 +326,14 @@ tend; rm -rf "$td"
 # --- T7: nothing to fetch skips rsync and still runs the (no-op) uploads ---
 tstart 7
 td=$(mktemp -d); install_fakes "$td"
-: > "$td/ctl/files/covers"; : > "$td/ctl/files/portraits"
+: > "$td/ctl/files/covers"; : > "$td/ctl/files/portraits"; : > "$td/ctl/files/shots"
 echo 'INFO backfill-vndb-covers summary result="planned=0 to_fetch=0"' > "$td/ctl/out/covers+dry"
 echo 'INFO char-portraits DRY forecast missing_file=0' > "$td/ctl/out/portraits+dry"
+echo 'INFO backfill-vndb-screenshots summary result="works=0 planned=0 to_fetch=0"' > "$td/ctl/out/shots+dry"
 run_job "$td"
 exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
 rsynced "$td" && fail "rsync ran with an empty list"
-[ "$(vndb_applied "$td")" = 2 ] || fail "uploads: $(vndb_applied "$td")"
+[ "$(vndb_applied "$td")" = 3 ] || fail "uploads: $(vndb_applied "$td")"
 tend; rm -rf "$td"
 
 # --- T8: one lane failing still runs the other, fails the run, and keeps the copy ---
@@ -548,7 +553,7 @@ grep -q 'RJ01/RJ01_img_smp9.jpg' "$td/base/state/dlsite-cdn-404" && fail "timeou
 grep -q 'RJ01008587/' "$td/base/state/dlsite-cdn-missing" && fail "403 in missing"
 grep -q 'RJ01/RJ01_img_smp9.jpg' "$td/base/state/dlsite-cdn-missing" && fail "timeout in missing"
 grep -qF -- '--mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --worknos-out' "$td/ctl/docker.args" || fail "dry run missing --cdn-missing"
-grep -qF -- '--mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --upload-gap' "$td/ctl/docker.args" || fail "apply missing --cdn-missing"
+grep -qF -- '--mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --workers' "$td/ctl/docker.args" || fail "apply missing --cdn-missing"
 tend; rm -rf "$td"
 
 # --- T24: expired entries drop before the dry run; a repeat 404 updates the date once ---
@@ -615,7 +620,7 @@ while [ $i -lt 100 ]; do echo "RJ$i" >> "$td/ctl/files/dlsite"; i=$((i + 1)); do
 IMAGE_MIRROR_DLSITE_BATCH=42 run_job "$td"
 exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
 [ "$(wc -l < "$td/base/state/dlsite.worknos")" = 42 ] || fail "fetch list not cut to 42"
-grep -qF -- '--limit' "$td/ctl/docker.args" && fail "the dry run was given --limit"
+grep -F 'backfill-dlsite-media' "$td/ctl/docker.args" | grep -qF -- '--limit' && fail "the dry run was given --limit"
 tend; rm -rf "$td"
 
 # --- T28: a batch of 3000 listed works passes the guard and the download and apply run ---
@@ -645,6 +650,42 @@ echo 29 > "$td/ctl/free"
 run_job "$td"; expect_dlsite_blocked "$td"
 [ -f "$td/ctl/crawler.args" ] && fail "the crawler ran on a short disk"
 grep -q 'FATAL: 29G free, the DLsite download needs 30G' "$td/base/logs/"run-*.log || fail "no reason logged"
+tend; rm -rf "$td"
+
+# --- T31: an unreadable or failed screenshots dry run blocks the VNDB lane ---
+tstart 31
+td=$(mktemp -d); install_fakes "$td"
+echo 'INFO backfill-vndb-screenshots summary result="works=1"' > "$td/ctl/out/shots+dry"
+run_job "$td"; expect_blocked "$td"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+echo 1 > "$td/ctl/rc/shots+dry"
+run_job "$td"; expect_blocked "$td"
+tend; rm -rf "$td"
+
+# --- T32: the dry run and the apply plan the same window of works ---
+tstart 32
+td=$(mktemp -d); install_fakes "$td"
+IMAGE_MIRROR_SHOTS_WORKS=7 run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
+n=$(grep -F 'backfill-vndb-screenshots' "$td/ctl/docker.args" | grep -cF -- '--limit 7' || true)
+[ "$n" = 2 ] || fail "--limit 7 on $n of the two screenshot runs"
+tend; rm -rf "$td"
+
+# --- T33: IMAGE_MIRROR_LANES runs only the named lanes; an unknown lane fails the run ---
+tstart 33
+td=$(mktemp -d); install_fakes "$td"
+IMAGE_MIRROR_LANES=dlsite run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
+[ "$(vndb_applied "$td")" = 0 ] || fail "vndb ran"
+[ "$(bgm_applied "$td")" = 0 ] || fail "bangumi ran"
+[ "$(dlsite_applied "$td")" = 1 ] || fail "dlsite did not run"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+IMAGE_MIRROR_LANES="dlsite vnbd" run_job "$td"
+exit_is "$td" 0 && fail "a typo passed"
+has_alert "$td" || fail "no alert"
+[ "$(dlsite_applied "$td")" = 1 ] || fail "the valid lane did not run"
 tend; rm -rf "$td"
 
 [ "$FAILED" -eq 0 ]
