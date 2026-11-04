@@ -71,7 +71,7 @@ func TestNonDelegableKeysAreRegistered(t *testing.T) {
 		sitePerm.MoemoepointAdjust, sitePerm.UsersAnonymize,
 		devapiPerm.PolicyManage,
 		shopPerm.Manage, shopPerm.Publish, shopPerm.Grant,
-		aiPerm.BudgetManage,
+		aiPerm.BudgetManage, aiPerm.LLMManage,
 		telemetryPerm.Manage,
 	} {
 		if !reg.IsNonDelegable(p) {

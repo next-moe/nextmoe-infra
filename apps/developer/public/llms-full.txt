@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 200 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 210 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -31,7 +31,7 @@
 ## 鉴权模型
 
 - 不带凭据：`/v2/catalog` 只读面（`claim-events` 除外）不注册、不带任何凭据就能调，返回与带密钥时逐字节相同，`nsfw=true` 照样可用；按 IPv4 地址或 IPv6 /64 计一份很小的额度（默认 30 次/分钟、1,000 次/天）。CORS 对所有来源开放，浏览器里可直接 fetch。
-- 应用密钥（`Authorization: Bearer nmk_live_…`）——量大了或从自己的服务端调用时使用，在 https://developer.nextmoe.dev 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read，/v2/moyu/* 与 /v2/sticker/* 两个下游面不需要 scope、任意有效密钥可调。/v2 只收 nmk_ 前缀的密钥。
+- 应用密钥（`Authorization: Bearer nmk_live_…`）——量大了或从自己的服务端调用时使用，在 https://developer.nextmoe.dev 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read，/v2/moyu/*、/v2/sticker/* 与 /v2/letmoe/* 三个下游面不需要 scope、任意有效密钥可调（两条 /file 路由除外：moyu 的要运营发放的 moyu:files；letmoe 的要 letmoe:files，每把密钥创建时自动带上）。/v2 只收 nmk_ 前缀的密钥。
 - 用户访问令牌（`Authorization: Bearer <access token>`）——/v2/me 与 /v2/moderation 读写的是某个用户自己的东西，用该用户经 OAuth 授权码 + PKCE 授权后的令牌，不是应用密钥。
 - v1 已于 2026-08-27 全面退役：/v1/catalog、/v1/news、/v1/store、/v1/playtime、/api/v1/catalog 与 /api/v1/user/catalog 一律返回 410，Link 指向 /v2。
 - `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 `/v2/catalog/schemas/{object}` 同样不要任何凭据。带应用密钥或带 `catalog:read` 的用户令牌读 `/v2/catalog` 时，走各自更高的额度。
@@ -39,8 +39,10 @@
 ## OpenAPI 原文（机器可读）
 
 - Public API v2：https://api.nextmoe.dev/v2/catalog/openapi.json
+- DLsite 分销面：https://api.nextmoe.dev/v2/catalog/openapi.json
 - moyu 补丁面：https://developer.nextmoe.dev/specs/moyu-openapi.yaml
 - sticker 表情包面：https://developer.nextmoe.dev/specs/sticker-openapi.yaml
+- letmoe 下载资源链接面：https://developer.nextmoe.dev/specs/letmoe-openapi.yaml
 
 游玩时长与编辑提案两个用户面不提供公开 spec 文件，以本站 Markdown 参考为准。
 
@@ -157,7 +159,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \
 
 返回的数据和匿名请求逐字节相同，只是额度记在你的应用上。
 
-自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（商店联盟链接）。[`/v2/moyu/*`](/docs/moyu-patches) 与 [`/v2/sticker/*`](/docs/sticker-packs) 两个下游面不需要任何 scope，任意有效密钥都能调。`claim_events:read` 由运营方按需授予，不能自助勾选。
+自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（[DLsite 分销链接](/docs/store)）。[`/v2/moyu/*`](/docs/moyu-patches)、[`/v2/sticker/*`](/docs/sticker-packs) 与 [`/v2/letmoe/*`](/docs/letmoe) 三个下游面不需要任何 scope，任意有效密钥都能调（两条 `/file` 下载路由除外：moyu 的要运营发放的 `moyu:files`；letmoe 的要 `letmoe:files`，每把密钥创建时自动带上，不用勾选）。`claim_events:read` 由运营方按需授予，不能自助勾选。
 
 分发出去的桌面客户端没有服务端可放密钥：要么继续匿名（每个用户各自按自己的 IP 计额度），要么改用用户访问令牌——见[原生桌面应用接入](/docs/native-app)。
 
@@ -177,11 +179,11 @@ curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \
 
 ## 三种身份
 
-| 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                        |
-| ------------ | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
+| 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                                                                                 |
+| ------------ | -------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 匿名         | 不带                                   | 任何人             | `/v2/catalog` 只读面（`claim-events` 除外，按 IP 限流）；`/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
-| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v2/moyu/*`、`/v2/sticker/*`                                           |
-| 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                             |
+| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v2/moyu/*`、`/v2/sticker/*`                                                                                                    |
+| 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                                                                                       |
 
 > [!NOTE]
 > 一条请求只带一个凭据。`/v2/catalog` 收两种凭据，意思是**二选一**，不是两个都带。服务端按 `Authorization` 里那一个值的前缀分道：`nmk_` 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。
@@ -204,16 +206,16 @@ curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \
 
 ### scope
 
-| scope               | 开什么                                                                          | 怎么拿                   |
-| ------------------- | ------------------------------------------------------------------------------- | ------------------------ |
+| scope               | 开什么                                                                          | 怎么拿                                      |
+| ------------------- | ------------------------------------------------------------------------------- | ------------------------------------------- |
 | `catalog:read`      | 整个 `/v2/catalog` 只读面                                                       | 控制台自助勾选；也可作为用户 scope 向人索取 |
-| `store:read`        | `/v2/store` 商店联盟链接与统计                                                  | 控制台自助勾选           |
-| `claim_events:read` | 认领事件 feed 与自家站点的审核队列状态（`claim_state=pending,declined,hidden`） | 运营方按需授予，不能自助 |
+| `store:read`        | [`/v2/store`](/docs/store) DLsite 分销链接与点击统计                            | 控制台自助勾选                              |
+| `claim_events:read` | 认领事件 feed 与自家站点的审核队列状态（`claim_state=pending,declined,hidden`） | 运营方按需授予，不能自助                    |
 
 `claim_events:read` 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。
 
 > [!NOTE]
-> [`/v2/moyu/*`](/docs/moyu-patches) 与 [`/v2/sticker/*`](/docs/sticker-packs) 两个下游面（面联邦，gateway-terminated）**不需要任何 scope**——任意有效应用密钥都能调用，网关只看密钥本身与限流。它们也**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
+> [`/v2/moyu/*`](/docs/moyu-patches)、[`/v2/sticker/*`](/docs/sticker-packs) 与 [`/v2/letmoe/*`](/docs/letmoe) 三个下游面（面联邦，gateway-terminated）**不需要任何 scope**——任意有效应用密钥都能调用，网关只看密钥本身与限流；唯一的例外是两条 `/file` 下载路由，由下游站点自己判：moyu 的要运营发放的 `moyu:files`；letmoe 的要 `letmoe:files`，每把密钥创建时自动带上。它们也**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
 
 ## 用户访问令牌
 
@@ -235,12 +237,12 @@ OAuth 端点的线格式是裸 RFC 6749（`{access_token, token_type, expires_in
 
 ## 认证失败长什么样
 
-| 状态 | `code`                   | 含义                               | 怎么办                        |
-| ---- | ------------------------ | ---------------------------------- | ----------------------------- |
-| 401  | `MISSING_CREDENTIAL`     | 没有 `Authorization` 头，而这个面不收匿名（`/v2/me`、`/v2/moderation`、`/v2/folders`、`/v2/store`、`claim-events`） | 带上对应的凭据 |
-| 401  | `INVALID_CREDENTIAL`     | 凭据存在，但无效、过期或已被吊销   | 换一把密钥；用户令牌则去刷新  |
-| 403  | `SCOPE_REQUIRED`         | 凭据有效，但缺这个操作要的 scope   | 在控制台补勾 scope 并重铸密钥；用户令牌则带上该 scope 重新授权 |
-| 403  | `USER_IDENTITY_REQUIRED` | 这个面要用户身份，你带的是应用密钥 | 改用用户访问令牌              |
+| 状态 | `code`                   | 含义                                                                                                                             | 怎么办                                                         |
+| ---- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 401  | `MISSING_CREDENTIAL`     | 没有 `Authorization` 头，而这个面不收匿名（`/v2/me`、`/v2/moderation`、`/v2/folders`、`/v2/store` 的链接与统计、`claim-events`） | 带上对应的凭据                                                 |
+| 401  | `INVALID_CREDENTIAL`     | 凭据存在，但无效、过期或已被吊销                                                                                                 | 换一把密钥；用户令牌则去刷新                                   |
+| 403  | `SCOPE_REQUIRED`         | 凭据有效，但缺这个操作要的 scope                                                                                                 | 在控制台补勾 scope 并重铸密钥；用户令牌则带上该 scope 重新授权 |
+| 403  | `USER_IDENTITY_REQUIRED` | 这个面要用户身份，你带的是应用密钥                                                                                               | 改用用户访问令牌                                               |
 
 错误体是 RFC 9457 `application/problem+json`，字段与分支写法见 [错误处理](/docs/errors)。
 
@@ -1398,6 +1400,7 @@ GET /v2/ratings/changes?limit=100
 | 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读）               | [本页](#works)                               |
 | 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                                     | [本页](#followed-companies)                  |
 | 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                                     | [本页](#blocked-tags)                        |
+| 浏览记录                       | `/v2/me/history`                                                                  | 用户令牌，无 scope；`scope=all` 读要 `history:read`    | [本页](#history)                             |
 | 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                                     | [本页](#calendar)                            |
 | 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                                         | [本页](#edit-capabilities)                   |
 | 编辑配额                       | `/v2/me/edit-quota`                                                               | `catalog:edit`                                         | [本页](#edit-quota)                          |
@@ -1454,6 +1457,23 @@ DELETE /v2/me/blocked-tags/{tag_id}
 `PUT` 的 body 可选，`mode` 是 `tree`（缺省）或 `exact`。已经屏蔽过的再 PUT，只改模式，除此之外不再写。未知标签是 404。超出 100 条是 422。
 
 `DELETE` 是 204，没有 body，本来就没屏蔽也是 204。单条 GET 在没屏蔽时是 404。
+
+## 浏览记录
+
+```http
+GET    /v2/me/history
+PUT    /v2/me/history/works/{work_id}
+DELETE /v2/me/history/works/{work_id}
+DELETE /v2/me/history
+```
+
+只要用户令牌，不需要 scope。浏览记录**按应用分开**：每个应用只读、只删自己记下的。用户在作品页真正停留之后再 `PUT`，不要在预取或服务端渲染时发；一分钟内重复的访问只算一次。`PUT` 和两个 `DELETE` 都是 204，没有 body。作品不在上线状态时 `PUT` 是 404。
+
+列表按最近一次访问排序，最新的在前，每一项只带 id，用 `/v2/catalog/works?ids=` 获取作品信息。全年龄站点要带 `content_limit=sfw`，这样用户在成人站看过的作品不会出现在它的页面上。记录保留 **90 天**，每个应用最多 **500** 条，超出的旧记录会被删掉。
+
+`scope=all` 按作品合并所有应用的记录。读要同时满足两件事：令牌带 `history:read`，并且用户在 `/v2/me/privacy` 把 `browsing_history_sharing` 设成了 `shared`。缺前者是 `403 SCOPE_REQUIRED`，缺后者是 `403 BROWSING_HISTORY_NOT_SHARED`。删除带 `scope=all` 时两者都不需要。
+
+用户在 `/v2/me/privacy` 把 `browsing_history` 设成 `off`，会立刻删掉所有应用的浏览记录；之后 `PUT` 仍然是 204，但服务器上什么都不存。站点可以读 `/v2/me/privacy` 来决定要不要显示「最近浏览」。第三方应用只能把这两个开关往更私密的方向改（关闭记录、取消共享），反过来改是 `422`，reason 为 `NOT_PERMITTED`。
 
 ## 我的发售月历
 
@@ -1857,6 +1877,131 @@ DELETE /v2/moderation/users/{uid}/folders
 
 ---
 
+# 评分排行榜
+
+`GET /v2/catalog/rankings` 把作品按评分排好序，一次给出名次、用来排名的值、每个来源的原始分与模型估计。它读的是搜索索引，所以 `/v2/catalog/works` 上能用的筛选（标签、会社、系列、引擎、语言、发售日、分级……）这里都能用。
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/rankings?limit=20"
+```
+
+不带凭据就能调用，按 IP 限流；带应用密钥或带 `catalog:read` 的用户令牌走各自更高的额度。
+
+## 每个数字怎么读
+
+一个条目长这样（节选）：
+
+```json
+{
+  "object": "ranking_entry",
+  "rank": 1,
+  "value": 87.52,
+  "work": { "id": "60", "display_name": "命运石之门", "…": "…" },
+  "consensus": {
+    "score": 91.65,
+    "lower": 87.52,
+    "upper": 95.78,
+    "percentile": 99.99,
+    "source_count": 6,
+    "vote_count": 27455,
+    "divergence": 0.44
+  },
+  "per_source": [
+    {
+      "source": "erogamescape",
+      "score": 93,
+      "vote_count": 504,
+      "mean": 90.94,
+      "lower": 89.94,
+      "upper": 91.93,
+      "median": 92.93,
+      "spread": 11,
+      "percentile": 99.97
+    }
+  ]
+}
+```
+
+| 字段                    | 含义                                                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `per_source[].score`    | 来源自己发布的分数，原样不动。VNDB 是它的贝叶斯分、Bangumi 与 DLsite 是均值、批评空间是中央值。                                            |
+| `per_source[].mean`     | 在该来源刻度上的**真实水平估计**：作品自身的均值，向「同等票数的作品通常得到的分数」收缩。票越少收缩越多，三票满分排不到三千票的名作前面。 |
+| `lower` / `upper`       | 90% 区间的两端。区间越窄，说明这个分数越可信。                                                                                             |
+| `median`                | 同样收缩后的中位票，批评空间式的「中央值」口径。                                                                                           |
+| `spread`                | 投票的标准差，越大说明评价越两极。                                                                                                         |
+| `percentile`            | 在该来源评过的作品里超过了多少比例。                                                                                                       |
+| `consensus.score`       | **共识分**，按偏差值读：50 是被两个以上来源评过的典型作品，每 10 分是一个标准差；60 以上就是明显好于平均。                                 |
+| `consensus.lower`       | 共识分 90% 区间的下端。默认就按它排名。                                                                                                    |
+| `consensus.divergence`  | 来源之间的分歧，以百分位点计：一个来源排在前 5%、另一个排在中游，就是几十点的分歧。                                                        |
+| `value` 与列表的 `unit` | 用来排名的那个值；`unit` 告诉你它的单位（`deviation` 偏差值、`native` 来源刻度、`percentile`、`votes` 等）。                               |
+
+> [!TIP]
+> 展示时可以直接把 `consensus.score` 当作「综合评分」，把 `lower`–`upper` 画成误差条，再把 `per_source` 列成各站原分。原分永远在，用户可以自己核对。
+
+### 共识分怎么来的
+
+1. 每个来源单独估计一次真实水平：经验贝叶斯，先验的均值随票数变化（票少的作品整体偏低，这是数据里看到的规律），先验的强度从数据里估计。`model.sources[].prior_votes` 就是这个强度：票数等于它时，均值被拉回一半。
+2. 每个来源的估计在该来源内部转成正态分数，这样 5 星制和 100 分制可以比较，DLsite 普遍偏高也不再是问题。
+3. 在被多个来源共同评过的作品上拟合一个单因子模型，校正各来源受众的系统差异；再按每个来源对这部作品「了解多少」（票数、该来源与共识的吻合度）加权合并。
+
+模型每夜重新拟合，`model` 块告诉你当前用的是哪一次拟合。拟合时会做回测：把一个来源藏起来，用其余来源去预测它，共识分在全部六个来源上都比简单平均各站百分位更准。
+
+## 常见榜单
+
+| 想要的榜单                     | 查询                                                    |
+| ------------------------------ | ------------------------------------------------------- |
+| 综合神作榜                     | `?nsfw=true`                                            |
+| 全年龄综合榜                   | 不带 `nsfw`（默认隐藏 R18）                             |
+| 批评空间中央值榜（50 票以上）  | `?by=erogamescape&metric=native&min_votes=50&nsfw=true` |
+| 批评空间收缩中位数榜           | `?by=erogamescape&metric=median&nsfw=true`              |
+| 某年度榜                       | `?year=2020&nsfw=true`，或区间 `?year=2015-2020`        |
+| 同人 / 商业分开排              | `?circulation=doujin` / `?circulation=commercial`       |
+| DLsite 同人榜                  | `?by=dlsite&circulation=doujin&nsfw=true`               |
+| 只信批评空间和 Bangumi         | `?sources=erogamescape,bangumi&min_sources=2`           |
+| 至少三个站都评过               | `?min_sources=3`                                        |
+| 冷门佳作（票少但好）           | `?metric=mean&min_votes=5&max_votes=50`                 |
+| 争议作（各站分歧最大）         | `?metric=divergence`                                    |
+| 两极分化（同一站内评价分裂）   | `?by=bangumi&metric=spread&min_votes=100`               |
+| 地雷榜                         | `?order=asc&min_votes=50`                               |
+| 含普通游戏的全游戏榜           | `?scope=all`                                            |
+| 短篇佳作（10 小时以内）        | `?playtime_max=600`                                     |
+| Switch 平台榜                  | `?platform=swi`                                         |
+| 某会社 / 某系列 / 某标签内排名 | `?company_id=…` / `?series_id=…` / `?tag_id=…`          |
+| 偏差值 60 到 70 之间           | `?score_min=60&score_max=70`                            |
+
+> [!NOTE]
+> 默认排序用区间的**下端**（`metric=lower`）：只有确定地好才会排在前面。`order=asc` 时默认换成区间的**上端**（`metric=upper`），只有确定地差才进地雷榜。想按最佳估计排，用 `metric=mean`。
+
+## 全部参数
+
+| 参数                            | 说明                                                                                                                                                                    |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `by`                            | `consensus`（默认）或来源键：`vndb`、`bangumi`、`dlsite`、`erogamescape`、`nextmoe`、`howlongtobeat`                                                                    |
+| `metric`                        | 共识：`lower`、`upper`、`mean`、`percentile`、`divergence`、`votes`、`sources`。单一来源：`lower`、`upper`、`mean`、`median`、`native`、`percentile`、`spread`、`votes` |
+| `order`                         | `desc`（默认）或 `asc`                                                                                                                                                  |
+| `scope`                         | `vn`（默认）只排视觉小说；`all` 连同目录里的家用机 / PC 普通游戏（RPG、动作等）一起排                                                                                   |
+| `sources`、`min_sources`        | 只用这些来源构成共识；至少被几个来源评过。仅 `by=consensus`                                                                                                             |
+| `min_votes`、`max_votes`        | `100` 作用于 `by`（共识时是总票数）；`erogamescape:50,bangumi:100` 按来源分别设下限 / 上限                                                                              |
+| `score_min`、`score_max`        | 按列表的 `unit` 过滤 `value`                                                                                                                                            |
+| `year`、`released_after/before` | 年份或闭区间；二者不能同用                                                                                                                                              |
+| `circulation`                   | `commercial` 或 `doujin`                                                                                                                                                |
+| `platform`                      | 逗号分隔，任一匹配                                                                                                                                                      |
+| `playtime_min`、`playtime_max`  | 分钟；取各来源时长估计的中位数                                                                                                                                          |
+| 作品筛选                        | `content_rating`、`content_limit`、`claimed`、`company_id`、`tag_id`、`exclude_tag_id`、`exclude_tag_tree`、`series_id`、`engine_id`、`olang`                           |
+| `facets`                        | `tag_id`、`company_id`、`olang`、`content_rating`、`platform`、`circulation`，统计范围是参与排名的作品                                                                  |
+| `view`、`include`               | 塑形条目里的 `work`，与 `/v2/catalog/works` 相同                                                                                                                        |
+| `limit`、`cursor`、`page`       | 见 [分页](/docs/pagination)；`page=` 模式直接给出 `total`                                                                                                               |
+
+## 注意
+
+- 排名读每夜重建的索引，新评分最晚第二天进榜；条目里的 `per_source` 是实时的。
+- 首次部署、模型还没拟合时返回 `503`。
+- 默认只排视觉小说：作品要有 VNDB 或 DLsite 关联、被站点认领、在 Bangumi 上被标为 Galgame / 视觉小说类，或是不在 Steam / HowLongToBeat 上的 R18 作品。规则看来源，少数边界作品会判错；要看全部游戏用 `scope=all`。
+- 名次是全榜位置，同值时按热度、id 排序，所以每个名次都唯一。
+- 一部作品只被一个来源评过时也有共识分，但区间更宽；按默认的 `lower` 排名时会自然靠后。
+
+---
+
 # 原生桌面应用接入
 
 分发出去的桌面客户端**没有机密可言**。应用密钥躺在用户机器上的可执行文件里，`strings` 一遍就出来，抓一次 HTTPS 也出来——而泄漏的是**你的**密钥：配额、限流、封禁都算在你的应用头上，吊销一次所有用户一起断。
@@ -2246,6 +2391,12 @@ POST   /v2/me/folders/<id>/items             → 207，{"items":[{"work_id":"...
 - `nsfw=` 是你自己控制的闸，**默认隐藏 r18**。要全量就显式传 `nsfw=true`，尤其是在做镜像的时候——不传会在本地留下你察觉不到的空洞。
 - `content_rating`（事实分级）和 `content_limit`（编辑展示轴）是两个不同的东西，不要混用。
 - 别把 `nsfw=true` 硬编码进面向终端用户的读路径——那应该跟着用户自己的设置走。
+
+## 封面
+
+- **作品封面读 `cover`，不要取 `covers[0]`。** `cover` 是选举出来的竖版封面：编辑钉选、投票、官方封面排序、来源与清晰度都已经算进去，NextMoe 站点自己渲染的就是它。`covers[]`（以及 `/v2/catalog/works/{id}/covers`）是作品的全部封面行，按图库顺序排列，第一项只是排在最前，不是选出来的那张。
+- **成人作品要真封面就带 `nsfw=true`。** Bangumi 给成人游戏的封面是打码的；只有带 `nsfw=true` 且作品的 `content_limit` 为 `nsfw` 时，选举才会改用 VNDB 的封面。不带它，`cover` 可能是 Bangumi 的打码图，或者 `origin: "censored"` 的模糊替身——这是按设计给没选成人内容的读者的结果，不是 bug。
+- **自己遍历 `covers[]` 时先过滤。** 不论 `nsfw` 取什么，各种 `sexual` 等级的行都会列出，其中也有 Bangumi 打码图和 `source: "censored"` 的替身。按 `sexual` 与读者设置过滤，按 `source` 挑选。
 
 ## 监控
 
@@ -2833,7 +2984,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 
 # Problem types
 
-## 错误码注册表（顶层 `code`，共 51 个）
+## 错误码注册表（顶层 `code`，共 52 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -2883,6 +3034,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 | code | HTTP | title | description |
 | --- | --- | --- | --- |
 | `USER_IDENTITY_REQUIRED` | 403 | User identity required | An application key was used for an operation that needs a user token. |
+| `BROWSING_HISTORY_NOT_SHARED` | 403 | Browsing history not shared | scope=all asked for every app's browsing history, and the account keeps it per app. Only the account can change that, with browsing_history_sharing on PATCH /v2/me/privacy from a first-party app; this app still reads what it recorded itself with scope=app. |
 | `SITE_NOT_BOUND` | 403 | Site not bound | The client behind the token is not bound to a catalog site. |
 | `RELEASE_CREATION_DISABLED` | 403 | Release creation disabled | The proposal tried to create a release. This is a product constraint, not a defect. |
 | `ALREADY_EXISTS` | 409 | Already exists | The same subject already has a live record for this target. |
@@ -3455,7 +3607,7 @@ Closed · 12 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：185
+- 端点数：187
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -3468,6 +3620,8 @@ Closed · 12 tokens
 > /v2/me/followed-companies 与 /v2/me/calendar 同样只要用户令牌、不需要任何 scope。关注列表只对本人可见，公开的只有 /v2/catalog/companies/{id} 详情上的 follower_count；/v2/me/calendar 与公开月历同参数，只列关注厂商的作品，且缺省不按语言、不排除同人。
 
 > /v2/me/blocked-tags 同样只要用户令牌、不需要任何 scope，最多 100 个，只对本人可见。目录不会自动套用它：客户端把 mode=tree 的 id 放进 exclude_tag_tree、mode=exact 的放进 exclude_tag_id，传给 /v2/catalog/works 与两个月历。tree 会连同 tag 层级里它下面的所有 tag 一起排除（Tag.descendant_count 是数量）。站点自己的表出的列表用 /v2/catalog/tag-exclusion 取同参数要剔除的作品 id 集，在本地查询里剔掉。
+
+> /v2/me/history 是浏览记录：只要用户令牌、不需要 scope，每个应用只读写自己记下的（默认 scope=app）。用户在作品页真正停留后再 PUT /v2/me/history/works/{work_id}，一分钟内重复只算一次；记录保留 90 天，每个应用最多 500 条。scope=all 合并所有应用的记录：读要 history:read，且用户在 /v2/me/privacy 把 browsing_history_sharing 设为 shared，否则 403；删不需要。用户把 browsing_history 设为 off 会立刻清空所有应用的记录，此后 PUT 照常 204 但什么都不存。全年龄站点读时带 content_limit=sfw，用户在成人站看过的作品就不会出现。第三方应用只能把这两个开关往更私密的方向拨。
 
 > /v2/me/ratings 是评分：全网一人一作一份，在哪个站写的都是同一份。读写只要用户令牌、不需要 scope，任何应用都能写（同游玩时长）；第三方应用送来的短评由中央做内容检查，被拒绝是 422 VALIDATION_FAILED。/v2/me/work-records/{work_id} 一次事务写游玩状态、本应用的时长和评分，PUT 替换整条记录，缺省或为 null 的部分即删除（唯一例外：第三方应用不带评分时保留原评分）。
 
@@ -3945,7 +4099,7 @@ curl "https://api.nextmoe.dev/v2/catalog/discussions/example/1"
 
 List engines
 
-Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+Keyset-paginated engines. sort=id (default) or popularity: rater_count descending, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -4133,6 +4287,58 @@ Public transparency view: proposer, state, target entity and timestamps. include
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/proposals/1"
+```
+
+### GET /v2/catalog/rankings
+
+Rank works by their ratings
+
+Ranks works by their ratings on every source, or on one. Every source keeps its own published score (per_source[].score); next to it each entry carries what a fitted model makes of it. Per source, mean is the work's own mean pulled toward what works with as many votes usually score, so a work with three votes cannot outrank one with three thousand on luck, with a 90% interval and the work's percentile in that source. The consensus puts the sources on one scale: each source's estimate becomes a normal score within that source, a one-factor model fitted on the works several sources share corrects for each source's audience, and the sources are combined weighted by how much each one knows about the work. It is read as a deviation score (偏差値): 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. The model is refitted from the data nightly and the ranking reads the search index, rebuilt nightly; model describes the fit in use. Every filter of GET /v2/catalog/works that the search index carries applies here, plus scope=, year=, circulation=, platform=, playtime_min/max=, vote floors and score bounds. page= selects page mode. Answers 503 until the first model is fitted. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full, for the work inside each entry. |
+| `include` | query | 否 | string | Comma-separated blocks of the work inside each entry, as on GET /v2/catalog/works. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names over the ranked population: tag_id, company_id, olang, content_rating, platform, circulation. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `by` | query | 否 | string | consensus (default) ranks by every source combined; a source key (vndb, bangumi, dlsite, erogamescape, nextmoe, howlongtobeat) ranks by that source alone. |
+| `metric` | query | 否 | string | The statistic to rank by. With by=consensus: lower, upper, mean, percentile, divergence, votes, sources. With a source: lower, upper, mean, median, native, percentile, spread, votes. The default is lower for order=desc and upper for order=asc: the bottom of the 90% interval for a best-of list, so a handful of enthusiastic votes cannot outrank an established work, and its top for a worst-of list, so a work is listed as bad only when it is bad with confidence. mean ranks by the best estimate; native by the source's own published score; divergence by how much the sources disagree. |
+| `scope` | query | 否 | string | vn (default) ranks visual novels only: works a visual-novel or adult-game source vouches for (VNDB, DLsite, a site that claimed the work, a Bangumi listing tagged as a galgame or novel game, or an adult rating with no Steam or HowLongToBeat listing). all also ranks the console and PC games the catalog's imports carry, such as RPGs and action games. |
+| `order` | query | 否 | string | desc (default, best first) or asc (worst first). |
+| `sources` | query | 否 | string | by=consensus only: comma-separated source keys to build the consensus from, for example erogamescape,bangumi. Absent = every source. Every number in consensus then covers only these sources. |
+| `min_sources` | query | 否 | string | by=consensus only: keep works at least this many of the consensus sources rated, 1-6. |
+| `min_votes` | query | 否 | string | Vote floors, comma-separated. A bare number applies to by= (the total over the consensus sources for by=consensus); source:number applies to that source, for example erogamescape:50,bangumi:100. Every floor must hold. |
+| `max_votes` | query | 否 | string | Vote ceilings, in the same form as min_votes, for lists of lesser-known works: min_votes=5&max_votes=50 keeps works between five and fifty votes. |
+| `score_min` | query | 否 | string | Keep works whose value (in the list's unit) is at least this. |
+| `score_max` | query | 否 | string | Keep works whose value (in the list's unit) is at most this. |
+| `year` | query | 否 | string | Release year, or an inclusive range such as 2015-2020. Cannot be combined with released_after or released_before. |
+| `released_after` | query | 否 | string | YYYY-MM-DD inclusive, on each work's release_date. |
+| `released_before` | query | 否 | string | YYYY-MM-DD inclusive, on each work's release_date. |
+| `circulation` | query | 否 | string | commercial: a game brand made or sold it. doujin: only a doujin circle did. Works with neither credit match neither. |
+| `platform` | query | 否 | string | Comma-separated platform tokens (win, ps4, swi, …), any of. Open vocabulary; unknown values match nothing. |
+| `playtime_min` | query | 否 | string | Minutes. Keep works whose playtime is at least this; playtime is the median of the sources' estimates. |
+| `playtime_max` | query | 否 | string | Minutes. Keep works whose playtime is at most this. |
+| `content_rating` | query | 否 | string | Closed: all_ages, sensitive, r18. r18 requires nsfw=true. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw. |
+| `claimed` | query | 否 | string | true or false. Absent = no gate. |
+| `company_id` | query | 否 | string | Catalog company id. |
+| `tag_id` | query | 否 | string | Comma-separated canonical tag ids, AND, max 10. |
+| `exclude_tag_id` | query | 否 | string | Comma-separated canonical tag ids, max 100. Drops every work that carries any of them. |
+| `exclude_tag_tree` | query | 否 | string | Comma-separated canonical tag ids, max 100. As exclude_tag_id, and each id also drops the works carrying any tag below it. |
+| `series_id` | query | 否 | string | Catalog series id. |
+| `engine_id` | query | 否 | string | Catalog engine id. |
+| `olang` | query | 否 | string | Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. |
+| `page` | query | 否 | string | 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/rankings"
 ```
 
 ### GET /v2/catalog/redirects
@@ -4452,6 +4658,22 @@ Live entity counts. Unauthenticated.
 curl "https://api.nextmoe.dev/v2/catalog/stats"
 ```
 
+### GET /v2/catalog/tag-categories
+
+List tag categories
+
+The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
+
+无参数。
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/tag-categories"
+```
+
 ### GET /v2/catalog/tag-exclusion
 
 Resolve a tag exclusion
@@ -4475,7 +4697,7 @@ curl "https://api.nextmoe.dev/v2/catalog/tag-exclusion"
 
 List tags
 
-Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -4495,6 +4717,7 @@ Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP 
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `has_works` | query | 否 | string | true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag. |
+| `category` | query | 否 | string | A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/tags"
@@ -4669,6 +4892,7 @@ Keyset-paginated work collection. q= switches to search (sort defaults to releva
 | `released_after` | query | 否 | string | YYYY-MM-DD inclusive, on each work's release_date. |
 | `released_before` | query | 否 | string | YYYY-MM-DD inclusive, on each work's release_date. |
 | `olang` | query | 否 | string | Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate. |
+| `search_mode` | query | 否 | string | lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable. 取值：lexical \| hybrid |
 | `page` | query | 否 | string | 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. |
 
 ```bash
@@ -4723,7 +4947,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/1/characters"
 
 List covers of one work
 
-Work cover rows. Same items as include=covers. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+Work cover rows. Same items as include=covers: every row in gallery order, of every sexual grade, so the first item is not the elected portrait; read the work's cover for that. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -6258,6 +6482,95 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+### GET /v2/me/history
+
+List my browsing history
+
+The works the bearer opened, newest first. Browsing history is kept per app: each app reads and deletes what it recorded, and entries older than 90 days or past the newest 500 per app are deleted. An account that switched browsing_history off on PATCH /v2/me/privacy has no history on the server. scope=all merges every app's entries per work and is 403 BROWSING_HISTORY_NOT_SHARED unless the account set browsing_history_sharing to shared, and 403 SCOPE_REQUIRED without history:read. Works that are no longer live in the catalog are left out. Items carry ids only; read the works themselves from /v2/catalog/works?ids=. Requires a user access token. With the default scope=app any app may call this and no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+| `ids` | query | 否 | string | Comma-separated ids, max 100. Batch lane: no pagination. |
+| `refs` | query | 否 | string | Comma-separated source:external_id, max 100. Batch lane: no pagination. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
+| `sort` | query | 否 | string | Closed per-collection sort key. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `scope` | query | 否 | string | app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. A site that only shows sfw works passes sfw, so a work the account opened on an adult site never reaches its page. total counts after it. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/history" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### DELETE /v2/me/history
+
+Clear my browsing history
+
+Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `scope` | query | 否 | string | app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. |
+
+```bash
+curl -X DELETE "https://api.nextmoe.dev/v2/me/history" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### PUT /v2/me/history/works/{work_id}
+
+Record that I opened a work
+
+Moves the work to the top of this app's history for the bearer. Send it once the person has actually stayed on the work's page, not on prefetch or render. Visits less than a minute apart count once. 204 with no body, also when the account has browsing history off: then nothing is stored. 404 when the work is not live. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `work_id` | path | 是 | string | Catalog work id. |
+
+```bash
+curl -X PUT "https://api.nextmoe.dev/v2/me/history/works/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### DELETE /v2/me/history/works/{work_id}
+
+Remove one work from my browsing history
+
+Deletes the work from this app's history with the default scope=app, from every app's with scope=all. 204 with no body, also when there was nothing to delete. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `work_id` | path | 是 | string | Catalog work id. |
+| `scope` | query | 否 | string | app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. |
+
+```bash
+curl -X DELETE "https://api.nextmoe.dev/v2/me/history/works/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
 ### GET /v2/me/merge-candidates
 
 Suggest merge partners
@@ -6664,7 +6977,7 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/playtimes/1" \
 
 My privacy switches
 
-play_records says who may read the bearer's play states and playtimes on /v2/work-records. An account that never changed it answers public with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
+play_records says who may read the bearer's play states and playtimes on /v2/work-records; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers public, on and per_app with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6681,7 +6994,7 @@ curl "https://api.nextmoe.dev/v2/me/privacy" \
 
 Change my privacy switches
 
-Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next read of /v2/work-records. Requires a user access token. Any app may call this; no scope is required.
+Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6693,13 +7006,15 @@ Sets the switches the body names and leaves the others as they are; an empty bod
 
 | 字段 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
+| `browsing_history` | 否 | string | off erases every app's browsing history and stops recording it; on starts recording again. A third-party app may only send off. Absent leaves it as it is. 取值：on \| off |
+| `browsing_history_sharing` | 否 | string | shared lets an app holding history:read read every app's history. A third-party app may only send per_app. Absent leaves it as it is. 取值：per_app \| shared |
 | `play_records` | 否 | string | Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is. 取值：public \| private |
 
 ```bash
 curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"play_records":"private"}'
+  -d '{"browsing_history":"off","browsing_history_sharing":"per_app","play_records":"private"}'
 ```
 
 ### GET /v2/me/proposals
@@ -8036,45 +8351,29 @@ curl -X DELETE "https://api.nextmoe.dev/v2/moderation/users/1/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
-## 商店
+---
 
-### GET /v2/store/prices
+# DLsite 分销面
 
-Get storefront prices for many works
+- 路径前缀：`/v2/store`
+- 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,铸造时勾选 store:read,自助、无需申请;商店价格免凭据）
+- 端点数：4
 
-Cached storefront price quotes for up to 100 catalog works. Unauthenticated. Quotes are cached observations; read fetched_at / expires_at / stale. pending means a fetch is in flight, retry shortly. The batch lane never waits on a cold miss.
+> 与目录同属 v2 公开面，单独成一份参考：给你的站点铸一条只属于你的应用的 DLsite 购买短链，读者经它购买，平台按点击把 DLsite 返还的优惠券分给你。
 
-- 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：无需凭据
+> /v2/store/purchase-links/{product_id} 按 DLsite 作品号（同人 RJ、商业 VJ）铸链接，同一个应用、同一个作品号重复调用拿回同一条。purchase_url 原样使用、不要改写或再包一层——结算读的就是它背后的点击计数。活动期间同时给 coupon_url 与 campaign，没有活动时两者为 null。
 
-| 参数 | 位置 | 必填 | 类型 | 说明 |
-| --- | --- | --- | --- | --- |
-| `ids` | query | 是 | string | Comma-separated decimal catalog work ids, at most 100. Duplicates are collapsed. Unknown ids are listed in missing[]. |
+> 铸链接与读统计要带 store:read 的应用密钥。这个 scope 在控制台自助勾选、不审核，缺了是 403 SCOPE_REQUIRED。
 
-```bash
-curl "https://api.nextmoe.dev/v2/store/prices" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
-```
+> /v2/store/stats 是带来请求的这个应用所铸链接的每日点击，按 JST 日统计，一次最多 92 天，缺省是最近 30 天。uniques 是去重点击：同一条短链、同一个 JST 日、同一个访问指纹只算一次，自报为爬虫、链接预览或 HTTP 库的访问照常跳转但不计入。计数每小时同步一次，当天的数字始终不完整。
 
-### GET /v2/store/prices/{id}
+> 能铸链接不等于参与分成：每月的优惠券池是定额的，按去重点击的份额分，参与名单由运营维护。控制台「分销链接」页能看到你名下应用的点击与分到的优惠券。
 
-Get storefront prices for one work
+> /v2/store/prices 是商店价格，不带凭据就能调：DLsite、Getchu、Steam 等商店按地区的报价，一次最多 100 部作品。报价是缓存的观测值，看 fetched_at / expires_at / stale；pending 表示正在抓取，稍后重试，批量车道从不等待冷启动。
 
-Cached storefront price quotes for one catalog work. Unauthenticated. Quotes are cached observations; read fetched_at / expires_at / stale. pending means a fetch is in flight, retry shortly.
+> 错误体与 v2 其余部分相同，是 RFC 9457 application/problem+json。
 
-- 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：无需凭据
-
-| 参数 | 位置 | 必填 | 类型 | 说明 |
-| --- | --- | --- | --- | --- |
-| `id` | path | 是 | string | Decimal catalog work id. |
-
-```bash
-curl "https://api.nextmoe.dev/v2/store/prices/1" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
-```
+## 分销链接
 
 ### GET /v2/store/purchase-links/{product_id}
 
@@ -8082,7 +8381,7 @@ Get purchase and coupon links for one product
 
 Mints (or returns) the short links this application sends readers to. The purchase link belongs to your application alone — use it verbatim, because the click counter behind it is what settlement reads. coupon_url and campaign are present only while a campaign is running. Requires an application key with the store:read scope.
 
-- 所属 API：Public API v2（/v2）
+- 所属 API：DLsite 分销面（/v2/store）
 - 鉴权：Authorization: Bearer nmk_live_…
 - scope：store:read
 
@@ -8101,7 +8400,7 @@ Click statistics for my links
 
 Daily clicks on the links this application minted, over a JST-day range of at most 92 days. The bearer application is the subject — this replaces v1's /v1/store/me/stats. Requires an application key with the store:read scope.
 
-- 所属 API：Public API v2（/v2）
+- 所属 API：DLsite 分销面（/v2/store）
 - 鉴权：Authorization: Bearer nmk_live_…
 - scope：store:read
 
@@ -8113,6 +8412,44 @@ Daily clicks on the links this application minted, over a JST-day range of at mo
 ```bash
 curl "https://api.nextmoe.dev/v2/store/stats" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+## 商店价格
+
+### GET /v2/store/prices
+
+Get storefront prices for many works
+
+Cached storefront price quotes for up to 100 catalog works. Unauthenticated. Quotes are cached observations; read fetched_at / expires_at / stale. pending means a fetch is in flight, retry shortly. The batch lane never waits on a cold miss.
+
+- 所属 API：DLsite 分销面（/v2/store）
+- 鉴权：无需凭据
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `ids` | query | 是 | string | Comma-separated decimal catalog work ids, at most 100. Duplicates are collapsed. Unknown ids are listed in missing[]. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/store/prices"
+```
+
+### GET /v2/store/prices/{id}
+
+Get storefront prices for one work
+
+Cached storefront price quotes for one catalog work. Unauthenticated. Quotes are cached observations; read fetched_at / expires_at / stale. pending means a fetch is in flight, retry shortly.
+
+- 所属 API：DLsite 分销面（/v2/store）
+- 鉴权：无需凭据
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Decimal catalog work id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/store/prices/1"
 ```
 
 ---
@@ -8550,11 +8887,157 @@ curl "https://api.nextmoe.dev/v2/sticker/tags" \
 
 ---
 
+# letmoe 下载资源链接面
+
+- 路径前缀：`/v2/letmoe`
+- 凭据：Authorization: Bearer nmk_live_…（任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/letmoe/resources/{id}/file,要 letmoe:files——每把密钥创建时自动带上）
+- 端点数：4
+
+> 下游站点面：由 一起萌（www.letmoe.com）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。
+
+> 它只回答一件事：这部游戏在 letmoe 上能下载到什么。作品 id 就是 catalog 的作品 id，也是 letmoe 自己的游戏 id——/v2/letmoe/works/{id}、站上的 /game/{id} 与 /v2/catalog/works/{id} 是同一个数。
+
+> 任意有效 nmk_ 应用密钥都能调元数据接口，不需要任何 scope——网关只做身份、计量与限流，不做授权。元数据里不带下载链接、提取码与解压密码，每条资源都给 web_url，把读者送过去。
+
+> 唯一例外是 /v2/letmoe/resources/{id}/file：对持有 letmoe:files 的密钥给出全部下载方式——letmoe 托管文件的直链、外部网盘链接连同提取码与解压密码、以及与 moyu 补丁合并的下载。每把密钥创建时都自动带上这个 scope，不用勾选；运营从某把密钥上摘掉它之后，这把密钥一律 403 SCOPE_REQUIRED。答案一律 no-store，每次成功都给资源记一次下载，所以在读者点下载时再调，不要预取。
+
+> 也不带游戏名、封面、标签与 staff：那些归 catalog，同一把密钥读 /v2/catalog/works 即可。
+
+> /v2/letmoe/works 上的 ids= 是批量问法：一次最多 100 个作品 id，没有可见资源的原样回在 missing[] 里。这是「我手上这 100 部作品哪些能在 letmoe 下载」的一次性问法，此时 cursor、sort、limit 与 include_total 会被拒。
+
+> 约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。每个接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。
+
+> 错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和 letmoe 写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。
+
+> 只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路——nmk_ 密钥本来也不该出现在浏览器里。
+
+## 作品
+
+### GET /v2/letmoe/works
+
+List or look up games with resources
+
+Without `ids` this is every game letmoe currently has a resource for,
+paged and sorted.
+
+With `ids` it is a **batch lookup** of up to 100 catalog work ids, with
+every id that has no visible resource on letmoe echoed back in
+`missing`. This is how you ask "which of these games can be downloaded
+on letmoe" in one round trip. A batch answers a set, not a page, so
+`cursor`, `sort`, `limit` and `include_total` alongside it are
+`MUTUALLY_EXCLUSIVE_PARAMETERS`.
+
+
+- 所属 API：letmoe 下载资源链接面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `limit` | query | 否 | integer | 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
+| `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
+| `nsfw` | query | 否 | boolean | Include games whose display verdict is adult (`content_limit: nsfw`). Off by default, matching catalog's own convention.  |
+| `ids` | query | 否 | string[] | Up to 100 catalog work ids. |
+| `sort` | query | 否 | string | All descending. `updated` orders by when a resource of the game was last published or changed.  取值：updated \| downloads \| views |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/works" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+### GET /v2/letmoe/works/{id}/resources
+
+The resources of one game
+
+Most recently changed first. Only published resources are listed; one
+under review, taken down or deleted is absent here and `404` at its own
+URL, exactly as on the site. A game letmoe has never held a resource
+for is `404`; one whose resources are all gone is an empty list.
+
+
+- 所属 API：letmoe 下载资源链接面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Catalog work id, which is also letmoe's game id. |
+| `limit` | query | 否 | integer | 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
+| `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
+| `nsfw` | query | 否 | boolean | Include games whose display verdict is adult (`content_limit: nsfw`). Off by default, matching catalog's own convention.  |
+| `type` | query | 否 | string[] | Comma-separated resource kinds; any of them matches. 取值：game \| collection \| patch \| translation \| crack_fix \| mod \| save \| walkthrough \| tool \| ost \| theme_song \| drama \| asmr \| voice \| wallpaper \| cg \| artbook \| comic \| video \| novel \| manual \| append \| asset \| other |
+| `include` | query | 否 | string[] | Comma-separated relations to attach. 取值：publisher |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/works/61311/resources" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+## 资源
+
+### GET /v2/letmoe/resources/{id}
+
+One resource
+
+- 所属 API：letmoe 下载资源链接面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | letmoe resource id. |
+| `nsfw` | query | 否 | boolean | Include games whose display verdict is adult (`content_limit: nsfw`). Off by default, matching catalog's own convention.  |
+| `include` | query | 否 | string[] | Comma-separated relations to attach. 取值：publisher |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/resources/1024" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+### GET /v2/letmoe/resources/{id}/file
+
+The download options of a resource
+
+The links `Resource` withholds. Needs the `letmoe:files` scope,
+which every NextMoe key carries unless an operator removed it.
+
+A `hosted` mirror's `url` is a direct link to letmoe's own file,
+supporting `Range`. It is looked up for each answer and not promised
+to last: a replaced or taken-down file stops downloading, so do not
+store it. An `external_link` mirror is a
+link its publisher hosts elsewhere, with the share code and archive
+password it needs. A `composite` is the game and a moyu patch spliced
+into one download at the edge.
+
+Never cached: every answer, refusals included, is
+`Cache-Control: private, no-store`. Each successful answer counts one
+view and one download on the resource, so ask when a reader asks to
+download.
+
+
+- 所属 API：letmoe 下载资源链接面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：letmoe:files
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | letmoe resource id. |
+| `nsfw` | query | 否 | boolean | Include games whose display verdict is adult (`content_limit: nsfw`). Off by default, matching catalog's own convention.  |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/resources/1024/file" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+---
+
 # AI / MCP 接入
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（65 个）
+## 工具（67 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -8604,13 +9087,15 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listCatalogNames` `GET /v2/catalog/names`（无需密钥）：一次解析多个族的显示名：keys=family:id,…（最多 500 个，如 tag:12,company:3），各族按自己的 ids= 批量通道取名，可见性与 nsfw 门完全一致；有中文名时另给 name_zh。只需要名字时用它代替逐族的 ids= 调用。
 - `listCatalogPersons` `GET /v2/catalog/persons`（无需密钥）：keyset 分页浏览人物身份注册表。ids=/refs= 是批量水合泳道，不分页。
 - `listCatalogProposals` `GET /v2/catalog/proposals`（无需密钥）：已提交的编辑提案流，最新优先。proposer_uid= + state=merged + include_total=true 就是按贡献者的合入计数。此面不下发 patch，也不下发审核意见。
+- `listCatalogRankings` `GET /v2/catalog/rankings`（无需密钥）：评分排行榜：跨 VNDB / Bangumi / DLsite / 批评空间 / NextMoe / HowLongToBeat 的共识分（偏差值），或 by= 按单一来源排。条目带名次、排名值与各来源原分。默认只排视觉小说，scope=all 含普通游戏；listCatalogWorks 的过滤与 facets 这里都能用。模型尚未拟合时返回 503。
 - `listCatalogRedirects` `GET /v2/catalog/redirects`（无需密钥）：合并去向流：被合并掉的 id 指向哪个继任者，最旧优先。存下游标增量消费，就能把本地副本里的死 id 换成活的。object= 收敛到单个家族；不接受 ids=。
 - `listCatalogReleases` `GET /v2/catalog/releases`（无需密钥）：发售动态的 release 粒度：每一条发售行各自成项，移植版 / 复刻 / 中文化都看得见（月历只把作品放在最早发售月且只显示一次）。缺省按日期倒序。
 - `listCatalogRevisions` `GET /v2/catalog/revisions`（无需密钥）：已合入的编辑修订流，缺省最新优先；sort=recorded_asc 按 id 从旧到新走同一个集合，这是镜像与贡献统计该用的姿态（配一条水位线）。object= + entity_id= 收敛到单个实体的历史。
 - `listCatalogRoles` `GET /v2/catalog/roles`（无需密钥）：浏览署名职务注册表本身（全表约 231 行）——key 与署名组的 role_key 相接。refs= 对它不解析：职务没有外部锚类型。
 - `listCatalogSeries` `GET /v2/catalog/series`（无需密钥）：浏览系列词表本身。系列不进搜索索引，这是发现 series id 的唯一入口；refs= 对它不解析：系列没有外部锚类型。
 - `listCatalogSplits` `GET /v2/catalog/splits`（无需密钥）：拆分流:哪部作品把哪些发行拆成了哪部新作品,按变化时间升序。存下游标增量消费,就能把挂在这些发行上的本地数据跟到 new_work_id;撤销的拆分以 state=undone 重新出现在尾部,新作品经 redirects 指回原作品。
-- `listCatalogTags` `GET /v2/catalog/tags`（无需密钥）：浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。
+- `listCatalogTagCategories` `GET /v2/catalog/tag-categories`（无需密钥）：列出标签的浏览分组（题材类型、角色、恋爱与关系……），一页取全。分组 id 喂给 listCatalogTags 的 category=。
+- `listCatalogTags` `GET /v2/catalog/tags`（无需密钥）：浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。category= 只看一个分组，sort=work_count 按作品数排。
 - `listCatalogTraits` `GET /v2/catalog/traits`（无需密钥）：浏览角色特征词表本身——用来发现 trait id。refs= 对它不解析：特征没有外部锚类型。
 - `listCatalogWalkthroughs` `GET /v2/catalog/walkthroughs`（无需密钥）：列出攻略（不含选项图）：work_id= 取一部作品的攻略，character_id= 取通向某角色的攻略，ids= 批量读。可见性与作品一致，r18 需 nsfw=true；content_limit= 按作品展示轴过滤（与 nsfw 独立，面向 sfw 读者传 nsfw=true&content_limit=sfw），条目带 work_content_limit。
 - `listCatalogWorks` `GET /v2/catalog/works`（无需密钥）：浏览 / 过滤作品注册表（评级 / 公司 / 标签 / 系列 / 引擎 / 平台 / 发售窗，keyset 分页，ids=/refs= 批量水合）。带 q= 时整条转为检索并按相关度排序——「查询 + 过滤」与「纯过滤」在 v2 是同一条路径。

@@ -1,5 +1,7 @@
 package model
 
+import "slices"
+
 // Source ids as seeded in catalog_source. Only the ones code reasons about by
 // identity are named here.
 const (
@@ -15,6 +17,7 @@ const (
 	SourceCensored      int16 = 21
 	SourceSeiya         int16 = 22
 	SourceSagaozFool    int16 = 23
+	SourceAIRedraw      int16 = 24
 )
 
 // IdentityVetoExemptSourceIDs are the sources whose exact ids must never veto a
@@ -63,6 +66,7 @@ var IdentityVetoExemptSourceIDs = []int16{
 	SourceDerived,       // first-party: machine inference over catalog facts
 	SourceNextMoe,       // first-party: measurements aggregated from our own users
 	SourceCensored,      // first-party: blurred stand-in derived from official art
+	SourceAIRedraw,      // first-party: AI-redrawn portrait derived from official art
 	SourceHowLongToBeat, // does not deduplicate itself: one entry per platform/release
 }
 
@@ -86,4 +90,13 @@ func IdentityVetoExemptSourceIDsFor(entityType int16) []int16 {
 	}
 	out := append([]int16{}, IdentityVetoExemptSourceIDs...)
 	return append(out, EditionSplittingSourceIDs...)
+}
+
+// UploadedCoverSourceIDs hold covers uploaded to this platform (upscale rows
+// are AI-enlarged copies of those uploads), as opposed to art a registry or
+// store publishes.
+var UploadedCoverSourceIDs = []int16{SourceUser, SourceCurated, SourceUpscale}
+
+func IsUploadedCoverSource(id int16) bool {
+	return slices.Contains(UploadedCoverSourceIDs, id)
 }

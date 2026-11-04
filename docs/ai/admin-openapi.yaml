@@ -1,5 +1,120 @@
 components:
   schemas:
+    AccessKeyInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/AccessKeyInput.json
+          format: uri
+          readOnly: true
+          type: string
+        allowed_models:
+          items:
+            type: string
+          maxItems: 64
+          type: array
+        daily_budget_micro:
+          format: int64
+          minimum: 0
+          type: integer
+        enabled:
+          type: boolean
+        name:
+          maxLength: 64
+          type: string
+      type: object
+    AccessKeyView:
+      additionalProperties: false
+      properties:
+        allowed_models:
+          items:
+            type: string
+          type: array
+        created_at:
+          format: date-time
+          type: string
+        daily_budget_micro:
+          description: Micro-USD this key may spend per day (China Standard Time); 0 is unlimited.
+          format: int64
+          type: integer
+        enabled:
+          type: boolean
+        id:
+          format: int64
+          type: integer
+        last_used_at:
+          format: date-time
+          type:
+            - string
+            - "null"
+        name:
+          type: string
+        prefix:
+          type: string
+        spent_today_nano:
+          format: int64
+          type: integer
+      required:
+        - id
+        - name
+        - prefix
+        - allowed_models
+        - enabled
+        - daily_budget_micro
+        - spent_today_nano
+        - last_used_at
+        - created_at
+      type: object
+    AdoptInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/AdoptInput.json
+          format: uri
+          readOnly: true
+          type: string
+        kind:
+          description: Defaults to the catalog kind.
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+          type: string
+        model_key:
+          description: Gateway model to attach the route to; created when missing. Defaults to the upstream id, lower-cased with / turned into -.
+          maxLength: 64
+          type: string
+        price:
+          $ref: "#/components/schemas/Price"
+        priority:
+          format: int64
+          type: integer
+        weight:
+          format: int64
+          maximum: 10000
+          minimum: 1
+          type: integer
+      type: object
+    AdoptResult:
+      additionalProperties: false
+      properties:
+        model:
+          $ref: "#/components/schemas/ModelView"
+        model_created:
+          type: boolean
+        route:
+          $ref: "#/components/schemas/RouteView"
+      required:
+        - model
+        - route
+        - model_created
+      type: object
     BudgetView:
       additionalProperties: false
       properties:
@@ -19,6 +134,243 @@ components:
         - site
         - daily_cost_cap_micro
         - updated_at
+      type: object
+    CatalogProbe:
+      additionalProperties: false
+      properties:
+        at:
+          format: date-time
+          type: string
+        error_kind:
+          type: string
+        kind:
+          type: string
+        latency_ms:
+          format: int64
+          type: integer
+        message:
+          type: string
+        ok:
+          type: boolean
+      required:
+        - kind
+        - ok
+        - latency_ms
+        - error_kind
+        - message
+        - at
+      type: object
+    CatalogRoute:
+      additionalProperties: false
+      properties:
+        model_key:
+          type: string
+        route_id:
+          format: int64
+          type: integer
+        status:
+          enum:
+            - active
+            - disabled
+          type: string
+      required:
+        - route_id
+        - model_key
+        - status
+      type: object
+    ConfigAccessKey:
+      additionalProperties: false
+      properties:
+        allowed_models:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        daily_budget_micro:
+          format: int64
+          type: integer
+        enabled:
+          type: boolean
+        name:
+          type: string
+      required:
+        - name
+        - allowed_models
+        - enabled
+        - daily_budget_micro
+      type: object
+    ConfigModel:
+      additionalProperties: false
+      properties:
+        context_tokens:
+          format: int64
+          type: integer
+        enabled:
+          type: boolean
+        key:
+          type: string
+        kind:
+          type: string
+        max_output:
+          format: int64
+          type: integer
+        reasoning:
+          type: boolean
+        tool_call:
+          type: boolean
+        vision:
+          type: boolean
+      required:
+        - key
+        - kind
+        - context_tokens
+        - max_output
+        - tool_call
+        - vision
+        - reasoning
+        - enabled
+      type: object
+    ConfigProvider:
+      additionalProperties: false
+      properties:
+        base_url:
+          type: string
+        enabled:
+          type: boolean
+        headers:
+          additionalProperties:
+            type: string
+          type: object
+        name:
+          type: string
+        price_multiplier_ppm:
+          format: int64
+          type: integer
+      required:
+        - name
+        - base_url
+        - headers
+        - price_multiplier_ppm
+        - enabled
+      type: object
+    ConfigRoute:
+      additionalProperties: false
+      properties:
+        max_in_flight:
+          format: int64
+          type: integer
+        model:
+          type: string
+        price:
+          anyOf:
+            - $ref: "#/components/schemas/Price"
+            - type: "null"
+        priority:
+          format: int64
+          type: integer
+        provider:
+          type: string
+        rpm:
+          format: int64
+          type: integer
+        status:
+          type: string
+        thinking_control:
+          type: string
+        upstream_id:
+          type: string
+        weight:
+          format: int64
+          type: integer
+      required:
+        - model
+        - provider
+        - upstream_id
+        - priority
+        - weight
+        - status
+        - max_in_flight
+        - rpm
+        - price
+      type: object
+    ConfigScene:
+      additionalProperties: false
+      properties:
+        class:
+          type: string
+        content_fallback:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        context_fallback:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        daily_budget_micro:
+          format: int64
+          type: integer
+        fallbacks:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        idle_ms:
+          format: int64
+          type: integer
+        key:
+          type: string
+        max_output:
+          format: int64
+          type: integer
+        model:
+          type: string
+        reasoning:
+          type: string
+        strategy:
+          type: string
+        temperature:
+          format: double
+          type:
+            - number
+            - "null"
+        total_ms:
+          format: int64
+          type: integer
+        ttft_ms:
+          format: int64
+          type: integer
+      required:
+        - key
+        - model
+        - fallbacks
+        - context_fallback
+        - content_fallback
+        - strategy
+        - daily_budget_micro
+        - class
+        - temperature
+        - max_output
+        - ttft_ms
+        - idle_ms
+        - total_ms
+      type: object
+    CreatedAccessKey:
+      additionalProperties: false
+      properties:
+        key:
+          $ref: "#/components/schemas/AccessKeyView"
+        secret:
+          description: Shown once; only its hash is stored.
+          type: string
+      required:
+        - key
+        - secret
       type: object
     DailyPoint:
       additionalProperties: false
@@ -53,6 +405,51 @@ components:
         - days
         - points
       type: object
+    Empty:
+      additionalProperties: false
+      type: object
+    EnvelopeAccessKeyView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAccessKeyView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AccessKeyView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeAdoptResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAdoptResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AdoptResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeBudgetView:
       additionalProperties: false
       properties:
@@ -74,6 +471,27 @@ components:
         - code
         - message
       type: object
+    EnvelopeCreatedAccessKey:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeCreatedAccessKey.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/CreatedAccessKey"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeDailySeries:
       additionalProperties: false
       properties:
@@ -89,6 +507,92 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/DailySeries"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeEmpty:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeEmpty.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/Empty"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeGatewayConfig:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeGatewayConfig.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/GatewayConfig"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeImportResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeImportResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ImportResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListAccessKeyView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListAccessKeyView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/AccessKeyView"
+          type: array
         message:
           type: string
       required:
@@ -118,6 +622,377 @@ components:
         - code
         - message
       type: object
+    EnvelopeListEventView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListEventView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/EventView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListModelView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListModelView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/ModelView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListProviderModelView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListProviderModelView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/ProviderModelView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListProviderView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListProviderView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/ProviderView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListRouteHealthView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListRouteHealthView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/RouteHealthView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListRouteView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListRouteView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/RouteView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListSceneView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListSceneView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/SceneView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeLlmStatus:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeLlmStatus.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/LlmStatus"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeModelView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeModelView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ModelView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeProbeResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeProbeResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ProbeResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeProviderModelView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeProviderModelView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ProviderModelView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeProviderView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeProviderView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ProviderView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeRouteView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeRouteView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/RouteView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeScenePlan:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeScenePlan.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ScenePlan"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeSceneView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeSceneView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/SceneView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeSyncResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeSyncResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/SyncResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeUsageReport:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeUsageReport.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/UsageReport"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeUsageSummary:
       additionalProperties: false
       properties:
@@ -139,6 +1014,113 @@ components:
         - code
         - message
       type: object
+    EventView:
+      additionalProperties: false
+      properties:
+        actor:
+          description: Who made the change; empty for the gateway's own events.
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        detail:
+          type: string
+        id:
+          format: int64
+          type: integer
+        kind:
+          type: string
+        provider_id:
+          format: int64
+          type: integer
+        route_id:
+          format: int64
+          type: integer
+      required:
+        - id
+        - route_id
+        - provider_id
+        - kind
+        - detail
+        - actor
+        - created_at
+      type: object
+    GatewayConfig:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/GatewayConfig.json
+          format: uri
+          readOnly: true
+          type: string
+        access_keys:
+          description: Names, scopes and budgets only; an imported key that does not exist is created without a secret and must be re-issued.
+          items:
+            $ref: "#/components/schemas/ConfigAccessKey"
+          type:
+            - array
+            - "null"
+        exported_at:
+          format: date-time
+          type: string
+        models:
+          items:
+            $ref: "#/components/schemas/ConfigModel"
+          type:
+            - array
+            - "null"
+        providers:
+          items:
+            $ref: "#/components/schemas/ConfigProvider"
+          type:
+            - array
+            - "null"
+        routes:
+          items:
+            $ref: "#/components/schemas/ConfigRoute"
+          type:
+            - array
+            - "null"
+        scenes:
+          items:
+            $ref: "#/components/schemas/ConfigScene"
+          type:
+            - array
+            - "null"
+        version:
+          format: int64
+          type: integer
+      required:
+        - version
+        - exported_at
+        - providers
+        - models
+        - routes
+        - scenes
+        - access_keys
+      type: object
+    HealthState:
+      additionalProperties: false
+      properties:
+        cool_until:
+          format: date-time
+          type:
+            - string
+            - "null"
+        shared_only:
+          description: Cooling because another gateway process opened the breaker.
+          type: boolean
+        strikes:
+          description: Consecutive failures this process has seen.
+          format: int64
+          type: integer
+      required:
+        - cool_until
+        - strikes
+        - shared_only
+      type: object
     HouseError:
       additionalProperties: false
       properties:
@@ -157,6 +1139,901 @@ components:
       required:
         - code
         - message
+      type: object
+    ImportChange:
+      additionalProperties: false
+      properties:
+        action:
+          enum:
+            - create
+            - update
+            - unchanged
+          type: string
+        kind:
+          enum:
+            - provider
+            - model
+            - route
+            - scene
+            - access_key
+          type: string
+        name:
+          type: string
+      required:
+        - kind
+        - name
+        - action
+      type: object
+    ImportResult:
+      additionalProperties: false
+      properties:
+        applied:
+          type: boolean
+        changes:
+          items:
+            $ref: "#/components/schemas/ImportChange"
+          type: array
+        warnings:
+          items:
+            type: string
+          type: array
+      required:
+        - applied
+        - changes
+        - warnings
+      type: object
+    LlmStatus:
+      additionalProperties: false
+      properties:
+        kek_configured:
+          type: boolean
+      required:
+        - kek_configured
+      type: object
+    ModelInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ModelInput.json
+          format: uri
+          readOnly: true
+          type: string
+        context_tokens:
+          format: int64
+          minimum: 0
+          type: integer
+        enabled:
+          type: boolean
+        key:
+          maxLength: 64
+          type: string
+        kind:
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+          type: string
+        max_output:
+          format: int64
+          minimum: 0
+          type: integer
+        reasoning:
+          type: boolean
+        tool_call:
+          type: boolean
+        vision:
+          type: boolean
+      type: object
+    ModelView:
+      additionalProperties: false
+      properties:
+        context_tokens:
+          format: int64
+          type: integer
+        created_at:
+          format: date-time
+          type: string
+        enabled:
+          type: boolean
+        id:
+          format: int64
+          type: integer
+        key:
+          type: string
+        kind:
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+          type: string
+        max_output:
+          format: int64
+          type: integer
+        reasoning:
+          type: boolean
+        tool_call:
+          type: boolean
+        updated_at:
+          format: date-time
+          type: string
+        vision:
+          type: boolean
+      required:
+        - id
+        - key
+        - kind
+        - context_tokens
+        - max_output
+        - tool_call
+        - vision
+        - reasoning
+        - enabled
+        - created_at
+        - updated_at
+      type: object
+    PlanStep:
+      additionalProperties: false
+      properties:
+        chain:
+          description: Whether the model is the scene's primary or one of its fallbacks.
+          enum:
+            - primary
+            - fallback
+          type: string
+        model_key:
+          type: string
+        order:
+          format: int64
+          type: integer
+        priority:
+          format: int64
+          type: integer
+        provider:
+          type: string
+        route_id:
+          format: int64
+          type: integer
+        state:
+          description: "forced: every route is cooling, so the one that recovers first is tried anyway; cooling appears only among the skipped."
+          enum:
+            - ready
+            - forced
+            - cooling
+          type: string
+        upstream_id:
+          type: string
+        weight:
+          format: int64
+          type: integer
+      required:
+        - order
+        - chain
+        - model_key
+        - route_id
+        - provider
+        - upstream_id
+        - priority
+        - weight
+        - state
+      type: object
+    Price:
+      additionalProperties: false
+      properties:
+        cached_micro:
+          format: int64
+          minimum: 0
+          type: integer
+        input_micro:
+          format: int64
+          minimum: 0
+          type: integer
+        output_micro:
+          format: int64
+          minimum: 0
+          type: integer
+        per_call_micro:
+          description: Micro-USD per call, or per picture for an image route. A cost the upstream reports in its usage block wins over every price here.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - input_micro
+        - cached_micro
+        - output_micro
+      type: object
+    ProbeLLMProviderModelRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ProbeLLMProviderModelRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        kind:
+          description: Defaults to the entry's kind. image generates one picture and is billed.
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+          type: string
+      type: object
+    ProbeResult:
+      additionalProperties: false
+      properties:
+        error_kind:
+          type: string
+        latency_ms:
+          format: int64
+          type: integer
+        message:
+          type: string
+        ok:
+          type: boolean
+        served_model:
+          type: string
+      required:
+        - ok
+        - latency_ms
+        - served_model
+        - error_kind
+        - message
+      type: object
+    ProviderInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ProviderInput.json
+          format: uri
+          readOnly: true
+          type: string
+        api_key:
+          maxLength: 4096
+          type: string
+        base_url:
+          maxLength: 512
+          type: string
+        clear_key:
+          type: boolean
+        enabled:
+          type: boolean
+        headers:
+          additionalProperties:
+            type: string
+          type: object
+        name:
+          maxLength: 64
+          type: string
+        price_multiplier_ppm:
+          format: int64
+          minimum: 0
+          type: integer
+      type: object
+    ProviderModelView:
+      additionalProperties: false
+      properties:
+        context_tokens:
+          format: int64
+          type: integer
+        delisted_at:
+          format: date-time
+          type:
+            - string
+            - "null"
+        first_seen_at:
+          format: date-time
+          type: string
+        id:
+          format: int64
+          type: integer
+        input_modalities:
+          items:
+            type: string
+          type: array
+        kind:
+          enum:
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+            - video
+            - speech
+            - transcription
+            - rerank
+          type: string
+        kind_source:
+          description: "Where the kind came from: the provider's metadata, a guess from the name, an admin, or a successful probe."
+          enum:
+            - metadata
+            - name
+            - admin
+            - probe
+          type: string
+        last_seen_at:
+          format: date-time
+          type: string
+        listed:
+          description: False once the provider stopped listing it.
+          type: boolean
+        output_modalities:
+          items:
+            type: string
+          type: array
+        owned_by:
+          type: string
+        probe:
+          anyOf:
+            - $ref: "#/components/schemas/CatalogProbe"
+            - type: "null"
+        provider_id:
+          format: int64
+          type: integer
+        routes:
+          description: Gateway routes already using this upstream id on this provider.
+          items:
+            $ref: "#/components/schemas/CatalogRoute"
+          type: array
+        supported:
+          description: Whether the gateway can call this kind yet.
+          type: boolean
+        upstream_id:
+          type: string
+      required:
+        - id
+        - provider_id
+        - upstream_id
+        - kind
+        - kind_source
+        - supported
+        - input_modalities
+        - output_modalities
+        - context_tokens
+        - owned_by
+        - listed
+        - first_seen_at
+        - last_seen_at
+        - delisted_at
+        - probe
+        - routes
+      type: object
+    ProviderView:
+      additionalProperties: false
+      properties:
+        base_url:
+          type: string
+        catalog_synced_at:
+          description: Last successful read of the provider's model list.
+          format: date-time
+          type:
+            - string
+            - "null"
+        created_at:
+          format: date-time
+          type: string
+        enabled:
+          type: boolean
+        headers:
+          additionalProperties:
+            type: string
+          type: object
+        id:
+          format: int64
+          type: integer
+        key_configured:
+          type: boolean
+        key_hint:
+          type: string
+        name:
+          type: string
+        price_multiplier_ppm:
+          format: int64
+          type: integer
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - name
+        - base_url
+        - key_configured
+        - key_hint
+        - headers
+        - price_multiplier_ppm
+        - enabled
+        - catalog_synced_at
+        - created_at
+        - updated_at
+      type: object
+    RouteHealthView:
+      additionalProperties: false
+      properties:
+        health:
+          $ref: "#/components/schemas/HealthState"
+        last_hour:
+          $ref: "#/components/schemas/RouteHourStats"
+        latency_ms:
+          description: Recent first-byte (chat) or full (other kinds) time in this process; 0 until measured.
+          format: int64
+          type: integer
+        load:
+          $ref: "#/components/schemas/RouteLoad"
+        max_in_flight:
+          format: int64
+          type: integer
+        model_key:
+          type: string
+        provider:
+          type: string
+        route_id:
+          format: int64
+          type: integer
+        rpm:
+          format: int64
+          type: integer
+        state:
+          enum:
+            - healthy
+            - cooling
+            - limited
+            - disabled
+          type: string
+        status:
+          enum:
+            - active
+            - disabled
+          type: string
+        upstream_id:
+          type: string
+      required:
+        - route_id
+        - model_key
+        - provider
+        - upstream_id
+        - status
+        - state
+        - health
+        - load
+        - max_in_flight
+        - rpm
+        - latency_ms
+        - last_hour
+      type: object
+    RouteHourStats:
+      additionalProperties: false
+      properties:
+        calls:
+          format: int64
+          type: integer
+        errors:
+          format: int64
+          type: integer
+        last_error:
+          type: string
+        last_error_at:
+          format: date-time
+          type:
+            - string
+            - "null"
+        p50_ms:
+          format: int64
+          type: integer
+        p95_ms:
+          format: int64
+          type: integer
+      required:
+        - calls
+        - errors
+        - p50_ms
+        - p95_ms
+        - last_error
+        - last_error_at
+      type: object
+    RouteInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/RouteInput.json
+          format: uri
+          readOnly: true
+          type: string
+        max_in_flight:
+          format: int64
+          maximum: 10000
+          minimum: 0
+          type: integer
+        model_id:
+          format: int64
+          type: integer
+        price:
+          $ref: "#/components/schemas/Price"
+        priority:
+          format: int64
+          type: integer
+        provider_id:
+          format: int64
+          type: integer
+        rpm:
+          format: int64
+          maximum: 1000000
+          minimum: 0
+          type: integer
+        status:
+          enum:
+            - active
+            - disabled
+          type: string
+        thinking_control:
+          enum:
+            - auto
+            - none
+            - effort
+            - effort_none
+            - template
+            - thinking
+          type: string
+        upstream_id:
+          maxLength: 128
+          type: string
+        weight:
+          format: int64
+          maximum: 10000
+          minimum: 1
+          type: integer
+      type: object
+    RouteLoad:
+      additionalProperties: false
+      properties:
+        in_flight:
+          format: int64
+          type: integer
+        rpm_used:
+          format: int64
+          type: integer
+      required:
+        - in_flight
+        - rpm_used
+      type: object
+    RouteStats:
+      additionalProperties: false
+      properties:
+        avg_ms:
+          format: int64
+          type: integer
+        calls:
+          format: int64
+          type: integer
+        cost_nano:
+          format: int64
+          type: integer
+        errors:
+          format: int64
+          type: integer
+      required:
+        - calls
+        - errors
+        - avg_ms
+        - cost_nano
+      type: object
+    RouteView:
+      additionalProperties: false
+      properties:
+        id:
+          format: int64
+          type: integer
+        max_in_flight:
+          description: Concurrent calls this route may carry across all gateway processes; 0 is unlimited.
+          format: int64
+          type: integer
+        model_id:
+          format: int64
+          type: integer
+        price:
+          anyOf:
+            - $ref: "#/components/schemas/Price"
+            - type: "null"
+        priority:
+          format: int64
+          type: integer
+        protocol:
+          enum:
+            - chat
+            - embeddings
+            - moderations
+            - responses
+            - images
+          type: string
+        provider_id:
+          format: int64
+          type: integer
+        rpm:
+          description: Calls per minute across all gateway processes; 0 is unlimited.
+          format: int64
+          type: integer
+        stats_24h:
+          $ref: "#/components/schemas/RouteStats"
+        status:
+          enum:
+            - active
+            - disabled
+          type: string
+        status_reason:
+          type: string
+        thinking_control:
+          description: "How a scene's reasoning level reaches this upstream: reasoning_effort (effort: off sends low; effort_none: off sends none), chat_template_kwargs.enable_thinking (template), thinking.type (thinking), nothing (none), or auto, guessed from the upstream id."
+          enum:
+            - auto
+            - none
+            - effort
+            - effort_none
+            - template
+            - thinking
+          type: string
+        thinking_effective:
+          description: What auto resolves to for this upstream.
+          enum:
+            - none
+            - effort
+            - effort_none
+            - template
+            - thinking
+          type: string
+        upstream_id:
+          type: string
+        weight:
+          format: int64
+          type: integer
+      required:
+        - id
+        - model_id
+        - provider_id
+        - upstream_id
+        - protocol
+        - priority
+        - weight
+        - status
+        - status_reason
+        - max_in_flight
+        - rpm
+        - thinking_control
+        - thinking_effective
+        - price
+        - stats_24h
+      type: object
+    SceneInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SceneInput.json
+          format: uri
+          readOnly: true
+          type: string
+        class:
+          enum:
+            - interactive
+            - search
+            - batch
+            - moderation
+          type: string
+        content_fallback_model_ids:
+          items:
+            format: int64
+            type: integer
+          maxItems: 4
+          type:
+            - array
+            - "null"
+        context_fallback_model_ids:
+          items:
+            format: int64
+            type: integer
+          maxItems: 4
+          type:
+            - array
+            - "null"
+        daily_budget_micro:
+          format: int64
+          minimum: 0
+          type: integer
+        fallback_model_ids:
+          items:
+            format: int64
+            type: integer
+          maxItems: 8
+          type: array
+        idle_ms:
+          format: int64
+          maximum: 600000
+          minimum: 0
+          type: integer
+        max_output:
+          format: int64
+          minimum: 0
+          type: integer
+        model_id:
+          format: int64
+          type: integer
+        reasoning:
+          description: How hard reasoning models think in this scene; empty is off. off turns thinking off where the upstream allows it and asks for the lowest effort where it does not; default sends nothing and leaves the model's own default. Each route's thinking_control decides the parameter.
+          enum:
+            - "off"
+            - low
+            - medium
+            - high
+            - default
+          type: string
+        strategy:
+          description: "How routes of one priority tier are ordered: weighted keeps a conversation on one route (rendezvous on its key), least_busy prefers fewer calls in flight in this process, latency the lowest recent first-byte time (with a tenth of calls exploring), cost the cheapest price."
+          enum:
+            - weighted
+            - least_busy
+            - latency
+            - cost
+          type: string
+        temperature:
+          format: double
+          maximum: 2
+          minimum: 0
+          type:
+            - number
+            - "null"
+        total_ms:
+          format: int64
+          maximum: 1800000
+          minimum: 0
+          type: integer
+        ttft_ms:
+          format: int64
+          maximum: 600000
+          minimum: 0
+          type: integer
+      required:
+        - model_id
+        - fallback_model_ids
+        - class
+        - temperature
+        - max_output
+        - ttft_ms
+        - idle_ms
+        - total_ms
+      type: object
+    ScenePlan:
+      additionalProperties: false
+      properties:
+        scene:
+          type: string
+        skipped:
+          description: Routes cooling down, not tried unless everything else is.
+          items:
+            $ref: "#/components/schemas/PlanStep"
+          type: array
+        steps:
+          items:
+            $ref: "#/components/schemas/PlanStep"
+          type: array
+        strategy:
+          enum:
+            - weighted
+            - least_busy
+            - latency
+            - cost
+          type: string
+      required:
+        - scene
+        - strategy
+        - steps
+        - skipped
+      type: object
+    SceneView:
+      additionalProperties: false
+      properties:
+        class:
+          enum:
+            - interactive
+            - search
+            - batch
+            - moderation
+          type: string
+        content_fallback_model_ids:
+          description: Tried after a model's content filter refuses the request, before anything streamed.
+          items:
+            format: int64
+            type: integer
+          type: array
+        context_fallback_model_ids:
+          description: Tried after a model rejects the input as too long.
+          items:
+            format: int64
+            type: integer
+          type: array
+        daily_budget_micro:
+          description: Micro-USD calls through this scene may spend per day (China Standard Time); 0 is unlimited.
+          format: int64
+          type: integer
+        fallback_model_ids:
+          items:
+            format: int64
+            type: integer
+          type: array
+        idle_ms:
+          format: int64
+          type: integer
+        key:
+          type: string
+        max_output:
+          format: int64
+          type: integer
+        model_id:
+          format: int64
+          type: integer
+        ready:
+          description: Whether any model of the main chain has an active route right now.
+          type: boolean
+        reasoning:
+          enum:
+            - "off"
+            - low
+            - medium
+            - high
+            - default
+          type: string
+        spent_today_nano:
+          format: int64
+          type: integer
+        strategy:
+          enum:
+            - weighted
+            - least_busy
+            - latency
+            - cost
+          type: string
+        temperature:
+          format: double
+          type:
+            - number
+            - "null"
+        total_ms:
+          format: int64
+          type: integer
+        ttft_ms:
+          format: int64
+          type: integer
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - key
+        - model_id
+        - fallback_model_ids
+        - context_fallback_model_ids
+        - content_fallback_model_ids
+        - strategy
+        - reasoning
+        - daily_budget_micro
+        - spent_today_nano
+        - ready
+        - class
+        - temperature
+        - max_output
+        - ttft_ms
+        - idle_ms
+        - total_ms
+        - updated_at
       type: object
     SummaryRow:
       additionalProperties: false
@@ -208,6 +2085,61 @@ components:
         - degraded
         - truncated
       type: object
+    SyncResult:
+      additionalProperties: false
+      properties:
+        added:
+          format: int64
+          type: integer
+        delisted:
+          format: int64
+          type: integer
+        listed:
+          format: int64
+          type: integer
+        orphaned_routes:
+          description: Routes whose upstream id the provider no longer lists.
+          items:
+            format: int64
+            type: integer
+          type: array
+        relisted:
+          format: int64
+          type: integer
+      required:
+        - listed
+        - added
+        - delisted
+        - relisted
+        - orphaned_routes
+      type: object
+    UpdateLLMProviderModelRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/UpdateLLMProviderModelRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        kind:
+          description: auto goes back to the kind the metadata or name suggests.
+          enum:
+            - auto
+            - chat
+            - embedding
+            - moderation
+            - search
+            - image
+            - video
+            - speech
+            - transcription
+            - rerank
+          type: string
+      required:
+        - kind
+      type: object
     UpsertBudgetRequest:
       additionalProperties: false
       properties:
@@ -231,6 +2163,27 @@ components:
       required:
         - route
         - site
+      type: object
+    UsageDay:
+      additionalProperties: false
+      properties:
+        calls:
+          format: int64
+          type: integer
+        cost_nano:
+          format: int64
+          type: integer
+        day:
+          description: YYYY-MM-DD in China Standard Time.
+          type: string
+        errors:
+          format: int64
+          type: integer
+      required:
+        - day
+        - calls
+        - errors
+        - cost_nano
       type: object
     UsageOverview:
       additionalProperties: false
@@ -276,6 +2229,67 @@ components:
         - degraded
         - truncated
         - error_rate
+      type: object
+    UsageReport:
+      additionalProperties: false
+      properties:
+        daily:
+          items:
+            $ref: "#/components/schemas/UsageDay"
+          type: array
+        days:
+          format: int64
+          type: integer
+        group:
+          type: string
+        rows:
+          items:
+            $ref: "#/components/schemas/UsageRow"
+          type: array
+        total:
+          $ref: "#/components/schemas/UsageRow"
+      required:
+        - days
+        - group
+        - rows
+        - daily
+        - total
+      type: object
+    UsageRow:
+      additionalProperties: false
+      properties:
+        avg_ms:
+          format: int64
+          type: integer
+        calls:
+          format: int64
+          type: integer
+        cost_nano:
+          format: int64
+          type: integer
+        errors:
+          format: int64
+          type: integer
+        input_tokens:
+          format: int64
+          type: integer
+        key:
+          description: "The group value: a provider, route or access key id, a scene key or a model key."
+          type: string
+        label:
+          type: string
+        output_tokens:
+          format: int64
+          type: integer
+      required:
+        - key
+        - label
+        - calls
+        - errors
+        - input_tokens
+        - output_tokens
+        - cost_nano
+        - avg_ms
       type: object
     UsageSummary:
       additionalProperties: false
@@ -342,6 +2356,923 @@ paths:
       summary: Set or clear a per-route (optionally per-site) daily cost cap (null cap = clear)
       tags:
         - ai-admin
+  /api/v1/admin/ai/llm/access-keys:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: listLLMAccessKeys
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListAccessKeyView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List gateway access keys
+      tags:
+        - ai-admin-llm
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: createLLMAccessKey
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessKeyInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCreatedAccessKey"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Create an access key; the secret is returned once
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/access-keys/{id}:
+    delete:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: deleteLLMAccessKey
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeEmpty"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Revoke an access key
+      tags:
+        - ai-admin-llm
+    patch:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: updateLLMAccessKey
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessKeyInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAccessKeyView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Rename, re-scope, enable or disable an access key
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/config:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: exportLLMConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeGatewayConfig"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: The whole gateway configuration by name, without provider keys or access key secrets
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/config/import:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: importLLMConfig
+      parameters:
+        - explode: false
+          in: query
+          name: apply
+          schema:
+            type: boolean
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GatewayConfig"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Preview, or with apply=true write, an exported configuration; upserts by name and never deletes
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/events:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: listLLMEvents
+      parameters:
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 100
+            format: int64
+            maximum: 500
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListEventView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Recent gateway events, newest first
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/health:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: getLLMHealth
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListRouteHealthView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Every route's breaker, load, limits and last-hour numbers
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/models:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: listLLMModels
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List models
+      tags:
+        - ai-admin-llm
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: createLLMModel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Create a model
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/models/{id}:
+    delete:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: deleteLLMModel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeEmpty"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Delete a model no route or scene uses
+      tags:
+        - ai-admin-llm
+    patch:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: updateLLMModel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Update a model
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/provider-models/{id}:
+    patch:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: updateLLMProviderModel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLLMProviderModelRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProviderModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Set a catalog entry's kind by hand
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/provider-models/{id}/adopt:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: adoptLLMProviderModel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdoptInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAdoptResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: "Route a catalog entry: create the gateway model if needed, then the route"
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/provider-models/{id}/probe:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: probeLLMProviderModel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProbeLLMProviderModelRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProviderModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Call the upstream model once as the given kind; a success records the kind
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/providers:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: listLLMProviders
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListProviderView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List providers (keys are never returned)
+      tags:
+        - ai-admin-llm
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: createLLMProvider
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProviderView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Create a provider
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/providers/{id}:
+    delete:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: deleteLLMProvider
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeEmpty"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Delete a provider no route uses
+      tags:
+        - ai-admin-llm
+    patch:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: updateLLMProvider
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProviderView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Update a provider; a non-empty api_key replaces the stored key
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/providers/{id}/models:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: listLLMProviderModels
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListProviderModelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: The provider's model catalog from its last sync
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/providers/{id}/models/sync:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: syncLLMProviderModels
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSyncResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Read the provider's /models now and update its catalog
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/routes:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: listLLMRoutes
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListRouteView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List routes with their price and last-24h stats
+      tags:
+        - ai-admin-llm
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: createLLMRoute
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouteInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeRouteView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Create a route (model × provider)
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/routes/{id}:
+    delete:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: deleteLLMRoute
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeEmpty"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Delete a route
+      tags:
+        - ai-admin-llm
+    patch:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: updateLLMRoute
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouteInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeRouteView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Update a route; status active also lifts a suspension; price adds a revision
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/routes/{id}/reset-cooldown:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: resetLLMRouteCooldown
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeEmpty"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: End a route's cooldown in every gateway process
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/routes/{id}/test:
+    post:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: testLLMRoute
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProbeResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Send one tiny real request through exactly this route
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/scenes:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: listLLMScenes
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListSceneView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List scenes
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/scenes/{key}:
+    delete:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: deleteLLMScene
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            maxLength: 64
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeEmpty"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Delete a scene
+      tags:
+        - ai-admin-llm
+    put:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: putLLMScene
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            maxLength: 64
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SceneInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSceneView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Create or replace a scene
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/scenes/{key}/plan:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: planLLMScene
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            maxLength: 64
+            type: string
+        - description: A conversation id, to see where the weighted strategy pins it.
+          explode: false
+          in: query
+          name: affinity
+          schema:
+            description: A conversation id, to see where the weighted strategy pins it.
+            maxLength: 128
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeScenePlan"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: The order a call to this scene would try routes in, right now
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/status:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: getLLMStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLlmStatus"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Whether the server can store provider API keys
+      tags:
+        - ai-admin-llm
+  /api/v1/admin/ai/llm/usage:
+    get:
+      description: Requires ai.llm_manage (ren) for reading and writing.
+      operationId: getLLMUsage
+      parameters:
+        - explode: false
+          in: query
+          name: days
+          schema:
+            default: 7
+            enum:
+              - 1
+              - 7
+              - 30
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: group
+          schema:
+            default: scene
+            enum:
+              - provider
+              - route
+              - scene
+              - key
+              - model
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUsageReport"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Calls, errors, tokens and cost by provider, route, scene, access key or model
+      tags:
+        - ai-admin-llm
   /api/v1/admin/ai/usage/daily:
     get:
       operationId: getAIUsageDaily

@@ -9,6 +9,7 @@ import (
 	"api/internal/infrastructure/database"
 	"api/pkg/config"
 
+	agentmigrate "api/internal/platform/agent/migrate"
 	aimigrate "api/internal/platform/ai/migrate"
 	catalogmigrate "api/internal/platform/catalog/migrate"
 	catalogseed "api/internal/platform/catalog/seed"
@@ -61,6 +62,10 @@ var domains = map[string]domain{
 	"ai": {
 		db:  func(c *config.Config) config.DatabaseConfig { return c.AIDatabase },
 		run: aimigrate.Run,
+	},
+	"agent": {
+		db:  func(c *config.Config) config.DatabaseConfig { return c.AgentDatabase },
+		run: agentmigrate.Run,
 	},
 	"telemetry": {
 		db:  func(c *config.Config) config.DatabaseConfig { return c.TelemetryDatabase },

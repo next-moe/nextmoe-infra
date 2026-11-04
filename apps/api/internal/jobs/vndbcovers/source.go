@@ -38,12 +38,15 @@ type candidate struct {
 	VNDBID string `gorm:"column:vndb_id"`
 }
 
-// A work "has a cover" only when an official source put one there. The first
-// production run gated on NOT EXISTS(any cover row) and stalled at 13.3k of
-// 65k vndb anchors: legacy-wiki rows (source 'curated', plus their AI-upscaled
-// 'upscale' twins — both frequently hand-censored) counted as covers and kept
-// 48k works out of the queue, while upstream coverage probed 60/60. pkg* kinds
-// are box scans the public picker vetoes, so they do not count either.
+// A work "has a cover" only when VNDB put one there. pkg* kinds are box scans
+// the public picker vetoes, so they do not count.
+//
+// The first production run gated on NOT EXISTS(any cover row) and stalled at
+// 13.3k of 65k vndb anchors: legacy-wiki rows kept 48k works out of the queue.
+// The gate that replaced it still counted every other source as a cover, and on
+// 2026-10-28 production held 3,456 vndb-anchored works with no vndb cover —
+// 1,756 behind a Bangumi cover (mosaicked for adult games, v2868 the report)
+// and most of the rest behind the blurred 'censored' stand-in.
 func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, ids []int64) ([]candidate, error) {
 	sql := `
 		SELECT DISTINCT ON (w.id) w.id AS work_id, r.external_id AS vndb_id
@@ -53,12 +56,10 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, ids []int64)
 		WHERE w.medium_id = ? AND w.deleted_at IS NULL
 			AND NOT EXISTS (
 				SELECT 1 FROM catalog_work_cover c
-				JOIN catalog_source cs ON cs.id = c.source_id
-				WHERE c.work_id = w.id
+				WHERE c.work_id = w.id AND c.source_id = ?
 					AND c.kind NOT IN ('pkgfront','pkgback','pkgmed','pkgcontent','pkgside')
-					AND cs.key NOT IN ('curated','upscale')
 			)`
-	args := []any{model.EntityTypeWork, reg.vndbSource, model.LinkKindExact, reg.galgameMedium}
+	args := []any{model.EntityTypeWork, reg.vndbSource, model.LinkKindExact, reg.galgameMedium, reg.vndbSource}
 	if len(ids) > 0 {
 		sql += "\n\t\t\tAND w.id IN ?"
 		args = append(args, ids)

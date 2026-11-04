@@ -509,7 +509,7 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = io.WriteString(w, `{
 					"catalog_works": {
-						"mappings": {"_meta": {"schema_version": 4}}
+						"mappings": {"_meta": {"schema_version": 5}}
 					}
 				}`)
 			case http.MethodPut:
@@ -534,7 +534,7 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 			switch r.Method {
 			case http.MethodGet:
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 4}}}}`)
+				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 5}}}}`)
 			case http.MethodPut:
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&mapping))
 				_, _ = io.WriteString(w, `{"acknowledged":true}`)
@@ -552,7 +552,7 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 		eng := testEngine(t, func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet {
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 4}}}}`)
+				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 5}}}}`)
 				return
 			}
 			w.WriteHeader(http.StatusBadRequest)

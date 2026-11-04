@@ -13,6 +13,8 @@ export interface User {
   original_email?: string
   roles: string[]
   created_at: string
+  last_login_at?: string
+  last_active_at?: string
 }
 
 export interface UserSiteData {

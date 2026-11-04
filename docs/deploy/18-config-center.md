@@ -106,7 +106,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 - `image.gc_*`:`cold_after_days` / `softdelete_after_days` / `harddelete_after_days` / `max_per_run`(image-gc 任务开跑时读)
 - `artifact.gc_max_per_run`(artifact-gc 任务开跑时读)
 - `store.price_*`:`enabled`(总开关,关闭时报价请求 503、后台刷新跳过)/ `user_agent` / `steam_regions` / `dlsite_currencies` / `wait_on_miss_ms` / `fresh_for_hours`
-- `ai.upstream_model` / `ai.omni_model`
+- ~~`ai.upstream_model` / `ai.omni_model`~~:2026-10-28 移除。审核用的模型改由 LLM 网关的场景(`ai.moderation.llm` / `ai.moderation.omni`)决定,在管理端「LLM 网关配置」里改;`KUN_AI_UPSTREAM_MODEL` / `KUN_AI_OMNI_MODEL` 只在网关首次启动、供应商表为空时用来种子化。
 
 **例外:`store.price_steam_regions` 与 `store.price_dlsite_currencies` 在 catalog 启动时读一次**,
 改了要重启 catalog 才生效(fetcher 构造期定型);其余 93 个键都是使用时读。

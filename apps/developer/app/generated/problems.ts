@@ -290,6 +290,15 @@ export const problems = [
     "type": "https://developer.nextmoe.dev/problems/me/user-identity-required"
   },
   {
+    "code": "BROWSING_HISTORY_NOT_SHARED",
+    "domain": "me",
+    "kebab": "browsing-history-not-shared",
+    "status": 403,
+    "title": "Browsing history not shared",
+    "description": "scope=all asked for every app's browsing history, and the account keeps it per app. Only the account can change that, with browsing_history_sharing on PATCH /v2/me/privacy from a first-party app; this app still reads what it recorded itself with scope=app.",
+    "type": "https://developer.nextmoe.dev/problems/me/browsing-history-not-shared"
+  },
+  {
     "code": "SITE_NOT_BOUND",
     "domain": "me",
     "kebab": "site-not-bound",

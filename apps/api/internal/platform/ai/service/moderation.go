@@ -121,6 +121,39 @@ func moderateSystemPrompt(site string) string {
 	return ModerateSystemPrompt + siteModerationContext[site]
 }
 
+const ProfileModeratePrompt = `You are reviewing the public profile of one user account on NextMoe, a family of Chinese-language ACG and visual-novel (galgame) community sites. The message holds the account's username and, when present, its bio (签名) and about text, each on a labelled line.
+
+Flag the profile only when it clearly falls under one of these categories:
+- sex_ad: advertises sexual services (外约, 喝茶/茶莊, 援交, 学生妹, 约炮, 楼凤, escort), with or without contact info.
+- spam_ad: other advertising or traffic-pulling: gambling/casino, crypto, loans, selling accounts/cheats/followers/card keys, SEO, a contact handle (TG/Telegram/Line/赖/微信/VX/QQ/WhatsApp/Gleezy) used to sell something.
+- sexual: explicit obscene wording that is not an ad.
+- abuse: insults, slurs, hate, harassment of people or groups.
+- politics: politically sensitive or extremist content.
+- impersonate: poses as site staff, admin, moderator, official or customer service (官方, 管理员, 客服, 版主).
+- illegal: drugs, weapons, fraud, other clearly illegal content.
+
+This is an otaku community: anime and galgame character names, game titles, words like 萝莉, 老婆, 本子, 绅士, 色色, H, 18x and ordinary jokes are normal. A contact handle, group number or link to the user's own site with no commercial intent is allowed. Spaced-out or symbol-split text (全 台 喝 茶) is a common evasion; read through it.
+
+Respond with ONLY a JSON object, no prose, of the form:
+{"flagged": <bool>, "categories": [<category>, ...], "score": <number between 0 and 1>}
+"flagged" is true only for a clear case; "score" is your confidence that the profile violates policy.`
+
+var kindModeratePrompts = map[string]string{
+	"user_profile": ProfileModeratePrompt,
+}
+
+func (p ModerateParams) systemPrompt() string {
+	if prompt, ok := kindModeratePrompts[p.SubjectKind]; ok {
+		return prompt
+	}
+	return moderateSystemPrompt(p.contentSite())
+}
+
+func (p ModerateParams) llmOnly() bool {
+	_, ok := kindModeratePrompts[p.SubjectKind]
+	return ok
+}
+
 // moderateRetryDelay waits out a 429 burst before the single retry. Every
 // observed prod 429 landed at :35-:36 past the minute — a scheduled caller, not
 // a person waiting on a form — so seconds here cost no user latency. It is 3s
@@ -142,7 +175,7 @@ func (s *ModerationService) Moderate(ctx context.Context, p ModerateParams) (Mod
 		return failOpen(routeName, "", spec), nil
 	}
 
-	if !s.omni.Configured() {
+	if !s.omni.Configured() || p.llmOnly() {
 		return s.moderateViaLLM(ctx, p, routeName, spec)
 	}
 
@@ -200,7 +233,7 @@ func (s *ModerationService) moderateViaLLM(ctx context.Context, p ModerateParams
 	}
 
 	maxTokens := int(keys.AIModerateMaxTokens.Get())
-	res, err := s.llm.ChatJSON(ctx, moderateSystemPrompt(p.contentSite()), p.Text, maxTokens)
+	res, err := s.llm.ChatJSON(ctx, p.systemPrompt(), p.Text, maxTokens)
 	if err != nil && upstream.IsRateLimited(err) {
 		// The Cloudflare inference bucket is per-minute and shared with every
 		// other caller on the account, so a 429 here is contention, not a
@@ -217,7 +250,7 @@ func (s *ModerationService) moderateViaLLM(ctx context.Context, p ModerateParams
 		case <-ctx.Done():
 			timer.Stop()
 		case <-timer.C:
-			res, err = s.llm.ChatJSON(ctx, moderateSystemPrompt(p.contentSite()), p.Text, maxTokens)
+			res, err = s.llm.ChatJSON(ctx, p.systemPrompt(), p.Text, maxTokens)
 		}
 	}
 	if err != nil {

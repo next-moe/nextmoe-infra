@@ -5,10 +5,12 @@ import (
 	stderrors "errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"api/internal/platform/ai/dto"
 	aiPerm "api/internal/platform/ai/perm"
 	"api/internal/platform/ai/service"
+	"api/internal/platform/llm"
 	"api/pkg/errors"
 	"api/pkg/wireshape"
 
@@ -19,11 +21,18 @@ import (
 
 type adminCtxKey string
 
-const ctxKeyAdminRoles adminCtxKey = "ai_admin:roles"
+const (
+	ctxKeyAdminRoles adminCtxKey = "ai_admin:roles"
+	actorCtxKey      adminCtxKey = "ai_admin:actor"
+)
 
 func adminAuthBridge(ctx huma.Context, next func(huma.Context)) {
-	if roles, ok := humafiber.Unwrap(ctx).Locals("user_roles").([]string); ok {
+	fc := humafiber.Unwrap(ctx)
+	if roles, ok := fc.Locals("user_roles").([]string); ok {
 		ctx = huma.WithValue(ctx, ctxKeyAdminRoles, roles)
+	}
+	if id, ok := fc.Locals("user_id").(uint); ok && id > 0 {
+		ctx = huma.WithValue(ctx, actorCtxKey, "user:"+strconv.FormatUint(uint64(id), 10))
 	}
 	next(ctx)
 }
@@ -38,7 +47,7 @@ type AdminServer struct {
 	budgets *service.BudgetService
 }
 
-func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.BudgetService) huma.API {
+func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.BudgetService, gateway *llm.Admin) huma.API {
 	InstallErrorEnvelope()
 
 	cfg := huma.DefaultConfig("KUN AI Admin API", "1.0.1")
@@ -51,6 +60,7 @@ func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.Bu
 
 	s := &AdminServer{stats: stats, budgets: budgets}
 	s.register(api)
+	(&llmAdmin{a: gateway}).register(api)
 	wireshape.Publish(api.OpenAPI())
 	return api
 }

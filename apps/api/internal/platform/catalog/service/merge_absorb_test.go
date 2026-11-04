@@ -88,7 +88,10 @@ func TestAbsorbKeepsTheBaseWorkAndTakesOnlyUserData(t *testing.T) {
 
 	want := before.clone()
 	want.Intros["de"] = "loser curated de|curated|false"
-	assert.Equal(t, want, faceOf(t, svc, f.survivor), "an edition adds no imported data; its curated intro fills a language")
+	voted := svc.imageURL(lShared)
+	want.Portrait, want.ListCover, want.ListPortrait = "cover:"+voted, voted, "cover:"+voted
+	assert.Equal(t, want, faceOf(t, svc, f.survivor), "an edition adds no imported data; its curated intro fills a "+
+		"language, and its reader's vote lands on the survivor's identical cover, which the vote now elects")
 
 	var refs []model.CatalogExternalRef
 	require.NoError(t, testDB.Where("entity_type = ? AND entity_id = ? AND matched_by = ?",

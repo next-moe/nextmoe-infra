@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"api/internal/platform/catalog/dto"
@@ -15,6 +16,7 @@ import (
 const (
 	taxonomyLaneLabels  = "labels"
 	taxonomyLaneTags    = "tags"
+	taxonomyLaneTagHeat = "tags_works"
 	taxonomyLaneEngines = "engines"
 	taxonomyLaneSeries  = "series"
 	taxonomyLaneRoles   = "roles"
@@ -28,16 +30,22 @@ type LabelsListFilter struct {
 }
 
 type TagsListFilter struct {
-	Tier     *int16
-	Kind     *int16
-	NSFW     bool
-	HasWorks bool
-	IDs      []int64
+	Tier          *int16
+	Kind          *int16
+	NSFW          bool
+	HasWorks      bool
+	IDs           []int64
+	Category      *int16
+	Uncategorized bool
+	Sort          string
 }
+
+const TagSortWorkCount = "work_count"
 
 type EnginesListFilter struct {
 	NSFW bool
 	IDs  []int64
+	Sort string
 }
 
 type RolesListFilter struct {
@@ -57,19 +65,24 @@ func (s *PublicService) LabelsList(ctx context.Context, f LabelsListFilter, curs
 		where = append(where, "kind = ?")
 		args = append(args, *f.Kind)
 	}
-	if f.HasWorks {
-		pred, pargs := workExistsClause(labelWorkEdge, "catalog_label.id", f.NSFW)
-		where = append(where, pred)
-		args = append(args, pargs...)
-	}
 	if len(f.IDs) > 0 {
 		where = append(where, "id IN ?")
 		args = append(args, f.IDs)
 	}
 	filterWhere, filterArgs := append([]string(nil), where...), append([]any(nil), args...)
+	if f.HasWorks {
+		pred, pargs := workExistsClause(labelWorkEdge, "catalog_label.id", f.NSFW, 0)
+		filterWhere = append(filterWhere, pred)
+		filterArgs = append(filterArgs, pargs...)
+	}
 	if cur.ID > 0 {
 		where = append(where, "id > ?")
 		args = append(args, cur.ID)
+	}
+	if f.HasWorks {
+		pred, pargs := workExistsClause(labelWorkEdge, "catalog_label.id", f.NSFW, cur.ID)
+		where = append(where, pred)
+		args = append(args, pargs...)
 	}
 
 	var rows []struct {
@@ -150,7 +163,12 @@ func (s *PublicService) labelsWithRelations(ctx context.Context, ids []int64) (m
 }
 
 func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor string, limit int) (dto.PublicTagsListData, error) {
-	cur, err := decodePublicCursor(cursor, taxonomyLaneTags)
+	byWorks := f.Sort == TagSortWorkCount && len(f.IDs) == 0
+	lane := taxonomyLaneTags
+	if byWorks {
+		lane = taxonomyLaneTagHeat
+	}
+	cur, err := decodePublicCursor(cursor, lane)
 	if err != nil {
 		return dto.PublicTagsListData{}, err
 	}
@@ -167,7 +185,7 @@ func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor s
 		args = append(args, *f.Kind)
 	}
 	if f.HasWorks {
-		pred, pargs := workExistsClause(tagWorkEdge, "catalog_tag.id", f.NSFW)
+		pred, pargs := workExistsClause(tagWorkEdge, "catalog_tag.id", f.NSFW, 0)
 		where = append(where, pred)
 		args = append(args, pargs...)
 	}
@@ -175,19 +193,42 @@ func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor s
 		where = append(where, "id IN ?")
 		args = append(args, f.IDs)
 	}
+	switch {
+	case f.Uncategorized:
+		where = append(where, "category_id IS NULL")
+	case f.Category != nil:
+		where = append(where, "category_id = ?")
+		args = append(args, *f.Category)
+	}
 	filterWhere, filterArgs := append([]string(nil), where...), append([]any(nil), args...)
-	if cur.ID > 0 {
+
+	from, heat, order := `catalog_tag`, `0`, `id ASC`
+	if byWorks {
+		col := "n_sfw"
+		if f.NSFW {
+			col = "n_all"
+		}
+		from = `catalog_tag LEFT JOIN catalog_tag_work_count wc ON wc.tag_id = catalog_tag.id`
+		heat = `COALESCE(wc.` + col + `, 0)`
+		order = heat + ` DESC, id ASC`
+		if cur.ID > 0 {
+			where = append(where, `(`+heat+` < ? OR (`+heat+` = ? AND id > ?))`)
+			args = append(args, cur.Ord, cur.Ord, cur.ID)
+		}
+	} else if cur.ID > 0 {
 		where = append(where, "id > ?")
 		args = append(args, cur.ID)
 	}
 
 	var rows []struct {
-		ID   int64
-		Name string
-		Tier int16
-		Kind int16
+		ID         int64
+		Name       string
+		Tier       int16
+		Kind       int16
+		CategoryID *int16
+		Heat       int64
 	}
-	q := `SELECT id, name, tier, kind FROM catalog_tag ` + whereClause(where) + ` ORDER BY id ASC`
+	q := `SELECT id, name, tier, kind, category_id, ` + heat + ` AS heat FROM ` + from + ` ` + whereClause(where) + ` ORDER BY ` + order
 	q, args, paginated := applyBrowseLimit(q, args, limit+taxonomyOverFetch, f.IDs)
 	if err := s.db.WithContext(ctx).Raw(q, args...).Scan(&rows).Error; err != nil {
 		return dto.PublicTagsListData{}, err
@@ -213,22 +254,35 @@ func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor s
 	if err != nil {
 		return dto.PublicTagsListData{}, err
 	}
+	cats, err := s.tagCategoriesByID(ctx)
+	if err != nil {
+		return dto.PublicTagsListData{}, err
+	}
 	out := dto.PublicTagsListData{Items: make([]dto.PublicTagListItem, len(rows))}
 	for i, r := range rows {
 		out.Items[i] = dto.PublicTagListItem{
 			ID: r.ID, Name: r.Name, Tier: tagTierKey(r.Tier), Kind: tagKindKey(r.Kind),
-			WorkCount: counts[r.ID], Sexual: sexual[r.ID],
+			WorkCount: counts[r.ID], Sexual: sexual[r.ID], Category: cats.ref(r.CategoryID),
 			Parents: h.parentsOf(r.ID), ChildCount: h.children[r.ID], DescendantCount: h.descendants[r.ID],
 		}
 	}
 	if out.Total, err = s.taxonomyTotal(ctx, "catalog_tag", filterWhere, filterArgs); err != nil {
 		return dto.PublicTagsListData{}, err
 	}
-	out.NextCursor = taxonomyNextCursor(taxonomyLaneTags, ids, more)
+	if more && byWorks {
+		last := rows[len(rows)-1]
+		c := encodePublicCursor(publicCursor{Sort: lane, ID: last.ID, Ord: last.Heat})
+		out.NextCursor = &c
+		return out, nil
+	}
+	out.NextCursor = taxonomyNextCursor(lane, ids, more)
 	return out, nil
 }
 
 func (s *PublicService) EnginesList(ctx context.Context, f EnginesListFilter, cursor string, limit int) (dto.PublicEnginesListData, error) {
+	if f.Sort == engineSortPopularity {
+		return s.enginesByRaters(ctx, f, cursor, limit)
+	}
 	cur, err := decodePublicCursor(cursor, taxonomyLaneEngines)
 	if err != nil {
 		return dto.PublicEnginesListData{}, err
@@ -247,12 +301,7 @@ func (s *PublicService) EnginesList(ctx context.Context, f EnginesListFilter, cu
 		args = append(args, cur.ID)
 	}
 
-	var rows []struct {
-		ID          int64
-		Name        string
-		Description string
-		Aliases     datatypes.JSON
-	}
+	var rows []engineRow
 	q := `SELECT id, name, description, aliases FROM catalog_engine ` + whereClause(where) + ` ORDER BY id ASC`
 	q, args, paginated := applyBrowseLimit(q, args, limit+taxonomyOverFetch, f.IDs)
 	if err := s.db.WithContext(ctx).Raw(q, args...).Scan(&rows).Error; err != nil {
@@ -267,7 +316,34 @@ func (s *PublicService) EnginesList(ctx context.Context, f EnginesListFilter, cu
 	for i, r := range rows {
 		ids[i] = r.ID
 	}
-	counts, err := s.workCountsFor(ctx, engineWorkEdge, ids, f.NSFW)
+	raters, err := s.engineRatersFor(ctx, f.NSFW)
+	if err != nil {
+		return dto.PublicEnginesListData{}, err
+	}
+	out, err := s.engineListItems(ctx, rows, f.NSFW, raters)
+	if err != nil {
+		return dto.PublicEnginesListData{}, err
+	}
+	if out.Total, err = s.taxonomyTotal(ctx, "catalog_engine", filterWhere, filterArgs); err != nil {
+		return dto.PublicEnginesListData{}, err
+	}
+	out.NextCursor = taxonomyNextCursor(taxonomyLaneEngines, ids, more)
+	return out, nil
+}
+
+type engineRow struct {
+	ID          int64
+	Name        string
+	Description string
+	Aliases     datatypes.JSON
+}
+
+func (s *PublicService) engineListItems(ctx context.Context, rows []engineRow, nsfw bool, raters map[int64]engineRaters) (dto.PublicEnginesListData, error) {
+	ids := make([]int64, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ID
+	}
+	counts, err := s.workCountsFor(ctx, engineWorkEdge, ids, nsfw)
 	if err != nil {
 		return dto.PublicEnginesListData{}, err
 	}
@@ -275,13 +351,10 @@ func (s *PublicService) EnginesList(ctx context.Context, f EnginesListFilter, cu
 	for i, r := range rows {
 		out.Items[i] = dto.PublicEngineListItem{
 			ID: r.ID, Name: r.Name, WorkCount: counts[r.ID],
+			RaterCount: raters[r.ID].Raters, RatedWorkCount: raters[r.ID].RatedWorks,
 			Description: r.Description, Aliases: engineAliases(r.Aliases),
 		}
 	}
-	if out.Total, err = s.taxonomyTotal(ctx, "catalog_engine", filterWhere, filterArgs); err != nil {
-		return dto.PublicEnginesListData{}, err
-	}
-	out.NextCursor = taxonomyNextCursor(taxonomyLaneEngines, ids, more)
 	return out, nil
 }
 
@@ -303,8 +376,13 @@ func (s *PublicService) EngineDetail(ctx context.Context, id int64, nsfw bool) (
 	if err != nil {
 		return dto.PublicEngine{}, false, err
 	}
+	raters, err := s.engineRatersFor(ctx, nsfw)
+	if err != nil {
+		return dto.PublicEngine{}, false, err
+	}
 	rec := dto.PublicEngine{
 		ID: head.ID, Name: head.Name, WorkCount: counts[id],
+		RaterCount: raters[id].Raters, RatedWorkCount: raters[id].RatedWorks,
 		Description: head.Description, Aliases: engineAliases(head.Aliases),
 	}
 	if rec.Refs, err = s.entityRefs(ctx, model.EntityTypeEngine, id); err != nil {
@@ -422,6 +500,39 @@ func (s *PublicService) workCountsLive(ctx context.Context, edge taxonomyEdge, i
 	if ids != nil && len(ids) == 0 {
 		return counts, nsfwWorks, nil
 	}
+	cacheKey := func(id int64, col string) string {
+		return edge.sql + "\x00" + strconv.FormatBool(nsfw) + "\x00" + col + strconv.FormatInt(id, 10)
+	}
+	if ids != nil {
+		var missing []int64
+		for _, id := range ids {
+			n, okN := s.workCounts.get(cacheKey(id, "n"))
+			x, okX := s.workCounts.get(cacheKey(id, "x"))
+			if !okN || !okX {
+				missing = append(missing, id)
+				continue
+			}
+			if n > 0 {
+				counts[id] = int(n)
+			}
+			if x > 0 {
+				nsfwWorks[id] = int(x)
+			}
+		}
+		if len(missing) == 0 {
+			return counts, nsfwWorks, nil
+		}
+		ids = missing
+		defer func() {
+			if err != nil {
+				return
+			}
+			for _, id := range missing {
+				s.workCounts.put(cacheKey(id, "n"), int64(counts[id]))
+				s.workCounts.put(cacheKey(id, "x"), int64(nsfwWorks[id]))
+			}
+		}()
+	}
 	visible, args := "TRUE", []any(nil)
 	if !nsfw {
 		sfw, sfwArgs := worksListPopulation(false)
@@ -461,9 +572,18 @@ func (s *PublicService) workCountsLive(ctx context.Context, edge taxonomyEdge, i
 	return counts, nsfwWorks, nil
 }
 
-func workExistsClause(edge taxonomyEdge, outerID string, nsfw bool) (string, []any) {
-	where, args := worksListPopulation(nsfw)
-	where = append([]string{"e.key_id = " + outerID}, where...)
+// afterID repeats the outer keyset cursor inside the EXISTS: the planner does
+// not carry "id > cursor" across the e.key_id = id equality, so the label list
+// merge-joined catalog_work_label from its first row on every page (5.2s on
+// prod for a page past id 11193, 2026-10-31; 83ms with the bound).
+func workExistsClause(edge taxonomyEdge, outerID string, nsfw bool, afterID int64) (string, []any) {
+	pop, popArgs := worksListPopulation(nsfw)
+	where, args := []string{"e.key_id = " + outerID}, []any(nil)
+	if afterID > 0 {
+		where = append(where, "e.key_id > ?")
+		args = append(args, afterID)
+	}
+	where, args = append(where, pop...), append(args, popArgs...)
 	return `EXISTS (SELECT 1 FROM ` + edge.sql + ` JOIN catalog_work w ON w.id = e.work_id WHERE ` +
 		strings.Join(where, " AND ") + `)`, args
 }

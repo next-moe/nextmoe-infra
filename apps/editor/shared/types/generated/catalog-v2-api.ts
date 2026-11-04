@@ -281,7 +281,7 @@ export interface paths {
         };
         /**
          * List engines
-         * @description Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+         * @description Keyset-paginated engines. sort=id (default) or popularity: rater_count descending, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
          */
         get: operations["listCatalogEngines"];
         put?: never;
@@ -424,6 +424,26 @@ export interface paths {
          * @description Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
          */
         get: operations["getCatalogProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/catalog/rankings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rank works by their ratings
+         * @description Ranks works by their ratings on every source, or on one. Every source keeps its own published score (per_source[].score); next to it each entry carries what a fitted model makes of it. Per source, mean is the work's own mean pulled toward what works with as many votes usually score, so a work with three votes cannot outrank one with three thousand on luck, with a 90% interval and the work's percentile in that source. The consensus puts the sources on one scale: each source's estimate becomes a normal score within that source, a one-factor model fitted on the works several sources share corrects for each source's audience, and the sources are combined weighted by how much each one knows about the work. It is read as a deviation score (偏差値): 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. The model is refitted from the data nightly and the ranking reads the search index, rebuilt nightly; model describes the fit in use. Every filter of GET /v2/catalog/works that the search index carries applies here, plus scope=, year=, circulation=, platform=, playtime_min/max=, vote floors and score bounds. page= selects page mode. Answers 503 until the first model is fitted. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         */
+        get: operations["listCatalogRankings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -692,6 +712,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/catalog/tag-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List tag categories
+         * @description The browsing groups canonical tags are filed under, in display order, all on one page. A tag carries its group as tag_category; GET /v2/catalog/tags?category={id} lists a group's tags, and category=none the tags in no group. Ids are stable; display names and order may change. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         */
+        get: operations["listCatalogTagCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/catalog/tag-exclusion": {
         parameters: {
             query?: never;
@@ -721,7 +761,7 @@ export interface paths {
         };
         /**
          * List tags
-         * @description Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+         * @description Keyset-paginated canonical tags. sort=id (default) or work_count: work_count descending under the same nsfw gate, as of the hourly recount, then id. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. category= keeps one browsing group (GET /v2/catalog/tag-categories), or none for the tags in no group.
          */
         get: operations["listCatalogTags"];
         put?: never;
@@ -901,7 +941,7 @@ export interface paths {
         };
         /**
          * List covers of one work
-         * @description Work cover rows. Same items as include=covers. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         * @description Work cover rows. Same items as include=covers: every row in gallery order, of every sexual grade, so the first item is not the elected portrait; read the work's cover for that. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
          */
         get: operations["getCatalogWorkCovers"];
         put?: never;
@@ -1792,6 +1832,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my browsing history
+         * @description The works the bearer opened, newest first. Browsing history is kept per app: each app reads and deletes what it recorded, and entries older than 90 days or past the newest 500 per app are deleted. An account that switched browsing_history off on PATCH /v2/me/privacy has no history on the server. scope=all merges every app's entries per work and is 403 BROWSING_HISTORY_NOT_SHARED unless the account set browsing_history_sharing to shared, and 403 SCOPE_REQUIRED without history:read. Works that are no longer live in the catalog are left out. Items carry ids only; read the works themselves from /v2/catalog/works?ids=. Requires a user access token. With the default scope=app any app may call this and no scope is required.
+         */
+        get: operations["listMyBrowsingHistory"];
+        put?: never;
+        post?: never;
+        /**
+         * Clear my browsing history
+         * @description Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. Requires a user access token. Any app may call this; no scope is required.
+         */
+        delete: operations["clearMyBrowsingHistory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/history/works/{work_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record that I opened a work
+         * @description Moves the work to the top of this app's history for the bearer. Send it once the person has actually stayed on the work's page, not on prefetch or render. Visits less than a minute apart count once. 204 with no body, also when the account has browsing history off: then nothing is stored. 404 when the work is not live. Requires a user access token. Any app may call this; no scope is required.
+         */
+        put: operations["recordMyWorkView"];
+        post?: never;
+        /**
+         * Remove one work from my browsing history
+         * @description Deletes the work from this app's history with the default scope=app, from every app's with scope=all. 204 with no body, also when there was nothing to delete. Requires a user access token. Any app may call this; no scope is required.
+         */
+        delete: operations["forgetMyWorkView"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/merge-candidates": {
         parameters: {
             query?: never;
@@ -2009,7 +2097,7 @@ export interface paths {
         };
         /**
          * My privacy switches
-         * @description play_records says who may read the bearer's play states and playtimes on /v2/work-records. An account that never changed it answers public with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
+         * @description play_records says who may read the bearer's play states and playtimes on /v2/work-records; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers public, on and per_app with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
          */
         get: operations["getMyPrivacy"];
         put?: never;
@@ -2019,7 +2107,7 @@ export interface paths {
         head?: never;
         /**
          * Change my privacy switches
-         * @description Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next read of /v2/work-records. Requires a user access token. Any app may call this; no scope is required.
+         * @description Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required.
          */
         patch: operations["patchMyPrivacy"];
         trace?: never;
@@ -3230,6 +3318,32 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        BrowsingHistoryEntry: {
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC of the earliest visit still kept.
+             */
+            first_viewed_at: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC of the latest visit. The list is ordered by it, newest first.
+             */
+            last_viewed_at: string;
+            /**
+             * @description Type discriminant. Always work_view.
+             * @enum {string}
+             */
+            object: "work_view";
+            /**
+             * Format: int64
+             * @description Visits recorded. Visits less than a minute apart count once.
+             */
+            view_count: number;
+            /** @description Catalog work id the bearer opened. */
+            work_id: string;
+        } & {
+            [key: string]: unknown;
+        };
         CalendarList: {
             /**
              * Format: uri
@@ -3796,7 +3910,7 @@ export interface components {
             id: string;
             /** @description Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant. */
             identity: string;
-            /** @description Whether this row is pinned as the portrait cover. */
+            /** @description Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait. */
             portrait_pinned: boolean;
             /**
              * @description Sexual depiction. null means not assessed.
@@ -3819,7 +3933,7 @@ export interface components {
             violence: "tame" | "violent" | "brutal" | null;
             /**
              * Format: int64
-             * @description Net votes on this cover row.
+             * @description Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another.
              */
             vote_count: number;
             /**
@@ -4877,6 +4991,16 @@ export interface components {
             object: "engine";
             /**
              * Format: int64
+             * @description Works among work_count that at least 10 people rated on VNDB, Bangumi or ErogameScape. Up to an hour stale.
+             */
+            rated_work_count: number;
+            /**
+             * Format: int64
+             * @description Sum over the works work_count counts of each work's largest rater count on VNDB, Bangumi or ErogameScape. A work none of them rates adds 0. Up to an hour stale. sort=popularity orders by it.
+             */
+            rater_count: number;
+            /**
+             * Format: int64
              * @description Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.
              */
             work_count: number;
@@ -5159,6 +5283,41 @@ export interface components {
             };
             /** @description Members of this page. Empty array, never null. */
             items: components["schemas"]["Appearance"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListBrowsingHistoryEntry: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListBrowsingHistoryEntry.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["BrowsingHistoryEntry"][];
             /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
             missing?: string[];
             /** @description Opaque keyset cursor. Omitted on the last page. */
@@ -6143,6 +6302,68 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListRanking: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListRanking.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description What the list ranks by, as by= asked.
+             * @enum {string}
+             */
+            by: "consensus" | "vndb" | "bangumi" | "dlsite" | "erogamescape" | "nextmoe" | "howlongtobeat";
+            /**
+             * @description The order= in effect. desc puts the highest value first.
+             * @enum {string}
+             */
+            direction: "desc" | "asc";
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["RankingEntry"][];
+            /**
+             * @description The statistic ranked on, as metric= asked or defaulted.
+             * @enum {string}
+             */
+            metric: "lower" | "upper" | "mean" | "median" | "native" | "percentile" | "spread" | "votes" | "sources" | "divergence";
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description The fitted model every derived number on this page comes from. */
+            model: components["schemas"]["RatingModel"];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * @description The scope= in effect. vn ranks visual novels only; all ranks every game.
+             * @enum {string}
+             */
+            scope: "vn" | "all";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+            /**
+             * @description How to read each entry's value. deviation: a 偏差値, 50 is the typical work rated by two or more sources and every 10 points is one standard deviation. percentile: 0-100, the share of rated works below. native: the source's own scale (model.sources[].scale_min/scale_max). votes: a vote count. count: a number of sources. points: percentile points between the sources that place the work highest and lowest.
+             * @enum {string}
+             */
+            unit: "deviation" | "percentile" | "native" | "votes" | "count" | "points";
+        } & {
+            [key: string]: unknown;
+        };
         ListRating: {
             /**
              * Format: uri
@@ -6668,6 +6889,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListTagCategory: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListTagCategory.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["TagCategory"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
         ListTrait: {
             /**
              * Format: uri
@@ -7005,6 +7261,11 @@ export interface components {
              * @enum {string}
              */
             object: "list";
+            /**
+             * @description Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable.
+             * @enum {string}
+             */
+            search_mode?: "lexical" | "hybrid";
             /**
              * Format: int64
              * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
@@ -8112,6 +8373,18 @@ export interface components {
              */
             readonly $schema?: string;
             /**
+             * @description off erases every app's browsing history and stops recording it; on starts recording again. A third-party app may only send off. Absent leaves it as it is.
+             * @example off
+             * @enum {string}
+             */
+            browsing_history?: "on" | "off";
+            /**
+             * @description shared lets an app holding history:read read every app's history. A third-party app may only send per_app. Absent leaves it as it is.
+             * @example per_app
+             * @enum {string}
+             */
+            browsing_history_sharing?: "per_app" | "shared";
+            /**
              * @description Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is.
              * @example private
              * @enum {string}
@@ -8625,6 +8898,116 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        RankingConsensus: {
+            /**
+             * Format: double
+             * @description How far apart the sources place the work, in percentile points between the highest and the lowest; a source counts once it has four times its prior_votes in votes, so the estimate is mostly the work's own. null when fewer than two do.
+             */
+            divergence: number | null;
+            /**
+             * Format: double
+             * @description Lower end of the 90% interval of score. Few votes or one source widen the interval; ranking by it puts works that are good with confidence first.
+             */
+            lower: number;
+            /**
+             * Format: double
+             * @description Share of all works with a consensus that score lower, in percent.
+             */
+            percentile: number;
+            /**
+             * Format: double
+             * @description Deviation score (偏差値) of the consensus: 50 is the typical work rated by two or more sources, 60 one standard deviation above it.
+             */
+            score: number;
+            /**
+             * Format: int64
+             * @description Sources that contributed.
+             */
+            source_count: number;
+            /**
+             * Format: double
+             * @description Upper end of the 90% interval of score.
+             */
+            upper: number;
+            /**
+             * Format: int64
+             * @description Votes across the contributing sources.
+             */
+            vote_count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        RankingEntry: {
+            /** @description The cross-source consensus, over sources= when given. null when none of those sources rated the work. */
+            consensus: components["schemas"]["RankingConsensus"] | null;
+            /**
+             * @description Type discriminant. Always ranking_entry.
+             * @enum {string}
+             */
+            object: "ranking_entry";
+            /** @description Every source that rated the work, in a fixed source order. Never null. */
+            per_source: components["schemas"]["RankingSource"][];
+            /**
+             * Format: int64
+             * @description 1-based position in the whole ranking, not in the page. Equal values keep distinct ranks, ordered by popularity then id.
+             */
+            rank: number;
+            /**
+             * Format: double
+             * @description The value ranked on, in the list's unit.
+             */
+            value: number;
+            /** @description The ranked work, shaped by view= and include= as on GET /v2/catalog/works. */
+            work: components["schemas"]["Work"];
+        } & {
+            [key: string]: unknown;
+        };
+        RankingSource: {
+            /**
+             * Format: double
+             * @description Lower end of the 90% interval of mean.
+             */
+            lower: number;
+            /**
+             * Format: double
+             * @description Estimated true mean on the source's scale: the work's own mean pulled toward what works with as many votes usually score, by prior_votes. Few votes pull hard; many barely move it.
+             */
+            mean: number;
+            /**
+             * Format: double
+             * @description Median vote with the same pull applied; erogamescape's starts from its published median. null when the source publishes no histogram.
+             */
+            median: number | null;
+            /**
+             * Format: double
+             * @description Share of the works this source rated whose mean is lower, in percent.
+             */
+            percentile: number;
+            /**
+             * Format: double
+             * @description The source's own published score, unchanged: vndb's Bayesian rating, bangumi's and dlsite's mean, erogamescape's median, nextmoe's smoothed mean, howlongtobeat's review score.
+             */
+            score: number;
+            /** @description Source key. */
+            source: string;
+            /**
+             * Format: double
+             * @description Standard deviation of the votes, on the source's scale. null below two votes or when the source publishes no spread or histogram.
+             */
+            spread: number | null;
+            /**
+             * Format: double
+             * @description Upper end of the 90% interval of mean.
+             */
+            upper: number;
+            /**
+             * Format: int64
+             * @description Votes behind score.
+             */
+            vote_count: number;
+        } & {
+            [key: string]: unknown;
+        };
         Rating: {
             /** @description Vote histogram on the source-native scale, ascending and sparse: a value with no votes has no bucket. Present on the work detail face and on works/{id}/ratings only, never on a list face. The bars do not share one denominator: bangumi, dlsite and howlongtobeat publish the histogram beside the aggregate, so their bars sum to vote_count; erogamescape bars come from an independently synced reviews mirror, so their sum is its own denominator and need not equal vote_count; vndb bars omit votes held on private lists, so they sum to at most vote_count. */
             distribution?: components["schemas"]["RatingBucket"][];
@@ -8828,6 +9211,62 @@ export interface components {
             rating: components["schemas"]["UserRating"] | null;
             /** @description Work the rating is on; on a gone entry, the work it was on when it was deleted. */
             work_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        RatingModel: {
+            /**
+             * Format: date-time
+             * @description When the model was fitted.
+             */
+            fitted_at: string;
+            /** @description Fit id. Changes when the model is refitted, nightly. */
+            id: string;
+            /**
+             * Format: double
+             * @description Coverage of every lower/upper pair. Always 0.9.
+             */
+            interval: number;
+            /**
+             * @description Type discriminant. Always rating_model.
+             * @enum {string}
+             */
+            object: "rating_model";
+            /** @description Per-source parameters, in the fixed source order. */
+            sources: components["schemas"]["RatingModelSource"][];
+            /**
+             * Format: int64
+             * @description Method version. A new version can change every derived number.
+             */
+            version: number;
+        } & {
+            [key: string]: unknown;
+        };
+        RatingModelSource: {
+            /** @description Whether this source contributes to the consensus. A source needs enough works shared with others to be calibrated. */
+            in_consensus: boolean;
+            /**
+             * Format: double
+             * @description How many votes the prior is worth: a work with this many votes has its mean pulled halfway. Estimated from the data.
+             */
+            prior_votes: number;
+            /**
+             * Format: double
+             * @description Highest score the source's scale allows.
+             */
+            scale_max: number;
+            /**
+             * Format: double
+             * @description Lowest score the source's scale allows.
+             */
+            scale_min: number;
+            /** @description Source key. */
+            source: string;
+            /**
+             * Format: int64
+             * @description Works this source rated.
+             */
+            works: number;
         } & {
             [key: string]: unknown;
         };
@@ -9830,6 +10269,8 @@ export interface components {
             object: "tag";
             /** @description Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents. */
             parents: components["schemas"]["TagRef"][];
+            /** @description The browsing group this tag is filed under (GET /v2/catalog/tag-categories). null when it is in none: show it under an other group. Orthogonal to is_sexual: a sexual tag can sit in any group, and the adult group holds sexual acts and themes, not every sexual tag. */
+            tag_category: components["schemas"]["TagCategoryRef"] | null;
             /**
              * @description Tag vocabulary class.
              * @enum {string}
@@ -9877,6 +10318,42 @@ export interface components {
              * @description When the mode last changed. Equal to created_at until then.
              */
             updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        TagCategory: {
+            /** @description zh-Hans label. Must not be used as a discriminant. */
+            display_name: string;
+            /** @description Stable category slug, the value of category= on /v2/catalog/tags. A slug is never renamed; display_name and order may change. */
+            id: string;
+            /**
+             * @description Type discriminant. Always tag_category.
+             * @enum {string}
+             */
+            object: "tag_category";
+            /**
+             * Format: int64
+             * @description Ascending display order. Values are spaced, not consecutive.
+             */
+            order: number;
+            /**
+             * Format: int64
+             * @description Canonical tags filed under this category, before any nsfw or has_works filter.
+             */
+            tag_count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        TagCategoryRef: {
+            /** @description zh-Hans label. Must not be used as a discriminant. */
+            display_name: string;
+            /** @description Stable category slug, the value of category= on /v2/catalog/tags. */
+            id: string;
+            /**
+             * @description Type discriminant. Always tag_category.
+             * @enum {string}
+             */
+            object: "tag_category";
         } & {
             [key: string]: unknown;
         };
@@ -10130,6 +10607,16 @@ export interface components {
              */
             readonly $schema?: string;
             /**
+             * @description Whether the server keeps the account's browsing history (/v2/me/history). on is the default. off erases every app's history at once, and from then on PUT /v2/me/history/works/{work_id} stores nothing.
+             * @enum {string}
+             */
+            browsing_history: "on" | "off";
+            /**
+             * @description per_app, the default, lets each app read only the history it recorded. shared also lets an app holding history:read read every app's history merged, with scope=all.
+             * @enum {string}
+             */
+            browsing_history_sharing: "per_app" | "shared";
+            /**
              * @description Type discriminant. Always privacy.
              * @enum {string}
              */
@@ -10141,7 +10628,7 @@ export interface components {
             play_records: "public" | "private";
             /**
              * Format: date-time
-             * @description RFC 3339 UTC of the last change. null while the account has never changed it.
+             * @description RFC 3339 UTC of the last change to any switch. null while the account has never changed one.
              */
             updated_at: string | null;
         } & {
@@ -10434,6 +10921,8 @@ export interface components {
             endings: components["schemas"]["WalkthroughEnding"][];
             /** @description Places a playthrough starts from: the title screen, or a later unlock of it. Empty array, never null. */
             entries: components["schemas"]["WalkthroughEntry"][];
+            /** @description The source page's own definitions of the marks its steps carry, such as ★の選択肢は推理ランクに影響のある選択肢です, one sentence each, in source order. A mark such as ★ or ⇒ means only what these lines say; it differs from page to page. Empty array, never null. */
+            legend: components["schemas"]["WalkthroughLegendLine"][];
             /** @description Save points the chart creates and resumes from. Empty array, never null. */
             saves: components["schemas"]["WalkthroughSave"][];
             /** @description Headings of the source page that group segments, usually one per route. Empty array, never null. */
@@ -10517,6 +11006,10 @@ export interface components {
             key: string;
             /** @description The entry as the source page names it, such as START or RESTART. Must not be used as a discriminant. */
             label: string;
+            /** @description BCP-47 keys: machine translations of label. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
             /** @description endings[].key whose completion unlocks this entry. null if it is open from the start. */
             unlocked_by_ending_key: string | null;
         } & {
@@ -10540,6 +11033,16 @@ export interface components {
             endings_reached: number;
             /** @description Choice texts on the source page that the chart does not carry, as the page writes them. Empty array, never null. */
             missed: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        WalkthroughLegendLine: {
+            /** @description BCP-47 keys: machine translations of text. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description The definition as the source page writes it. Must not be used as a discriminant. */
+            text: string;
         } & {
             [key: string]: unknown;
         };
@@ -10579,6 +11082,10 @@ export interface components {
             key: string;
             /** @description The save point as the source page labels it. Must not be used as a discriminant. */
             label: string;
+            /** @description BCP-47 keys: machine translations of label, such as 存档12 for セーブ１２. Empty object if none. Must not be used as a discriminant. */
+            localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
         } & {
             [key: string]: unknown;
         };
@@ -10607,6 +11114,8 @@ export interface components {
             from_node: components["schemas"]["WalkthroughNode"];
             /** @description Chart-local segment key. */
             key: string;
+            /** @description endings[].key of the endings the player must have seen before this segment. An imported chart fills it from condition only when every ending the condition names is one of this chart's; condition stays the full statement, so a condition with this empty is a prerequisite that was not resolved. Empty array, never null. */
+            requires_ending_keys: string[];
             /** @description sections[].key this segment is listed under. null if the source lists it under no heading. */
             section_key: string | null;
             /** @description Steps in play order. Empty array, never null. */
@@ -10617,7 +11126,7 @@ export interface components {
             [key: string]: unknown;
         };
         WalkthroughStep: {
-            /** @description The source marks this step as needed for an achievement only. */
+            /** @description The source says this step earns an achievement or trophy, on the step itself or in a legend line defining its mark. */
             achievement: boolean;
             /** @description Other choices the source keeps for collecting CG differences; the main path picks text. Empty array, never null. */
             alternatives: components["schemas"]["WalkthroughAlternative"][];
@@ -10625,14 +11134,20 @@ export interface components {
             localized: {
                 [key: string]: components["schemas"]["LocalizedText"];
             };
-            /** @description saves[].key this save step creates. null for choice and action steps. */
+            /** @description What the source notes after a choice or action, as it writes it: its result (推理正解, 不正解) or its effect (好感度+1, 雪乃+1). Not part of the in-game text. null if none. Must not be used as a discriminant. */
+            remark: string | null;
+            /** @description BCP-47 keys: machine translations of remark. Empty object if none. Must not be used as a discriminant. */
+            remark_localized: {
+                [key: string]: components["schemas"]["LocalizedText"];
+            };
+            /** @description saves[].key this save step creates. null for every other step_type. */
             save_key: string | null;
             /**
-             * @description choice picks text; action is a non-choice step such as a minigame; save creates save_key here.
+             * @description choice picks text from an in-game menu; action is something else the player does, such as a minigame or a route across a map; save creates save_key here. heading is a line the source groups the following steps under, such as a date, an in-game day, a chapter or a floor, up to the next heading or the end of the segment; note is an instruction or remark for the reader, usually marked ※. Neither heading nor note is picked, so a site numbering choices skips them. A site that meets an unknown step_type should show its text without numbering it.
              * @enum {string}
              */
-            step_type: "choice" | "action" | "save";
-            /** @description The choice or action as the source page writes it. null for a save step. Must not be used as a discriminant. */
+            step_type: "choice" | "action" | "save" | "heading" | "note";
+            /** @description The step as the source page writes it. null for a save step. Must not be used as a discriminant. */
             text: string | null;
         } & {
             [key: string]: unknown;
@@ -10678,9 +11193,9 @@ export interface components {
              * @enum {string}
              */
             content_rating: "all_ages" | "sensitive" | "r18";
-            /** @description Selected portrait image. null if none. */
+            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none. */
             cover: components["schemas"]["CoverSlot"] | null;
-            /** @description Present when include=covers. Empty array if none. */
+            /** @description Present when include=covers. Every cover row the work holds, in gallery order: not ranked by the election, so render cover, not covers[0], as the work's portrait. Rows of every sexual grade are listed whatever nsfw says, Bangumi's censored art of adult games and the blurred censored stand-in among them; filter on sexual and source before showing a row. Empty array if none. */
             covers?: components["schemas"]["Cover"][];
             /**
              * Format: date-time
@@ -12139,7 +12654,7 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Name search. Empty lists by id. Must not be used as a discriminant. */
+                /** @description Name search over the search index (name, latin and aliases): a prefix, pinyin, kana or script variant matches, and results come in relevance order; the cursor then pages that order. Empty lists by id. Must not be used as a discriminant. */
                 q?: string;
             };
             header?: never;
@@ -12902,7 +13417,7 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant. */
+                /** @description Name search over the person's credit names whose person link is public (name, latin and aliases) in the search index: a prefix, pinyin, kana or script variant matches, and results come in relevance order, one per person; the cursor then pages that order. Must not be used as a discriminant. */
                 q?: string;
             };
             header?: never;
@@ -13442,6 +13957,167 @@ export interface operations {
             };
         };
     };
+    listCatalogRankings: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from a prior next_cursor. Must start with cur_. */
+                cursor?: string;
+                /** @description Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. */
+                limit?: string;
+                /** @description basic (default) or full, for the work inside each entry. */
+                view?: string;
+                /** @description Comma-separated blocks of the work inside each entry, as on GET /v2/catalog/works. Unknown token is 400 UNKNOWN_INCLUDE. */
+                include?: string;
+                /** @description true to include total. Only true or false. */
+                include_total?: string;
+                /** @description Comma-separated facet names over the ranked population: tag_id, company_id, olang, content_rating, platform, circulation. */
+                facets?: string;
+                /** @description true includes r18. false or absent hides r18. Only true or false. */
+                nsfw?: string;
+                /** @description consensus (default) ranks by every source combined; a source key (vndb, bangumi, dlsite, erogamescape, nextmoe, howlongtobeat) ranks by that source alone. */
+                by?: string;
+                /** @description The statistic to rank by. With by=consensus: lower, upper, mean, percentile, divergence, votes, sources. With a source: lower, upper, mean, median, native, percentile, spread, votes. The default is lower for order=desc and upper for order=asc: the bottom of the 90% interval for a best-of list, so a handful of enthusiastic votes cannot outrank an established work, and its top for a worst-of list, so a work is listed as bad only when it is bad with confidence. mean ranks by the best estimate; native by the source's own published score; divergence by how much the sources disagree. */
+                metric?: string;
+                /** @description vn (default) ranks visual novels only: works a visual-novel or adult-game source vouches for (VNDB, DLsite, a site that claimed the work, a Bangumi listing tagged as a galgame or novel game, or an adult rating with no Steam or HowLongToBeat listing). all also ranks the console and PC games the catalog's imports carry, such as RPGs and action games. */
+                scope?: string;
+                /** @description desc (default, best first) or asc (worst first). */
+                order?: string;
+                /** @description by=consensus only: comma-separated source keys to build the consensus from, for example erogamescape,bangumi. Absent = every source. Every number in consensus then covers only these sources. */
+                sources?: string;
+                /** @description by=consensus only: keep works at least this many of the consensus sources rated, 1-6. */
+                min_sources?: string;
+                /** @description Vote floors, comma-separated. A bare number applies to by= (the total over the consensus sources for by=consensus); source:number applies to that source, for example erogamescape:50,bangumi:100. Every floor must hold. */
+                min_votes?: string;
+                /** @description Vote ceilings, in the same form as min_votes, for lists of lesser-known works: min_votes=5&max_votes=50 keeps works between five and fifty votes. */
+                max_votes?: string;
+                /** @description Keep works whose value (in the list's unit) is at least this. */
+                score_min?: string;
+                /** @description Keep works whose value (in the list's unit) is at most this. */
+                score_max?: string;
+                /** @description Release year, or an inclusive range such as 2015-2020. Cannot be combined with released_after or released_before. */
+                year?: string;
+                /** @description YYYY-MM-DD inclusive, on each work's release_date. */
+                released_after?: string;
+                /** @description YYYY-MM-DD inclusive, on each work's release_date. */
+                released_before?: string;
+                /** @description commercial: a game brand made or sold it. doujin: only a doujin circle did. Works with neither credit match neither. */
+                circulation?: string;
+                /** @description Comma-separated platform tokens (win, ps4, swi, …), any of. Open vocabulary; unknown values match nothing. */
+                platform?: string;
+                /** @description Minutes. Keep works whose playtime is at least this; playtime is the median of the sources' estimates. */
+                playtime_min?: string;
+                /** @description Minutes. Keep works whose playtime is at most this. */
+                playtime_max?: string;
+                /** @description Closed: all_ages, sensitive, r18. r18 requires nsfw=true. */
+                content_rating?: string;
+                /** @description Comma-separated closed editorial axis: sfw, nsfw. */
+                content_limit?: string;
+                /** @description true or false. Absent = no gate. */
+                claimed?: string;
+                /** @description Catalog company id. */
+                company_id?: string;
+                /** @description Comma-separated canonical tag ids, AND, max 10. */
+                tag_id?: string;
+                /** @description Comma-separated canonical tag ids, max 100. Drops every work that carries any of them. */
+                exclude_tag_id?: string;
+                /** @description Comma-separated canonical tag ids, max 100. As exclude_tag_id, and each id also drops the works carrying any tag below it. */
+                exclude_tag_tree?: string;
+                /** @description Catalog series id. */
+                series_id?: string;
+                /** @description Catalog engine id. */
+                engine_id?: string;
+                /** @description Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. */
+                olang?: string;
+                /** @description 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. */
+                page?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListRanking"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listCatalogRedirects: {
         parameters: {
             query?: {
@@ -13582,7 +14258,7 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant. */
+                /** @description Title search over the same dated releases this collection lists, in this collection's date order: the release title or its work's display name as a case-insensitive substring, or a work that matches q in the works search index (prefix, aliases, pinyin, script variants; its 200 best matches). Must not be used as a discriminant. */
                 q?: string;
             };
             header?: never;
@@ -14840,6 +15516,87 @@ export interface operations {
             };
         };
     };
+    listCatalogTagCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListTagCategory"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getCatalogTagExclusion: {
         parameters: {
             query?: {
@@ -14962,6 +15719,8 @@ export interface operations {
                 nsfw?: string;
                 /** @description true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag. */
                 has_works?: string;
+                /** @description A category id from GET /v2/catalog/tag-categories keeps only the tags filed under it; none keeps the tags filed under no category. An unknown id is 400. */
+                category?: string;
             };
             header?: never;
             path?: never;
@@ -15682,6 +16441,8 @@ export interface operations {
                 released_before?: string;
                 /** @description Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate. */
                 olang?: string;
+                /** @description lexical (default) ranks q= by title and alias matching. hybrid also matches q= by meaning against each work's titles, tags and intro, so a description such as a half-remembered premise finds the work; it requires q=, ranks at most 100 hits, and cannot be combined with facets= or a sort other than relevance. The list's search_mode reports the mode that actually ranked the page: hybrid falls back to lexical when the semantic side is unavailable. */
+                search_mode?: "lexical" | "hybrid";
                 /** @description 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. */
                 page?: string;
             };
@@ -22082,6 +22843,414 @@ export interface operations {
             path: {
                 /** @description Catalog company id. */
                 company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyBrowsingHistory: {
+        parameters: {
+            query?: {
+                /** @description Opaque keyset cursor from a prior next_cursor. Must start with cur_. */
+                cursor?: string;
+                /** @description Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. */
+                limit?: string;
+                /** @description basic (default) or full. Closed vocabulary. */
+                view?: string;
+                /** @description Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. */
+                include?: string;
+                /** @description Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. */
+                fields?: string;
+                /** @description Comma-separated ids, max 100. Batch lane: no pagination. */
+                ids?: string;
+                /** @description Comma-separated source:external_id, max 100. Batch lane: no pagination. */
+                refs?: string;
+                /** @description true to include total. Only true or false. */
+                include_total?: string;
+                /** @description Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. */
+                facets?: string;
+                /** @description Closed per-collection sort key. */
+                sort?: string;
+                /** @description true includes r18. false or absent hides r18. Only true or false. */
+                nsfw?: string;
+                /** @description app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. */
+                scope?: string;
+                /** @description Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. A site that only shows sfw works passes sfw, so a work the account opened on an adult site never reaches its page. total counts after it. */
+                content_limit?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListBrowsingHistoryEntry"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    clearMyBrowsingHistory: {
+        parameters: {
+            query?: {
+                /** @description app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. */
+                scope?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    recordMyWorkView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Catalog work id. */
+                work_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    forgetMyWorkView: {
+        parameters: {
+            query?: {
+                /** @description app (the default) acts on the history this app recorded. all acts on every app's history merged per work: listing it needs the history:read scope and the account's browsing_history_sharing set to shared; deleting it needs neither. */
+                scope?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Catalog work id. */
+                work_id: string;
             };
             cookie?: never;
         };

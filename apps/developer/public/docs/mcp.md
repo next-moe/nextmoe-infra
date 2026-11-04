@@ -11,7 +11,7 @@
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（65 个）
+## 工具（67 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -61,13 +61,15 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listCatalogNames` `GET /v2/catalog/names`（无需密钥）：一次解析多个族的显示名：keys=family:id,…（最多 500 个，如 tag:12,company:3），各族按自己的 ids= 批量通道取名，可见性与 nsfw 门完全一致；有中文名时另给 name_zh。只需要名字时用它代替逐族的 ids= 调用。
 - `listCatalogPersons` `GET /v2/catalog/persons`（无需密钥）：keyset 分页浏览人物身份注册表。ids=/refs= 是批量水合泳道，不分页。
 - `listCatalogProposals` `GET /v2/catalog/proposals`（无需密钥）：已提交的编辑提案流，最新优先。proposer_uid= + state=merged + include_total=true 就是按贡献者的合入计数。此面不下发 patch，也不下发审核意见。
+- `listCatalogRankings` `GET /v2/catalog/rankings`（无需密钥）：评分排行榜：跨 VNDB / Bangumi / DLsite / 批评空间 / NextMoe / HowLongToBeat 的共识分（偏差值），或 by= 按单一来源排。条目带名次、排名值与各来源原分。默认只排视觉小说，scope=all 含普通游戏；listCatalogWorks 的过滤与 facets 这里都能用。模型尚未拟合时返回 503。
 - `listCatalogRedirects` `GET /v2/catalog/redirects`（无需密钥）：合并去向流：被合并掉的 id 指向哪个继任者，最旧优先。存下游标增量消费，就能把本地副本里的死 id 换成活的。object= 收敛到单个家族；不接受 ids=。
 - `listCatalogReleases` `GET /v2/catalog/releases`（无需密钥）：发售动态的 release 粒度：每一条发售行各自成项，移植版 / 复刻 / 中文化都看得见（月历只把作品放在最早发售月且只显示一次）。缺省按日期倒序。
 - `listCatalogRevisions` `GET /v2/catalog/revisions`（无需密钥）：已合入的编辑修订流，缺省最新优先；sort=recorded_asc 按 id 从旧到新走同一个集合，这是镜像与贡献统计该用的姿态（配一条水位线）。object= + entity_id= 收敛到单个实体的历史。
 - `listCatalogRoles` `GET /v2/catalog/roles`（无需密钥）：浏览署名职务注册表本身（全表约 231 行）——key 与署名组的 role_key 相接。refs= 对它不解析：职务没有外部锚类型。
 - `listCatalogSeries` `GET /v2/catalog/series`（无需密钥）：浏览系列词表本身。系列不进搜索索引，这是发现 series id 的唯一入口；refs= 对它不解析：系列没有外部锚类型。
 - `listCatalogSplits` `GET /v2/catalog/splits`（无需密钥）：拆分流:哪部作品把哪些发行拆成了哪部新作品,按变化时间升序。存下游标增量消费,就能把挂在这些发行上的本地数据跟到 new_work_id;撤销的拆分以 state=undone 重新出现在尾部,新作品经 redirects 指回原作品。
-- `listCatalogTags` `GET /v2/catalog/tags`（无需密钥）：浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。
+- `listCatalogTagCategories` `GET /v2/catalog/tag-categories`（无需密钥）：列出标签的浏览分组（题材类型、角色、恋爱与关系……），一页取全。分组 id 喂给 listCatalogTags 的 category=。
+- `listCatalogTags` `GET /v2/catalog/tags`（无需密钥）：浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。category= 只看一个分组，sort=work_count 按作品数排。
 - `listCatalogTraits` `GET /v2/catalog/traits`（无需密钥）：浏览角色特征词表本身——用来发现 trait id。refs= 对它不解析：特征没有外部锚类型。
 - `listCatalogWalkthroughs` `GET /v2/catalog/walkthroughs`（无需密钥）：列出攻略（不含选项图）：work_id= 取一部作品的攻略，character_id= 取通向某角色的攻略，ids= 批量读。可见性与作品一致，r18 需 nsfw=true；content_limit= 按作品展示轴过滤（与 nsfw 独立，面向 sfw 读者传 nsfw=true&content_limit=sfw），条目带 work_content_limit。
 - `listCatalogWorks` `GET /v2/catalog/works`（无需密钥）：浏览 / 过滤作品注册表（评级 / 公司 / 标签 / 系列 / 引擎 / 平台 / 发售窗，keyset 分页，ids=/refs= 批量水合）。带 q= 时整条转为检索并按相关度排序——「查询 + 过滤」与「纯过滤」在 v2 是同一条路径。

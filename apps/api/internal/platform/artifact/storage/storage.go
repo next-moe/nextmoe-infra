@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
@@ -193,6 +194,24 @@ func (c *Client) AbortMultipart(ctx context.Context, key, uploadID string) error
 	return nil
 }
 
+func IsNotFound(err error) bool {
+	var respErr *smithyhttp.ResponseError
+	if errors.As(err, &respErr) && respErr.HTTPStatusCode() == 404 {
+		return true
+	}
+	var notFound *types.NotFound
+	return errors.As(err, &notFound)
+}
+
+func IsNoSuchUpload(err error) bool {
+	var noSuch *types.NoSuchUpload
+	if errors.As(err, &noSuch) {
+		return true
+	}
+	var apiErr smithy.APIError
+	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchUpload"
+}
+
 func (c *Client) HeadSize(ctx context.Context, key string) (int64, error) {
 	out, err := c.s3.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(c.bucket),
@@ -215,12 +234,7 @@ func (c *Client) Exists(ctx context.Context, key string) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
-	var respErr *smithyhttp.ResponseError
-	if errors.As(err, &respErr) && respErr.HTTPStatusCode() == 404 {
-		return false, nil
-	}
-	var notFound *types.NotFound
-	if errors.As(err, &notFound) {
+	if IsNotFound(err) {
 		return false, nil
 	}
 	return false, fmt.Errorf("artifact storage: head %q: %w", key, err)

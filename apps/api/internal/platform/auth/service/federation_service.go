@@ -386,6 +386,11 @@ func (s *FederationService) Complete(ctx context.Context, req *dto.FederationCom
 	if exists {
 		return nil, nil, errors.NewWithCode(errors.ErrAuthNameExists)
 	}
+	if s.authSvc != nil {
+		if err := s.authSvc.profileReview.Gate(ctx, 0, nil, req.Name); err != nil {
+			return nil, nil, err
+		}
+	}
 
 	if _, ferr := s.oauthAccountRepo.FindByProviderSubject(ctx, pending.Provider, pending.Subject); ferr == nil {
 		return nil, nil, errors.NewWithCode(errors.ErrAuthFederationConflict)
@@ -435,6 +440,7 @@ func (s *FederationService) Complete(ctx context.Context, req *dto.FederationCom
 
 	if s.authSvc != nil {
 		s.authSvc.grantRegisterGift(ctx, user)
+		s.authSvc.profileReview.Submit(user)
 	}
 
 	_ = s.kvDelete(federationPendingKeyPrefix + req.Token)

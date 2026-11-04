@@ -231,6 +231,16 @@ func WorkStateSpec() Spec {
 	}
 }
 
+func BrowsingHistorySpec() Spec {
+	return Spec{
+		Sort:    []string{"viewed_desc"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "work_id", "first_viewed_at", "last_viewed_at", "view_count"},
+		NoBatch: true,
+	}
+}
+
 func CompanyFollowSpec() Spec {
 	return Spec{
 		Sort:    []string{"followed_desc"},
@@ -348,11 +358,11 @@ func ClaimSpec() Spec {
 
 func TagSpec() Spec {
 	return Spec{
-		Sort:    []string{"id"},
+		Sort:    []string{"id", "work_count"},
 		Include: []string{"intros", "children", "descendants", "ancestors"},
 		FullSet: []string{"intros", "children"},
 		Fields: []string{
-			"object", "id", "display_name", "tier", "tag_kind", "work_count", "is_sexual", "intros",
+			"object", "id", "display_name", "tier", "tag_kind", "work_count", "is_sexual", "tag_category", "intros",
 			"parents", "child_count", "descendant_count", "children", "descendants", "ancestors",
 		},
 	}
@@ -373,10 +383,10 @@ func SeriesSpec() Spec {
 
 func EngineSpec() Spec {
 	return Spec{
-		Sort:    []string{"id"},
+		Sort:    []string{"id", "popularity"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "id", "display_name", "work_count", "description", "aliases"},
+		Fields:  []string{"object", "id", "display_name", "work_count", "rater_count", "rated_work_count", "description", "aliases"},
 	}
 }
 

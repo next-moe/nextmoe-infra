@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"api/internal/platform/telemetry/partition"
 
 	"github.com/stretchr/testify/require"
 )
@@ -102,6 +105,8 @@ func TestGetIssue(t *testing.T) {
 	require.NoError(t, testDB.Raw(`SELECT id FROM telemetry_issue`).Scan(&issueID).Error)
 	uid := "cccccccccccccccccccccccccccccccc"
 	sess := "dddddddddddddddddddddddddddddddd"
+	// Partitions only cover a window around today; once 2026-09-29 fell out of it the insert failed with "no partition of relation".
+	require.NoError(t, partition.EnsureDay(testDB, time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC)))
 	require.NoError(t, testDB.Exec(`INSERT INTO telemetry_event (
 		record_uid, event_day, app_id, service_version, environment, event_name, severity, event_time,
 		session_id, os_name, os_version, api_level, device_model, device_manufacturer, host_arch, sdk_version, attributes, body)

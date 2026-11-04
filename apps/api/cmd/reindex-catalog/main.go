@@ -5,10 +5,12 @@ import (
 	"flag"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/ratingmodel"
 	catalogSearch "api/internal/platform/catalog/search"
 	"api/internal/platform/catalog/search/docsync"
 	"api/pkg/config"
@@ -72,6 +74,14 @@ func main() {
 	}
 
 	start := time.Now()
+	if slices.ContainsFunc(indexes, func(t string) bool { return strings.TrimSpace(t) == catalogSearch.IndexWorks }) {
+		fitted, rep, err := ratingmodel.FitAndSave(ctx, db.DB())
+		if err != nil {
+			slog.Error("fit rating model", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("rating model fitted", "id", fitted.ID, "works", rep.Works, "fit_works", rep.FitWorks, "em_iterations", rep.EMIterations)
+	}
 	for _, t := range indexes {
 		t = strings.TrimSpace(t)
 		if t == "" {

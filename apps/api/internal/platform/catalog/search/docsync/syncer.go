@@ -23,6 +23,7 @@ const (
 type Syncer struct {
 	db  *gorm.DB
 	idx *catalogSearch.Indexer
+	emb catalogSearch.Embedder
 
 	mu      sync.Mutex
 	pending map[string]map[int64]struct{}
@@ -35,6 +36,35 @@ func NewSyncer(db *gorm.DB, idx *catalogSearch.Indexer) *Syncer {
 		idx:     idx,
 		pending: map[string]map[int64]struct{}{},
 		wake:    make(chan struct{}, 1),
+	}
+}
+
+func (s *Syncer) WithEmbedder(emb catalogSearch.Embedder) *Syncer {
+	s.emb = emb
+	return s
+}
+
+var vectorLanes = map[string]struct {
+	uid   string
+	embed func(context.Context, *gorm.DB, *catalogSearch.Indexer, catalogSearch.Embedder, EmbedOptions) (EmbedStats, error)
+}{
+	catalogSearch.IndexWorks:      {catalogSearch.IndexWorkVectors, EmbedWorks},
+	catalogSearch.IndexCharacters: {catalogSearch.IndexCharacterVectors, EmbedCharacters},
+}
+
+func (s *Syncer) syncVectors(ctx context.Context, uid string, ids []int64, gone []string) {
+	lane, ok := vectorLanes[uid]
+	if !ok || s.emb == nil || len(ids) == 0 {
+		return
+	}
+	if len(gone) > 0 {
+		if err := s.idx.DeleteBatch(ctx, lane.uid, gone); err != nil {
+			slog.Warn("vector sync: delete departed documents", "index", lane.uid, "ids", len(gone), "err", err)
+		}
+	}
+	opts := EmbedOptions{EmbedBatch: 16, Concurrency: 4, IDs: ids}
+	if _, err := lane.embed(ctx, s.db.WithContext(ctx), s.idx, s.emb, opts); err != nil {
+		slog.Warn("vector sync failed; the next embed-catalog run will catch up", "index", lane.uid, "ids", len(ids), "err", err)
 	}
 }
 
@@ -101,9 +131,12 @@ func (s *Syncer) Flush(ctx context.Context) {
 		targets[t.index] = append(targets[t.index], ids...)
 	}
 	for uid, ids := range targets {
-		if err := Sync(ctx, s.db.WithContext(ctx), s.idx, uid, ids); err != nil {
+		gone, err := syncFamily(ctx, s.db.WithContext(ctx), s.idx, uid, ids)
+		if err != nil {
 			slog.Warn("search sync failed; the daily reindex will catch up", "index", uid, "ids", len(ids), "err", err)
+			continue
 		}
+		s.syncVectors(ctx, uid, ids, gone)
 	}
 }
 

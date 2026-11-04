@@ -19,6 +19,8 @@ const DESCRIPTIONS = {
     '按 id 取作品注册行，include=credits,relations 并取子块。被合并的 id 返回 404 ENTITY_MERGED 并在 Link rel=canonical 里给继任者；r18 不带 nsfw=true 同样是 404。',
   listCatalogWorks:
     '浏览 / 过滤作品注册表（评级 / 公司 / 标签 / 系列 / 引擎 / 平台 / 发售窗，keyset 分页，ids=/refs= 批量水合）。带 q= 时整条转为检索并按相关度排序——「查询 + 过滤」与「纯过滤」在 v2 是同一条路径。',
+  listCatalogRankings:
+    '评分排行榜：跨 VNDB / Bangumi / DLsite / 批评空间 / NextMoe / HowLongToBeat 的共识分（偏差值），或 by= 按单一来源排。条目带名次、排名值与各来源原分。默认只排视觉小说，scope=all 含普通游戏；listCatalogWorks 的过滤与 facets 这里都能用。模型尚未拟合时返回 503。',
   listCatalogChanges:
     '增量同步变更流：近期更新过的作品，最旧优先。存下 next_cursor，下次轮询只拿变化的部分。',
   listCatalogClaimEvents:
@@ -51,7 +53,9 @@ const DESCRIPTIONS = {
   getCatalogTagExclusion:
     '解析一组排除 tag：给 exclude_tag_id / exclude_tag_tree，返回展开后的 tag id 与带有其中任一 tag 的全部作品 id，供站点在自建列表里剔除。',
   listCatalogTags:
-    '浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。',
+    '浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。category= 只看一个分组，sort=work_count 按作品数排。',
+  listCatalogTagCategories:
+    '列出标签的浏览分组（题材类型、角色、恋爱与关系……），一页取全。分组 id 喂给 listCatalogTags 的 category=。',
   getCatalogTrait: '按 id 取角色特征词表的一行。',
   listCatalogTraits:
     '浏览角色特征词表本身——用来发现 trait id。refs= 对它不解析：特征没有外部锚类型。',

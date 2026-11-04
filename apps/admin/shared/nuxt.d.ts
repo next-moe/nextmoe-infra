@@ -4,6 +4,7 @@ declare module 'nuxt/schema' {
     catalogApiBaseSsr: string
     trustApiBaseSsr: string
     aiApiBaseSsr: string
+    agentApiBaseSsr: string
     oauthClientSecret: string
   }
 
@@ -12,6 +13,7 @@ declare module 'nuxt/schema' {
     catalogApiBase: string
     trustApiBase: string
     aiApiBase: string
+    agentApiBase: string
     imageCdnBase: string
     oauthAuthorizeBase: string
     oauthWebBase: string

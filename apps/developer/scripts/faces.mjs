@@ -8,8 +8,10 @@
 //
 // Wave R3 (2026-08-27) retired the five v1 faces (catalog, playtime, edit,
 // news, store) with the code that served them, leaving v2 as the only
-// first-party face; moyu and sticker joined later as federated downstream
-// faces, served by their own repos behind the same gateway.
+// first-party face; moyu, sticker and letmoe joined later as federated
+// downstream faces, served by their own repos behind the same gateway.
+// /v2/store is cut out of v2 as its own reference: a face owns the paths under
+// its prefix unless a longer prefix on the same spec claims them.
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -24,13 +26,18 @@ export const STICKER_SPEC = join(
   REPO_ROOT,
   'docs/downstream/sticker-openapi.yaml'
 )
+export const LETMOE_SPEC = join(
+  REPO_ROOT,
+  'docs/downstream/letmoe-openapi.yaml'
+)
 
 export const PORTAL_URL = 'https://developer.nextmoe.dev'
 
 // PR #168 (2026-09-08): the downstream faces take any valid key with no scope.
 // There is no `moyu:read` / `sticker:read` — the strings do not exist and a mint
-// asking for one is refused, so a read route must never print a scope. The one
-// scoped route is moyu's /file, on the operator-granted moyu:files.
+// asking for one is refused, so a read route must never print a scope. The
+// scoped routes are the /file routes: moyu:files is operator-granted,
+// letmoe:files is minted onto every key.
 export const DOWNSTREAM_KEY_AUTH = {
   kind: 'api_key',
   curl: 'Authorization: Bearer nmk_live_<YOUR_KEY>',
@@ -39,6 +46,7 @@ export const DOWNSTREAM_KEY_AUTH = {
 }
 
 const MOYU_FILE_PATH = '/v2/moyu/resources/{id}/file'
+const LETMOE_FILE_PATH = '/v2/letmoe/resources/{id}/file'
 
 // A face is a path prefix plus the credential that prefix accepts. The spec
 // itself carries neither: OpenAPI security schemes are not emitted by the
@@ -63,20 +71,21 @@ export const FACES = [
       if (path.startsWith('/v2/me/folders') || path === '/v2/me/works') {
         return method === 'get' ? 'folder:read 或 folder:write' : 'folder:write'
       }
-      if (path.startsWith('/v2/me/') || path.startsWith('/v2/moderation/')) return ''
+      if (path.startsWith('/v2/me/') || path.startsWith('/v2/moderation/'))
+        return ''
       if (
         path.startsWith('/v2/problems') ||
         path.startsWith('/v2/vocabularies') ||
         path.startsWith('/v2/news') ||
-        path.startsWith('/v2/store/prices') ||
         path === '/v2/catalog/stats' ||
         path.startsWith('/v2/catalog/schemas/')
       ) {
         return ''
       }
-      if (path.startsWith('/v2/store/')) return 'store:read'
-      if (path === '/v2/catalog/claim-events') return 'catalog:read + claim_events:read'
-      if (path === '/v2/folders/holders') return 'catalog:read + folder_holders:read'
+      if (path === '/v2/catalog/claim-events')
+        return 'catalog:read + claim_events:read'
+      if (path === '/v2/folders/holders')
+        return 'catalog:read + folder_holders:read'
       return 'catalog:read'
     },
     auth: {
@@ -91,10 +100,13 @@ export const FACES = [
       { key: 'news', label: '资讯', match: /^\/v2\/news/ },
       { key: 'folders', label: '公开收藏夹', match: /^\/v2\/folders/ },
       { key: 'ratings', label: '公开评分', match: /^\/v2\/ratings/ },
-      { key: 'work-records', label: '公开游玩记录', match: /^\/v2\/work-records/ },
+      {
+        key: 'work-records',
+        label: '公开游玩记录',
+        match: /^\/v2\/work-records/
+      },
       { key: 'me', label: '我的', match: /^\/v2\/me/ },
-      { key: 'moderation', label: '审核', match: /^\/v2\/moderation/ },
-      { key: 'store', label: '商店', match: /^\/v2\/store/ }
+      { key: 'moderation', label: '审核', match: /^\/v2\/moderation/ }
     ],
     notes: [
       '正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。',
@@ -103,6 +115,7 @@ export const FACES = [
       '/v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。',
       '/v2/me/followed-companies 与 /v2/me/calendar 同样只要用户令牌、不需要任何 scope。关注列表只对本人可见，公开的只有 /v2/catalog/companies/{id} 详情上的 follower_count；/v2/me/calendar 与公开月历同参数，只列关注厂商的作品，且缺省不按语言、不排除同人。',
       '/v2/me/blocked-tags 同样只要用户令牌、不需要任何 scope，最多 100 个，只对本人可见。目录不会自动套用它：客户端把 mode=tree 的 id 放进 exclude_tag_tree、mode=exact 的放进 exclude_tag_id，传给 /v2/catalog/works 与两个月历。tree 会连同 tag 层级里它下面的所有 tag 一起排除（Tag.descendant_count 是数量）。站点自己的表出的列表用 /v2/catalog/tag-exclusion 取同参数要剔除的作品 id 集，在本地查询里剔掉。',
+      '/v2/me/history 是浏览记录：只要用户令牌、不需要 scope，每个应用只读写自己记下的（默认 scope=app）。用户在作品页真正停留后再 PUT /v2/me/history/works/{work_id}，一分钟内重复只算一次；记录保留 90 天，每个应用最多 500 条。scope=all 合并所有应用的记录：读要 history:read，且用户在 /v2/me/privacy 把 browsing_history_sharing 设为 shared，否则 403；删不需要。用户把 browsing_history 设为 off 会立刻清空所有应用的记录，此后 PUT 照常 204 但什么都不存。全年龄站点读时带 content_limit=sfw，用户在成人站看过的作品就不会出现。第三方应用只能把这两个开关往更私密的方向拨。',
       '/v2/me/ratings 是评分：全网一人一作一份，在哪个站写的都是同一份。读写只要用户令牌、不需要 scope，任何应用都能写（同游玩时长）；第三方应用送来的短评由中央做内容检查，被拒绝是 422 VALIDATION_FAILED。/v2/me/work-records/{work_id} 一次事务写游玩状态、本应用的时长和评分，PUT 替换整条记录，缺省或为 null 的部分即删除（唯一例外：第三方应用不带评分时保留原评分）。',
       '/v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。',
       '/v2/me/works 带 work_ids 时一次答最多 100 部作品的收藏夹归属、游玩时长和游玩状态，作品详情页一次调用即可；不带 work_ids 时按作品 id 升序分页走完持有人记过的全部作品（进了自己的收藏夹、有游玩时长或有游玩状态的都算）。答案里有收藏夹，所以同样要 folder:read（folder:write 也算）；封面投票要 catalog:edit，不在其中，走 /v2/me/cover-votes。',
@@ -111,6 +124,39 @@ export const FACES = [
       '/v2/work-records?user_id= 是别人的游玩记录，个人主页的游戏库读它：列出该账号有游玩状态的作品，每条带时长与评分，按状态的更新时间倒序；facets=state 给出五个状态各有几部（与列表同一组筛选，state= 也算在内，标签页的数字取自不带 state= 的请求），content_limit=sfw 时列表、total 与计数一起排除 nsfw 作品。只要 catalog:read。本人看自己的走 /v2/me/work-records，参数相同、不看隐私开关、只要用户令牌。游玩记录默认公开；本人经 PATCH /v2/me/privacy 设为 private 后，除本人的用户令牌外一律 403 PLAY_RECORDS_PRIVATE，评分仍在 /v2/ratings 公开。/v2/me/privacy 读写都只要用户令牌、不需要 scope。',
       '错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。',
       '客户端必须忽略未知字段、容忍开放词表中未见过的取值，并为未知错误 code 准备一个按 HTTP status 的兜底分支。'
+    ]
+  },
+  {
+    key: 'store',
+    label: 'DLsite 分销',
+    name: 'DLsite 分销面',
+    file: V2_SPEC,
+    prefix: '/v2/store',
+    specUrl: `${API_HOST}/v2/catalog/openapi.json`,
+    scope: (method, path) =>
+      path.startsWith('/v2/store/prices') ? '' : 'store:read',
+    auth: {
+      kind: 'api_key',
+      curl: 'Authorization: Bearer nmk_live_<YOUR_KEY>',
+      display: 'Authorization: Bearer nmk_live_…',
+      note: 'v2 应用密钥,铸造时勾选 store:read,自助、无需申请;商店价格免凭据'
+    },
+    autoGroups: [
+      {
+        key: 'links',
+        label: '分销链接',
+        match: /^\/v2\/store\/(purchase-links|stats)/
+      },
+      { key: 'prices', label: '商店价格', match: /^\/v2\/store\/prices/ }
+    ],
+    notes: [
+      '与目录同属 v2 公开面，单独成一份参考：给你的站点铸一条只属于你的应用的 DLsite 购买短链，读者经它购买，平台按点击把 DLsite 返还的优惠券分给你。',
+      '/v2/store/purchase-links/{product_id} 按 DLsite 作品号（同人 RJ、商业 VJ）铸链接，同一个应用、同一个作品号重复调用拿回同一条。purchase_url 原样使用、不要改写或再包一层——结算读的就是它背后的点击计数。活动期间同时给 coupon_url 与 campaign，没有活动时两者为 null。',
+      '铸链接与读统计要带 store:read 的应用密钥。这个 scope 在控制台自助勾选、不审核，缺了是 403 SCOPE_REQUIRED。',
+      '/v2/store/stats 是带来请求的这个应用所铸链接的每日点击，按 JST 日统计，一次最多 92 天，缺省是最近 30 天。uniques 是去重点击：同一条短链、同一个 JST 日、同一个访问指纹只算一次，自报为爬虫、链接预览或 HTTP 库的访问照常跳转但不计入。计数每小时同步一次，当天的数字始终不完整。',
+      '能铸链接不等于参与分成：每月的优惠券池是定额的，按去重点击的份额分，参与名单由运营维护。控制台「分销链接」页能看到你名下应用的点击与分到的优惠券。',
+      '/v2/store/prices 是商店价格，不带凭据就能调：DLsite、Getchu、Steam 等商店按地区的报价，一次最多 100 部作品。报价是缓存的观测值，看 fetched_at / expires_at / stale；pending 表示正在抓取，稍后重试，批量车道从不等待冷启动。',
+      '错误体与 v2 其余部分相同，是 RFC 9457 application/problem+json。'
     ]
   },
   {
@@ -169,6 +215,34 @@ export const FACES = [
       '错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和表情包站写的其余错误同一个形状，code 取自平台那份封闭注册表。按 HTTP status 分支，再看 code。',
       '只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路。'
     ]
+  },
+  {
+    key: 'letmoe',
+    label: 'letmoe 下载资源链接',
+    name: 'letmoe 下载资源链接面',
+    file: LETMOE_SPEC,
+    prefix: '/v2/letmoe',
+    specUrl: `${PORTAL_URL}/specs/letmoe-openapi.yaml`,
+    scope: (method, path) => (path === LETMOE_FILE_PATH ? 'letmoe:files' : ''),
+    auth: {
+      ...DOWNSTREAM_KEY_AUTH,
+      note: '任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/letmoe/resources/{id}/file,要 letmoe:files——每把密钥创建时自动带上'
+    },
+    autoGroups: [
+      { key: 'works', label: '作品', match: /^\/v2\/letmoe\/works/ },
+      { key: 'resources', label: '资源', match: /^\/v2\/letmoe\/resources/ }
+    ],
+    notes: [
+      '下游站点面：由 一起萌（www.letmoe.com）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。',
+      '它只回答一件事：这部游戏在 letmoe 上能下载到什么。作品 id 就是 catalog 的作品 id，也是 letmoe 自己的游戏 id——/v2/letmoe/works/{id}、站上的 /game/{id} 与 /v2/catalog/works/{id} 是同一个数。',
+      '任意有效 nmk_ 应用密钥都能调元数据接口，不需要任何 scope——网关只做身份、计量与限流，不做授权。元数据里不带下载链接、提取码与解压密码，每条资源都给 web_url，把读者送过去。',
+      '唯一例外是 /v2/letmoe/resources/{id}/file：对持有 letmoe:files 的密钥给出全部下载方式——letmoe 托管文件的直链、外部网盘链接连同提取码与解压密码、以及与 moyu 补丁合并的下载。每把密钥创建时都自动带上这个 scope，不用勾选；运营从某把密钥上摘掉它之后，这把密钥一律 403 SCOPE_REQUIRED。答案一律 no-store，每次成功都给资源记一次下载，所以在读者点下载时再调，不要预取。',
+      '也不带游戏名、封面、标签与 staff：那些归 catalog，同一把密钥读 /v2/catalog/works 即可。',
+      '/v2/letmoe/works 上的 ids= 是批量问法：一次最多 100 个作品 id，没有可见资源的原样回在 missing[] 里。这是「我手上这 100 部作品哪些能在 letmoe 下载」的一次性问法，此时 cursor、sort、limit 与 include_total 会被拒。',
+      '约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。每个接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。',
+      '错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和 letmoe 写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。',
+      '只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路——nmk_ 密钥本来也不该出现在浏览器里。'
+    ]
   }
 ]
 
@@ -194,7 +268,9 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 185,
+  v2: 187,
+  store: 4,
   moyu: 6,
-  sticker: 9
+  sticker: 9,
+  letmoe: 4
 }

@@ -102,6 +102,8 @@ type UserResponse struct {
 	OriginalEmail   string   `json:"original_email,omitempty"`
 	Roles           []string `json:"roles"`
 	CreatedAt       string   `json:"created_at"`
+	LastLoginAt     string   `json:"last_login_at,omitempty"`
+	LastActiveAt    string   `json:"last_active_at,omitempty"`
 
 	// Filled by the /auth/me family only. Login, Register and federation
 	// complete build this same struct and simply never assign these two

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"api/internal/platform/trust/model"
 )
@@ -70,23 +71,38 @@ func TestScanDegradedRetriedThenScored(t *testing.T) {
 		{verdict: GatewayVerdict{Flagged: true, Score: f32(0.8), Channel: "glm"}},
 	}}
 	w := NewScanWorker(testDB, g, stubTier0{})
+	clock := time.Now()
+	w.now = func() time.Time { return clock }
 
 	if _, err := w.ScorePending(context.Background()); err != nil {
 		t.Fatalf("pass 1: %v", err)
 	}
-	if row := getScan(t, id); row.Status != model.ScanStatusDegraded {
+	row := getScan(t, id)
+	if row.Status != model.ScanStatusDegraded {
 		t.Fatalf("after pass 1 status = %d, want degraded", row.Status)
+	}
+	if row.NextScanAt == nil || !row.NextScanAt.Equal(clock.Add(scanRetryBackoff[0]).Truncate(time.Microsecond)) {
+		t.Fatalf("next_scan_at = %v, want %v", row.NextScanAt, clock.Add(scanRetryBackoff[0]))
 	}
 
 	if _, err := w.ScorePending(context.Background()); err != nil {
+		t.Fatalf("early pass: %v", err)
+	}
+	if g.calls != 1 {
+		t.Fatalf("gateway dialed %d times before the backoff was due, want 1", g.calls)
+	}
+
+	clock = clock.Add(scanRetryBackoff[0])
+	if _, err := w.ScorePending(context.Background()); err != nil {
 		t.Fatalf("pass 2: %v", err)
 	}
-	row := getScan(t, id)
+	row = getScan(t, id)
 	if row.Status != model.ScanStatusScored {
 		t.Fatalf("after pass 2 status = %d, want scored — the retry never happened", row.Status)
 	}
-	if row.DegradedReason != nil {
-		t.Fatalf("a scored row must not keep a degradation reason, got %d", *row.DegradedReason)
+	if row.DegradedReason != nil || row.NextScanAt != nil {
+		t.Fatalf("a scored row must not keep a degradation reason or retry time, got %v / %v",
+			row.DegradedReason, row.NextScanAt)
 	}
 	if row.ScanAttempts != 2 {
 		t.Fatalf("scan_attempts = %d, want 2 (the row took two tries and must say so)", row.ScanAttempts)
@@ -102,11 +118,14 @@ func TestScanDegradedRetryIsBounded(t *testing.T) {
 
 	g := &fakeGateway{configured: true, err: errors.New("permanently down")}
 	w := NewScanWorker(testDB, g, stubTier0{})
+	clock := time.Now()
+	w.now = func() time.Time { return clock }
 
 	for pass := range maxScanAttempts + 3 {
 		if _, err := w.ScorePending(context.Background()); err != nil {
 			t.Fatalf("pass %d: %v", pass, err)
 		}
+		clock = clock.Add(scanRetryBackoff[len(scanRetryBackoff)-1])
 	}
 	row := getScan(t, id)
 	if row.Status != model.ScanStatusDegraded {
@@ -115,25 +134,76 @@ func TestScanDegradedRetryIsBounded(t *testing.T) {
 	if row.ScanAttempts != maxScanAttempts {
 		t.Fatalf("scan_attempts = %d, want it capped at %d", row.ScanAttempts, maxScanAttempts)
 	}
-	if int(g.calls.Load()) != maxScanAttempts {
+	if row.NextScanAt != nil {
+		t.Fatalf("an exhausted row must not be scheduled again, next_scan_at = %v", row.NextScanAt)
+	}
+	if g.calls.Load() != int32(maxScanAttempts) {
 		t.Fatalf("gateway dialed %d times, want exactly %d — the bound is not holding",
 			g.calls.Load(), maxScanAttempts)
+	}
+}
+
+func TestScanUnconfiguredIsNotRetried(t *testing.T) {
+	cleanTables(t)
+	id := seedPending(t, "s-unconfigured", "text")
+	w := NewScanWorker(testDB, &fakeGateway{configured: false}, stubTier0{})
+	clock := time.Now()
+	w.now = func() time.Time { return clock }
+
+	for range 3 {
+		if _, err := w.ScorePending(context.Background()); err != nil {
+			t.Fatalf("score: %v", err)
+		}
+		clock = clock.Add(scanRetryBackoff[len(scanRetryBackoff)-1])
+	}
+	row := getScan(t, id)
+	if row.ScanAttempts != 1 || row.NextScanAt != nil {
+		t.Fatalf("scan_attempts = %d, next_scan_at = %v; want 1 and nil", row.ScanAttempts, row.NextScanAt)
+	}
+}
+
+func TestScanOutageStopsTheBatch(t *testing.T) {
+	cases := []struct {
+		name string
+		g    *fakeGateway
+	}{
+		{"call-failed", &fakeGateway{configured: true, err: errors.New("429 capacity")}},
+		{"gateway-degraded", &fakeGateway{configured: true, verdict: GatewayVerdict{Degraded: true}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			cleanTables(t)
+			for i := range 5 {
+				seedPending(t, subjID(i), "text")
+			}
+			n, err := NewScanWorker(testDB, c.g, stubTier0{}).ScorePending(context.Background())
+			if err != nil {
+				t.Fatalf("score: %v", err)
+			}
+			if n != 1 || c.g.calls.Load() != 1 {
+				t.Fatalf("processed %d, dialed %d; want 1 and 1", n, c.g.calls.Load())
+			}
+			if got := countScanStatus(t, model.ScanStatusPending); got != 4 {
+				t.Fatalf("pending = %d, want 4 left untouched by the outage", got)
+			}
+		})
 	}
 }
 
 func TestScanPendingNotStarvedByRetries(t *testing.T) {
 	cleanTables(t)
 
-	failing := &fakeGateway{configured: true, err: errors.New("down")}
-	wFail := NewScanWorker(testDB, failing, stubTier0{})
+	past := time.Now().Add(-time.Hour)
 	for i := range scanBatchSize {
-		seedPending(t, "s-old-"+string(rune('a'+i%26))+string(rune('0'+i/26)), "text")
-	}
-	if _, err := wFail.ScorePending(context.Background()); err != nil {
-		t.Fatalf("seed drain: %v", err)
-	}
-	if got := countScanStatus(t, model.ScanStatusDegraded); got != int64(scanBatchSize) {
-		t.Fatalf("expected %d degraded rows to retry against, got %d", scanBatchSize, got)
+		reason := model.ScanDegradedGatewayDegraded
+		r := model.TrustScanResult{
+			Site: tSite, SubjectKind: tKind, SubjectID: "s-old-" + subjID(i), ContentText: "text",
+			Status: model.ScanStatusDegraded, Mode: model.ScanModeShadow,
+			DegradedReason: &reason, ScanAttempts: 1, NextScanAt: &past,
+		}
+		if err := testDB.Create(&r).Error; err != nil {
+			t.Fatalf("seed due retry: %v", err)
+		}
 	}
 
 	fresh := seedPending(t, "s-fresh", "text")

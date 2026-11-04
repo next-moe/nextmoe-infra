@@ -77,6 +77,8 @@ var (
 	liveWalkerToken = "user-live-walker-token"
 	liveWalkerUID   = int64(7070)
 
+	liveHistoryReadToken = "user-live-history-read-token"
+
 	liveEditorToken   = "user-live-editor-token"
 	liveEditorUID     = int64(13)
 	liveCentralToken  = "user-live-central-token"
@@ -251,22 +253,23 @@ func liveCatalog(t *testing.T) *liveEnv {
 			return
 		}
 		cat := &Catalog{
-			Public:         pub,
-			Resolve:        resolve,
-			StatsSvc:       catsvc.NewStatsService(db),
-			EditTypes:      reg,
-			Playtime:       catsvc.NewUserPlaytimeService(db),
-			WorkStates:     catsvc.NewUserWorkStateService(db),
-			Ratings:        catsvc.NewUserRatingService(db),
-			WorkRecords:    catsvc.NewUserWorkRecordService(db),
-			CompanyFollows: catsvc.NewUserEntityFollowService(db),
-			TagBlocks:      catsvc.NewUserTagBlockService(db),
-			Folders:        catsvc.NewUserFolderService(db),
-			CoverVotes:     catsvc.NewCoverVoteService(db),
-			Claims:         catsvc.NewClaimLifecycleService(db),
-			Engine:         editing.NewEngine(db, reg),
-			News:           newssvc.NewPublicService(db, liveNewsCDNBase),
-			NewsWrite:      newssvc.NewSubmissionService(db, liveNewsCDNBase),
+			Public:          pub,
+			Resolve:         resolve,
+			StatsSvc:        catsvc.NewStatsService(db),
+			EditTypes:       reg,
+			Playtime:        catsvc.NewUserPlaytimeService(db),
+			WorkStates:      catsvc.NewUserWorkStateService(db),
+			BrowsingHistory: catsvc.NewBrowsingHistoryService(db),
+			Ratings:         catsvc.NewUserRatingService(db),
+			WorkRecords:     catsvc.NewUserWorkRecordService(db),
+			CompanyFollows:  catsvc.NewUserEntityFollowService(db),
+			TagBlocks:       catsvc.NewUserTagBlockService(db),
+			Folders:         catsvc.NewUserFolderService(db),
+			CoverVotes:      catsvc.NewCoverVoteService(db),
+			Claims:          catsvc.NewClaimLifecycleService(db),
+			Engine:          editing.NewEngine(db, reg),
+			News:            newssvc.NewPublicService(db, liveNewsCDNBase),
+			NewsWrite:       newssvc.NewSubmissionService(db, liveNewsCDNBase),
 		}
 		cat.EditHistory = catsvc.NewEditHistoryService(db)
 		cat.EditContext = catsvc.NewEditContextService(db)
@@ -320,6 +323,9 @@ func liveCatalog(t *testing.T) *liveEnv {
 				case liveSecondReadToken:
 					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"},
 						Scopes: []string{devapi.ScopeCatalogRead}}, nil
+				case liveHistoryReadToken:
+					return UserIdentity{UID: liveUID, ClientID: liveClient, Roles: []string{"admin"},
+						Scopes: []string{devapi.ScopeHistoryRead}}, nil
 				case liveWalkerToken:
 					return UserIdentity{UID: liveWalkerUID, ClientID: liveClient, Roles: []string{"user"},
 						Scopes: []string{devapi.ScopeFolderRead}}, nil
@@ -713,7 +719,7 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		WorkID: fx.Work, SourceID: model.SourceSeiya, SourceURL: "https://seiya-saiga.com/game/live.html",
 		ChartVersion: 1, SourceHash: "live", ExtractModel: "test",
 		Chart: datatypes.JSON(`{"characters":[{"key":"c1","name":"ライブ","aliases":[]}],"sections":[],` +
-			`"entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[{"key":"sv01","label":"セーブ01"}],` +
+			`"entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[{"key":"sv01","label":"セーブ01","label_zh":"存档01"}],` +
 			`"endings":[{"key":"e1","name":"ライブEND","name_zh":"直播END","ending_type":"heroine","characters":["c1"]}],` +
 			`"segments":[{"key":"g1","section":null,"from":{"node_type":"entry","key":"start"},"condition":null,"condition_zh":null,` +
 			`"steps":[{"step_type":"choice","text":"はい","text_zh":"是","alt":["いいえ"],"alt_zh":[null],"achievement":false,"save":null},` +

@@ -32,8 +32,12 @@ const (
 // it refits and re-encodes, keeping PNG for anything that actually uses its
 // alpha channel — a third of hihyou's oversized pictures did, so encoding them
 // all as JPEG would flatten real transparency onto black.
+// MaxPixels mirrors processor.MaxDecodedPixels: a 10236x5756 Bangumi cover
+// (58.9 MP in 4.05 MB) passed the byte check and the service refused it.
+const MaxPixels = 50 * 1000 * 1000
+
 func Shrink(body []byte, name string) ([]byte, string, error) {
-	if len(body) <= UploadLimitB {
+	if len(body) <= UploadLimitB && withinPixels(body) {
 		return body, name, nil
 	}
 	src, _, err := image.Decode(bytes.NewReader(body))
@@ -107,4 +111,9 @@ func replaceExt(name string, transparent bool) string {
 		return name[:i] + ext
 	}
 	return name + ext
+}
+
+func withinPixels(body []byte) bool {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(body))
+	return err != nil || int64(cfg.Width)*int64(cfg.Height) <= MaxPixels
 }

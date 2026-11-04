@@ -13,7 +13,7 @@
 
 Change my privacy switches
 
-Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next read of /v2/work-records. Requires a user access token. Any app may call this; no scope is required.
+Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -25,13 +25,15 @@ Sets the switches the body names and leaves the others as they are; an empty bod
 
 | 字段 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
+| `browsing_history` | 否 | string | off erases every app's browsing history and stops recording it; on starts recording again. A third-party app may only send off. Absent leaves it as it is. 取值：on \| off |
+| `browsing_history_sharing` | 否 | string | shared lets an app holding history:read read every app's history. A third-party app may only send per_app. Absent leaves it as it is. 取值：per_app \| shared |
 | `play_records` | 否 | string | Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is. 取值：public \| private |
 
 ```bash
 curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"play_records":"private"}'
+  -d '{"browsing_history":"off","browsing_history_sharing":"per_app","play_records":"private"}'
 ```
 
 ---

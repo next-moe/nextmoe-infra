@@ -16,11 +16,12 @@ const chartFixture = `{
   "characters": [{"key": "c1", "name": "寧々", "aliases": []}, {"key": "c2", "name": "めぐる", "aliases": []}],
   "sections": [{"key": "s1", "title": "寧々ルート", "title_zh": null, "characters": ["c1"]}],
   "entries": [{"key": "e1", "label": "START", "unlocked_by": null}],
-  "saves": [{"key": "v1", "label": "セーブ1"}],
+  "saves": [{"key": "v1", "label": "セーブ1", "label_zh": "存档1"}],
   "endings": [{"key": "n1", "name": "寧々END", "name_zh": null, "ending_type": "heroine", "characters": ["c1"]}],
   "segments": [
     {"key": "g1", "section": null, "from": {"node_type": "entry", "key": "e1"}, "condition": null, "condition_zh": null,
-     "steps": [{"step_type": "choice", "text": "帰る", "text_zh": null, "alt": [], "alt_zh": [], "achievement": false, "save": null},
+     "steps": [{"step_type": "heading", "text": "５月１４日", "text_zh": null, "alt": [], "alt_zh": [], "achievement": false, "save": null},
+               {"step_type": "choice", "text": "帰る", "text_zh": null, "alt": [], "alt_zh": [], "achievement": false, "save": null},
                {"step_type": "save", "text": null, "text_zh": null, "alt": [], "alt_zh": [], "achievement": false, "save": "v1"}],
      "to": {"node_type": "open", "key": null}},
     {"key": "g2", "section": "s1", "from": {"node_type": "save", "key": "v1"}, "condition": null, "condition_zh": null,
@@ -246,7 +247,13 @@ func TestWalkthroughRefusesBrokenCharts(t *testing.T) {
 		})},
 		"empty choice": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) {
 			seg := c["segments"].([]any)[0].(map[string]any)
-			seg["steps"].([]any)[0].(map[string]any)["text"] = " "
+			seg["steps"].([]any)[1].(map[string]any)["text"] = " "
+		})},
+		"required ending the chart lacks": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) {
+			c["segments"].([]any)[1].(map[string]any)["requires_endings"] = []any{"n9"}
+		})},
+		"required ending twice": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) {
+			c["segments"].([]any)[1].(map[string]any)["requires_endings"] = []any{"n1", "n1"}
 		})},
 		"pin of a key the chart lacks": {editspec.FieldWalkthroughPins: []any{map[string]any{"chart_key": "c9", "character_id": float64(1)}}},
 		"bad lang":                     {editspec.FieldWalkthroughLang: "en"},

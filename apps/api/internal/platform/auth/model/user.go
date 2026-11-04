@@ -40,6 +40,8 @@ type User struct {
 	DeletionRequestedAt *time.Time     `json:"-"`
 	DeletionDueAt       *time.Time     `gorm:"index" json:"-"`
 	IP                  string         `gorm:"size:45;default:''" json:"-"`
+	LastLoginAt         *time.Time     `gorm:"index" json:"-"`
+	LastActiveAt        *time.Time     `gorm:"index" json:"-"`
 	CreatedAt           time.Time      `json:"created_at"`
 	UpdatedAt           time.Time      `json:"updated_at"`
 	DeletedAt           gorm.DeletedAt `gorm:"index" json:"-"`

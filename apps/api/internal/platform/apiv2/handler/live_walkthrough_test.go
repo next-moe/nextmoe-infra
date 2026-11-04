@@ -36,13 +36,21 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 		} `json:"characters"`
 		EndingCount int `json:"ending_count"`
 		Chart       *struct {
+			Legend  []any `json:"legend"`
+			Entries []struct {
+				Localized map[string]any `json:"localized"`
+			} `json:"entries"`
+			Saves []struct {
+				Localized map[string]map[string]any `json:"localized"`
+			} `json:"saves"`
 			Endings []struct {
 				Name      string                    `json:"name"`
 				Localized map[string]map[string]any `json:"localized"`
 				Keys      []string                  `json:"character_keys"`
 			} `json:"endings"`
 			Segments []struct {
-				FromNode struct {
+				RequiresEndingKeys []string `json:"requires_ending_keys"`
+				FromNode           struct {
 					NodeType string  `json:"node_type"`
 					Key      *string `json:"key"`
 				} `json:"from_node"`
@@ -54,7 +62,9 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 						Text      string         `json:"text"`
 						Localized map[string]any `json:"localized"`
 					} `json:"alternatives"`
-					SaveKey *string `json:"save_key"`
+					SaveKey         *string        `json:"save_key"`
+					Remark          *string        `json:"remark"`
+					RemarkLocalized map[string]any `json:"remark_localized"`
 				} `json:"steps"`
 			} `json:"segments"`
 		} `json:"chart"`
@@ -75,12 +85,24 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	assert.Equal(t, "直播END", w.Chart.Endings[0].Localized["zh-Hans"]["value"])
 	assert.Equal(t, true, w.Chart.Endings[0].Localized["zh-Hans"]["is_machine"])
 	assert.Equal(t, []string{"c1"}, w.Chart.Endings[0].Keys)
+	require.Len(t, w.Chart.Saves, 1)
+	assert.Equal(t, "存档01", w.Chart.Saves[0].Localized["zh-Hans"]["value"])
+	require.Len(t, w.Chart.Entries, 1)
+	assert.NotNil(t, w.Chart.Entries[0].Localized)
+	assert.Empty(t, w.Chart.Entries[0].Localized)
+	assert.NotNil(t, w.Chart.Segments[0].RequiresEndingKeys, "a chart stored before requires_endings still says []")
+	assert.Empty(t, w.Chart.Segments[0].RequiresEndingKeys)
 	steps := w.Chart.Segments[0].Steps
 	require.Len(t, steps, 2)
 	assert.Equal(t, "はい", *steps[0].Text)
 	assert.Equal(t, "是", steps[0].Localized["zh-Hans"]["value"])
 	require.Len(t, steps[0].Alternatives, 1)
 	assert.Empty(t, steps[0].Alternatives[0].Localized, "an untranslated alternative has an empty localized map")
+	assert.Nil(t, steps[0].Remark)
+	assert.NotNil(t, steps[0].RemarkLocalized)
+	assert.Empty(t, steps[0].RemarkLocalized)
+	assert.NotNil(t, w.Chart.Legend, "a chart stored before legend still says []")
+	assert.Empty(t, w.Chart.Legend)
 	assert.Nil(t, steps[1].Text)
 	assert.Equal(t, "sv01", *steps[1].SaveKey)
 

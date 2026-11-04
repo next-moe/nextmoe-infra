@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { cn } from '@kungal/ui-core'
 import type {
   SettingsDomainView,
   SettingsKeyView
@@ -118,18 +119,34 @@ const ownSource = (scopeKind: 'platform' | 'site') =>
             </td>
 
             <td class="px-3 py-2">
-              <span class="text-foreground font-mono break-all">
+              <p
+                v-if="row.multiline"
+                class="text-foreground line-clamp-3 max-w-md text-xs whitespace-pre-line"
+              >
+                {{ formatSettingValue(row.kind, row.effective) || '（空）' }}
+              </p>
+              <span v-else class="text-foreground font-mono break-all">
                 {{ formatSettingValue(row.kind, row.effective) }}
               </span>
               <p
                 v-if="scopeKind === 'platform' && row.source === 'db'"
-                class="text-default-400 mt-0.5"
+                :class="
+                  cn(
+                    'text-default-400 mt-0.5',
+                    row.multiline && 'line-clamp-1 max-w-md'
+                  )
+                "
               >
                 默认 {{ formatSettingValue(row.kind, row.default) }}
               </p>
               <p
                 v-else-if="scopeKind === 'site' && row.source === 'site'"
-                class="text-default-400 mt-0.5"
+                :class="
+                  cn(
+                    'text-default-400 mt-0.5',
+                    row.multiline && 'line-clamp-1 max-w-md'
+                  )
+                "
               >
                 平台 {{ formatSettingValue(row.kind, row.inherited) }}
               </p>

@@ -1,49 +1,15 @@
 package upstream
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
-	"time"
 
-	"api/internal/platform/settings/keys"
+	"api/internal/platform/llm"
 )
-
-const llmTimeout = 90 * time.Second
-
-type Client struct {
-	baseURL string
-	token   string
-	model   string
-	http    *http.Client
-}
-
-func NewClient(baseURL, token, model string) *Client {
-	return &Client{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		token:   token,
-		model:   model,
-		http:    &http.Client{Timeout: llmTimeout},
-	}
-}
-
-func (c *Client) Configured() bool {
-	return c.baseURL != "" && c.token != ""
-}
-
-func (c *Client) Model() string { return c.resolveModel() }
-
-func (c *Client) resolveModel() string {
-	if c.model != "" {
-		return c.model
-	}
-	return keys.AIUpstreamModel.Get()
-}
 
 // StatusError carries the upstream HTTP status so a caller can tell transient
 // contention from a permanent failure. Cloudflare delivers its per-minute
@@ -73,94 +39,105 @@ type ChatResult struct {
 	CompletionTokens int
 }
 
-type chatRequest struct {
-	Model          string         `json:"model"`
-	Messages       []chatMessage  `json:"messages"`
-	MaxTokens      int            `json:"max_tokens"`
-	Temperature    float64        `json:"temperature"`
-	ResponseFormat map[string]any `json:"response_format,omitempty"`
+type OmniResult struct {
+	Flagged        bool
+	Categories     map[string]bool
+	CategoryScores map[string]float64
+	Channel        string
 }
 
-type chatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+type gateway interface {
+	Ready(scene string) (string, bool)
+	Stream(ctx context.Context, call llm.Call, onEvent func(llm.Event)) (llm.Result, error)
+	Moderate(ctx context.Context, r llm.Request) (llm.Response, error)
 }
 
-type chatResponse struct {
-	Model   string `json:"model"`
-	Choices []struct {
-		Message      chatMessage `json:"message"`
-		FinishReason string      `json:"finish_reason"`
-	} `json:"choices"`
-	Usage struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-	} `json:"usage"`
-	Error *struct {
-		Message string `json:"message"`
-	} `json:"error"`
+type Client struct {
+	gw    gateway
+	scene string
+}
+
+func NewClient(gw gateway, scene string) *Client { return &Client{gw: gw, scene: scene} }
+
+func (c *Client) Configured() bool {
+	_, ok := c.gw.Ready(c.scene)
+	return ok
+}
+
+func (c *Client) Model() string {
+	m, _ := c.gw.Ready(c.scene)
+	return m
+}
+
+func typed(err error) error {
+	var le *llm.Error
+	if errors.As(err, &le) && le.Status > 0 {
+		return &StatusError{Code: le.Status, Body: le.Msg}
+	}
+	if llm.KindOf(err) == llm.ErrKindRateLimit {
+		return &StatusError{Code: http.StatusTooManyRequests, Body: err.Error()}
+	}
+	return err
 }
 
 func (c *Client) ChatJSON(ctx context.Context, system, user string, maxTokens int) (ChatResult, error) {
-	body := chatRequest{
-		Model:       c.resolveModel(),
-		MaxTokens:   maxTokens,
-		Temperature: 0,
-		Messages: []chatMessage{
-			{Role: "system", Content: system},
-			{Role: "user", Content: user},
-		},
-		ResponseFormat: map[string]any{"type": "json_object"},
-	}
-	raw, err := json.Marshal(body)
+	res, err := c.gw.Stream(ctx, llm.Call{
+		Scene: c.scene, Buffered: true, JSON: true, MaxTokens: maxTokens, Site: "ai.moderation",
+		Messages: []llm.Message{{Role: llm.RoleSystem, Content: system}, {Role: llm.RoleUser, Content: user}},
+		Extra:    map[string]json.RawMessage{"temperature": json.RawMessage("0")},
+	}, nil)
 	if err != nil {
-		return ChatResult{}, err
+		return ChatResult{}, typed(err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(raw))
-	if err != nil {
-		return ChatResult{}, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.token)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return ChatResult{}, err
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return ChatResult{}, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return ChatResult{}, &StatusError{Code: resp.StatusCode, Body: truncate(string(data), 300)}
-	}
-	var cr chatResponse
-	if err := json.Unmarshal(data, &cr); err != nil {
-		return ChatResult{}, fmt.Errorf("decode chat response: %w (body: %s)", err, truncate(string(data), 300))
-	}
-	if cr.Error != nil {
-		return ChatResult{}, fmt.Errorf("upstream error: %s", cr.Error.Message)
-	}
-	if len(cr.Choices) == 0 {
-		return ChatResult{}, fmt.Errorf("upstream returned no choices")
-	}
-	channel := cr.Model
+	channel := res.Model
 	if channel == "" {
-		channel = c.resolveModel()
+		channel = c.Model()
 	}
-	return ChatResult{
-		Content:          strings.TrimSpace(cr.Choices[0].Message.Content),
-		Channel:          channel,
-		FinishReason:     cr.Choices[0].FinishReason,
-		PromptTokens:     cr.Usage.PromptTokens,
-		CompletionTokens: cr.Usage.CompletionTokens,
-	}, nil
+	return ChatResult{Content: strings.TrimSpace(res.Text), Channel: channel, FinishReason: res.FinishReason,
+		PromptTokens: res.Usage.InputTokens, CompletionTokens: res.Usage.OutputTokens}, nil
 }
 
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
+type OmniClient struct {
+	gw    gateway
+	scene string
+}
+
+func NewOmniClient(gw gateway, scene string) *OmniClient { return &OmniClient{gw: gw, scene: scene} }
+
+func (c *OmniClient) Configured() bool {
+	_, ok := c.gw.Ready(c.scene)
+	return ok
+}
+
+func (c *OmniClient) Model() string {
+	m, _ := c.gw.Ready(c.scene)
+	return m
+}
+
+func (c *OmniClient) Moderate(ctx context.Context, input string) (OmniResult, error) {
+	raw, _ := json.Marshal(input)
+	res, err := c.gw.Moderate(ctx, llm.Request{Scene: c.scene, Site: "ai.moderation", Body: map[string]json.RawMessage{"input": raw}})
+	if err != nil {
+		return OmniResult{}, fmt.Errorf("omni: %w", typed(err))
 	}
-	return s[:n] + "…"
+	var parsed struct {
+		Model   string `json:"model"`
+		Results []struct {
+			Flagged        bool               `json:"flagged"`
+			Categories     map[string]bool    `json:"categories"`
+			CategoryScores map[string]float64 `json:"category_scores"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(res.Body, &parsed); err != nil {
+		return OmniResult{}, fmt.Errorf("decode omni response: %w", err)
+	}
+	if len(parsed.Results) == 0 {
+		return OmniResult{}, errors.New("omni returned no results")
+	}
+	channel := parsed.Model
+	if channel == "" {
+		channel = c.Model()
+	}
+	r := parsed.Results[0]
+	return OmniResult{Flagged: r.Flagged, Categories: r.Categories, CategoryScores: r.CategoryScores, Channel: channel}, nil
 }

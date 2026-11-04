@@ -195,6 +195,8 @@ var live = NewRegistry(
 		Keys: []Key{
 			{aiPerm.UsageView, "Reach the AI-gateway usage / cost / budget dashboard.", "查看 AI 网关用量/成本/预算看板"},
 			{aiPerm.BudgetManage, "Set or clear a route's daily cost cap.", "设置/清除路由每日成本上限(预算保险丝)"},
+			{aiPerm.LLMManage, "Read and change LLM providers, API keys, models, routes, scenes and gateway access keys.", "查看与修改 LLM 供应商、API key、模型、路由、场景和网关访问密钥"},
+			{aiPerm.AgentManage, "Register the MCP servers each site lends the AI assistant.", "为各站点登记 AI 助手可用的 MCP 站点工具"},
 		},
 	},
 	Domain{

@@ -178,6 +178,7 @@ func (c *Catalog) GetEngine(ctx context.Context, id int64, nsfw bool) (repr.Engi
 	}
 	return repr.Engine{
 		Object: "engine", ID: repr.ID(rec.ID), DisplayName: rec.Name, WorkCount: rec.WorkCount,
+		RaterCount: rec.RaterCount, RatedWorkCount: rec.RatedWorkCount,
 		Description: rec.Description, Aliases: aliases,
 	}, nil
 }

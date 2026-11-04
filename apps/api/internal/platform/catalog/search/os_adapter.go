@@ -98,6 +98,24 @@ func (a *osAdapter) SearchWorks(ctx context.Context, q spec.WorksQuery) (WorksRe
 	return out, nil
 }
 
+func (a *osAdapter) SearchRankings(ctx context.Context, q spec.RankingQuery) (RankingResult, error) {
+	res, err := a.eng.SearchRankings(ctx, q)
+	if err != nil {
+		return RankingResult{}, err
+	}
+	out := RankingResult{Total: res.Total, Facets: res.Facets}
+	for i, docID := range res.DocIDs {
+		id, ok := WorkDocIDToWorkID(docID)
+		if !ok {
+			slog.Warn("rankings search: hit with unparseable doc id dropped", "doc_id", docID)
+			continue
+		}
+		out.IDs = append(out.IDs, id)
+		out.Values = append(out.Values, res.Values[i])
+	}
+	return out, nil
+}
+
 func (a *osAdapter) SearchCharacters(ctx context.Context, q spec.CharacterQuery) (CharactersResult, error) {
 	res, err := a.eng.SearchCharacters(ctx, q)
 	if err != nil {
@@ -128,4 +146,50 @@ func (a *osAdapter) SearchPersons(ctx context.Context, q spec.EntityQuery) (Pers
 
 func (a *osAdapter) CharacterTraitCounts(ctx context.Context, nsfw bool) (map[int64]int64, error) {
 	return a.eng.CharacterTraitCounts(ctx, nsfw)
+}
+
+func (a *osAdapter) EnsureVectorIndex(ctx context.Context, uid string, dims int) error {
+	return a.eng.EnsureVectorIndex(ctx, uid, dims)
+}
+
+func (a *osAdapter) UpsertVectors(ctx context.Context, uid string, docs []VectorDoc) error {
+	bulk := make([]osengine.BulkDoc, len(docs))
+	for i, d := range docs {
+		bulk[i] = osengine.BulkDoc{ID: d.ID, Source: d}
+	}
+	return a.eng.Upsert(ctx, uid, bulk)
+}
+
+func (a *osAdapter) UpdateVectorFilters(ctx context.Context, uid string, docs []VectorDoc) error {
+	bulk := make([]osengine.BulkDoc, len(docs))
+	for i, d := range docs {
+		bulk[i] = osengine.BulkDoc{ID: d.ID, Source: d.Filters}
+	}
+	return a.eng.UpdatePartial(ctx, uid, bulk)
+}
+
+func (a *osAdapter) VectorStamps(ctx context.Context, uid string, ids []string) (map[string]VectorStamp, error) {
+	return a.eng.VectorStamps(ctx, uid, ids)
+}
+
+func (a *osAdapter) SearchWorkVectors(ctx context.Context, uid string, vector []float32, k int, f spec.WorksFilter) ([]VectorHit, error) {
+	return a.eng.SearchWorkVectors(ctx, uid, vector, k, f)
+}
+
+func (a *osAdapter) ExactTitleWorks(ctx context.Context, q string, limit int, f spec.WorksFilter) ([]int64, error) {
+	docIDs, err := a.eng.ExactTitleWorks(ctx, q, limit, f)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, 0, len(docIDs))
+	for _, docID := range docIDs {
+		if id, ok := WorkDocIDToWorkID(docID); ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
+}
+
+func (a *osAdapter) SearchCharacterVectors(ctx context.Context, uid string, vector []float32, k int, q spec.CharacterQuery) ([]VectorHit, error) {
+	return a.eng.SearchCharacterVectors(ctx, uid, vector, k, q)
 }

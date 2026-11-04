@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -155,6 +156,11 @@ func (s *AdminService) MintKey(ctx context.Context, clientID string, in MintKeyI
 	scopes := in.Scopes
 	if len(scopes) == 0 {
 		scopes = []string{ScopeCatalogRead}
+	}
+	for _, sc := range defaultKeyScopes {
+		if !slices.Contains(scopes, sc) {
+			scopes = append(slices.Clip(scopes), sc)
+		}
 	}
 	key, plaintext, err := s.buildKey(clientID, in.Name, in.Test, scopes, createdBy)
 	if err != nil {

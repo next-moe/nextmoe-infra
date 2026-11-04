@@ -18,9 +18,12 @@ func TestRespondUploadErrorDecodeFailedVersusStoreFailed(t *testing.T) {
 	app := fiber.New()
 	app.Get("/map", func(c fiber.Ctx) error {
 		var err error
-		if c.Query("kind") == "decode" {
+		switch c.Query("kind") {
+		case "decode":
 			err = fmt.Errorf("decode: %w", fmt.Errorf("%w: %v", processor.ErrInvalidInput, errors.New("unsupported JPEG feature: luma/chroma subsampling ratio")))
-		} else {
+		case "pixels":
+			err = fmt.Errorf("decode: %w", processor.ErrTooLarge)
+		default:
 			err = errors.New("store exploded")
 		}
 		return respondUploadError(c, "catalog", "catalog_logo", "client", err)
@@ -48,6 +51,9 @@ func TestRespondUploadErrorDecodeFailedVersusStoreFailed(t *testing.T) {
 
 	if status, code := hit("decode"); status != http.StatusBadRequest || code != 80010 {
 		t.Fatalf("decode: status=%d code=%d, want 400/80010", status, code)
+	}
+	if status, code := hit("pixels"); status != http.StatusRequestEntityTooLarge || code != 80007 {
+		t.Fatalf("pixels: status=%d code=%d, want 413/80007 so clients treat it as permanent", status, code)
 	}
 	if status, code := hit("other"); status != http.StatusInternalServerError || code != 80012 {
 		t.Fatalf("other: status=%d code=%d, want 500/80012", status, code)

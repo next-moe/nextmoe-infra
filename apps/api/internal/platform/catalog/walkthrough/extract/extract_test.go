@@ -2,6 +2,8 @@ package extract
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 
 	"api/internal/platform/catalog/walkthrough"
@@ -62,6 +64,18 @@ func TestExtractedChartInlinesEndingsOnePerOccurrence(t *testing.T) {
 	assert.Empty(t, walkthrough.Validate(c))
 }
 
+func TestChartDropsEmptySteps(t *testing.T) {
+	x := parseExtracted(t, `{"no_chart":false,"characters":[],"sections":[],
+	 "entries":[{"key":"start","label":"START","unlocked_by":null}],"saves":[],
+	 "segments":[{"key":"g1","section":null,"from":{"node_type":"entry","key":"start"},"condition":null,
+	   "steps":[{"step_type":"choice","text":"","alt":[],"remark":null,"achievement":false,"save":null},
+	            {"step_type":"choice","text":"はい","alt":[],"remark":null,"achievement":false,"save":null}],
+	   "to":{"node_type":"collect","ending":null}}]}`)
+	c := x.Chart()
+	require.Len(t, c.Segments[0].Steps, 1, "deepseek wrote a choice with empty text and Validate refused the chart")
+	assert.Equal(t, "はい", *c.Segments[0].Steps[0].Text)
+}
+
 func TestRepairCreatesCharactersNamedOnlyInHeadings(t *testing.T) {
 	x := parseExtracted(t, `{"no_chart":false,"characters":[],
 	 "sections":[{"key":"s1","title":"あざみ","characters":["あざみ"]}],
@@ -105,4 +119,48 @@ func TestGateSendsMissingEndingsToReview(t *testing.T) {
 	assert.Equal(t, 1, m.EndMarkers)
 	assert.Equal(t, 0, m.EndingsReached)
 	assert.Equal(t, VerdictReview, verdict, "the page has an END marker the chart never reaches")
+}
+
+func TestCoverageCountsEveryMissedLine(t *testing.T) {
+	var page strings.Builder
+	page.WriteString("START\n選ぶ\n")
+	for i := range 20 {
+		fmt.Fprintf(&page, "⇒デート%02d\n", i)
+	}
+	page.WriteString("寧々に声をかける\n寧々END\n")
+	text := func(s string) *string { return &s }
+	c := walkthrough.Chart{
+		Characters: []walkthrough.Character{{Key: "c1", Name: "寧々"}},
+		Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+			{StepType: walkthrough.StepChoice, Text: text("選ぶ")},
+		}}},
+	}
+	ratio, missed := coverage(page.String(), c)
+	assert.InDelta(t, 1.0/22, ratio, 1e-9, "all 21 missed lines count, not the 8 that are listed")
+	assert.Len(t, missed, 8)
+	assert.NotContains(t, missed, "選ぶ")
+}
+
+func TestCoverageSkipsLinesThatCannotBeChoices(t *testing.T) {
+	page := "【はじめから】\n01■楠田 友美\n10/23\n第3話\n「中に出す」or「ギリギリで抜く」\n【Y1】開始\n「想い出の並木道」からスタート\n選択肢「中に出す」\n★拡大リンク★\n寧々END"
+	text := func(s string) *string { return &s }
+	c := walkthrough.Chart{Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+		{StepType: walkthrough.StepChoice, Text: text("中に出す"), Alt: []string{"ギリギリで抜く"}},
+	}}}}
+	ratio, missed := coverage(page, c)
+	assert.Empty(t, missed)
+	assert.Equal(t, 1.0, ratio)
+
+	ratio, missed = coverage(page+"\n寧々に声をかける\n寧々END", c)
+	assert.Equal(t, []string{"寧々に声をかける"}, missed)
+	assert.InDelta(t, 2.0/3, ratio, 1e-9)
+}
+
+func TestGateRejectsARemarkWithoutText(t *testing.T) {
+	remark := "推理正解"
+	c := walkthrough.Chart{Segments: []walkthrough.Segment{{Steps: []walkthrough.Step{
+		{StepType: walkthrough.StepChoice, Remark: &remark},
+	}}}}
+	var m Metrics
+	assert.Equal(t, VerdictRejected, Gate(sampleText, c, &m))
 }

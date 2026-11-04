@@ -24,7 +24,8 @@ type UserListRequest struct {
 	Limit    int    `query:"limit" validate:"omitempty,min=1,max=100"`
 	Search   string `query:"search"`
 	Status   *int   `query:"status"`
-	SortBy   string `query:"sort_by" validate:"omitempty,oneof=created_at name email moemoepoint"`
+	Role     string `query:"role" validate:"omitempty,max=50"`
+	SortBy   string `query:"sort_by" validate:"omitempty,oneof=created_at name email moemoepoint last_login_at last_active_at"`
 	SortDesc bool   `query:"sort_desc"`
 }
 

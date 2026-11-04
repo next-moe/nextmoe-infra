@@ -1,13 +1,13 @@
 package llmsuggest
 
 import (
+	"api/pkg/config"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -16,6 +16,7 @@ type Client struct {
 	baseURL string
 	model   string
 	apiKey  string
+	effort  string
 	http    *http.Client
 }
 
@@ -23,9 +24,19 @@ func NewClient(baseURL, model string) *Client {
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		model:   model,
-		apiKey:  os.Getenv("KUN_AI_UPSTREAM_TOKEN"),
+		apiKey:  config.LLMToken(),
 		http:    &http.Client{Timeout: 180 * time.Second},
 	}
+}
+
+func (c *Client) WithTimeout(d time.Duration) *Client {
+	c.http.Timeout = d
+	return c
+}
+
+func (c *Client) WithReasoningEffort(effort string) *Client {
+	c.effort = effort
+	return c
 }
 
 func (c *Client) applyAuth(req *http.Request) {
@@ -41,6 +52,7 @@ type chatRequest struct {
 	Temperature       float64        `json:"temperature"`
 	ChatTemplateKwarg map[string]any `json:"chat_template_kwargs"`
 	ResponseFormat    map[string]any `json:"response_format,omitempty"`
+	ReasoningEffort   string         `json:"reasoning_effort,omitempty"`
 }
 
 type chatMessage struct {
@@ -89,6 +101,7 @@ func (c *Client) ChatJSON(ctx context.Context, system, user, schemaName string, 
 		MaxTokens:         maxTokens,
 		Temperature:       0,
 		ChatTemplateKwarg: map[string]any{"enable_thinking": false},
+		ReasoningEffort:   c.effort,
 		Messages: []chatMessage{
 			{Role: "system", Content: system},
 			{Role: "user", Content: user},

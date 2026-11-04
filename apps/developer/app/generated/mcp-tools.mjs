@@ -702,6 +702,50 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "listCatalogRankings",
+    "method": "GET",
+    "path": "/v2/catalog/rankings",
+    "summary": "Rank works by their ratings",
+    "needs_key": false,
+    "params": [
+      "cursor",
+      "limit",
+      "view",
+      "include",
+      "include_total",
+      "facets",
+      "nsfw",
+      "by",
+      "metric",
+      "scope",
+      "order",
+      "sources",
+      "min_sources",
+      "min_votes",
+      "max_votes",
+      "score_min",
+      "score_max",
+      "year",
+      "released_after",
+      "released_before",
+      "circulation",
+      "platform",
+      "playtime_min",
+      "playtime_max",
+      "content_rating",
+      "content_limit",
+      "claimed",
+      "company_id",
+      "tag_id",
+      "exclude_tag_id",
+      "exclude_tag_tree",
+      "series_id",
+      "engine_id",
+      "olang",
+      "page"
+    ]
+  },
+  {
     "name": "listCatalogRedirects",
     "method": "GET",
     "path": "/v2/catalog/redirects",
@@ -817,6 +861,14 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "listCatalogTagCategories",
+    "method": "GET",
+    "path": "/v2/catalog/tag-categories",
+    "summary": "List tag categories",
+    "needs_key": false,
+    "params": []
+  },
+  {
     "name": "listCatalogTags",
     "method": "GET",
     "path": "/v2/catalog/tags",
@@ -834,7 +886,8 @@ export const mcpTools = [
       "facets",
       "sort",
       "nsfw",
-      "has_works"
+      "has_works",
+      "category"
     ]
   },
   {
@@ -919,6 +972,7 @@ export const mcpTools = [
       "released_after",
       "released_before",
       "olang",
+      "search_mode",
       "page"
     ]
   },

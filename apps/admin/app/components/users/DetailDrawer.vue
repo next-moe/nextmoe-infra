@@ -106,6 +106,14 @@ const fmt = (s?: string | null) => (s ? new Date(s).toLocaleString('zh-CN') : '�
           <dt class="text-default-400 text-xs">注册时间</dt>
           <dd class="text-foreground">{{ fmt(detail.created_at) }}</dd>
         </div>
+        <div>
+          <dt class="text-default-400 text-xs">最后登录</dt>
+          <dd class="text-foreground">{{ detail.last_login_at ? fmt(detail.last_login_at) : '——' }}</dd>
+        </div>
+        <div>
+          <dt class="text-default-400 text-xs">最后活跃</dt>
+          <dd class="text-foreground">{{ detail.last_active_at ? fmt(detail.last_active_at) : '——' }}</dd>
+        </div>
         <div class="min-w-0">
           <dt class="text-default-400 text-xs">最近 IP</dt>
           <dd class="text-foreground font-mono break-all">

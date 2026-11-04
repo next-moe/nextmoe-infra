@@ -33,3 +33,21 @@ export interface HourlyStats {
   series: HourlyRegistration[]
   total: number
 }
+
+export interface ActiveSummary {
+  today: number
+  daily_average: number
+  peak_date: string
+  peak_count: number
+  unique: number
+  prev_period_unique: number
+  growth_percent: number
+  tracked_since?: string
+}
+
+export interface ActiveStats {
+  range_days: number
+  timezone: string
+  series: DailyRegistration[]
+  summary: ActiveSummary
+}

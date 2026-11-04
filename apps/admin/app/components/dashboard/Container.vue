@@ -61,6 +61,8 @@ const fmtRun = (s: string) => new Date(s).toLocaleString('zh-CN')
 
     <DashboardRegistrationStats />
 
+    <DashboardActiveStats />
+
     <DashboardQuickActions />
 
     <KunCard content-class="justify-start gap-0" class-name="p-6">

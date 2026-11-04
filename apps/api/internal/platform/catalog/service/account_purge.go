@@ -16,6 +16,7 @@ type AccountPurged struct {
 	DiscussionPosts, DiscussionWatches                                                                  int64
 	MergeCopies                                                                                         int64
 	WalkthroughDrafts                                                                                   int64
+	BrowsingHistory                                                                                     int64
 }
 
 // Every kun_catalog table that names a user is purged here, except the edit
@@ -27,6 +28,7 @@ type AccountPurged struct {
 var purgedUserTables = []string{
 	"catalog_user_work_rating", "catalog_user_folder", "catalog_user_folder_item", "catalog_user_playtime",
 	"catalog_user_work_state", "catalog_cover_vote", "catalog_user_entity_follow", "catalog_user_tag_block",
+	"catalog_user_work_view",
 }
 
 func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, error) {
@@ -52,6 +54,7 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 			{&model.CatalogUserEntityFollow{}, &out.EntityFollows},
 			{&model.CatalogUserTagBlock{}, &out.TagBlocks},
 			{&model.CatalogUserPrivacy{}, &out.Privacy},
+			{&model.CatalogUserWorkView{}, &out.BrowsingHistory},
 		} {
 			res := tx.Where("actor_uid = ?", uid).Delete(step.model)
 			if res.Error != nil {
@@ -99,7 +102,7 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 			"work_states", out.WorkStates, "ratings", out.Ratings, "cover_votes", out.CoverVotes, "entity_follows", out.EntityFollows,
 			"tag_blocks", out.TagBlocks, "privacy", out.Privacy,
 			"discussion_posts", out.DiscussionPosts, "discussion_watches", out.DiscussionWatches,
-			"walkthrough_drafts", out.WalkthroughDrafts,
+			"walkthrough_drafts", out.WalkthroughDrafts, "browsing_history", out.BrowsingHistory,
 			"merge_copies", out.MergeCopies)
 	}
 	return out, nil

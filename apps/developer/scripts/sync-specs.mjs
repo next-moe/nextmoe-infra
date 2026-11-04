@@ -518,7 +518,7 @@ const allowsAnonymous = (op) =>
   op.security?.some((req) => Object.keys(req).length === 0) ?? false
 
 const authForPath = (faceDef, path, op) => {
-  if (faceDef.key !== 'v2') return faceDef.auth
+  if (faceDef.file !== V2_SPEC) return faceDef.auth
   if (allowsAnonymous(op)) return ANONYMOUS_OR_CREDENTIAL_AUTH
   if (path.startsWith('/v2/me/') || path.startsWith('/v2/moderation/'))
     return USER_TOKEN_AUTH
@@ -526,6 +526,7 @@ const authForPath = (faceDef, path, op) => {
     path.startsWith('/v2/problems') ||
     path.startsWith('/v2/vocabularies') ||
     path.startsWith('/v2/news') ||
+    path.startsWith('/v2/store/prices') ||
     path === '/v2/catalog/stats' ||
     path.startsWith('/v2/catalog/schemas/')
   ) {
@@ -601,6 +602,18 @@ const METHODS = ['get', 'post', 'put', 'patch', 'delete']
 
 const opKey = (method, path) => `${method.toUpperCase()} ${path}`
 
+const underPrefix = (prefix, path) =>
+  path === prefix || path.startsWith(`${prefix}/`)
+
+const ownsPath = (faceDef, path) =>
+  underPrefix(faceDef.prefix, path) &&
+  !FACES.some(
+    (f) =>
+      f.file === faceDef.file &&
+      f.prefix.length > faceDef.prefix.length &&
+      underPrefix(f.prefix, path)
+  )
+
 const autoGroupDefs = (faceDef, spec) => {
   const defs = faceDef.autoGroups.map((g) => ({
     key: g.key,
@@ -608,7 +621,7 @@ const autoGroupDefs = (faceDef, spec) => {
     ops: []
   }))
   for (const [path, item] of Object.entries(spec.paths || {})) {
-    if (!path.startsWith(faceDef.prefix)) continue
+    if (!ownsPath(faceDef, path)) continue
     for (const method of METHODS) {
       if (!item[method]) continue
       const group = defs.find((g) => {
@@ -637,7 +650,7 @@ const buildFace = (faceDef, specs) => {
   const placed = new Set()
 
   for (const [path, item] of Object.entries(spec.paths || {})) {
-    if (!path.startsWith(faceDef.prefix)) continue
+    if (!ownsPath(faceDef, path)) continue
     for (const method of METHODS) {
       const op = item[method]
       if (!op) continue

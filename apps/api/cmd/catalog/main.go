@@ -136,7 +136,11 @@ func main() {
 		slog.Error("editing: register catalog entity types", "error", err)
 		os.Exit(1)
 	}
-	searchSync := docsync.NewSyncer(catalogDB.DB(), searcher)
+	worksEmbedder := worksEmbedderFrom(cfg)
+	if worksEmbedder == nil {
+		slog.Warn("works search: no AI upstream configured — search_mode=hybrid answers with the lexical ranking and edits do not refresh vectors (set KUN_LLM_GATEWAY_KEY to a gateway access key)")
+	}
+	searchSync := docsync.NewSyncer(catalogDB.DB(), searcher).WithEmbedder(worksEmbedder)
 	editRegistry.Observe(searchSync.Observe)
 	searchSync.Start(permCtx)
 	editPolicy := editing.NewPolicyStore(catalogDB.DB(), editRegistry)
@@ -146,6 +150,8 @@ func main() {
 	coverVoteSvc := service.NewCoverVoteService(catalogDB.DB())
 	playtimeSvc := service.NewUserPlaytimeService(catalogDB.DB())
 	workStateSvc := service.NewUserWorkStateService(catalogDB.DB())
+	browsingHistorySvc := service.NewBrowsingHistoryService(catalogDB.DB())
+	browsingHistorySvc.StartSweeper(permCtx, time.Hour)
 	companyFollowSvc := service.NewUserEntityFollowService(catalogDB.DB())
 	folderSvc := service.NewUserFolderService(catalogDB.DB())
 	accountpurge.Start(permCtx, &accountpurge.Consumer{
@@ -198,7 +204,7 @@ func main() {
 	adminNews.Post("/items/:id/decision", newsAdminH.Decide)
 
 	setupPublicCatalog(application, cfg, catalogDB, readSvc, resolveSvc, searcher, statsSvc,
-		clientRepo, tokenVerifier, devStore, devCache, newsSvc, newsWriteSvc, editRegistry, playtimeSvc, workStateSvc, companyFollowSvc, folderSvc, coverVoteSvc, claimSvc, editEngine)
+		clientRepo, tokenVerifier, devStore, devCache, newsSvc, newsWriteSvc, editRegistry, playtimeSvc, workStateSvc, browsingHistorySvc, companyFollowSvc, folderSvc, coverVoteSvc, claimSvc, editEngine)
 
 	galgameapp.MountRetiredPublic(application)
 	// Wave R3 (2026-08-27): every v1 face this binary served is gone, so the
@@ -227,6 +233,13 @@ func main() {
 	}
 }
 
+func worksEmbedderFrom(cfg *config.Config) catalogSearch.Embedder {
+	if cfg.LLMGateway.URL == "" || cfg.LLMGateway.Key == "" {
+		return nil
+	}
+	return catalogSearch.NewOpenAIEmbedder(cfg.LLMGateway.URL, cfg.LLMGateway.Key, catalogSearch.DefaultEmbedModel)
+}
+
 func setupPublicCatalog(
 	application *app.App,
 	cfg *config.Config,
@@ -244,6 +257,7 @@ func setupPublicCatalog(
 	editRegistry *editing.Registry,
 	playtimeSvc *service.UserPlaytimeService,
 	workStateSvc *service.UserWorkStateService,
+	browsingHistorySvc *service.BrowsingHistoryService,
 	companyFollowSvc *service.UserEntityFollowService,
 	folderSvc *service.UserFolderService,
 	coverVoteSvc *service.CoverVoteService,
@@ -314,7 +328,7 @@ func setupPublicCatalog(
 	} else {
 		slog.Warn("news write face: news image client not configured — banner upload and any submission carrying a banner_hash answer 503 (set KUN_NEWS_IMAGE_CLIENT_ID/SECRET)")
 	}
-	publicSvc.WithWorksSearch(searcher)
+	publicSvc.WithWorksSearch(searcher).WithWorksEmbedder(worksEmbedderFrom(cfg))
 
 	var storeMinter storeService.Minter
 	if cfg.Store.ShortlinkBaseURL != "" && cfg.Store.ShortlinkAPIKey != "" {
@@ -406,7 +420,7 @@ func setupPublicCatalog(
 		},
 		LookupSite: bindingOfClient,
 		Catalog: &v2handler.Catalog{
-			WalkthroughDrafts: walkthroughdraft.NewService(catalogDB.DB(), cfg.AIUpstream.BaseURL, draftModel),
+			WalkthroughDrafts: walkthroughdraft.NewService(catalogDB.DB(), cfg.LLMGateway.URL, draftModel),
 			Public:            publicSvc,
 			Resolve:           resolveSvc,
 			StatsSvc:          statsSvc,
@@ -416,6 +430,7 @@ func setupPublicCatalog(
 			EditTypes:         editRegistry,
 			Playtime:          playtimeSvc,
 			WorkStates:        workStateSvc,
+			BrowsingHistory:   browsingHistorySvc,
 			Ratings:           service.NewUserRatingService(catalogDB.DB()),
 			WorkRecords:       service.NewUserWorkRecordService(catalogDB.DB()),
 			CompanyFollows:    companyFollowSvc,

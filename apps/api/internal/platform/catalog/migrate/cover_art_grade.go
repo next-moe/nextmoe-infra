@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/provenance"
 
 	"gorm.io/gorm"
 )
@@ -123,6 +124,47 @@ func coverArtRowSQL(cover, source string) (string, error) {
 		   AND ` + cover + `.kind <> ALL (` + kinds + `)`, nil
 }
 
+// gradedCoverRowSQL narrows coverArtRowSQL to the rows the public election
+// can reach: once a work holds official art, an uploaded cover counts only
+// while an editor pins it (PublicService.officialCoversFirst). Grading the
+// uploads too kept a work whose official art is all explicit on the sfw shelf
+// behind a hand-censored legacy upload the election no longer shows.
+func gradedCoverRowSQL(cover, source string) (string, error) {
+	art, err := coverArtRowSQL(cover, source)
+	if err != nil {
+		return "", err
+	}
+	officialArt, err := coverArtRowSQL("o", "os")
+	if err != nil {
+		return "", err
+	}
+	uploaded := uploadedSourceListSQL()
+	return art + ` AND (` + cover + `.source_id NOT IN (` + uploaded + `)
+		   OR (` + cover + `.portrait_pinned AND (` + cover + `.source_id = ` + fmt.Sprint(model.SourceCurated) + ` OR
+		       (` + cover + `.field_provenance -> 'portrait_pinned' -> 0 ->> 'source') IN (` + humanSourcesSQL() + `)))
+		   OR NOT EXISTS (SELECT 1 FROM catalog_work_cover o JOIN catalog_source os ON os.id = o.source_id
+		                   WHERE o.work_id = ` + cover + `.work_id AND ` + officialArt + `
+		                     AND o.source_id NOT IN (` + uploaded + `)))`, nil
+}
+
+// editspec.HumanFieldProvenanceSQL, restated: editspec imports repository,
+// whose tests import this package, so importing editspec here is a cycle.
+func humanSourcesSQL() string {
+	quoted := make([]string, 0, len(provenance.HumanSources()))
+	for _, src := range provenance.HumanSources() {
+		quoted = append(quoted, "'"+src+"'")
+	}
+	return strings.Join(quoted, ", ")
+}
+
+func uploadedSourceListSQL() string {
+	ids := make([]string, len(model.UploadedCoverSourceIDs))
+	for i, id := range model.UploadedCoverSourceIDs {
+		ids[i] = fmt.Sprint(id)
+	}
+	return strings.Join(ids, ", ")
+}
+
 var safeSQLLiteral = regexp.MustCompile(`^[a-z0-9_]+$`)
 
 func packagingKindArraySQL() (string, error) {
@@ -137,7 +179,7 @@ func packagingKindArraySQL() (string, error) {
 }
 
 func coverArtGradeFunctionSQL() (string, error) {
-	art, err := coverArtRowSQL("c", "s")
+	art, err := gradedCoverRowSQL("c", "s")
 	if err != nil {
 		return "", err
 	}
@@ -219,7 +261,7 @@ func coverArtGradeTriggers() []struct{ name, stmt string } {
 // mechanism that wrote it. Sharing the predicate is the point — sharing the
 // mechanism would make the check unable to fail.
 func CoverArtAllExplicitSQL() (string, error) {
-	art, err := coverArtRowSQL("c", "s")
+	art, err := gradedCoverRowSQL("c", "s")
 	if err != nil {
 		return "", err
 	}

@@ -13,11 +13,11 @@
 
 ## 三种身份
 
-| 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                        |
-| ------------ | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
+| 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                                                                                 |
+| ------------ | -------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 匿名         | 不带                                   | 任何人             | `/v2/catalog` 只读面（`claim-events` 除外，按 IP 限流）；`/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
-| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v2/moyu/*`、`/v2/sticker/*`                                           |
-| 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                             |
+| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v2/moyu/*`、`/v2/sticker/*`                                                                                                    |
+| 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                                                                                       |
 
 > [!NOTE]
 > 一条请求只带一个凭据。`/v2/catalog` 收两种凭据，意思是**二选一**，不是两个都带。服务端按 `Authorization` 里那一个值的前缀分道：`nmk_` 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。
@@ -40,16 +40,16 @@
 
 ### scope
 
-| scope               | 开什么                                                                          | 怎么拿                   |
-| ------------------- | ------------------------------------------------------------------------------- | ------------------------ |
+| scope               | 开什么                                                                          | 怎么拿                                      |
+| ------------------- | ------------------------------------------------------------------------------- | ------------------------------------------- |
 | `catalog:read`      | 整个 `/v2/catalog` 只读面                                                       | 控制台自助勾选；也可作为用户 scope 向人索取 |
-| `store:read`        | `/v2/store` 商店联盟链接与统计                                                  | 控制台自助勾选           |
-| `claim_events:read` | 认领事件 feed 与自家站点的审核队列状态（`claim_state=pending,declined,hidden`） | 运营方按需授予，不能自助 |
+| `store:read`        | [`/v2/store`](/docs/store) DLsite 分销链接与点击统计                            | 控制台自助勾选                              |
+| `claim_events:read` | 认领事件 feed 与自家站点的审核队列状态（`claim_state=pending,declined,hidden`） | 运营方按需授予，不能自助                    |
 
 `claim_events:read` 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。
 
 > [!NOTE]
-> [`/v2/moyu/*`](/docs/moyu-patches) 与 [`/v2/sticker/*`](/docs/sticker-packs) 两个下游面（面联邦，gateway-terminated）**不需要任何 scope**——任意有效应用密钥都能调用，网关只看密钥本身与限流。它们也**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
+> [`/v2/moyu/*`](/docs/moyu-patches)、[`/v2/sticker/*`](/docs/sticker-packs) 与 [`/v2/letmoe/*`](/docs/letmoe) 三个下游面（面联邦，gateway-terminated）**不需要任何 scope**——任意有效应用密钥都能调用，网关只看密钥本身与限流；唯一的例外是两条 `/file` 下载路由，由下游站点自己判：moyu 的要运营发放的 `moyu:files`；letmoe 的要 `letmoe:files`，每把密钥创建时自动带上。它们也**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
 
 ## 用户访问令牌
 
@@ -71,12 +71,12 @@ OAuth 端点的线格式是裸 RFC 6749（`{access_token, token_type, expires_in
 
 ## 认证失败长什么样
 
-| 状态 | `code`                   | 含义                               | 怎么办                        |
-| ---- | ------------------------ | ---------------------------------- | ----------------------------- |
-| 401  | `MISSING_CREDENTIAL`     | 没有 `Authorization` 头，而这个面不收匿名（`/v2/me`、`/v2/moderation`、`/v2/folders`、`/v2/store`、`claim-events`） | 带上对应的凭据 |
-| 401  | `INVALID_CREDENTIAL`     | 凭据存在，但无效、过期或已被吊销   | 换一把密钥；用户令牌则去刷新  |
-| 403  | `SCOPE_REQUIRED`         | 凭据有效，但缺这个操作要的 scope   | 在控制台补勾 scope 并重铸密钥；用户令牌则带上该 scope 重新授权 |
-| 403  | `USER_IDENTITY_REQUIRED` | 这个面要用户身份，你带的是应用密钥 | 改用用户访问令牌              |
+| 状态 | `code`                   | 含义                                                                                                                             | 怎么办                                                         |
+| ---- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 401  | `MISSING_CREDENTIAL`     | 没有 `Authorization` 头，而这个面不收匿名（`/v2/me`、`/v2/moderation`、`/v2/folders`、`/v2/store` 的链接与统计、`claim-events`） | 带上对应的凭据                                                 |
+| 401  | `INVALID_CREDENTIAL`     | 凭据存在，但无效、过期或已被吊销                                                                                                 | 换一把密钥；用户令牌则去刷新                                   |
+| 403  | `SCOPE_REQUIRED`         | 凭据有效，但缺这个操作要的 scope                                                                                                 | 在控制台补勾 scope 并重铸密钥；用户令牌则带上该 scope 重新授权 |
+| 403  | `USER_IDENTITY_REQUIRED` | 这个面要用户身份，你带的是应用密钥                                                                                               | 改用用户访问令牌                                               |
 
 错误体是 RFC 9457 `application/problem+json`，字段与分支写法见 [错误处理](/docs/errors)。
 

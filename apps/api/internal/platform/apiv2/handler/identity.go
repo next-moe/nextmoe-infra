@@ -165,7 +165,16 @@ var folderScopedPrefixes = []string{
 	"/v2/me/works",
 }
 
+var historyScopedPrefixes = []string{
+	"/v2/me/history",
+}
+
 func scopeProblem(c fiber.Ctx, path string, scopes []string) *problem.Problem {
+	for _, prefix := range historyScopedPrefixes {
+		if underPrefix(path, prefix) {
+			return historyScopeProblem(c, scopes)
+		}
+	}
 	for _, prefix := range folderScopedPrefixes {
 		if underPrefix(path, prefix) {
 			return folderScopeProblem(c, scopes)
@@ -204,6 +213,15 @@ func folderScopeProblem(c fiber.Ctx, scopes []string) *problem.Problem {
 		return problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
 			"this operation requires the folder:write scope.")
 	}
+}
+
+func historyScopeProblem(c fiber.Ctx, scopes []string) *problem.Problem {
+	read := c.Method() == fiber.MethodGet || c.Method() == fiber.MethodHead
+	if !read || strings.TrimSpace(c.Query("scope")) != historyScopeAll || slices.Contains(scopes, devapi.ScopeHistoryRead) {
+		return nil
+	}
+	return problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+		"reading every app's browsing history requires the "+devapi.ScopeHistoryRead+" scope.")
 }
 
 type UserIdentity struct {

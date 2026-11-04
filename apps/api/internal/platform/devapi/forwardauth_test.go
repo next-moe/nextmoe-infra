@@ -324,3 +324,31 @@ func TestForwardAuthQuotaExceeded(t *testing.T) {
 		t.Errorf("delta = %+v, want count=2 s4xx=1 (429 recorded)", got[0])
 	}
 }
+
+func TestForwardAuthLetmoeFace(t *testing.T) {
+	store, fwd, usage := newFwdHarness()
+	raw := mustV2Key(t)
+	cred := &Credential{KeyID: 12, ClientID: "c-letmoe", Tier: TierFree, Scopes: []string{ScopeCatalogRead, ScopeLetmoeFiles}}
+	seedCachedCred(store, raw, cred)
+
+	app := fwdApp(fwd.Handle)
+	req := httptest.NewRequest("GET", "/internal/devapi/forward-auth?face=letmoe", nil)
+	req.Header.Set("Authorization", "Bearer "+raw)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Errorf("status = %d, want 204", resp.StatusCode)
+	}
+	if got := resp.Header.Get("X-NextMoe-Scopes"); got != "catalog:read letmoe:files" {
+		t.Errorf("X-NextMoe-Scopes = %q, want %q", got, "catalog:read letmoe:files")
+	}
+	got := recorded(usage)
+	if len(got) != 1 {
+		t.Fatalf("usage deltas = %d, want 1", len(got))
+	}
+	if got[0].face != "letmoe" || got[0].path != "/v2/letmoe/*" {
+		t.Errorf("recorded face/path = %q %q, want letmoe /v2/letmoe/*", got[0].face, got[0].path)
+	}
+}

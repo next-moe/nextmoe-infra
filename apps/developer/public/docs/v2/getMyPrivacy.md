@@ -13,7 +13,7 @@
 
 My privacy switches
 
-play_records says who may read the bearer's play states and playtimes on /v2/work-records. An account that never changed it answers public with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
+play_records says who may read the bearer's play states and playtimes on /v2/work-records; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers public, on and per_app with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

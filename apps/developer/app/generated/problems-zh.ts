@@ -144,6 +144,10 @@ export const problemsZh: Record<string, { title: string; description: string }> 
     "title": "需要用户身份",
     "description": "这个操作需要用户令牌，却用了应用密钥。"
   },
+  "BROWSING_HISTORY_NOT_SHARED": {
+    "title": "浏览记录未共享",
+    "description": "scope=all 请求了所有应用的浏览记录，而该账号的浏览记录按应用分开保存。只有账号本人能在第一方应用里通过 PATCH /v2/me/privacy 的 browsing_history_sharing 改变这一点；本应用仍可用 scope=app 读取自己记下的记录。"
+  },
   "SITE_NOT_BOUND": {
     "title": "客户端未绑定站点",
     "description": "令牌背后的客户端没有绑定到任何 catalog 站点。"

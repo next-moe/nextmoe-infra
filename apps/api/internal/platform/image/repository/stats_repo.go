@@ -41,7 +41,8 @@ type ScopeFilter struct {
 func (r *StatsRepository) Stats(ctx context.Context, f ScopeFilter) (*StatsResult, error) {
 	out := &StatsResult{BySite: map[string]SiteStats{}}
 
-	usageQ := r.db.WithContext(ctx).Model(&model.ImageSiteUsage{})
+	usageQ := r.db.WithContext(ctx).Model(&model.ImageSiteUsage{}).
+		Where("NOT EXISTS (SELECT 1 FROM images i WHERE i.hash = image_site_usage.hash AND i.deleted_at IS NOT NULL)")
 	if f.Site != "" {
 		usageQ = usageQ.Where("site = ?", f.Site)
 	}
@@ -52,22 +53,26 @@ func (r *StatsRepository) Stats(ctx context.Context, f ScopeFilter) (*StatsResul
 		usageQ = usageQ.Where("first_uploaded_at <= ?", f.To)
 	}
 
-	usageQ = usageQ.Where("hash IN (?)",
-		r.db.Model(&model.Image{}).Select("hash").Where("deleted_at IS NULL"))
-
-	type usageAgg struct {
-		TotalCount  int64
-		UniqueCount int64
+	type row struct {
+		Site   string
+		Count  int64
+		Unique int64
 	}
-	var agg usageAgg
+	var rows []row
 	if err := usageQ.
-		Select("COALESCE(SUM(upload_count),0) AS total_count, COUNT(*) AS unique_count").
-		Scan(&agg).Error; err != nil {
+		Select("site, COALESCE(SUM(upload_count),0) AS count, COUNT(*) AS unique").
+		Group("site").
+		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	out.UploadCount = agg.TotalCount
-	out.UniqueImages = agg.UniqueCount
-	out.DeduplicatedCount = agg.TotalCount - agg.UniqueCount
+	for _, rw := range rows {
+		out.UploadCount += rw.Count
+		out.UniqueImages += rw.Unique
+		if f.Site == "" {
+			out.BySite[rw.Site] = SiteStats{Count: rw.Count, Unique: rw.Unique}
+		}
+	}
+	out.DeduplicatedCount = out.UploadCount - out.UniqueImages
 
 	bytesRow := r.db.WithContext(ctx).
 		Model(&model.Image{}).
@@ -81,34 +86,19 @@ func (r *StatsRepository) Stats(ctx context.Context, f ScopeFilter) (*StatsResul
 	}
 
 	if f.Site == "" {
-		if err := r.db.WithContext(ctx).Model(&model.Image{}).
-			Where("review_status = ? AND deleted_at IS NULL", model.ReviewPending).
-			Count(&out.ReviewPending).Error; err != nil {
-			return nil, err
+		var review struct {
+			Pending  int64
+			Rejected int64
 		}
 		if err := r.db.WithContext(ctx).Model(&model.Image{}).
-			Where("review_status = ? AND deleted_at IS NULL", model.ReviewRejected).
-			Count(&out.ReviewRejected).Error; err != nil {
+			Select("COUNT(*) FILTER (WHERE review_status = ?) AS pending, COUNT(*) FILTER (WHERE review_status = ?) AS rejected",
+				model.ReviewPending, model.ReviewRejected).
+			Where("review_status IN ? AND deleted_at IS NULL", []int16{model.ReviewPending, model.ReviewRejected}).
+			Scan(&review).Error; err != nil {
 			return nil, err
 		}
-
-		type row struct {
-			Site   string
-			Count  int64
-			Unique int64
-		}
-		var rows []row
-		if err := r.db.WithContext(ctx).Model(&model.ImageSiteUsage{}).
-			Where("hash IN (?)",
-				r.db.Model(&model.Image{}).Select("hash").Where("deleted_at IS NULL")).
-			Select("site, COALESCE(SUM(upload_count),0) AS count, COUNT(*) AS unique").
-			Group("site").
-			Scan(&rows).Error; err != nil {
-			return nil, err
-		}
-		for _, rw := range rows {
-			out.BySite[rw.Site] = SiteStats{Count: rw.Count, Unique: rw.Unique}
-		}
+		out.ReviewPending = review.Pending
+		out.ReviewRejected = review.Rejected
 	}
 
 	return out, nil

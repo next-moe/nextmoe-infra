@@ -22,8 +22,8 @@ func main() {
 	limit := flag.Int("limit", 0, "process only N candidates per lane in entity-id order (0 = all)")
 	offset := flag.Int("offset", 0, "skip the first N candidates per lane — with --limit, the resumable batch window")
 	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id (recorded in mt_model)")
-	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
-	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
+	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", config.LLMBaseURL()), "OpenAI-compatible gateway base URL (…/v1)")
+	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", config.LLMToken()), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 4096, "translation max_tokens")
 	delayMS := flag.Int("delay-ms", 0, "rate-limit delay between real gateway calls (ms)")
 	mock := flag.Bool("mock", false, "REHEARSAL ONLY: offline deterministic mock translator (no network; obvious marker output)")
@@ -53,7 +53,7 @@ func main() {
 		} else {
 			ht := entityintromt.NewHTTPTranslator(*llmBase, *llmToken, *model, *maxTokens)
 			if !ht.Configured() {
-				fmt.Printf("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_AI_UPSTREAM_*).\n" +
+				fmt.Printf("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_LLM_GATEWAY_KEY / KUN_AI_UPSTREAM_*).\n" +
 					"This is a designed precondition for a real --apply, not a failure. Use --mock for the offline write-path rehearsal.\n")
 				os.Exit(3)
 			}

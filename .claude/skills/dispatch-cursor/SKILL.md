@@ -1,6 +1,6 @@
 ---
 name: dispatch-cursor
-description: Dispatch implementation and investigation work to the local cursor-agent CLI as a headless executor, inside a kernel sandbox, while this session stays the orchestrator and acceptor. The default executor since 2026-09-17, when grok's balance ran out. Use when a task is large enough to hand off as a written task book, or when the user asks to "派发 cursor" / "dispatch cursor" / "让 cursor 做". Covers the three conditions under which the sandbox silently turns off, the measured fence, the exact dispatch, the preflight proof, task-book structure and the acceptance protocol.
+description: Dispatch implementation and investigation work to the local cursor-agent CLI as a headless executor, inside a kernel sandbox, while this session stays the orchestrator and acceptor. Use when a task is large enough to hand off as a written task book, or when the user asks to "派发 cursor" / "dispatch cursor" / "让 cursor 做". Covers the three conditions under which the sandbox silently turns off, the measured fence, the exact dispatch, the preflight proof, task-book structure and the acceptance protocol.
 ---
 
 # Dispatching cursor-agent as executor
@@ -11,9 +11,9 @@ description: Dispatch implementation and investigation work to the local cursor-
 
 This session is the **orchestrator**: it adjudicates design, writes the task book, owns git,
 databases and production, and accepts or rejects the result. The local `cursor-agent` CLI is the
-**executor**. `dispatch-grok` is the same protocol for the grok CLI; its balance ran out on
-2026-09-17 with a 402 (`Grok Build usage balance exhausted`), so use this one until the user says
-grok is topped up. Sections 5–7 carry grok's lessons over, so this skill stands on its own.
+**executor**. `dispatch-grok` is the same protocol for the grok CLI. A 402 (`Grok Build usage
+balance exhausted`) pauses that executor until a later run succeeds; this skill does not depend
+on it. Sections 5–7 carry grok's lessons over, so this skill stands on its own.
 
 The kun-ui-flutter repo has a sibling of this skill that runs cursor **unsandboxed**
 (`--force --sandbox disabled`) behind rules and a credential-free environment. That is not

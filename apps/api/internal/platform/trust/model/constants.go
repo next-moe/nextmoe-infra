@@ -48,8 +48,11 @@ const (
 // reasoning that a queue which never re-claims can never back up — true, but it
 // bought that guarantee by discarding content permanently. A transient upstream
 // blip became an unjudged item forever, and because the drain was silent nobody
-// learned it had happened. The bound now comes from maxScanAttempts instead: the
-// queue still drains, but only after the work has actually been tried.
+// learned it had happened. The bound now comes from maxScanAttempts, spread over
+// scanRetryBackoff through next_scan_at: the queue still drains, but only after
+// the work has actually been tried across a window an outage has to outlast.
+// Unconfigured is the exception: it drains on the first attempt, since nothing
+// changes until a restart with credentials.
 const (
 	ScanStatusPending  int16 = 0
 	ScanStatusScored   int16 = 1

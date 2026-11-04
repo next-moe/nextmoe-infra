@@ -30,8 +30,8 @@ type CoverSlot struct {
 type Cover struct {
 	_              struct{} `json:"-" additionalProperties:"true"`
 	ID             string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"catalog_work_cover row id, not the image hash."`
-	VoteCount      int      `json:"vote_count" minimum:"0" doc:"Net votes on this cover row."`
-	PortraitPinned bool     `json:"portrait_pinned" doc:"Whether this row is pinned as the portrait cover."`
+	VoteCount      int      `json:"vote_count" minimum:"0" doc:"Net votes on this cover row. The row with strictly the most votes the reader may see is the work's portrait cover unless an editor pinned another."`
+	PortraitPinned bool     `json:"portrait_pinned" doc:"Whether this row is pinned as the portrait cover. An editor's pin outranks votes; an importer's pin does not, so read the work's cover for the elected portrait."`
 	Kind           string   `json:"cover_kind" maxLength:"32" doc:"Upstream cover class from the pinning ladder: main, dig, pkgfront, pkgback and friends. Open vocabulary. Empty if unrecorded. Must not be used as a discriminant."`
 	URL            string   `json:"url" format:"uri" maxLength:"512" doc:"Absolute image URL. Never a bare hash."`
 	Hash           string   `json:"hash" minLength:"64" maxLength:"64" pattern:"^[0-9a-f]{64}$" doc:"Image-service content hash."`

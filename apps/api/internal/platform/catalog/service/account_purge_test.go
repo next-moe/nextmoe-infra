@@ -13,7 +13,7 @@ import (
 func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 	folders := newFolderSvc(t)
 	require.NoError(t, testDB.Exec(
-		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow, catalog_user_tag_block, catalog_user_work_rating, catalog_user_work_rating_tombstone, catalog_user_privacy, edit_discussion_post, edit_discussion_watcher RESTART IDENTITY").Error)
+		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow, catalog_user_tag_block, catalog_user_work_rating, catalog_user_work_rating_tombstone, catalog_user_privacy, catalog_user_work_view, edit_discussion_post, edit_discussion_watcher RESTART IDENTITY").Error)
 	workID, coverID := seedVoteWork(t)
 	playtime := NewUserPlaytimeService(testDB)
 	states := NewUserWorkStateService(testDB)
@@ -50,6 +50,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		require.NoError(t, err)
 		_, err = NewUserWorkRecordService(testDB).SetPrivacy(ctx, uid, true)
 		require.NoError(t, err)
+		require.NoError(t, NewBrowsingHistoryService(testDB).Record(ctx, uid, "kungal", workID))
 		_, err = discussion.New(testDB, discussion.Kind{Name: "probe"}).Create(ctx, discussion.CreateInput{
 			Kind: "probe", AnchorID: 1, AuthorUID: uid, Body: "我的留言",
 		})
@@ -59,7 +60,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 	got, err := PurgeAccount(ctx, testDB, gone)
 	require.NoError(t, err)
 	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, Ratings: 1, CoverVotes: 1, EntityFollows: 1, TagBlocks: 1, Privacy: 1,
-		DiscussionPosts: 1, DiscussionWatches: 1}, got)
+		DiscussionPosts: 1, DiscussionWatches: 1, BrowsingHistory: 1}, got)
 	var left []discussion.Post
 	require.NoError(t, testDB.Where("anchor_kind = 'probe'").Order("author_uid").Find(&left).Error)
 	require.Len(t, left, 2, "the erased account's post stays as a deleted placeholder")
@@ -83,6 +84,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		{"catalog_user_tag_block", "actor_uid"},
 		{"catalog_user_work_rating", "actor_uid"},
 		{"catalog_user_privacy", "actor_uid"},
+		{"catalog_user_work_view", "actor_uid"},
 		{"edit_discussion_watcher", "user_id"},
 	} {
 		require.Zerof(t, count(tc.table, tc.col, gone), "%s still names the deleted account", tc.table)

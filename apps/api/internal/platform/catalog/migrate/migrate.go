@@ -98,17 +98,28 @@ func Run(db *gorm.DB) error {
 		// NULL on every existing row and stay that way until backfill-work-ratings
 		// runs again (it is in the bgm weekly, so untouched trees self-heal there).
 		&model.CatalogWorkRating{},
-		&model.CatalogWorkTag{},            // bodyless verbatim folksonomy tags (step 58b media-aggregation facet B)
-		&model.CatalogWorkPopularity{},     // bodyless per-metric popularity counters (step 62 popularity facet)
-		&model.CatalogWorkPlaytime{},       // per-source playtime estimates (step 91 playtime facet — no claimed bridge)
-		&model.CatalogUserPlaytime{},       // per-user/per-client playtime reports; aggregates INTO the row above as source nextmoe
-		&model.CatalogUserWorkState{},      // per-user per-work play state (state/rating track P1); backfilled below from playtime statuses only while that column still exists
-		&model.CatalogUserFolder{},         // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
-		&model.CatalogUserFolderItem{},     // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
-		&model.CatalogUserFolderImport{},   // source-collection provenance for the favorites import (since retired); made that backfill re-runnable
-		&model.CatalogUserEntityFollow{},   // per-user follows of catalog entities; companies only, see the CHECK
-		&model.CatalogUserTagBlock{},       // per-user tag blocks that clients pass as exclude_tag_id / exclude_tag_tree (2026-10); new, no backfill
-		&model.CatalogUserPrivacy{},        // per-account privacy switches (2026-10-13); created empty on purpose: no row means public, so every existing account's play states and playtimes become readable on /v2/work-records — a product decision taken knowing the forum had told its users play records were private
+		// 2026-11-01: the fitted rating model behind /v2/catalog/rankings, one
+		// row per nightly fit (the newest 14 are kept). New and empty; until
+		// reindex-catalog first fits one, the rankings face answers 503 and the
+		// works index carries no rank block.
+		&model.CatalogRatingModel{},
+		&model.CatalogWorkTag{},          // bodyless verbatim folksonomy tags (step 58b media-aggregation facet B)
+		&model.CatalogWorkPopularity{},   // bodyless per-metric popularity counters (step 62 popularity facet)
+		&model.CatalogWorkPlaytime{},     // per-source playtime estimates (step 91 playtime facet — no claimed bridge)
+		&model.CatalogUserPlaytime{},     // per-user/per-client playtime reports; aggregates INTO the row above as source nextmoe
+		&model.CatalogUserWorkState{},    // per-user per-work play state (state/rating track P1); backfilled below from playtime statuses only while that column still exists
+		&model.CatalogUserFolder{},       // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
+		&model.CatalogUserFolderItem{},   // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
+		&model.CatalogUserFolderImport{}, // source-collection provenance for the favorites import (since retired); made that backfill re-runnable
+		&model.CatalogUserEntityFollow{}, // per-user follows of catalog entities; companies only, see the CHECK
+		&model.CatalogUserTagBlock{},     // per-user tag blocks that clients pass as exclude_tag_id / exclude_tag_tree (2026-10); new, no backfill
+		&model.CatalogUserPrivacy{},      // per-account privacy switches (2026-10-13); created empty on purpose: no row means public, so every existing account's play states and playtimes become readable on /v2/work-records — a product decision taken knowing the forum had told its users play records were private
+		// Browsing history (2026-10-27): a new empty table of the works a person
+		// opened, one row per (user, app, work), kept 90 days and 500 per app;
+		// nothing is backfilled. The same wave adds browsing_history_off and
+		// browsing_history_shared to catalog_user_privacy as NOT NULL DEFAULT
+		// false, so every existing account records history and keeps it per app.
+		&model.CatalogUserWorkView{},
 		&model.CatalogSeries{},             // work series entity (step 94, dlsite lane first)
 		&model.CatalogSeriesMember{},       // series membership (step 94)
 		&model.CatalogSeriesIntro{},        // multilingual series intros (refs/plans/10 W0 ruling 3)
@@ -156,6 +167,13 @@ func Run(db *gorm.DB) error {
 		// Tag canonical layer (step 74, doc 70a): the cross-source convergence
 		// vocabulary ABOVE the original tag layers. catalog_tag before
 		// catalog_tag_source_map so the tag_id FK can be created.
+		//
+		// 2026-10-30: catalog_tag_category (the nine browsing groups, seeded
+		// in rawSQL) before catalog_tag, which gains a nullable category_id
+		// with an ON DELETE SET NULL FK to it. Existing tags start NULL ("其他");
+		// the reviewed assignment is applied with cmd/tag-categories -curated,
+		// and the catalog-tag-parents job derives one for tags still NULL.
+		&model.CatalogTagCategory{},
 		&model.CatalogTag{},
 		&model.CatalogTagSourceMap{},
 		&model.CatalogTagIntro{}, // multilingual tag intros (refs/plans/10 W0 ruling 3)
@@ -541,6 +559,15 @@ func rawSQL(db *gorm.DB) error {
 		}
 	}
 
+	// The tag categories are seeded once and then owned by the database:
+	// DO NOTHING keeps a renamed or reordered row as an operator left it.
+	for _, c := range model.TagCategorySeed {
+		if err := db.Exec(`INSERT INTO catalog_tag_category (id, slug, name, sort_order) VALUES (?, ?, ?, ?)
+			ON CONFLICT (id) DO NOTHING`, c.ID, c.Slug, c.Name, c.SortOrder).Error; err != nil {
+			return fmt.Errorf("seed catalog_tag_category %s: %w", c.Slug, err)
+		}
+	}
+
 	// (3) catalog_entity_usage is a hot-update narrow table: reserve page
 	// space so last_confirmed_at rewrites stay HOT (same setting as the
 	// image usage table pattern). Setting the same value again is a no-op.
@@ -645,6 +672,13 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_catalog_work_tag_name_source", `
 			CREATE INDEX IF NOT EXISTS idx_catalog_work_tag_name_source
 			    ON catalog_work_tag(name, source_id)`},
+		// works?tag_id= reads work_id straight from the index. With only
+		// (name, source_id) a popular tag fetched ~35k heap rows per page
+		// (836 ms on prod 2026-10-31; 185 ms with this index). Built
+		// CONCURRENTLY on prod by hand that day, so this is a no-op there.
+		{"idx_catalog_work_tag_name_source_work", `
+			CREATE INDEX IF NOT EXISTS idx_catalog_work_tag_name_source_work
+			    ON catalog_work_tag(name, source_id, work_id)`},
 		// Keyset lanes for the public works list (sort=updated) and the
 		// changes feed ((updated_at, id) ascending resume cursor).
 		{"idx_catalog_work_updated_id", `
@@ -764,6 +798,11 @@ func rawSQL(db *gorm.DB) error {
 		// Losing the release only loses that note, not the walkthrough.
 		{"catalog_walkthrough", "fk_catalog_walkthrough_release",
 			`FOREIGN KEY (release_id) REFERENCES catalog_release(id) ON DELETE SET NULL`},
+		// 2026-10-27: a deleted work takes its browsing history rows with it.
+		// A merge does not move them (mergeRefExclusions), so a merged-away work
+		// keeps its rows until the 90-day sweep.
+		{"catalog_user_work_view", "fk_catalog_user_work_view_work",
+			`FOREIGN KEY (work_id) REFERENCES catalog_work(id) ON DELETE CASCADE`},
 	} {
 		exists, err := constraintExists(db, fk.table, fk.name)
 		if err != nil {

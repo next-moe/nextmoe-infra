@@ -29,11 +29,47 @@ type CatalogTag struct {
 	// '{}' (no human stamp) is the correct backfill and the column is added
 	// without rewriting the table.
 	FieldProvenance datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'" json:"field_provenance"`
+	CategoryID      *int16         `gorm:"index" json:"category_id"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
+
+	Category *CatalogTagCategory `gorm:"foreignKey:CategoryID;constraint:OnDelete:SET NULL" json:"category,omitempty"`
 }
 
 func (CatalogTag) TableName() string { return "catalog_tag" }
+
+type CatalogTagCategory struct {
+	ID        int16  `gorm:"primaryKey;autoIncrement:false" json:"id"`
+	Slug      string `gorm:"type:text;not null;uniqueIndex" json:"slug"`
+	Name      string `gorm:"type:text;not null" json:"name"`
+	SortOrder int16  `gorm:"not null" json:"sort_order"`
+}
+
+func (CatalogTagCategory) TableName() string { return "catalog_tag_category" }
+
+const (
+	TagCategoryGenre        int16 = 1
+	TagCategoryCharacter    int16 = 2
+	TagCategoryRelationship int16 = 3
+	TagCategorySetting      int16 = 4
+	TagCategoryStory        int16 = 5
+	TagCategorySystem       int16 = 6
+	TagCategoryPresentation int16 = 7
+	TagCategoryFormat       int16 = 8
+	TagCategoryAdult        int16 = 9
+)
+
+var TagCategorySeed = []CatalogTagCategory{
+	{ID: TagCategoryGenre, Slug: "genre", Name: "题材类型", SortOrder: 10},
+	{ID: TagCategoryCharacter, Slug: "character", Name: "角色", SortOrder: 20},
+	{ID: TagCategoryRelationship, Slug: "relationship", Name: "恋爱与关系", SortOrder: 30},
+	{ID: TagCategorySetting, Slug: "setting", Name: "舞台与时代", SortOrder: 40},
+	{ID: TagCategoryStory, Slug: "story", Name: "剧情要素", SortOrder: 50},
+	{ID: TagCategorySystem, Slug: "system", Name: "玩法与系统", SortOrder: 60},
+	{ID: TagCategoryPresentation, Slug: "presentation", Name: "美术与演出", SortOrder: 70},
+	{ID: TagCategoryFormat, Slug: "format", Name: "作品形式", SortOrder: 80},
+	{ID: TagCategoryAdult, Slug: "adult", Name: "成人内容", SortOrder: 90},
+}
 
 type CatalogTagSourceMap struct {
 	SourceID   int16  `gorm:"primaryKey;autoIncrement:false" json:"source_id"`

@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"time"
 
 	"api/internal/infrastructure/database"
 	"api/internal/platform/catalog/llmsuggest"
@@ -45,9 +46,11 @@ func main() {
 	limit := flag.Int("limit", 0, "max source entries this run (0 = all)")
 	redo := flag.Bool("redo", false, "re-run entries whose stored result is already settled")
 	model := flag.String("model", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel), "served model id")
-	llmBase := flag.String("llm-base", os.Getenv("KUN_AI_UPSTREAM_BASE_URL"), "OpenAI-compatible gateway base URL (…/v1); the token is KUN_AI_UPSTREAM_TOKEN")
+	llmBase := flag.String("llm-base", config.LLMBaseURL(), "OpenAI-compatible gateway base URL (…/v1); the token is KUN_LLM_GATEWAY_KEY (legacy: KUN_AI_UPSTREAM_TOKEN)")
 	workers := flag.Int("workers", 6, "concurrent gateway calls")
 	maxTokens := flag.Int("max-tokens", 24000, "max_tokens per call")
+	llmTimeout := flag.Duration("llm-timeout", 180*time.Second, "per-call gateway timeout")
+	effort := flag.String("reasoning-effort", "", "reasoning_effort sent to the gateway (empty: the model's default)")
 	out := flag.String("out", "", "saves stage: the JSONL upload manifest to write")
 	flag.Parse()
 
@@ -81,11 +84,11 @@ func main() {
 	}
 
 	newLLM := func() *llm {
-		if *llmBase == "" || os.Getenv("KUN_AI_UPSTREAM_TOKEN") == "" {
-			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base and KUN_AI_UPSTREAM_TOKEN).")
+		if *llmBase == "" || config.LLMToken() == "" {
+			fmt.Println("BLOCKED: LLM gateway not configured (need KUN_LLM_GATEWAY_KEY, or --llm-base with KUN_AI_UPSTREAM_TOKEN).")
 			os.Exit(3)
 		}
-		return &llm{client: llmsuggest.NewClient(*llmBase, *model), model: *model}
+		return &llm{client: llmsuggest.NewClient(*llmBase, *model).WithTimeout(*llmTimeout).WithReasoningEffort(*effort), model: *model}
 	}
 
 	switch *stage {

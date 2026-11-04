@@ -112,6 +112,11 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 
+	if err := repository.EnsureIndexes(ctx, gdb); err != nil {
+		fmt.Fprintf(os.Stderr, "SKIP: ensure indexes failed: %v\n", err)
+		os.Exit(0)
+	}
+
 	testDB = gdb
 	testImgRepo = repository.NewImageRepository(gdb)
 	usageRepo := repository.NewSiteUsageRepository(gdb)
@@ -368,18 +373,25 @@ func TestReferencePing_TouchesLastReferencedAt(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	before, err := testImgRepo.FindByHash(ctx, r.Hash)
-	require.NoError(t, err)
-	time.Sleep(1100 * time.Millisecond)
+	stale := time.Now().Add(-8 * 24 * time.Hour)
+	require.NoError(t, testDB.Model(&model.Image{}).Where("hash = ?", r.Hash).
+		Update("last_referenced_at", stale).Error)
 
 	updated, notFound, err := testSvc.ReferencePing(ctx, "siteH", []string{r.Hash, "0000000000000000000000000000000000000000000000000000000000000000"})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), updated)
 	assert.Len(t, notFound, 1)
 
-	after, err := testImgRepo.FindByHash(ctx, r.Hash)
+	renewed, err := testImgRepo.FindByHash(ctx, r.Hash)
 	require.NoError(t, err)
-	assert.True(t, after.LastReferencedAt.After(before.LastReferencedAt))
+	assert.True(t, renewed.LastReferencedAt.After(stale.Add(24*time.Hour)))
+
+	updated, _, err = testSvc.ReferencePing(ctx, "siteH", []string{r.Hash})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), updated)
+	again, err := testImgRepo.FindByHash(ctx, r.Hash)
+	require.NoError(t, err)
+	assert.True(t, again.LastReferencedAt.Equal(renewed.LastReferencedAt))
 }
 
 func TestSoftDelete_SharedHashDetachesPerSite(t *testing.T) {

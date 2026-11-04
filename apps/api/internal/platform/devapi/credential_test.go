@@ -177,3 +177,24 @@ func TestHasScope(t *testing.T) {
 		t.Errorf("did not expect galgame:nsfw present")
 	}
 }
+
+func TestMoyuFilesIsNotSelfService(t *testing.T) {
+	if slices.Contains(selfServiceScopes, ScopeMoyuFiles) || slices.Contains(defaultKeyScopes, ScopeMoyuFiles) {
+		t.Errorf("moyu:files must stay operator-granted")
+	}
+	if err := checkMintScopes([]string{ScopeMoyuFiles}); err != ErrScopeNotAllowed {
+		t.Errorf("self-service minting moyu:files = %v, want ErrScopeNotAllowed", err)
+	}
+}
+
+func TestLetmoeFilesIsADefaultNotATick(t *testing.T) {
+	if slices.Contains(selfServiceScopes, ScopeLetmoeFiles) {
+		t.Errorf("letmoe:files is minted onto every key; offering it as a tick would suggest it can be left off")
+	}
+	if !slices.Contains(defaultKeyScopes, ScopeLetmoeFiles) {
+		t.Errorf("defaultKeyScopes = %v, want letmoe:files", defaultKeyScopes)
+	}
+	if err := checkMintScopes([]string{ScopeCatalogRead, ScopeLetmoeFiles}); err != nil {
+		t.Errorf("a request naming the default scope = %v, want accepted", err)
+	}
+}
