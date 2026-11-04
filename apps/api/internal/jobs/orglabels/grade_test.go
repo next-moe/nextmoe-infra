@@ -18,8 +18,8 @@ func newGrader(workLabels map[int64][]int64, labelNorms map[string][]int64) *gra
 }
 
 func TestGrade_ExactByCoworks(t *testing.T) {
-	g := newGrader(map[int64][]int64{1: {10}, 2: {10}}, nil)
-	r := g.grade(&orgRec{extID: "p1", works: []int64{1, 2}})
+	g := newGrader(map[int64][]int64{1: {10}, 2: {10}}, map[string][]int64{"age": {10}})
+	r := g.grade(&orgRec{extID: "p1", works: []int64{1, 2}, nameNorms: []string{"age"}})
 	assert.Equal(t, resAnchorExisting, r.kind)
 	assert.Equal(t, int64(10), r.labelID)
 	assert.Equal(t, model.LinkKindExact, r.tier)
@@ -34,6 +34,20 @@ func TestGrade_ExactByCoworkName(t *testing.T) {
 	assert.Equal(t, int64(10), r.labelID)
 	assert.Equal(t, model.LinkKindExact, r.tier)
 	assert.Equal(t, "cowork-name", r.rule)
+}
+
+func TestGrade_CoworksWithoutNameNeverAnchors(t *testing.T) {
+	g := newGrader(map[int64][]int64{1: {753}, 2: {753}, 3: {753}}, map[string][]int64{"ぱんみみそふと": {753}})
+	r := g.grade(&orgRec{extID: "p18414", works: []int64{1, 2, 3}, nameNorms: []string{"can/need"}, canCreate: true})
+	assert.Equal(t, resSkipUngradeable, r.kind, "a translator shares every work it ships with the developer")
+}
+
+func TestGrade_CoworksWithLooseNameAnchors(t *testing.T) {
+	g := newGrader(map[int64][]int64{1: {10}, 2: {10}}, map[string][]int64{"株式会社ゲームアーツ": {10}})
+	r := g.grade(&orgRec{extID: "p1449", works: []int64{1, 2}, nameNorms: []string{"ゲームアーツ"}})
+	assert.Equal(t, resAnchorExisting, r.kind)
+	assert.Equal(t, int64(10), r.labelID)
+	assert.Equal(t, model.LinkKindExact, r.tier)
 }
 
 func TestGrade_SingleShareNoNameIsUngradeable(t *testing.T) {
@@ -76,8 +90,8 @@ func TestGrade_NoWorksNoNameSkips(t *testing.T) {
 }
 
 func TestGrade_PicksHighestShare(t *testing.T) {
-	g := newGrader(map[int64][]int64{1: {10, 11}, 2: {10}, 3: {10}}, nil)
-	r := g.grade(&orgRec{extID: "p1", works: []int64{1, 2, 3}})
+	g := newGrader(map[int64][]int64{1: {10, 11}, 2: {10}, 3: {10}}, map[string][]int64{"x": {10, 11}})
+	r := g.grade(&orgRec{extID: "p1", works: []int64{1, 2, 3}, nameNorms: []string{"x"}})
 	assert.Equal(t, int64(10), r.labelID)
 	assert.Equal(t, 3, r.share)
 }
