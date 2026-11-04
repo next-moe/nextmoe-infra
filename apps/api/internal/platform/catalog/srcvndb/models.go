@@ -121,6 +121,14 @@ type Image struct {
 
 func (Image) TableName() string { return "src_vndb.images" }
 
+type VNScreenshot struct {
+	ID  string `gorm:"primaryKey;column:id" json:"id"`
+	Scr string `gorm:"primaryKey;column:scr" json:"scr"`
+	RID string `gorm:"column:rid;not null" json:"rid"`
+}
+
+func (VNScreenshot) TableName() string { return "src_vndb.vn_screenshots" }
+
 type PortraitBackfill struct {
 	CatalogCharacterID int64  `gorm:"primaryKey;autoIncrement:false" json:"catalog_character_id"`
 	VNDBCharID         string `gorm:"not null" json:"vndb_char_id"`

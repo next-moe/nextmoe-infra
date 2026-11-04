@@ -6,6 +6,7 @@ import (
 	stderrors "errors"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"api/internal/platform/catalog/model"
@@ -118,6 +119,7 @@ func (r *runner) writeScreenshots(ctx context.Context, dir string, c candidate, 
 		return false
 	}
 	present := r.exist.shot[c.WorkID]
+	var jobs []uploadJob
 	for i, fname := range m.SampleFiles {
 		if present != nil && present[i] {
 			r.c.shotExists++
@@ -137,7 +139,11 @@ func (r *runner) writeScreenshots(ctx context.Context, dir string, c candidate, 
 			r.c.shotWould++
 			continue
 		}
-		res, upErr := r.upload(ctx, path, fname, shotPreset)
+		jobs = append(jobs, uploadJob{sort: i, path: path, filename: fname})
+	}
+	r.uploadAll(ctx, jobs, shotPreset)
+	for _, j := range jobs {
+		i, res, upErr := j.sort, j.res, j.err
 		if upErr != nil {
 			if r.classifyUpload(upErr, "screenshot", c, &r.c.shotRejected) {
 				return true
@@ -182,9 +188,7 @@ func (r *runner) upload(ctx context.Context, path, filename, preset string) (*im
 	}
 	var lastErr error
 	for attempt := 0; attempt < uploadRetries; attempt++ {
-		if r.gap > 0 {
-			time.Sleep(r.gap)
-		}
+		r.pace()
 		res, err := r.cli.UploadWithSub(ctx, bytes.NewReader(body), filename, preset, uploaderSub)
 		if err == nil {
 			return res, nil
@@ -221,4 +225,40 @@ func (r *runner) classifyUpload(err error, kind string, c candidate, rejected *i
 func fileExists(path string) bool {
 	fi, err := os.Stat(path)
 	return err == nil && !fi.IsDir() && fi.Size() > 0
+}
+
+type uploadJob struct {
+	sort     int
+	path     string
+	filename string
+	res      *imageclient.UploadResult
+	err      error
+}
+
+func (r *runner) uploadAll(ctx context.Context, jobs []uploadJob, preset string) {
+	sem := make(chan struct{}, max(r.workers, 1))
+	var wg sync.WaitGroup
+	for i := range jobs {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(j *uploadJob) {
+			defer func() { <-sem; wg.Done() }()
+			j.res, j.err = r.upload(ctx, j.path, j.filename, preset)
+		}(&jobs[i])
+	}
+	wg.Wait()
+}
+
+func (r *runner) pace() {
+	if r.gap <= 0 {
+		return
+	}
+	r.paceMu.Lock()
+	next := r.paceLast.Add(r.gap)
+	if now := time.Now(); next.Before(now) {
+		next = now
+	}
+	r.paceLast = next
+	r.paceMu.Unlock()
+	time.Sleep(time.Until(next))
 }

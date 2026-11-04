@@ -29,7 +29,7 @@ func EnsureSchema(db *gorm.DB) error {
 		}
 	}
 	if err := db.AutoMigrate(
-		&VN{}, &VNTitle{}, &VNRelation{}, &Char{}, &CharName{}, &CharVN{}, &Image{},
+		&VN{}, &VNTitle{}, &VNRelation{}, &Char{}, &CharName{}, &CharVN{}, &Image{}, &VNScreenshot{},
 		&Staff{}, &StaffAlias{}, &VNStaff{}, &VNSeiyuu{},
 		&Trait{}, &TraitParent{}, &CharTrait{}, &Tag{}, &TagParent{}, &TagVN{},
 		&Release{}, &ReleaseVN{}, &ReleaseProducer{}, &ReleasePlatform{}, &ReleaseTitle{}, &Engine{}, &Producer{},
@@ -43,7 +43,7 @@ func EnsureSchema(db *gorm.DB) error {
 }
 
 var Files = []string{
-	"vn", "vn_titles", "chars", "chars_names", "chars_vns", "images",
+	"vn", "vn_titles", "chars", "chars_names", "chars_vns", "images", "vn_screenshots",
 	"vn_relations",
 	"staff", "staff_alias", "vn_staff", "vn_seiyuu",
 	"traits", "traits_parents", "chars_traits",
@@ -222,6 +222,7 @@ var loaders = map[string]func(tx *gorm.DB, now time.Time) tableLoader{
 	"chars_names":         newCharNameLoader,
 	"chars_vns":           newCharVNLoader,
 	"images":              newImageLoader,
+	"vn_screenshots":      newVNScreenshotLoader,
 	"staff":               newStaffLoader,
 	"staff_alias":         newStaffAliasLoader,
 	"vn_staff":            newVNStaffLoader,

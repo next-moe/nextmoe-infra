@@ -54,8 +54,9 @@ func TestIngestFixtureAndIdempotency(t *testing.T) {
 	assert.Equal(t, int64(2), report.PerFile["chars"].Rows)
 	assert.Equal(t, int64(3), report.PerFile["chars_names"].Rows)
 	assert.Equal(t, int64(3), report.PerFile["chars_vns"].Rows)
-	assert.Equal(t, int64(3), report.PerFile["images"].Rows)
-	assert.Equal(t, int64(1), report.PerFile["images"].Skipped, "the screenshot row is dropped")
+	assert.Equal(t, int64(4), report.PerFile["images"].Rows)
+	assert.Equal(t, int64(1), report.PerFile["images"].Skipped, "an image kind no tool reads is dropped")
+	assert.Equal(t, int64(2), report.PerFile["vn_screenshots"].Rows)
 
 	count := func(table string) int64 {
 		var n int64
@@ -64,7 +65,10 @@ func TestIngestFixtureAndIdempotency(t *testing.T) {
 	}
 	assert.Equal(t, int64(2), count("src_vndb.vn"))
 	assert.Equal(t, int64(2), count("src_vndb.chars"))
-	assert.Equal(t, int64(3), count("src_vndb.images"), "portrait and cover rows loaded")
+	assert.Equal(t, int64(4), count("src_vndb.images"), "portrait, cover and screenshot rows loaded")
+	var shot VNScreenshot
+	require.NoError(t, testDB.First(&shot, "id = ? AND scr = ?", "v1", "sf6").Error)
+	assert.Equal(t, "", shot.RID, `\N release → empty`)
 
 	var v1 VN
 	require.NoError(t, testDB.First(&v1, "id = ?", "v1").Error)

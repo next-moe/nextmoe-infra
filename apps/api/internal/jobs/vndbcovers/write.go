@@ -102,8 +102,8 @@ func (r *runner) fill(ctx context.Context, row planRow) {
 	}).Create(&model.CatalogWorkCover{
 		WorkID: row.WorkID, ImageHash: res.Hash, SortOrder: 0, Kind: coverKind,
 		PortraitPinned: portrait(row.Img.Dims),
-		Sexual:         ratingLevel(row.Img.Sexual),
-		Violence:       ratingLevel(row.Img.Violence),
+		Sexual:         RatingLevel(row.Img.Sexual),
+		Violence:       RatingLevel(row.Img.Violence),
 		SourceID:       r.sourceID,
 	})
 	if tx.Error != nil {

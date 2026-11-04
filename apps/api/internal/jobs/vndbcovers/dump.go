@@ -14,7 +14,7 @@ import (
 
 const vndbImageBase = "https://t.vndb.org/"
 
-func vndbImageRel(id string) (string, bool) {
+func ImageRel(id string) (string, bool) {
 	if len(id) < 3 {
 		return "", false
 	}
@@ -55,7 +55,7 @@ func loadDumpImages(ctx context.Context, db *gorm.DB, vids []string) (map[string
 			return nil, 0, fmt.Errorf("read vndb dump images: %w", err)
 		}
 		for _, r := range rows {
-			rel, ok := vndbImageRel(r.Image)
+			rel, ok := ImageRel(r.Image)
 			switch {
 			case r.Image == "":
 				out[r.ID] = nil

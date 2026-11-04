@@ -88,7 +88,7 @@ func newCharVNLoader(tx *gorm.DB, _ time.Time) tableLoader {
 func newImageLoader(tx *gorm.DB, _ time.Time) tableLoader {
 	return newLoader(tx, func(get getter) (Image, bool) {
 		id, _ := get("id")
-		if !strings.HasPrefix(id, "ch") && !strings.HasPrefix(id, "cv") {
+		if !strings.HasPrefix(id, "ch") && !strings.HasPrefix(id, "cv") && !strings.HasPrefix(id, "sf") {
 			return Image{}, false
 		}
 		return Image{
@@ -100,5 +100,13 @@ func newImageLoader(tx *gorm.DB, _ time.Time) tableLoader {
 			ViolenceStddev: getInt16(get, "c_violence_stddev"),
 			Weight:         getInt16(get, "c_weight"),
 		}, true
+	})
+}
+
+func newVNScreenshotLoader(tx *gorm.DB, _ time.Time) tableLoader {
+	return newLoader(tx, func(get getter) (VNScreenshot, bool) {
+		id, _ := get("id")
+		scr, _ := get("scr")
+		return VNScreenshot{ID: id, Scr: scr, RID: getStr(get, "rid")}, true
 	})
 }
