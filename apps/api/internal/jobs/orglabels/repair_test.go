@@ -5,10 +5,16 @@ import (
 	"testing"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+var repairDL *gorm.DB
 
 func repairSetup(t *testing.T) repairPools {
 	t.Helper()
@@ -17,12 +23,20 @@ func repairSetup(t *testing.T) repairPools {
 	}
 	cleanAll(t)
 	for _, s := range []string{
-		`CREATE TABLE IF NOT EXISTS works (workno text, maker_id text, maker_name text)`,
-		`TRUNCATE works, catalog_release_label, catalog_release, catalog_credit RESTART IDENTITY CASCADE`,
+		`CREATE SCHEMA IF NOT EXISTS orglabels_dl`,
+		`CREATE TABLE IF NOT EXISTS orglabels_dl.works (workno text, maker_id text, maker_name text)`,
+		`TRUNCATE orglabels_dl.works, catalog_release_label, catalog_release, catalog_credit RESTART IDENTITY CASCADE`,
 	} {
 		require.NoError(t, testDB.Exec(s).Error)
 	}
-	return repairPools{catalog: testDB, eg: testDB, dlsite: testDB}
+	if repairDL == nil {
+		dsn, _ := dbtest.DSN()
+		db, err := gorm.Open(postgres.Open(dsn+" options='-csearch_path=orglabels_dl'"),
+			&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+		require.NoError(t, err)
+		repairDL = db
+	}
+	return repairPools{catalog: testDB, eg: testDB, dlsite: repairDL}
 }
 
 func exec(t *testing.T, sql string, args ...any) {
