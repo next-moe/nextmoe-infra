@@ -67,13 +67,21 @@ func (g *grader) grade(o *orgRec) gradeResult {
 			nameHit[l] = true
 		}
 	}
+	looseHit := make(map[int64]bool)
+	for _, l := range looseHits(o, g.labelLoose) {
+		looseHit[l] = true
+	}
 
+	// Until 2026-11-04 two shared works anchored a label with no name evidence
+	// at all. A translator or localiser shares every work it ships with the
+	// original developer, so 'Can/need' (a zh fan group) became ぱんみみそふと
+	// and Numskull Games became スパイク・チュンソフト: 29 such anchors on vndb
+	// alone, each pulling the wrong company's releases, intro and links along.
 	bestLabel := int64(0)
 	bestShare := 0
 	bestName := false
 	for l, s := range share {
-		eligible := s >= 2 || (s == 1 && nameHit[l])
-		if !eligible {
+		if !nameHit[l] && !looseHit[l] {
 			continue
 		}
 		if better(s, nameHit[l], l, bestShare, bestName, bestLabel) {

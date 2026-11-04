@@ -2883,3 +2883,19 @@ Three user reports, three holes:
   - **`held_same_uncorroborated`**: a same verdict nothing corroborates moves the candidate to `needs_manual` (from pending or deferred) instead of deferring it, which keeps a quarantined side quarantined. The stamp is re-planned nightly, so a later corroborator still accepts it. `unsure` keeps `kept_apart_uncorroborated`.
 
 No spec change, no migration.
+
+## Org anchors: co-works alone no longer make a company, and the 2026-11-04 audit (2026-11-04)
+
+A user saw ぱんみみそふと credited as publisher of ディメンション凸ラバース！！. The label held VNDB p18414, which is **Can/need**, a zh fan group, together with Can/need's ten zh releases, its intro and its website. `reconcile-org-labels` had anchored it on 2026-07-23 by `rule:vndb-org-coworks`: two shared works and no name evidence at all. A translator, localiser or overseas publisher shares every work it ships with the original developer, so the same rule had pinned Numskull Games on スパイク・チュンソフト, Ghostlight on アイディアファクトリー, Cherry Kiss Games on Norn/Miel/Cybele and Nyu Media on 773.
+
+- **The rule.** `grade()` now anchors on shared works only when the label also carries the org's name, exactly or after the 株式会社/punctuation loose fold. Shared works with no name are `skip_ungradeable`. The new rule loses renamed companies whose names share nothing; those now stay unanchored instead of being anchored wrongly.
+- **The audit covered every one of the 36k label anchors** (VNDB 25.7k, ErogameScape 6.8k, Bangumi 3.3k, DLsite maker 20.8k). A deterministic pass passed an anchor whose names or official links agree with the label's own name or with an independently established anchor. Two kinds of anchor went to an LLM review: those that failed the pass, and every name-only/name-loose/graph-name anchor, as a homonym check. That was 2,334 labels, judged by GLM 5.3, with DeepSeek V4 Pro on the 124 labels GLM's content filter refused. Low-confidence and unsure items were read by hand. One trap: two co-work anchors that are the **same wrong company** corroborate each other. STUDIO ANGEL carried 全流通 from both VNDB and ErogameScape, plus the alias ゼンリュウツウ, so the strict pass lets a co-work anchor be confirmed only by the label's display name or a non-co-work anchor.
+- **The outcome:** 310 anchors detached and 242 probable anchors promoted to exact (for example スパイク・チュンソフト's own p2807, which had been pushed to `link_kind 2` because the localiser held the exact slot).
+- **`repair-org-anchors`** applies such a decision file. A detach deletes the anchor and records a `catalog_match_rejection`, so reconcile never re-pairs it. It then rehomes the entry, in this order: an explicit target, `target_ref` (the label an earlier decision gave another anchor of the same company), the one label that already holds the entry as probable, one unanchored label of that name, or a minted label (VNDB co/ng, ErogameScape, DLsite; Bangumi and VNDB individuals never mint). Last, it moves exactly what came through the entry:
+  - VNDB: release and work rows whose release VNDB credits to that producer, unless another exact VNDB anchor of the label also produced it.
+  - ErogameScape and DLsite: work rows reached through the brand's games or the maker's worknos, minus those another anchor of the same source reaches.
+  - Bangumi: company credits.
+  - Every source: intros and aliases of that source, aliases spelling the detached company's name whatever wrote them, links whose `matched_by` names that source, and a logo whose provenance names it.
+- **Duplicate labels surfaced.** Eleven rehomes found two labels of the target's name. Most of these pairs are a Bangumi-imported publisher label with no works next to the VNDB/DLsite label of the same company (Cherry Kiss Games, Banpresto, Factor, Dogenzaka Lab). These were pinned by hand; merging the duplicates is a separate label-dedup pass.
+
+No schema change, no migration.
