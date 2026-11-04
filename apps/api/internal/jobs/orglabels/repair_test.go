@@ -57,6 +57,8 @@ func seedTranslatorCase(t *testing.T) {
 	exec(t, `INSERT INTO catalog_release_label (release_id, label_id, kind, source_id) VALUES (325819, 753, 1, 2)`)
 	exec(t, `INSERT INTO catalog_work_label (work_id, label_id, kind, source_id) VALUES (4829, 753, 1, 2)`)
 	exec(t, `INSERT INTO catalog_label_intro (label_id, lang, intro, source_id, provenance) VALUES (753, 'en', 'A new amateur group', 2, 0)`)
+	exec(t, `INSERT INTO catalog_label_alias (label_id, name, lang, kind, is_primary_for_locale, provenance) VALUES
+		(753, 'Can/need', '', 2, false, 0), (753, 'Panmimi Soft', '', 2, false, 0)`)
 }
 
 func TestRepairMovesATranslatorOffTheDeveloper(t *testing.T) {
@@ -92,6 +94,8 @@ func TestRepairMovesATranslatorOffTheDeveloper(t *testing.T) {
 	assert.EqualValues(t, 1, scalar(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_id = 753 AND source_id = 10`),
 		"the twitter handle came from erogamescape and stays")
 	assert.EqualValues(t, 1, scalar(t, `SELECT count(*) FROM catalog_revision WHERE entity_type = 3 AND entity_id = 753`))
+	assert.EqualValues(t, 1, scalar(t, `SELECT count(*) FROM catalog_label_alias WHERE label_id = 753`), "Panmimi Soft stays")
+	assert.EqualValues(t, 1, scalar(t, `SELECT count(*) FROM catalog_label_alias WHERE label_id = ? AND name = 'Can/need'`, r.TargetID))
 }
 
 func TestRepairDryRunWritesNothing(t *testing.T) {
@@ -159,4 +163,27 @@ func TestRepairKeepsWorksAnotherAnchorStillJustifies(t *testing.T) {
 		"brand 1 still makes work 100")
 	assert.EqualValues(t, 1, scalar(t, `SELECT count(*) FROM catalog_work_label WHERE label_id = ? AND work_id = 200`, r.TargetID))
 	assert.Zero(t, scalar(t, `SELECT count(*) FROM catalog_work_label WHERE label_id = 50 AND work_id = 200`))
+}
+
+func TestRepairSendsTwoWrongAnchorsOfOneCompanyToOneLabel(t *testing.T) {
+	p := repairSetup(t)
+	mkLabel(t, 15479, "IDES", model.LabelKindGameBrand)
+	labelRef(t, 15479, sourceVNDB, "p2389", 0, ruleVNDBCoworks)
+	labelRef(t, 15479, sourceEG, "3339", 0, ruleEGCoworks)
+	exec(t, `INSERT INTO src_vndb.producers (id,type,lang,name,latin,alias,description) VALUES ('p2389','co','ja','ダイナミックプロ','Dynamic Production','','')`)
+	exec(t, `INSERT INTO brands (id, raw) VALUES (3339, '{"brandname":"ダイナミックプロダクション","kind":"CORPORATION"}')`)
+
+	ref := &struct {
+		Source int16  `json:"src"`
+		ExtID  string `json:"ext"`
+	}{sourceVNDB, "p2389"}
+	res, err := repairAll(context.Background(), p, []RepairDecision{
+		{Action: "detach", LabelID: 15479, Source: sourceVNDB, ExtID: "p2389", Reason: "anime company"},
+		{Action: "detach", LabelID: 15479, Source: sourceEG, ExtID: "3339", Reason: "anime company", TargetRef: ref},
+	}, true)
+	require.NoError(t, err)
+	require.Equal(t, "minted", res[0].TargetHow, res[0].Err)
+	require.Equal(t, "manual", res[1].TargetHow, res[1].Err)
+	assert.Equal(t, res[0].TargetID, res[1].TargetID)
+	assert.EqualValues(t, 2, scalar(t, `SELECT count(*) FROM catalog_label`), "IDES and one Dynamic Production, not two")
 }

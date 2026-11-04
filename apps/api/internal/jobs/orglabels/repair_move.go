@@ -89,7 +89,7 @@ var linkRulesBySource = map[int16][]string{
 	sourceBangumi: {ruleBGMOfficial, ruleBGMTwitter},
 }
 
-func moveDerived(tx *gorm.DB, p repairPools, d RepairDecision, target int64, res *RepairResult) ([]int64, error) {
+func moveDerived(tx *gorm.DB, p repairPools, d RepairDecision, org *repairOrg, target int64, res *RepairResult) ([]int64, error) {
 	var touched []int64
 	works, releases, err := sourcedRows(tx, p, d)
 	if err != nil {
@@ -133,6 +133,13 @@ func moveDerived(tx *gorm.DB, p repairPools, d RepairDecision, target int64, res
 	}
 	if res.Aliases, err = moveLabelOwned(tx, "catalog_label_alias", "name, lang", d, target); err != nil {
 		return nil, err
+	}
+	if org != nil && len(org.norms) > 0 {
+		n, err := moveNamedAliases(tx, d.LabelID, target, org.norms)
+		if err != nil {
+			return nil, err
+		}
+		res.Aliases += n
 	}
 	if rules := linkRulesBySource[d.Source]; len(rules) > 0 {
 		var moved []struct{ N int64 }
@@ -282,6 +289,24 @@ func moveLabelOwned(tx *gorm.DB, table, uniq string, d RepairDecision, target in
 		}
 	}
 	return n, tx.Exec(`DELETE FROM `+table+` WHERE label_id = ? AND source_id = ?`, d.LabelID, d.Source).Error
+}
+
+// moveNamedAliases takes the aliases that spell the detached organisation's own
+// name, whatever wrote them: STUDIO ANGEL carried ゼンリュウツウ, the furigana of
+// the distributor 全流通 that two co-work anchors had pinned on it.
+func moveNamedAliases(tx *gorm.DB, labelID, target int64, norms []string) (int64, error) {
+	const mine = `label_id = ? AND name_norm IN ? AND name_norm NOT IN (
+		SELECT display_name_norm FROM catalog_label WHERE id = ?
+		UNION SELECT lower(normalize(coalesce(latin, ''), NFKC)) FROM catalog_label WHERE id = ?)`
+	if target != 0 {
+		if err := tx.Exec(`INSERT INTO catalog_label_alias (label_id, name, latin, lang, kind, is_primary_for_locale, provenance, source_id, mt_model)
+			SELECT ?, name, latin, lang, kind, false, provenance, source_id, mt_model FROM catalog_label_alias
+			WHERE `+mine+` ON CONFLICT DO NOTHING`, target, labelID, norms, labelID, labelID).Error; err != nil {
+			return 0, err
+		}
+	}
+	r := tx.Exec(`DELETE FROM catalog_label_alias WHERE `+mine, labelID, norms, labelID, labelID)
+	return r.RowsAffected, r.Error
 }
 
 func prefixCols(alias, cols string) string {

@@ -30,6 +30,13 @@ type RepairDecision struct {
 	ExtID   string `json:"ext"`
 	Reason  string `json:"reason"`
 	Target  int64  `json:"target_label_id,omitempty"`
+	// TargetRef sends the entry to whichever label holds this other anchor exactly
+	// once the earlier decisions have run, so two wrong anchors that are one
+	// organisation land on one label instead of minting two.
+	TargetRef *struct {
+		Source int16  `json:"src"`
+		ExtID  string `json:"ext"`
+	} `json:"target_ref,omitempty"`
 }
 
 type RepairResult struct {
@@ -165,7 +172,7 @@ func repairOne(ctx context.Context, tx *gorm.DB, p repairPools, res *RepairResul
 	}
 	res.TargetID, res.TargetHow = target, how
 
-	touched, err := moveDerived(tx, p, d, target, res)
+	touched, err := moveDerived(tx, p, d, org, target, res)
 	if err != nil {
 		return nil, fmt.Errorf("move derived rows: %w", err)
 	}
@@ -211,6 +218,19 @@ func promoteAnchor(tx *gorm.DB, d RepairDecision, kind int16, res *RepairResult)
 }
 
 func resolveRepairTarget(tx *gorm.DB, d RepairDecision, org *repairOrg) (int64, string, error) {
+	if d.TargetRef != nil {
+		var holder []int64
+		if err := tx.Raw(`SELECT r.entity_id FROM catalog_external_ref r
+			JOIN catalog_label l ON l.id = r.entity_id AND l.deleted_at IS NULL
+			WHERE r.entity_type = 3 AND r.source_id = ? AND r.external_id = ? AND r.link_kind = 0`,
+			d.TargetRef.Source, d.TargetRef.ExtID).Scan(&holder).Error; err != nil {
+			return 0, "", err
+		}
+		if len(holder) != 1 {
+			return 0, "", fmt.Errorf("target_ref %d/%s is held exactly by %d labels", d.TargetRef.Source, d.TargetRef.ExtID, len(holder))
+		}
+		d.Target = holder[0]
+	}
 	if d.Target != 0 {
 		return d.Target, "manual", anchorRepairTarget(tx, d, d.Target, ruleRepairManual)
 	}
