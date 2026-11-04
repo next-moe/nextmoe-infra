@@ -226,10 +226,13 @@ func resolveRepairTarget(tx *gorm.DB, d RepairDecision, org *repairOrg) (int64, 
 			d.TargetRef.Source, d.TargetRef.ExtID).Scan(&holder).Error; err != nil {
 			return 0, "", err
 		}
-		if len(holder) != 1 {
-			return 0, "", fmt.Errorf("target_ref %d/%s is held exactly by %d labels", d.TargetRef.Source, d.TargetRef.ExtID, len(holder))
+		if len(holder) != 1 || holder[0] == d.LabelID {
+			return 0, "", fmt.Errorf("target_ref %d/%s is held exactly by %v", d.TargetRef.Source, d.TargetRef.ExtID, holder)
 		}
 		d.Target = holder[0]
+	}
+	if d.Target == d.LabelID {
+		return 0, "", fmt.Errorf("target is the label being repaired")
 	}
 	if d.Target != 0 {
 		return d.Target, "manual", anchorRepairTarget(tx, d, d.Target, ruleRepairManual)
@@ -245,7 +248,7 @@ func resolveRepairTarget(tx *gorm.DB, d RepairDecision, org *repairOrg) (int64, 
 		return probable[0], "promoted", anchorRepairTarget(tx, d, probable[0], ruleRepairProbable)
 	}
 	if org == nil {
-		return 0, "none", nil
+		return 0, "none:no_org_data", nil
 	}
 	var named []int64
 	if len(org.norms) > 0 {
@@ -264,8 +267,11 @@ func resolveRepairTarget(tx *gorm.DB, d RepairDecision, org *repairOrg) (int64, 
 	if len(named) == 1 {
 		return named[0], "name", anchorRepairTarget(tx, d, named[0], ruleRepairName)
 	}
-	if len(named) > 1 || !org.canMint {
-		return 0, "none", nil
+	if len(named) > 1 {
+		return 0, fmt.Sprintf("none:ambiguous%v", named), nil
+	}
+	if !org.canMint {
+		return 0, "none:cannot_mint", nil
 	}
 	id, err := mintRepairLabel(tx, d, org)
 	return id, "minted", err
