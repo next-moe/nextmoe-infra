@@ -102,11 +102,11 @@ func TestAMergeNeedsANameNoOtherWorkAnswersTo(t *testing.T) {
 
 	assert.Equal(t, 1, st.Counts["applied_"+applyAccept], "counts: %v", st.Counts)
 	assert.Equal(t, 1, st.Counts["applied_"+applyReject], "counts: %v", st.Counts)
-	assert.Equal(t, 2, st.Counts["applied_"+stampKeptApartUncorroborated], "counts: %v", st.Counts)
+	assert.Equal(t, 2, st.Counts["applied_"+stampHeldSameUncorroborated], "counts: %v", st.Counts)
 
 	assert.Equal(t, model.CandidateStatusAccepted, status(soleA, soleB))
-	assert.Equal(t, model.CandidateStatusDeferred, status(aliasA, aliasB))
-	assert.Equal(t, model.CandidateStatusDeferred, status(crowdedA, crowdedB))
+	assert.Equal(t, model.CandidateStatusNeedsManual, status(aliasA, aliasB))
+	assert.Equal(t, model.CandidateStatusNeedsManual, status(crowdedA, crowdedB))
 	assert.Equal(t, model.CandidateStatusRejected, status(vetoA, vetoB))
 }
 

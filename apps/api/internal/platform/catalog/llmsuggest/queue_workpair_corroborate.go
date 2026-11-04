@@ -64,6 +64,15 @@ type pairEvidence struct {
 
 	DeclaredSubject string
 	DeclaredWorkno  string
+
+	DatesNear bool
+
+	TitleName    string
+	TitleHolders int
+
+	StoreSourceKey string
+	StoreID        string
+	StoreHolders   int
 }
 
 func (e pairEvidence) exclusive() bool { return e.Name != "" && e.Holders == exclusiveNameHolders }
@@ -85,7 +94,8 @@ func (e pairEvidence) exclusiveDeclared() bool {
 }
 
 // acceptReason names the corroborator that decides an accept, in preference
-// order folded name, shared record, declared dlsite, loose name, stripped key.
+// order folded name, shared record, declared dlsite, loose name, stripped key,
+// dated title, dated cross-grain store id.
 // unsure cannot use loose, stripped, or declared: the 450-pair VNDB-disagreement
 // class above is the loose-key reason, and declared/stripped are same-only.
 func (e pairEvidence) acceptReason(verdict string) string {
@@ -103,6 +113,12 @@ func (e pairEvidence) acceptReason(verdict string) string {
 	}
 	if verdict == VerdictSame && e.exclusiveStripped() {
 		return fmt.Sprintf("sole holders of stripped %q", e.StrippedName)
+	}
+	if verdict == VerdictSame && e.exclusiveTitle() {
+		return fmt.Sprintf("sole holders of title %q, release dates agree", e.TitleName)
+	}
+	if verdict == VerdictSame && e.exclusiveCrossStore() {
+		return fmt.Sprintf("release and work share %s:%s, release dates agree", e.StoreSourceKey, e.StoreID)
 	}
 	return ""
 }
@@ -129,6 +145,9 @@ func loadPairEvidence(db *gorm.DB, rows []QueueVerdict) (map[int64]pairEvidence,
 		return nil, err
 	}
 	if err := attachDeclaredEvidence(db, rows, out); err != nil {
+		return nil, err
+	}
+	if err := attachDatedEvidence(db, rows, out); err != nil {
 		return nil, err
 	}
 	return out, nil

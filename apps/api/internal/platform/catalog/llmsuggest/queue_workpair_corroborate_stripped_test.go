@@ -149,7 +149,7 @@ func TestKeptApartPairAcceptedOnceStrippedEvidenceAppears(t *testing.T) {
 		Queue: QueueWorkPair, Actor: 1, MinConfidenceReject: 0.7,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 1, st.Counts["applied_"+stampKeptApartUncorroborated], "counts: %v", st.Counts)
+	assert.Equal(t, 1, st.Counts["applied_"+stampHeldSameUncorroborated], "counts: %v", st.Counts)
 
 	require.NoError(t, db.Model(&model.CatalogWork{}).Where("id = ?", b).
 		Update("display_name", "【スマホ版】nightstripped A").Error)

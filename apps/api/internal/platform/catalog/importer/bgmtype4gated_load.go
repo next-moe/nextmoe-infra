@@ -19,9 +19,10 @@ func buildBgmGatedPoolQuery() string {
 	sigT := `(` + metaArr + ` AND (` + ex(`Galgame`) + ` OR ` + ex(`galgame`) + `))` +
 		` OR EXISTS(SELECT 1 FROM jsonb_array_elements(s.tags) tg WHERE jsonb_typeof(s.tags)='array'` +
 		` AND lower(tg->>'name') = ANY(` + sqlGalgameFolk + `) AND coalesce((tg->>'count')::int,0) >= 3)`
+	sigA := `s.nsfw OR (` + metaArr + ` AND ` + ex(`R18`) + `)`
 	excluded := metaArr + ` AND ` + exAny(sqlConsoleMobile) + ` AND NOT ` + exAny(sqlPCFamily)
 	return `SELECT s.id AS id, coalesce(s.name,'') AS name, coalesce(s.name_cn,'') AS name_cn,
-			coalesce(s.name_norm,'') AS name_norm, coalesce(s.name_cn_norm,'') AS name_cn_norm, s.nsfw AS nsfw,
+			coalesce(s.name_norm,'') AS name_norm, coalesce(s.name_cn_norm,'') AS name_cn_norm, (` + sigA + `) AS nsfw,
 			(` + sigP + `) AS sig_p, (` + sigT + `) AS sig_t, (` + excluded + `) AS excluded
 		FROM src_bangumi.subject s
 		WHERE s.type = 4

@@ -147,9 +147,9 @@ func TestRejectThresholdIsIndependentOfAccept(t *testing.T) {
 
 	// The accept direction has no bar left to be independent of: confidence
 	// gates rejects only. An accept at 0.10 lands, and an accept at 1.00 whose
-	// name a third work also answers to is kept apart rather than merged.
+	// name a third work also answers to is held for a person rather than merged.
 	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 0.1, 0.7, s, soleName("sole")).Action)
-	assert.Equal(t, stampKeptApartUncorroborated,
+	assert.Equal(t, stampHeldSameUncorroborated,
 		planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{Name: "memoria", Holders: 3}).stamp())
 
 	assert.Equal(t, applyReject, planCreditName(VerdictDifferent, 0.8, 0.9, 0.7).Action)
@@ -240,16 +240,16 @@ func TestUnsureDoesNotAcceptOnLooseName(t *testing.T) {
 func TestLooseNameNeedsFiveRunes(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
 	p := planWorkPair(VerdictSame, 1, 0.7, s, exclusiveLoose("mine"))
-	assert.Equal(t, applyDefer, p.Action)
-	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
+	assert.Equal(t, applyHold, p.Action)
+	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
 	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.7, s, exclusiveLoose("puppy")).Action)
 }
 
 func TestLooseNameNeedsExactlyTwoHolders(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
 	p := planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{LooseName: "abcdefgh", LooseHolders: 3})
-	assert.Equal(t, applyDefer, p.Action)
-	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
+	assert.Equal(t, applyHold, p.Action)
+	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
 }
 
 func TestSameAndUnsureAcceptOnSharedRecord(t *testing.T) {
@@ -272,7 +272,7 @@ func TestBundleRecordNeverCorroborates(t *testing.T) {
 
 	s := workPairSides{AID: 1, BID: 2}
 	p := planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{})
-	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
+	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
 }
 
 func TestRelatedRefOtherThanTwinNeverCorroborates(t *testing.T) {
@@ -296,7 +296,7 @@ func TestSharedRecordNeedsExactlyTwoHolders(t *testing.T) {
 	p := planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{
 		SharedSourceKey: "erogamescape", SharedExternalID: "100", SharedHolders: 3,
 	})
-	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
+	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
 }
 
 func TestRefConflictStillWinsOverNewCorroborators(t *testing.T) {
@@ -315,12 +315,41 @@ func TestRefConflictStillWinsOverNewCorroborators(t *testing.T) {
 	assert.Equal(t, stampRefConflict, p.stamp())
 }
 
-func TestUncorroboratedIsKeptApart(t *testing.T) {
+func TestUncorroboratedSameIsHeldUnsureKeptApart(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
 	p := planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{})
+	assert.Equal(t, applyHold, p.Action)
+	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
+	assert.False(t, p.recordOnly())
+	assert.True(t, isReplannedStamp(p.stamp()))
+	assert.NotContains(t, currentStamps, p.stamp())
+
+	p = planWorkPair(VerdictUnsure, 0, 0.7, s, pairEvidence{})
 	assert.Equal(t, applyDefer, p.Action)
 	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
-	assert.False(t, p.recordOnly())
+}
+
+func TestDatedCorroboratorsNeedAgreeingDates(t *testing.T) {
+	s := workPairSides{AID: 1, BID: 2}
+	title := pairEvidence{TitleName: "d.c.5to4luminousmemories", TitleHolders: exclusiveNameHolders}
+	store := pairEvidence{StoreSourceKey: "dmm", StoreID: "hobc_0507", StoreHolders: exclusiveNameHolders}
+
+	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.7, s, title).Action, "a shared title alone is the ラブレッスン shape")
+	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.7, s, store).Action, "a shared store id alone is the DLC shape")
+
+	title.DatesNear, store.DatesNear = true, true
+	p := planWorkPair(VerdictSame, 1, 0.7, s, title)
+	assert.Equal(t, applyAccept, p.Action)
+	assert.Equal(t, `sole holders of title "d.c.5to4luminousmemories", release dates agree`, p.Reason)
+	p = planWorkPair(VerdictSame, 1, 0.7, s, store)
+	assert.Equal(t, applyAccept, p.Action)
+	assert.Equal(t, "release and work share dmm:hobc_0507, release dates agree", p.Reason)
+
+	assert.Equal(t, applyDefer, planWorkPair(VerdictUnsure, 0, 0.7, s, title).Action, "unsure cannot use them")
+	assert.Equal(t, applyDefer, planWorkPair(VerdictUnsure, 0, 0.7, s, store).Action)
+
+	title.TitleHolders = 3
+	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.7, s, title).Action)
 }
 
 func TestBothClaimedIsKeptApart(t *testing.T) {
@@ -339,7 +368,7 @@ func TestHiddenClaimIsKeptApart(t *testing.T) {
 		p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("folded"))
 		assert.Equal(t, applyDefer, p.Action)
 		assert.Equal(t, stampKeptApartHiddenClaim, p.stamp())
-		assert.True(t, isKeptApartStamp(p.stamp()))
+		assert.True(t, isReplannedStamp(p.stamp()))
 	}
 
 	visible := workPairSides{AID: 1, BID: 2, ClaimedA: true, ExactA: 4}

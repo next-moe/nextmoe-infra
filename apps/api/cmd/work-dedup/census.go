@@ -34,6 +34,7 @@ type pairRow struct {
 	DateA          *time.Time `gorm:"column:date_a"`
 	DateB          *time.Time `gorm:"column:date_b"`
 	LabelOverlap   bool       `gorm:"column:label_overlap"`
+	CrossRefOnly   bool       `gorm:"column:cross_ref_only"`
 }
 
 // pairQuerySQL is the standing duplicate detector: every pair of live works
@@ -130,7 +131,8 @@ wk AS (
   LEFT JOIN bgmdate b ON b.work_id = lw.id
 ),
 refpairs AS (
-  SELECT x.entity_id AS a, y.entity_id AS b
+  SELECT a, b, bool_and(cross_ref) AS cross_ref_only FROM (
+  SELECT x.entity_id AS a, y.entity_id AS b, false AS cross_ref
   FROM catalog_external_ref x
   JOIN catalog_external_ref y
     ON y.source_id = x.source_id
@@ -145,7 +147,7 @@ refpairs AS (
   UNION
   -- any-kind pairing generated ~78k brand-hub pairs of which 76,632 had conflicting exact
   -- anchors; the no-conflict residue sampled 15/15 as true duplicates.
-  SELECT x.entity_id AS a, y.entity_id AS b
+  SELECT x.entity_id AS a, y.entity_id AS b, false AS cross_ref
   FROM catalog_external_ref x
   JOIN catalog_external_ref y
     ON y.source_id = x.source_id
@@ -158,12 +160,33 @@ refpairs AS (
     AND x.link_kind = 2 AND y.link_kind = 2
     AND NOT ` + sameSourceOtherIDSQL("ka.anchor_keys", "kb.anchor_keys") + `
   GROUP BY x.entity_id, y.entity_id
+  UNION
+  -- works 6253 and 217311 were one game for months: VNDB put dmm hobc_0507 on
+  -- 6253's release, EG put it on 217311 itself, and both branches above only
+  -- pair work-level refs.
+  SELECT least(rel.work_id, y.entity_id) AS a, greatest(rel.work_id, y.entity_id) AS b, true AS cross_ref
+  FROM catalog_external_ref x
+  JOIN catalog_release rel ON rel.id = x.entity_id AND rel.deleted_at IS NULL
+  JOIN catalog_external_ref y
+    ON y.source_id = x.source_id
+   AND lower(y.external_id) = lower(x.external_id)
+   AND y.entity_id <> rel.work_id
+  JOIN wk ka ON ka.id = rel.work_id
+  JOIN wk kb ON kb.id = y.entity_id
+  WHERE x.entity_type = 6 AND y.entity_type = 5
+    AND x.dead_at IS NULL AND y.dead_at IS NULL
+    AND x.link_kind = 0 AND y.link_kind IN (0, 1)
+    AND NOT ` + sameSourceOtherIDSQL("ka.anchor_keys", "kb.anchor_keys") + `
+  GROUP BY 1, 2
+  ) rp
+  GROUP BY a, b
 ),
 universe AS (
   SELECT coalesce(p.a, r.a) AS a, coalesce(p.b, r.b) AS b,
     coalesce(p.shared_norm, '') AS shared_norm,
     coalesce(p.shared_norms, 0) AS shared_norms,
-    coalesce(p.shared_official, 0) AS shared_official
+    coalesce(p.shared_official, 0) AS shared_official,
+    coalesce(r.cross_ref_only, false) AS cross_ref_only
   FROM pairs p
   FULL OUTER JOIN refpairs r ON r.a = p.a AND r.b = p.b
 )
@@ -180,7 +203,8 @@ SELECT p.a, p.b, p.shared_norm, p.shared_norms, p.shared_official,
   (wa.ref_keys_ci && wb.ref_keys_ci OR wa.rel_keys_ci && wb.rel_keys_ci) AS ref_overlap_ci,
   wa.released AS date_a,
   wb.released AS date_b,
-  wa.label_ids && wb.label_ids AS label_overlap
+  wa.label_ids && wb.label_ids AS label_overlap,
+  p.cross_ref_only
 FROM universe p
 JOIN wk wa ON wa.id = p.a
 JOIN wk wb ON wb.id = p.b AND wb.medium_id = wa.medium_id

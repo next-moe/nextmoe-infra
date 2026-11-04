@@ -90,7 +90,7 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 		h, held := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]
 		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID,
 			applyEvidence{Ref: evidence[row.ID], Pair: names[row.ID], Credit: credit[[2]int64{row.AID, row.BID}], RefMatchedBy: matchedBy[row.ID]})
-		if isKeptApartStamp(plan.stamp()) && row.AppliedAction == plan.stamp() {
+		if isReplannedStamp(plan.stamp()) && row.AppliedAction == plan.stamp() {
 			st.add(skipKeptApartUnchanged, 1)
 			continue
 		}
@@ -262,6 +262,9 @@ func executeApply(ctx context.Context, queues *service.AdminQueueService, queue 
 		})
 		return err
 	case QueueWorkPair:
+		if plan.Action == applyHold {
+			return queues.HoldWorkCandidate(ctx, row.AID, row.BID)
+		}
 		_, err := queues.DecideCandidate(ctx, service.CandidateDecision{
 			EntityType: model.EntityTypeWork, AID: row.AID, BID: row.BID,
 			Action: plan.Action, SourceID: plan.Source, TargetID: plan.Target,

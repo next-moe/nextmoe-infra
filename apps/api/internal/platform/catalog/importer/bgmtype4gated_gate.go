@@ -9,7 +9,13 @@ import (
 	"api/internal/platform/catalog/service"
 )
 
-func tallySignals(st *BgmGatedStats, p, t, x bool) {
+func tallySignals(st *BgmGatedStats, p, t, x, a bool) {
+	if a {
+		st.SigA++
+	}
+	if a && !p && !t && !x {
+		st.AOnly++
+	}
 	if p {
 		st.SigP++
 	}
@@ -177,7 +183,7 @@ func pickRandomSample(cands []candidate) []BgmGatedSample {
 	return out
 }
 
-func signalString(p, t, x bool) string {
+func signalString(p, t, x, a bool) string {
 	var parts []string
 	if p {
 		parts = append(parts, "P")
@@ -187,6 +193,9 @@ func signalString(p, t, x bool) string {
 	}
 	if x {
 		parts = append(parts, "X")
+	}
+	if a {
+		parts = append(parts, "A")
 	}
 	out := ""
 	for i, s := range parts {
