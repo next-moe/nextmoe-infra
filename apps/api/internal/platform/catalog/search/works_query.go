@@ -11,6 +11,13 @@ type WorksResult struct {
 	Facets map[string]map[string]int64
 }
 
+type RankingResult struct {
+	IDs    []int64
+	Values []float64
+	Total  int64
+	Facets map[string]map[string]int64
+}
+
 func WorkDocID(workID int64) string { return "w" + strconv.FormatInt(workID, 10) }
 
 func WorkDocIDToWorkID(docID string) (int64, bool) {

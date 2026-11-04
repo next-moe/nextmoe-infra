@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"api/internal/platform/catalog/ratingmodel"
 	"api/internal/platform/catalog/search/spec"
 )
 
@@ -96,6 +97,11 @@ func propertiesFor(uid string) (map[string]any, error) {
 			rating[src] = map[string]any{"type": "float"}
 		}
 		props["rating"] = map[string]any{"properties": rating}
+		props["rank"] = rankMapping()
+		props["platforms"] = keywordField()
+		props["circulation"] = keywordField()
+		props["playtime"] = map[string]any{"type": "integer"}
+		props["not_vn"] = map[string]any{"type": "boolean"}
 	case IndexCreditNames:
 		props["person_id"] = map[string]any{"type": "long"}
 	case IndexLabels:
@@ -156,4 +162,20 @@ func textField(analyzer string, copyTo []string) map[string]any {
 
 func keywordField() map[string]any {
 	return map[string]any{"type": "keyword"}
+}
+
+func rankMapping() map[string]any {
+	float := map[string]any{"type": "float"}
+	fields := func(names []string) map[string]any {
+		props := make(map[string]any, len(names))
+		for _, f := range names {
+			props[f] = float
+		}
+		return map[string]any{"properties": props}
+	}
+	props := map[string]any{ratingmodel.ConsensusKey: fields(ratingmodel.ConsensusIndexFields)}
+	for _, src := range ratingmodel.SourceKeys() {
+		props[src] = fields(ratingmodel.SourceIndexFields)
+	}
+	return map[string]any{"properties": props}
 }

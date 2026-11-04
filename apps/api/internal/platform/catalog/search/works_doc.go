@@ -36,25 +36,30 @@ type WorkDocIntro struct {
 }
 
 type WorkDocInput struct {
-	ID            int64
-	DisplayName   string
-	OLang         string
-	ContentRating int16
-	Claimed       bool
-	ClaimState    string
-	ContentLimit  string
-	ReleasedOrd   int64
-	UpdatedTS     int64
-	Popularity    float64
-	Sources       []string
-	SourceKeys    []string
-	Titles        []WorkDocTitle
-	TagIDs        []int64
-	LabelIDs      []int64
-	EngineIDs     []int64
-	SeriesIDs     []int64
-	Intros        []WorkDocIntro
-	Ratings       map[string]float64
+	ID              int64
+	DisplayName     string
+	OLang           string
+	ContentRating   int16
+	Claimed         bool
+	ClaimState      string
+	ContentLimit    string
+	ReleasedOrd     int64
+	UpdatedTS       int64
+	Popularity      float64
+	Sources         []string
+	SourceKeys      []string
+	Titles          []WorkDocTitle
+	TagIDs          []int64
+	LabelIDs        []int64
+	EngineIDs       []int64
+	SeriesIDs       []int64
+	Intros          []WorkDocIntro
+	Ratings         map[string]float64
+	Rank            map[string]map[string]float64
+	Platforms       []string
+	Circulation     string
+	PlaytimeMinutes int
+	NotVN           bool
 }
 
 var alreadyBayesianRatingSources = []string{"vndb", "nextmoe"}
@@ -86,6 +91,11 @@ func BuildWorkDoc(in WorkDocInput) EntityDoc {
 		TagIDs: in.TagIDs, LabelIDs: in.LabelIDs,
 		EngineIDs: in.EngineIDs, SeriesIDs: in.SeriesIDs,
 		ReleasedOrd: in.ReleasedOrd, UpdatedTS: in.UpdatedTS,
+		Rank: in.Rank, Platforms: in.Platforms, Circulation: in.Circulation, NotVN: in.NotVN,
+	}
+	if in.PlaytimeMinutes > 0 {
+		pt := in.PlaytimeMinutes
+		d.Playtime = &pt
 	}
 	seen := map[string]bool{in.DisplayName: true}
 	d.SetNameOrAlias(GuessLang(in.DisplayName), in.DisplayName)

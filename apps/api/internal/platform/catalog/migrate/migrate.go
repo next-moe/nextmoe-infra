@@ -98,6 +98,11 @@ func Run(db *gorm.DB) error {
 		// NULL on every existing row and stay that way until backfill-work-ratings
 		// runs again (it is in the bgm weekly, so untouched trees self-heal there).
 		&model.CatalogWorkRating{},
+		// 2026-11-01: the fitted rating model behind /v2/catalog/rankings, one
+		// row per nightly fit (the newest 14 are kept). New and empty; until
+		// reindex-catalog first fits one, the rankings face answers 503 and the
+		// works index carries no rank block.
+		&model.CatalogRatingModel{},
 		&model.CatalogWorkTag{},          // bodyless verbatim folksonomy tags (step 58b media-aggregation facet B)
 		&model.CatalogWorkPopularity{},   // bodyless per-metric popularity counters (step 62 popularity facet)
 		&model.CatalogWorkPlaytime{},     // per-source playtime estimates (step 91 playtime facet — no claimed bridge)

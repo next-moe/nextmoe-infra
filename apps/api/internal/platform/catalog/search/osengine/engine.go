@@ -381,6 +381,7 @@ type osHits struct {
 type osHit struct {
 	ID     string          `json:"_id"`
 	Source json.RawMessage `json:"_source"`
+	Sort   []any           `json:"sort"`
 }
 
 type osTermsAgg struct {
