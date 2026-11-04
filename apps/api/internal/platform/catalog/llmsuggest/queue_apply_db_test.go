@@ -284,7 +284,7 @@ func TestKeptApartReleasesQuarantine(t *testing.T) {
 	require.NoError(t, db.Create(&QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork,
 		AID: lo, BID: hi, InputHash: "hash-release", Model: "test", PromptVersion: PromptWorkPair,
-		Verdict: VerdictSame, Confidence: 1, Evidence: []byte(`{}`),
+		Verdict: VerdictUnsure, Confidence: 1, Evidence: []byte(`{}`),
 	}).Error)
 
 	st, err := RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
@@ -298,6 +298,69 @@ func TestKeptApartReleasesQuarantine(t *testing.T) {
 	assert.Equal(t, model.CandidateStatusDeferred, status)
 	require.NoError(t, db.Raw(`SELECT status FROM catalog_work WHERE id = ?`, held).Scan(&workStatus).Error)
 	assert.Equal(t, model.WorkStatusLive, workStatus)
+}
+
+// 273420 was quarantined as a twin of 61790, judged same at 0.95, deferred for
+// want of a corroborator, and published that night as a live duplicate.
+func TestUncorroboratedSameKeepsQuarantine(t *testing.T) {
+	db := testCatalogDB(t)
+	require.NoError(t, migrate.Run(db))
+	require.NoError(t, seed.Run(db))
+	require.NoError(t, db.Exec(
+		"TRUNCATE catalog_merge_proposal, catalog_revision, catalog_match_candidate, catalog_external_ref, catalog_work RESTART IDENTITY CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE src_llm.queue_verdict RESTART IDENTITY").Error)
+
+	var medium int16
+	require.NoError(t, db.Raw(`SELECT id FROM catalog_medium WHERE key = 'galgame'`).Scan(&medium).Error)
+	mk := func(name string, status int16) int64 {
+		w := &model.CatalogWork{
+			MediumID: medium, OLang: "ja", DisplayName: name,
+			ContentRating: model.ContentRatingAllAges, Status: status,
+		}
+		require.NoError(t, db.Create(w).Error)
+		return w.ID
+	}
+	file := func(a, b int64, status int16, hash string) (int64, int64) {
+		lo, hi := min(a, b), max(a, b)
+		require.NoError(t, db.Create(&model.CatalogMatchCandidate{
+			EntityType: model.EntityTypeWork, AID: lo, BID: hi,
+			Reason: model.CandidateReasonNameNormEqual, Status: status,
+		}).Error)
+		require.NoError(t, db.Create(&QueueVerdict{
+			Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork,
+			AID: lo, BID: hi, InputHash: hash, Model: "test", PromptVersion: PromptWorkPair,
+			Verdict: VerdictSame, Confidence: 0.95, Evidence: []byte(`{}`),
+		}).Error)
+		return lo, hi
+	}
+	candStatus := func(lo, hi int64) int16 {
+		var s int16
+		require.NoError(t, db.Raw(`SELECT status FROM catalog_match_candidate WHERE a_id = ? AND b_id = ?`, lo, hi).Scan(&s).Error)
+		return s
+	}
+
+	held := mk("D.C.5 to 4 Luminous Memories", model.WorkStatusQuarantine)
+	freshLo, freshHi := file(mk("D.C.5 to 4 ～ダ・カーポ5トゥ4～ ルミナスメモリーズ", model.WorkStatusLive), held,
+		model.CandidateStatusPending, "hash-fresh")
+	// a pair an earlier night deferred and released comes back to a person
+	backlogLo, backlogHi := file(mk("backlog A", model.WorkStatusLive), mk("backlog B", model.WorkStatusLive),
+		model.CandidateStatusDeferred, "hash-backlog")
+
+	st, err := RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
+		Queue: QueueWorkPair, Actor: 1, MinConfidenceReject: 0.7,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, st.Counts["applied_"+stampHeldSameUncorroborated], "counts: %v", st.Counts)
+	assert.Equal(t, model.CandidateStatusNeedsManual, candStatus(freshLo, freshHi))
+	assert.Equal(t, model.CandidateStatusNeedsManual, candStatus(backlogLo, backlogHi))
+
+	var workStatus int16
+	require.NoError(t, db.Raw(`SELECT status FROM catalog_work WHERE id = ?`, held).Scan(&workStatus).Error)
+	assert.Equal(t, model.WorkStatusQuarantine, workStatus)
+
+	_, _, released, err := testQueueService(db).ReleaseUnheldQuarantine(t.Context(), 1, "test", true)
+	require.NoError(t, err)
+	assert.Zero(t, released, "a held candidate holds its quarantined side")
 }
 
 func TestKeptApartKeepsQuarantineHeldByAnotherCandidate(t *testing.T) {
@@ -379,7 +442,7 @@ func TestKeptApartPairMergesWhenCorroboratorAppears(t *testing.T) {
 		Queue: QueueWorkPair, Actor: 1, MinConfidenceReject: 0.7,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 1, st.Counts["applied_"+stampKeptApartUncorroborated], "counts: %v", st.Counts)
+	assert.Equal(t, 1, st.Counts["applied_"+stampHeldSameUncorroborated], "counts: %v", st.Counts)
 
 	require.NoError(t, db.Create(&model.CatalogExternalRef{
 		EntityType: model.EntityTypeWork, EntityID: a, SourceID: eg,
@@ -428,7 +491,7 @@ func TestReplanningKeptApartWritesNothing(t *testing.T) {
 	require.NoError(t, db.Create(&QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork,
 		AID: lo, BID: hi, InputHash: "hash-replay", Model: "test", PromptVersion: PromptWorkPair,
-		Verdict: VerdictSame, Confidence: 1, Evidence: []byte(`{}`),
+		Verdict: VerdictUnsure, Confidence: 1, Evidence: []byte(`{}`),
 	}).Error)
 
 	opts := Options{Queue: QueueWorkPair, Actor: 1, MinConfidenceReject: 0.7}

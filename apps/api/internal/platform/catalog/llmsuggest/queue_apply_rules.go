@@ -14,6 +14,7 @@ const (
 	applyDefer          = "defer"
 	applyConfirm        = "confirm"
 	applyConfirmRelated = "confirm-related"
+	applyHold           = "hold"
 
 	// The stamp is renamed because the veto behind it changed: ErogameScape
 	// and Bangumi left the identity-veto list. On 2026-09-18 the veto rejected
@@ -45,8 +46,14 @@ const (
 	stampKeptApartUncorroborated = "kept_apart_uncorroborated"
 	stampKeptApartLowConfidence  = "kept_apart_low_confidence"
 	stampHeldProbableDisputed    = "held_probable_disputed"
-	skipKeptApartUnchanged       = "kept_apart_unchanged"
-	skipCuratedRef               = "skipped_curated_ref"
+	// Deferring a same verdict released the quarantined side: 273420 was minted
+	// quarantined as a twin of 61790, judged same at 0.95, deferred for want of
+	// a corroborator and published as a duplicate the same night. A same verdict
+	// nothing corroborates goes to a person instead, which keeps the
+	// quarantine. Re-planned nightly like the kept-apart stamps.
+	stampHeldSameUncorroborated = "held_same_uncorroborated"
+	skipKeptApartUnchanged      = "kept_apart_unchanged"
+	skipCuratedRef              = "skipped_curated_ref"
 
 	skipUnsure            = "skipped_unsure"
 	skipBelowConfidence   = "skipped_below_confidence"
@@ -267,7 +274,8 @@ func planCreditName(verdict string, conf, minAccept, minReject float64) applyPla
 // by the sampling, not by the judgement, and what it decides here is a merge
 // that production cannot undo. The name gate replaced it.
 //
-// same and unsure share a branch for the same reason. The prompt defines unsure
+// same and unsure share the accept branch for the same reason, and part only
+// when nothing corroborates (stampHeldSameUncorroborated). The prompt defines unsure
 // as neither an agreement nor a discriminator, and the pairs that get it are
 // the ones whose other side is a bangumi row with no year, no label and no ref
 // -- a thin dossier, not a doubt about identity. 172 of the 305 pairs that pass
@@ -302,15 +310,19 @@ func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev p
 			src, tgt := survivorTarget(s)
 			return applyPlan{Action: applyAccept, Source: src, Target: tgt, Reason: reason}
 		}
+		if verdict == VerdictSame {
+			return applyPlan{Action: applyHold, Stamp: stampHeldSameUncorroborated}
+		}
 		return applyPlan{Action: applyDefer, Stamp: stampKeptApartUncorroborated}
 	default:
 		return applyPlan{Skip: skipUnknownVerdict}
 	}
 }
 
-func isKeptApartStamp(stamp string) bool {
+func isReplannedStamp(stamp string) bool {
 	switch stamp {
-	case stampKeptApartBothClaimed, stampKeptApartHiddenClaim, stampKeptApartUncorroborated, stampKeptApartLowConfidence:
+	case stampKeptApartBothClaimed, stampKeptApartHiddenClaim, stampKeptApartUncorroborated, stampKeptApartLowConfidence,
+		stampHeldSameUncorroborated:
 		return true
 	default:
 		return false

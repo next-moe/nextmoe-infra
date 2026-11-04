@@ -38,6 +38,9 @@ func TestAcceptReasonPreferenceOrder(t *testing.T) {
 		DeclaredSubject: "100", DeclaredWorkno: "RJ012345",
 		LooseName: "abcdefgh", LooseHolders: exclusiveNameHolders,
 		StrippedName: "strippedkey", StrippedHolders: exclusiveNameHolders,
+		DatesNear: true,
+		TitleName: "titlekey", TitleHolders: exclusiveNameHolders,
+		StoreSourceKey: "dmm", StoreID: "abc_0001", StoreHolders: exclusiveNameHolders,
 	}
 	assert.Equal(t, `sole holders of "folded"`, planWorkPair(VerdictSame, 1, 0.7, s, ev).Reason)
 	ev.Name, ev.Holders = "", 0
@@ -49,7 +52,11 @@ func TestAcceptReasonPreferenceOrder(t *testing.T) {
 	ev.LooseName, ev.LooseHolders = "", 0
 	assert.Equal(t, `sole holders of stripped "strippedkey"`, planWorkPair(VerdictSame, 1, 0.7, s, ev).Reason)
 	ev.StrippedName, ev.StrippedHolders = "", 0
-	assert.Equal(t, stampKeptApartUncorroborated, planWorkPair(VerdictSame, 1, 0.7, s, ev).stamp())
+	assert.Equal(t, `sole holders of title "titlekey", release dates agree`, planWorkPair(VerdictSame, 1, 0.7, s, ev).Reason)
+	ev.TitleName, ev.TitleHolders = "", 0
+	assert.Equal(t, "release and work share dmm:abc_0001, release dates agree", planWorkPair(VerdictSame, 1, 0.7, s, ev).Reason)
+	ev.StoreSourceKey, ev.StoreID, ev.StoreHolders = "", "", 0
+	assert.Equal(t, stampHeldSameUncorroborated, planWorkPair(VerdictSame, 1, 0.7, s, ev).stamp())
 }
 
 func TestStrippedKeyIgnoresRemakeAndVolumePhrases(t *testing.T) {

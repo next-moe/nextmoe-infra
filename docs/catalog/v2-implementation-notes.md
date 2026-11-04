@@ -2871,3 +2871,15 @@ The `covers` and `cover` descriptions and the covers sub-resource description no
 - **A full reindex fits the model first.** It fits in about 4 s over 125k rating rows. The works reindex on a copy of the catalog took about 60 s at batch 1,000; the dev OpenSearch (512 MB heap) tripped its parent circuit breaker at batch 5,000, already at 480 MB real usage before the request.
 
 Defaults and scale: `metric=lower` for `order=desc` and `metric=upper` for `order=asc`. On a copy of the catalog the default query answers in about 20 ms, and a scripted `sources=` subset in 60–140 ms. **Spec 2.82.0**, additive. **Migration:** `go run ./cmd/migrate catalog` creates `catalog_rating_model` (empty); the next `reindex-catalog` fits the first model and fills the new index fields.
+
+## Duplicate-work gaps: adult Bangumi games, cross-grain store ids, held same verdicts (2026-11-01)
+
+Three user reports, three holes:
+
+- **"Hentai Girl Karen" was missing** (bgm 280923). The Bangumi gate minted only subjects carrying P (PC + VN/乙女, or ADV/AVG + age tag), T (Galgame tags) or X (title in EG/DLsite/VNDB); a PC adult puzzle game carries none. A fourth signal, **A**, admits a subject Bangumi marks `nsfw` or tags `R18`, unless its platforms are console/mobile only. The same expression now sets the minted work's rating, so an `R18`-tagged subject with `nsfw=false` is minted R18 too. Measured on the 10-30 copy: 4,563 subjects carry A, 2,683 would mint live and 1,953 collide with an existing title (minted quarantined for the judge). The weekly `to_create=150` ceiling stays; the backlog is a one-off unlimited `expand-bgm-type4-gated --apply`.
+- **6253 / 217311 never became a candidate.** VNDB lists dmm `hobc_0507` on 6253's release; EG anchors it on 217311 itself. The census paired work-level refs only. A third `refpairs` branch now pairs a release-level exact ref with another work's work-level exact/probable ref (anchor-conflicting pairs excluded). Such a pair lands in the new manual bucket `release-ref`, never `auto`: the 694 production pairs mix true duplicates with DLC sets, packs and bundles that share the base game's store id.
+- **273420 was published as a twin of 61790.** Minted quarantined on a title collision, judged same at 0.95, then deferred for want of a corroborator; deferral releases quarantine. Two changes:
+  - **Dated corroborators** (same verdict only): a source title (not machine) official on at least one side that exactly these two works hold, or a dmm/Steam id one work holds on a release and the other on the work with exactly two holders — each only when both works have a release date (month known) or Bangumi date within 62 days. Neither fact alone: ラブレッスン (1999) and Lessons in Love (2022) share an exclusive machine title, and a DLC set shares its base game's store id.
+  - **`held_same_uncorroborated`**: a same verdict nothing corroborates moves the candidate to `needs_manual` (from pending or deferred) instead of deferring it, which keeps a quarantined side quarantined. The stamp is re-planned nightly, so a later corroborator still accepts it. `unsure` keeps `kept_apart_uncorroborated`.
+
+No spec change, no migration.

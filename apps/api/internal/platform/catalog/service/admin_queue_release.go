@@ -70,6 +70,16 @@ func (s *AdminQueueService) deferWorkCandidate(ctx context.Context, d CandidateD
 	return &CandidateOutcome{Released: released}, nil
 }
 
+// HoldWorkCandidate returns an undecided work candidate to needs_manual, which
+// keeps a quarantined side quarantined. A candidate a person already accepted
+// or rejected is left as it is.
+func (s *AdminQueueService) HoldWorkCandidate(ctx context.Context, aID, bID int64) error {
+	return s.db.WithContext(ctx).Model(&model.CatalogMatchCandidate{}).
+		Where("entity_type = ? AND a_id = ? AND b_id = ? AND status IN ?", model.EntityTypeWork, aID, bID,
+			[]int16{model.CandidateStatusPending, model.CandidateStatusDeferred}).
+		Updates(map[string]any{"status": model.CandidateStatusNeedsManual, "decided_by": nil, "decided_at": nil}).Error
+}
+
 func (s *AdminQueueService) ReleaseWork(ctx context.Context, workID, actor int64, note string) error {
 	var row struct {
 		ID        int64
