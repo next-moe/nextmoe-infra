@@ -44,7 +44,11 @@ watch(open, async (visible) => {
 })
 
 const pendingEntities = computed(() =>
-  entities.value.filter((entity) => states.value[entity.key] !== 'done')
+  entities.value.filter(
+    (entity) =>
+      states.value[entity.key] !== 'done' &&
+      entity.workspace.editor.isDirty.value
+  )
 )
 const finished = computed(
   () =>
@@ -184,6 +188,7 @@ const stateIcon: Record<RowState, string> = {
       </ul>
 
       <template v-if="!finished">
+        <slot name="before-note" />
         <KunLoading
           v-if="checking"
           spinner

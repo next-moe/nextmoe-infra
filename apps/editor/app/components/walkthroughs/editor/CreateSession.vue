@@ -47,7 +47,10 @@ const source: WalkthroughDocumentSource = {
     lang.value = next
   },
   hidden: () => false,
+  savedHidden: () => false,
+  canHide: () => false,
   setHidden: () => undefined,
+  backlog: () => null,
   pins: () => pins.value,
   setPins: (next) => {
     pins.value = next

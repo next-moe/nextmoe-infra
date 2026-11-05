@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import type { CatalogProposal } from '#shared/types/catalog'
 import type { WtChart, WtLang, WtPin } from '#shared/types/walkthrough'
-import type { WalkthroughDocumentSource } from '~/composables/useWalkthroughDocument'
+import type {
+  WalkthroughBacklogState,
+  WalkthroughDocumentSource
+} from '~/composables/useWalkthroughDocument'
 import { WT_FIELD } from '~/constants/walkthrough'
+import {
+  importReviewGaps,
+  importReviewProgress
+} from '~/utils/walkthrough/importReview'
 
 const route = useRoute()
 const api = useEditorApi()
@@ -35,13 +42,35 @@ const value = <T,>(key: string, fallback: T) =>
 const canPropose = (key: string) =>
   Boolean(editor.capabilityByKey.value.get(key)?.can_propose)
 
+const { entry: backlogEntry, refresh: refreshBacklog } =
+  useWalkthroughBacklog(entityId)
+const backlog = computed<WalkthroughBacklogState | null>(() => {
+  const entry = backlogEntry.value
+  if (!entry) return null
+  const chart = (editor.draft.value[WT_FIELD.chart] ?? {}) as WtChart
+  return { ...entry, progress: importReviewProgress(entry.review, chart) }
+})
+watch(
+  () => session.submissions.value.length,
+  () => refreshBacklog()
+)
+
+const hiddenTouched = ref(false)
+const setHidden = (hidden: boolean) => {
+  hiddenTouched.value = true
+  editor.setValue(WT_FIELD.hidden, hidden)
+}
+
 const source: WalkthroughDocumentSource = {
   chart: () => editor.draft.value[WT_FIELD.chart],
   setChart: (chart: WtChart) => editor.setValue(WT_FIELD.chart, chart),
   lang: () => value<WtLang>(WT_FIELD.lang, 'ja'),
   setLang: (lang: WtLang) => editor.setValue(WT_FIELD.lang, lang),
   hidden: () => value<boolean>(WT_FIELD.hidden, false),
-  setHidden: (hidden: boolean) => editor.setValue(WT_FIELD.hidden, hidden),
+  savedHidden: () => editor.base.value[WT_FIELD.hidden] === true,
+  canHide: () => canPropose(WT_FIELD.hidden),
+  setHidden,
+  backlog: () => backlog.value,
   pins: () => value<WtPin[]>(WT_FIELD.pins, []),
   setPins: (pins: WtPin[]) => editor.setValue(WT_FIELD.pins, pins),
   workId: () => {
@@ -62,6 +91,24 @@ const workId = computed(() => source.workId())
 
 const changesOpen = ref(false)
 const submitOpen = ref(false)
+
+const offerPublish = computed(
+  () =>
+    Boolean(backlog.value) &&
+    !backlog.value?.pendingPublishId &&
+    source.canHide() &&
+    source.savedHidden()
+)
+watch(submitOpen, (open) => {
+  if (
+    open &&
+    offerPublish.value &&
+    backlog.value?.progress.complete &&
+    !hiddenTouched.value
+  ) {
+    editor.setValue(WT_FIELD.hidden, false)
+  }
+})
 
 const openSubmit = () => {
   if (session.canSubmit.value) {
@@ -177,6 +224,20 @@ useHead({ title: `编辑攻略 #${entityId} · 未萌编辑台` })
     </WalkthroughsEditorWorkbench>
 
     <WorkspaceChangesModal v-model="changesOpen" />
-    <WorkspaceSubmitDialog v-model="submitOpen" />
+    <WorkspaceSubmitDialog v-model="submitOpen">
+      <template v-if="offerPublish && backlog" #before-note>
+        <KunCheckBox
+          :model-value="!source.hidden()"
+          color="success"
+          label="同时上线这篇攻略"
+          :description="
+            backlog.progress.complete
+              ? '导入时缺的选项和结局都已经补上了。勾选后，这次修改生效时攻略会出现在作品页上。'
+              : `${importReviewGaps(backlog.progress).join('，')}。确认补全后再勾选。`
+          "
+          @update:model-value="setHidden(!$event)"
+        />
+      </template>
+    </WorkspaceSubmitDialog>
   </div>
 </template>

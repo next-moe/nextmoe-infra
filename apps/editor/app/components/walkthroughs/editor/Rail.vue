@@ -12,7 +12,6 @@ const props = defineProps<{
   roster: CatalogWorkCharacter[]
   releases: CatalogRelease[]
   rosterLoaded: boolean
-  hideable: boolean
 }>()
 
 const doc = useWalkthroughDocument()
@@ -109,10 +108,15 @@ watch(
           <p class="text-default-400 px-1 text-xs">挂错作品时在这里改。</p>
         </div>
         <KunSwitch
-          v-if="props.hideable && !doc.readonly.value"
+          v-if="doc.canHide.value"
           :model-value="doc.hidden.value"
           size="sm"
           label="隐藏这篇攻略"
+          :description="
+            doc.savedHidden.value
+              ? '隐藏的攻略不会出现在作品页上。关掉开关再提交，就会上线。'
+              : ''
+          "
           @update:model-value="doc.setHidden(Boolean($event))"
         />
       </section>
