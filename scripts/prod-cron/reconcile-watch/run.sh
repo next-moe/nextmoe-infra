@@ -158,7 +158,7 @@ dry_lane bgm-type4 sh -c "$DSNSH"'; expand-bgm-type4-gated --dsn "$CAT"'
 lane_backlog bgm-type4 to_create
 
 dry_lane getchu sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG"'
-lane_backlog getchu attached minted_live minted_quarantined
+lane_backlog getchu attached minted_live minted_quarantined folds
 
 dry_lane release-dates sh -c "$DSNSH"'; backfill-release-meta --dsn "$CAT" --dlsite-dsn "$DL" --eg-dsn "$EG" --getchu-dsn "$GC"'
 lane_backlog release-dates all_filled all_moved all_cleared

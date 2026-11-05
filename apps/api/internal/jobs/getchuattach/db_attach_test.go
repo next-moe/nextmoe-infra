@@ -16,7 +16,7 @@ import (
 func TestUniqueHitDatedAttaches(t *testing.T) {
 	requireDB(t)
 	w := mkWork(t, "Alpha Game Title")
-	mkReleaseYMD(t, w, i16(2001), i16(1), i16(1))
+	mkReleaseKind(t, w, model.ReleaseKindDigital, i16(2001), i16(1), i16(1))
 	insertFetched(t, "100", "Alpha Game Title", "", "2001/01/01")
 
 	before := workCount(t)
@@ -204,7 +204,7 @@ func TestAnchoredIdOnDeletedReleaseIsNotPopulation(t *testing.T) {
 func TestPlaceholderDateLeavesReleaseUndated(t *testing.T) {
 	requireDB(t)
 	w := mkWork(t, "Unannounced Future Title")
-	mkReleaseYMD(t, w, i16(2099), i16(12), i16(31))
+	mkReleaseKind(t, w, model.ReleaseKindDigital, i16(2099), i16(12), i16(31))
 	insertFetched(t, "98", "Unannounced Future Title", "フロントウイング", "2099/12/31")
 
 	st := runLane(t, true, "")
@@ -282,7 +282,7 @@ func TestSecondRunPlansNothing(t *testing.T) {
 func TestReceiptsMatchWrites(t *testing.T) {
 	requireDB(t)
 	w := mkWork(t, "Receipt Attach Title")
-	mkReleaseYMD(t, w, i16(2001), i16(1), i16(1))
+	relID := mkReleaseYMD(t, w, i16(2001), i16(1), i16(1))
 	insertFetched(t, "80", "Receipt Attach Title", "", "2001/01/01")
 	seedMintBrand(t, 14, "ReceiptMint")
 	insertItem(t, item{
@@ -314,12 +314,14 @@ func TestReceiptsMatchWrites(t *testing.T) {
 			byID[id] = r
 		}
 	}
-	attach := byID["80"]
-	assert.Equal(t, actionAttach, attach.Action)
-	assert.Equal(t, "80", attach.GetchuID)
-	assert.Equal(t, w, attach.WorkID)
-	assert.Equal(t, ruleTitleDate, attach.MatchedBy)
-	assert.Equal(t, attach.WorkID, attachedRelease(t, "80").WorkID)
+	anchor := byID["80"]
+	assert.Equal(t, actionAnchor, anchor.Action)
+	assert.Equal(t, "80", anchor.GetchuID)
+	assert.Equal(t, w, anchor.WorkID)
+	assert.Equal(t, relID, anchor.ReleaseID)
+	assert.Equal(t, placedDay, anchor.PlacedBy)
+	assert.Equal(t, ruleTitleDate, anchor.MatchedBy)
+	assert.Equal(t, relID, attachedRelease(t, "80").ID)
 	mint := byID["81"]
 	assert.Equal(t, actionMint, mint.Action)
 	assert.Equal(t, "live", mint.Status)

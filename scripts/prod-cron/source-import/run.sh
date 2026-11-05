@@ -397,12 +397,12 @@ while [ "$getchu_pass" -le 3 ] && [ "$GROUP_FAIL" -eq 0 ]; do
   if ! dry_ok getchu-attach sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG"'; then
     break
   fi
-  if ! check_counters getchu-attach "$last_dry_log" attached=300 minted_live=50 minted_quarantined=100; then
+  if ! check_counters getchu-attach "$last_dry_log" attached=300 minted_live=50 minted_quarantined=100 folds=300; then
     ceiling_failed
     break
   fi
   if [ "$getchu_pass" -gt 1 ] \
-     && check_counters getchu-attach "$last_dry_log" attached=0 minted_live=0 minted_quarantined=0 >/dev/null 2>&1; then
+     && check_counters getchu-attach "$last_dry_log" attached=0 minted_live=0 minted_quarantined=0 folds=0 >/dev/null 2>&1; then
     echo "getchu-attach: converged after $((getchu_pass - 1)) apply pass(es)"
     break
   fi

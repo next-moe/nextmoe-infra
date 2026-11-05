@@ -12,6 +12,7 @@ const (
 	actionAttach = "attach"
 	actionAnchor = "anchor"
 	actionMint   = "mint"
+	actionFold   = "fold"
 
 	ruleJanVNDB     = "rule:getchu-jan-vndb"
 	ruleJanEG       = "rule:getchu-jan-eg"
@@ -43,6 +44,9 @@ type plannedAction struct {
 	Members    []item
 	Quarantine bool
 	Primary    item
+	FromID     int64
+	PlacedBy   string
+	Tie        string
 }
 
 func decide(snap snapshot, pop []item) ([]plannedAction, Stats) {
@@ -194,6 +198,12 @@ func releaseParts(getchuDate string, now time.Time) (y, m, d *int16) {
 }
 
 func attachOn(it item, workID int64, rule string, snap snapshot) plannedAction {
+	if pl, ok := counterpart(it, workID, snap); ok {
+		return plannedAction{
+			Action: actionAnchor, GetchuID: it.GetchuID, WorkID: workID, ReleaseID: pl.ReleaseID,
+			MatchedBy: rule, Hits: []int64{workID}, PlacedBy: pl.By, Tie: pl.Tie,
+		}
+	}
 	y, m, d := releaseParts(it.ReleaseDate, snap.now)
 	return plannedAction{
 		Action: actionAttach, GetchuID: it.GetchuID, WorkID: workID,

@@ -110,7 +110,8 @@ func clean(t *testing.T) {
 		"catalog_match_candidate", "catalog_match_rejection", "catalog_external_ref",
 		"catalog_work_title", "catalog_work_label",
 		"catalog_release", "catalog_revision", "catalog_work", "catalog_label",
-		"src_bangumi.subject", "src_vndb.releases",
+		"src_bangumi.subject", "src_vndb.releases", "src_vndb.releases_platforms",
+		"src_vndb.extlinks", "src_vndb.releases_extlinks",
 		"getchuattach_gc.items",
 		"getchuattach_eg.games", "getchuattach_eg.brands", "getchuattach_eg.items", "getchuattach_eg.item_games",
 	} {
@@ -158,8 +159,13 @@ func mkWorkTitle(t *testing.T, workID int64, title string, kind int16) {
 
 func mkReleaseYMD(t *testing.T, workID int64, y, m, d *int16) int64 {
 	t.Helper()
+	return mkReleaseKind(t, workID, model.ReleaseKindDefault, y, m, d)
+}
+
+func mkReleaseKind(t *testing.T, workID int64, kind int16, y, m, d *int16) int64 {
+	t.Helper()
 	rel := model.CatalogRelease{
-		WorkID: workID, Kind: 0, ReleasedY: y, ReleasedM: m, ReleasedD: d,
+		WorkID: workID, Kind: kind, ReleasedY: y, ReleasedM: m, ReleasedD: d,
 		Extra: datatypes.JSON([]byte(`{}`)), FieldProvenance: datatypes.JSON([]byte(`{}`)),
 	}
 	require.NoError(t, testDB.Create(&rel).Error)
