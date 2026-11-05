@@ -79,13 +79,25 @@ PUT    /v2/me/work-records/{work_id}
 
 一条评分是**一个人、一部作品、所有 NextMoe 站点共用的一条**。`id`、`client_id` 和 `site` 永远是第一次写入时的值，后来换一个站点改内容也不会换主人。
 
-`PUT /v2/me/ratings/{work_id}` 创建或整份替换。`overall` 是 1 到 10 的整数，`recommend` 是 `strong_no / no / neutral / yes / strong_yes`。`aspect_scores` 的每一项也是 1 到 10，不评的项不送。`spoiler_level` 不送等于 `none`。`short_summary` 是纯文本，最长 2000 个字符，不送或空串等于没有短评。和已经存着的内容完全一样时，这次写入不落库。作品的 nextmoe 评分（`/v2/catalog/works/{id}/ratings`）随即更新。
+`PUT /v2/me/ratings/{work_id}` 创建或整份替换。`overall` 是 1 到 10 的整数，`recommend` 是 `strong_no / no / neutral / yes / strong_yes`。`aspect_scores` 的每一项也是 1 到 10，不评的项不送。`spoiler_level` 不送等于 `none`。`short_summary` 是 Markdown（见下面的 [显示短评](#rating-summary)），最长 2000 个字符，不送或空串等于没有短评。和已经存着的内容完全一样时，这次写入不落库。作品的 nextmoe 评分（`/v2/catalog/works/{id}/ratings`）随即更新。
 
 任何拿着用户令牌的应用都能写评分，与游玩时长一样，不需要 scope。评分在所有站点公开，所以短评要过内容检查：
 
 - 第一方站点（鲲 Galgame、鲲 Galgame 补丁、LetMoe）在写入之前自己检查，中央不再重复。
 - 第三方应用送来的短评由中央检查，只在短评非空、并且和已存的不一样时才查。被拒绝是 `422 VALIDATION_FAILED`，`errors[0].pointer` 是 `/short_summary`（work-records 上是 `/rating/short_summary`），`reason` 是 `NOT_ALLOWED_VALUE`，这次什么都不写。通过的短评写入之后还会被异步复查，复查出问题的由版主删除（见 [版主删除](#moderation)）。
 - 检查服务暂时不可用时照常写入，事后复查。
+
+### 显示短评 {#rating-summary}
+
+`short_summary` 存的是作者写下的原文，用的是 @kungal/editor 写出的 NextMoe Markdown 方言：CommonMark 加上 GFM 删除线和自动链接，`||行内剧透||` 和 `:::spoiler` … `:::` 块剧透。**每一个换行都是换行**，所以以前的纯文本短评照旧按行显示。
+
+不要自己渲染它。每条评分都带着中央写入时烹好的三个只读字段，所有站点显示的是同一个结果：
+
+- `short_summary_html`：消毒过的 HTML，原样插进页面即可。它包含段落、换行、粗体、斜体、删除线、行内代码与代码块、http(s) 链接（`rel="nofollow ugc"`）、列表、引用和剧透。剧透是带 `class="kun-spoiler kun-spoiler-hidden"` 的 `span`（行内）或 `div`（块），点开的样式和交互由站点自己做。原始 HTML、图片（只留替代文字）、标题、表格、数学公式和缩进代码块都按文本输出。
+- `short_summary_text`：纯文本，所有剧透换成 `███`，换行保留。适合列表预览、通知和 `og:description`。
+- `short_summary_has_spoiler`：短评里至少有一处剧透标记。它和作者对整条短评声明的 `spoiler_level` 是两回事。
+
+没有短评时，三者分别是空串、空串和 `false`。这三个字段比原文长，可以用 `fields=` 只取需要的那个。
 
 读是放开的。`GET /v2/me/ratings` 与 `GET /v2/me/ratings/{work_id}` 任何拿着这个用户令牌的应用都能调，不需要 scope。列表按目录最后一次改动这条评分的时间从旧到新排，`next_cursor` 是增量水位；`work_ids=` 是最多 100 个 id 的批量读，不分页。单条不存在是 404。
 

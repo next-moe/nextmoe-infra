@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 
+	"api/internal/platform/markdown"
+
 	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
@@ -13,15 +15,13 @@ import (
 	"golang.org/x/net/html"
 )
 
-const SpoilerMask = "███"
-
 var (
 	// The sites' rendering, step for step (the forum's markdown.go): GFM,
 	// math and spoilers with raw HTML, then UGC sanitizing that keeps class.
 	// Math matters to spoilers — || inside $…$ is not a delimiter there — and
 	// the sanitizer drops what the site never shows, such as <noscript>.
 	excerptMarkdown = goldmark.New(
-		goldmark.WithExtensions(extension.GFM, mathjax.MathJax, &spoilerExtension{}),
+		goldmark.WithExtensions(extension.GFM, mathjax.MathJax, markdown.Spoiler),
 		goldmark.WithRendererOptions(gmhtml.WithUnsafe()),
 	)
 	excerptPolicy = func() *bluemonday.Policy {
@@ -39,15 +39,15 @@ var (
 )
 
 // PlainText is a post's Markdown as the text a reader sees without opening
-// anything: every spoiler becomes SpoilerMask, collapsed blocks, images and
+// anything: every spoiler becomes markdown.SpoilerMask, collapsed blocks, images and
 // CSS-hidden text are left out, and whitespace collapses to single spaces. The
 // source is rendered untouched — editing it first (stripping a "> 回复"
 // header) moved lines out of the quote holding a spoiler, and leaked them — and
 // the HTML is read as a browser builds it (html.Parse), so a stray end tag
 // cannot end a spoiler early.
-func PlainText(markdown string) string {
+func PlainText(source string) string {
 	var buf bytes.Buffer
-	if err := excerptMarkdown.Convert([]byte(markdown), &buf); err != nil {
+	if err := excerptMarkdown.Convert([]byte(source), &buf); err != nil {
 		return ""
 	}
 	root, err := html.Parse(excerptPolicy.SanitizeReader(&buf))
@@ -63,7 +63,7 @@ func PlainText(markdown string) string {
 			return
 		case html.ElementNode:
 			if isSpoiler(n) || n.Data == "details" {
-				b.WriteString(" " + SpoilerMask + " ")
+				b.WriteString(" " + markdown.SpoilerMask + " ")
 				return
 			}
 			if hasHiddenClass(n) {
@@ -95,7 +95,7 @@ func classes(n *html.Node) []string {
 }
 
 func isSpoiler(n *html.Node) bool {
-	return slices.ContainsFunc(classes(n), func(c string) bool { return strings.HasPrefix(c, spoilerClass) })
+	return slices.ContainsFunc(classes(n), func(c string) bool { return strings.HasPrefix(c, markdown.SpoilerClass) })
 }
 
 func hasHiddenClass(n *html.Node) bool {

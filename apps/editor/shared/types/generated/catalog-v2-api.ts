@@ -9165,7 +9165,7 @@ export interface components {
              */
             recommend: "strong_no" | "no" | "neutral" | "yes" | "strong_yes";
             /**
-             * @description Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant.
+             * @description Short review in Markdown (the NextMoe dialect @kungal/editor writes; every newline is a line break), at most 2000 characters. Absent or empty means none. The catalog renders it into short_summary_html and short_summary_text. Free text; must not be used as a discriminant.
              * @example 画面和音乐都很出色，主线一周目通关后还想再走一遍。
              */
             short_summary?: string;
@@ -10667,8 +10667,14 @@ export interface components {
              * @enum {string}
              */
             recommend: "strong_no" | "no" | "neutral" | "yes" | "strong_yes";
-            /** @description The author's short review, plain text. Empty string if none. Must not be used as a discriminant. */
+            /** @description The author's short review as written: Markdown in the NextMoe dialect (CommonMark, GFM strikethrough and autolinks, ||inline|| and :::spoiler block spoilers), every newline a line break. Empty string if none. Show short_summary_html or short_summary_text rather than rendering this yourself. Must not be used as a discriminant. */
             short_summary: string;
+            /** @description true when short_summary hides at least one part behind a spoiler. Independent of spoiler_level, which is what the author declared for the whole review. */
+            short_summary_has_spoiler: boolean;
+            /** @description short_summary rendered and sanitized by the catalog; display it as is. Paragraphs, line breaks, emphasis, strong, strikethrough, inline code and code blocks, http(s) links (rel="nofollow ugc"), lists, blockquotes and spoilers (class="kun-spoiler kun-spoiler-hidden", a span inline and a div for a block, for the site to reveal). Raw HTML, images, headings, tables and math come out as text. Empty string if none. Must not be used as a discriminant. */
+            short_summary_html: string;
+            /** @description short_summary as plain text, for previews and notifications: markup dropped, every spoiler replaced by ███, line breaks kept. Empty string if none. Must not be used as a discriminant. */
+            short_summary_text: string;
             /** @description Catalog site that app is bound to, empty when none. Open vocabulary; display only, must not be used as a discriminant. */
             site: string;
             /**

@@ -41,7 +41,7 @@ One transaction for the three parts: either all are written or none is. PUT repl
 | `rating.aspect_scores.voice` | 否 | integer (int64) | Absent or null when not rated. |
 | `rating.overall` | 是 | integer (int64) | The overall score, a whole number from 1 to 10. |
 | `rating.recommend` | 是 | string | How strongly the author recommends the work. 取值：strong_no \| no \| neutral \| yes \| strong_yes |
-| `rating.short_summary` | 否 | string | Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant. |
+| `rating.short_summary` | 否 | string | Short review in Markdown (the NextMoe dialect @kungal/editor writes; every newline is a line break), at most 2000 characters. Absent or empty means none. The catalog renders it into short_summary_html and short_summary_text. Free text; must not be used as a discriminant. |
 | `rating.spoiler_level` | 否 | string | How much short_summary gives away. Absent means none. 取值：none \| portion \| serious |
 | `work_state` | 否 | object |  |
 | `work_state.completion` | 否 | string | How much is finished. Absent means unstated. Refused with wish. 取值：one_route \| main \| all |
