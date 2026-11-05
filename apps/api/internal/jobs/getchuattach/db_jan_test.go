@@ -35,7 +35,7 @@ func TestJanVNDBAnchorsTheExistingRelease(t *testing.T) {
 func TestJanEGAttachesANewRelease(t *testing.T) {
 	requireDB(t)
 	w := mkWork(t, "JAN EG Host")
-	mkReleaseYMD(t, w, i16(2001), i16(1), i16(1))
+	mkReleaseKind(t, w, model.ReleaseKindDigital, i16(2001), i16(1), i16(1))
 	insertEGGame(t, 40, "JAN EG Host", "2001-01-01", 1)
 	mapEGWork(t, w, 40)
 	insertEGItemJAN(t, 9, "4901111111111")

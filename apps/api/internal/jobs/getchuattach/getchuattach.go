@@ -55,6 +55,12 @@ type Stats struct {
 	MintedLive        int
 	MintedQuarantined int
 	Candidates        int
+	EditionAnchored   int
+	Folds             int
+	RowsRetired       int
+	ParallelKept      int
+	TieTitle          int
+	TieLowest         int
 	Written           int
 	Errors            int
 	HoldoutCorrect    int
@@ -101,6 +107,8 @@ func RunWithDB(ctx context.Context, db, gcDB, egDB *gorm.DB, opts Opts) (*Stats,
 		return runHoldout(ctx, snap, opts)
 	}
 	planned, st := decide(snap, unanchored(snap))
+	countPlacements(&st, planned)
+	planned = append(planned, planFolds(snap, &st)...)
 	if err := writeReceipts(opts.Receipts, planned); err != nil {
 		return nil, err
 	}
@@ -128,12 +136,15 @@ func applyPlanned(ctx context.Context, db *gorm.DB, ids registryIDs, snap snapsh
 	var attaches []plannedAction
 	var anchors []plannedAction
 	var mints []plannedAction
+	var folds []plannedAction
 	for _, p := range planned {
 		switch p.Action {
 		case actionAnchor:
 			anchors = append(anchors, p)
 		case actionMint:
 			mints = append(mints, p)
+		case actionFold:
+			folds = append(folds, p)
 		default:
 			attaches = append(attaches, p)
 		}
@@ -153,6 +164,13 @@ func applyPlanned(ctx context.Context, db *gorm.DB, ids registryIDs, snap snapsh
 	st.Written += mintWritten
 	st.Errors += mintErrs
 	touched = append(touched, mintTouched...)
+	retired := 0
+	if err := applyChunks(ctx, db, folds, st, &touched, func(tx *gorm.DB, chunk []plannedAction) (int, []int64, error) {
+		return writeFoldChunk(tx, ids, chunk, &retired)
+	}); err != nil {
+		return err
+	}
+	st.RowsRetired = retired
 	if err := repository.TouchWorks(ctx, db, touched); err != nil {
 		return fmt.Errorf("touch works: %w", err)
 	}
@@ -289,6 +307,7 @@ func receiptFrom(p plannedAction) receipt {
 	rec := receipt{
 		Action: p.Action, GetchuID: p.GetchuID, GetchuIDs: p.GetchuIDs,
 		WorkID: p.WorkID, MatchedBy: p.MatchedBy, Hits: hits,
+		ReleaseID: p.ReleaseID, FromReleaseID: p.FromID, PlacedBy: p.PlacedBy, Tie: p.Tie,
 	}
 	if p.Action == actionMint {
 		if p.Quarantine {
@@ -305,14 +324,18 @@ func receiptFrom(p plannedAction) receipt {
 }
 
 type receipt struct {
-	Action       string   `json:"action"`
-	GetchuID     string   `json:"getchu_id,omitempty"`
-	GetchuIDs    []string `json:"getchu_ids,omitempty"`
-	WorkID       int64    `json:"work_id,omitempty"`
-	MatchedBy    string   `json:"matched_by,omitempty"`
-	Hits         []int64  `json:"hits,omitempty"`
-	Status       string   `json:"status,omitempty"`
-	RelatedWorks []int64  `json:"related_works,omitempty"`
+	Action        string   `json:"action"`
+	GetchuID      string   `json:"getchu_id,omitempty"`
+	GetchuIDs     []string `json:"getchu_ids,omitempty"`
+	WorkID        int64    `json:"work_id,omitempty"`
+	MatchedBy     string   `json:"matched_by,omitempty"`
+	Hits          []int64  `json:"hits,omitempty"`
+	Status        string   `json:"status,omitempty"`
+	RelatedWorks  []int64  `json:"related_works,omitempty"`
+	ReleaseID     int64    `json:"release_id,omitempty"`
+	FromReleaseID int64    `json:"from_release_id,omitempty"`
+	PlacedBy      string   `json:"placed_by,omitempty"`
+	Tie           string   `json:"tie,omitempty"`
 }
 
 func logSummary(st Stats) {
@@ -343,6 +366,12 @@ func logSummary(st Stats) {
 		"minted_live", st.MintedLive,
 		"minted_quarantined", st.MintedQuarantined,
 		"candidates", st.Candidates,
+		"edition_anchored", st.EditionAnchored,
+		"folds", st.Folds,
+		"rows_retired", st.RowsRetired,
+		"parallel_kept", st.ParallelKept,
+		"tie_title", st.TieTitle,
+		"tie_lowest", st.TieLowest,
 		"written", st.Written,
 		"errors", st.Errors,
 	)

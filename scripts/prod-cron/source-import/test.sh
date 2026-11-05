@@ -215,7 +215,7 @@ emit_out() {
       echo '2026/09/18 04:00:00 INFO egworks summary population=0 pack_games=0 port_games=0 attached=0 quarantined=0 minted_live=0 edition_folded=0 rejected_skips=0 limited=0 refs_planned=0 candidates_planned=0 written=0 errors=0'
       ;;
     reconcile-getchu+dry|reconcile-getchu+apply)
-      echo '2026/09/18 06:00:00 INFO getchuattach summary population=0 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 written=0 errors=0'
+      echo '2026/09/18 06:00:00 INFO getchuattach summary population=0 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 edition_anchored=0 folds=0 rows_retired=0 parallel_kept=0 tie_title=0 tie_lowest=0 written=0 errors=0'
       ;;
     backfill-release-meta+dry|backfill-release-meta+apply)
       echo '2026/09/19 00:00:00 INFO backfill-release-meta summary apply=false dates_candidates=0 dates_same=0 dates_unknown=0 dates_human=0 dates_written=0 dates_lost=0 all_filled=0 all_moved=0 all_cleared=0 vndb_date_filled=0 vndb_date_moved=0 vndb_date_cleared=0 dl_date_filled=0 dl_date_moved=0 dl_date_cleared=0 gc_date_filled=0 gc_date_moved=0 gc_date_cleared=0 eg_date_filled=0 eg_date_moved=0 eg_date_cleared=0 bgm_date_filled=0 bgm_date_moved=0 bgm_date_cleared=0 vndb_missing=0 dl_missing=0 gc_missing=0 eg_missing=0 bgm_missing=0 rating_candidates=0 rating_planned=0 rating_filled=0 errors=0'
@@ -1085,7 +1085,7 @@ rm -rf "$td"
 tstart 26
 td=$(mktemp -d)
 install_fakes "$td"
-printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=301 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 written=0 errors=0' \
+printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=301 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 edition_anchored=0 folds=0 rows_retired=0 parallel_kept=0 tie_title=0 tie_lowest=0 written=0 errors=0' \
   > "$td/ctl/out/reconcile-getchu+dry"
 run_job "$td"
 expect_exit_nonzero "$td"
@@ -1105,7 +1105,7 @@ rm -rf "$td"
 tstart 27
 td=$(mktemp -d)
 install_fakes "$td"
-printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=51 minted_live=51 minted_quarantined=0 candidates=0 written=0 errors=0' \
+printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=51 minted_live=51 minted_quarantined=0 candidates=0 edition_anchored=0 folds=0 rows_retired=0 parallel_kept=0 tie_title=0 tie_lowest=0 written=0 errors=0' \
   > "$td/ctl/out/reconcile-getchu+dry"
 run_job "$td"
 expect_exit_nonzero "$td"
@@ -1125,7 +1125,7 @@ rm -rf "$td"
 tstart 28
 td=$(mktemp -d)
 install_fakes "$td"
-printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=101 minted_live=0 minted_quarantined=101 candidates=0 written=0 errors=0' \
+printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=101 minted_live=0 minted_quarantined=101 candidates=0 edition_anchored=0 folds=0 rows_retired=0 parallel_kept=0 tie_title=0 tie_lowest=0 written=0 errors=0' \
   > "$td/ctl/out/reconcile-getchu+dry"
 run_job "$td"
 expect_exit_nonzero "$td"
@@ -1270,6 +1270,26 @@ grep -v -F \
   -e 'import-entity-aliases --candidates --run' \
   -e 'person-link-batch --rule-set alias --actor 1 --run' \
   -e 'import-bangumi-xmedia --run' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T36: a fold batch past its ceiling writes nothing and the rest of the getchu group stands down ---
+tstart 36
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/11/05 06:00:00 INFO getchuattach summary population=9000 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 edition_anchored=0 folds=301 rows_retired=0 parallel_kept=0 tie_title=0 tie_lowest=0 written=0 errors=0' \
+  > "$td/ctl/out/reconcile-getchu+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'reconcile-getchu --apply' \
+  -e 'import-getchu-intros --population all --apply' \
+  -e 'import-getchu-characters --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
 tend
