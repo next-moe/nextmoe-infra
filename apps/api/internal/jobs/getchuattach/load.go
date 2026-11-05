@@ -64,8 +64,16 @@ type snapshot struct {
 	brandLabel    map[int64]int64
 	relTitleIndex map[string][]int64
 	relLooseIndex map[string][]int64
+	workReleases  map[int64][]relRow
+	vndbLinked    map[string][]int64
+	parallel      map[string]parallelRow
 	now           time.Time
 	ids           registryIDs
+}
+
+type parallelRow struct {
+	ReleaseID int64
+	WorkID    int64
 }
 
 func resolveIDs(ctx context.Context, db *gorm.DB) (registryIDs, error) {
@@ -106,6 +114,9 @@ func loadSnapshot(ctx context.Context, db, gcDB, egDB *gorm.DB, ids registryIDs,
 		brandLabel:    map[int64]int64{},
 		relTitleIndex: map[string][]int64{},
 		relLooseIndex: map[string][]int64{},
+		workReleases:  map[int64][]relRow{},
+		vndbLinked:    map[string][]int64{},
+		parallel:      map[string]parallelRow{},
 	}
 	var err error
 	if snap.items, err = loadItems(ctx, gcDB); err != nil {
@@ -130,6 +141,15 @@ func loadSnapshot(ctx context.Context, db, gcDB, egDB *gorm.DB, ids registryIDs,
 		return snap, err
 	}
 	if err = loadJanVNDB(ctx, db, ids.vndb, &snap); err != nil {
+		return snap, err
+	}
+	if err = loadReleaseRows(ctx, db, ids, &snap); err != nil {
+		return snap, err
+	}
+	if err = loadVNDBGetchuLinks(ctx, db, ids.vndb, &snap); err != nil {
+		return snap, err
+	}
+	if err = loadParallel(ctx, db, ids, &snap); err != nil {
 		return snap, err
 	}
 	if err = loadBrandLabels(ctx, db, ids.eg, &snap); err != nil {
