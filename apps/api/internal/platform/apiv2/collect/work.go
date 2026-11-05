@@ -283,7 +283,7 @@ func WorkRecordSpec() Spec {
 }
 
 var ratingFields = []string{"object", "id", "work_id", "user_id", "overall", "aspect_scores", "recommend",
-	"spoiler_level", "short_summary", "client_id", "site", "created_at", "updated_at"}
+	"spoiler_level", "short_summary", "short_summary_html", "short_summary_text", "short_summary_has_spoiler", "client_id", "site", "created_at", "updated_at"}
 
 func MyRatingSpec() Spec {
 	return Spec{

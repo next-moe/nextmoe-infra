@@ -13,21 +13,24 @@ type RatingAspectScores struct {
 }
 
 type UserRating struct {
-	_            struct{}           `json:"-" additionalProperties:"true"`
-	Object       string             `json:"object" enum:"rating" doc:"Type discriminant. Always rating."`
-	ID           string             `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Rating id. It survives edits and a merge of its work, and a deleted id never comes back, so a site that mirrors ratings keys on it."`
-	WorkID       string             `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id this rating is on."`
-	UserID       string             `json:"user_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The author. This is the central sign-in user id shared by every NextMoe site, not one site's own user id."`
-	Overall      int                `json:"overall" minimum:"1" maximum:"10" doc:"The overall score, a whole number from 1 to 10."`
-	AspectScores RatingAspectScores `json:"aspect_scores" doc:"Per-aspect scores; each is null when the author skipped it."`
-	Recommend    string             `json:"recommend" enum:"strong_no,no,neutral,yes,strong_yes" doc:"How strongly the author recommends the work."`
-	SpoilerLevel string             `json:"spoiler_level" enum:"none,portion,serious" doc:"How much short_summary gives away, as its author declared. A reader who hides spoilers sees the summary of anything above none masked."`
-	ShortSummary string             `json:"short_summary" maxLength:"2000" doc:"The author's short review, plain text. Empty string if none. Must not be used as a discriminant."`
-	ClientID     string             `json:"client_id" maxLength:"64" doc:"OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant."`
-	Site         string             `json:"site" maxLength:"64" doc:"Catalog site that app is bound to, empty when none. Open vocabulary; display only, must not be used as a discriminant."`
-	CreatedAt    string             `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
-	WorkState    *RatingAuthorState `json:"work_state" doc:"The author's play state on this work as it stands now, not when the rating was written. null when the author has none. A change to it surfaces the rating on /v2/ratings/changes."`
-	UpdatedAt    string             `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. When the author last edited the rating; a rating imported from a site keeps the site's time."`
+	_                      struct{}           `json:"-" additionalProperties:"true"`
+	Object                 string             `json:"object" enum:"rating" doc:"Type discriminant. Always rating."`
+	ID                     string             `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Rating id. It survives edits and a merge of its work, and a deleted id never comes back, so a site that mirrors ratings keys on it."`
+	WorkID                 string             `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id this rating is on."`
+	UserID                 string             `json:"user_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The author. This is the central sign-in user id shared by every NextMoe site, not one site's own user id."`
+	Overall                int                `json:"overall" minimum:"1" maximum:"10" doc:"The overall score, a whole number from 1 to 10."`
+	AspectScores           RatingAspectScores `json:"aspect_scores" doc:"Per-aspect scores; each is null when the author skipped it."`
+	Recommend              string             `json:"recommend" enum:"strong_no,no,neutral,yes,strong_yes" doc:"How strongly the author recommends the work."`
+	SpoilerLevel           string             `json:"spoiler_level" enum:"none,portion,serious" doc:"How much short_summary gives away, as its author declared. A reader who hides spoilers sees the summary of anything above none masked."`
+	ShortSummary           string             `json:"short_summary" maxLength:"2000" doc:"The author's short review as written: Markdown in the NextMoe dialect (CommonMark, GFM strikethrough and autolinks, ||inline|| and :::spoiler block spoilers), every newline a line break. Empty string if none. Show short_summary_html or short_summary_text rather than rendering this yourself. Must not be used as a discriminant."`
+	ShortSummaryHTML       string             `json:"short_summary_html" maxLength:"24000" doc:"short_summary rendered and sanitized by the catalog; display it as is. Paragraphs, line breaks, emphasis, strong, strikethrough, inline code and code blocks, http(s) links (rel=\"nofollow ugc\"), lists, blockquotes and spoilers (class=\"kun-spoiler kun-spoiler-hidden\", a span inline and a div for a block, for the site to reveal). Raw HTML, images, headings, tables and math come out as text. Empty string if none. Must not be used as a discriminant."`
+	ShortSummaryText       string             `json:"short_summary_text" maxLength:"4000" doc:"short_summary as plain text, for previews and notifications: markup dropped, every spoiler replaced by ███, line breaks kept. Empty string if none. Must not be used as a discriminant."`
+	ShortSummaryHasSpoiler bool               `json:"short_summary_has_spoiler" doc:"true when short_summary hides at least one part behind a spoiler. Independent of spoiler_level, which is what the author declared for the whole review."`
+	ClientID               string             `json:"client_id" maxLength:"64" doc:"OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant."`
+	Site                   string             `json:"site" maxLength:"64" doc:"Catalog site that app is bound to, empty when none. Open vocabulary; display only, must not be used as a discriminant."`
+	CreatedAt              string             `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	WorkState              *RatingAuthorState `json:"work_state" doc:"The author's play state on this work as it stands now, not when the rating was written. null when the author has none. A change to it surfaces the rating on /v2/ratings/changes."`
+	UpdatedAt              string             `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. When the author last edited the rating; a rating imported from a site keeps the site's time."`
 }
 
 type RatingAuthorState struct {

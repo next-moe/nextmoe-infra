@@ -6,11 +6,14 @@
 package migrate
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 
 	"api/internal/platform/accountpurge"
 	"api/internal/platform/catalog/discussion"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/ratingsummary"
 	"api/internal/platform/editing"
 
 	"gorm.io/gorm"
@@ -134,6 +137,17 @@ func Run(db *gorm.DB) error {
 		// longer created and is left in place on production until it is
 		// dropped. Deletions leave a tombstone so site mirrors reading
 		// /v2/ratings/changes can drop them.
+		//
+		// 2026-11-05: short_summary becomes Markdown, cooked by the catalog.
+		// Four columns are added with constant defaults (metadata only, no
+		// rewrite): short_summary_html / short_summary_text (''), _has_spoiler
+		// (false) and _cooker (0, never cooked). cookRatingSummaries below
+		// then cooks every row whose _cooker is not markdown.ShortVersion,
+		// which on this deploy is every row, and on later deploys only rows
+		// a cooker bump made stale. It moves neither updated_at nor changed_at,
+		// so no site mirror re-pulls anything: that is the hand-run
+		// `recook-rating-summaries -bump`, after forum, moyu and letmoe read
+		// the new fields.
 		&model.CatalogUserWorkRating{},
 		&model.CatalogUserWorkRatingTombstone{},
 		// catalog_release. Wave R2b (2026-08-16) adds field_provenance jsonb
@@ -282,7 +296,21 @@ func Run(db *gorm.DB) error {
 	if err := migrateSplitRequests(db); err != nil {
 		return err
 	}
-	return rawSQL(db)
+	if err := rawSQL(db); err != nil {
+		return err
+	}
+	return cookRatingSummaries(db)
+}
+
+func cookRatingSummaries(db *gorm.DB) error {
+	st, err := ratingsummary.Cook(context.Background(), db, ratingsummary.Scope{})
+	if err != nil {
+		return fmt.Errorf("cook rating summaries: %w", err)
+	}
+	if st.Cooked > 0 {
+		slog.Info("catalog migrate: cooked rating summaries", "rows", st.Cooked)
+	}
+	return nil
 }
 
 // dropRetiredOrg removes catalog_org and catalog_label.org_id (wave 195). It

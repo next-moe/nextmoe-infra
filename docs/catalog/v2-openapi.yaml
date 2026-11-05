@@ -10147,7 +10147,7 @@ components:
           type: string
           x-vocabulary-closed: true
         short_summary:
-          description: Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant.
+          description: Short review in Markdown (the NextMoe dialect @kungal/editor writes; every newline is a line break), at most 2000 characters. Absent or empty means none. The catalog renders it into short_summary_html and short_summary_text. Free text; must not be used as a discriminant.
           examples:
             - 画面和音乐都很出色，主线一周目通关后还想再走一遍。
           maxLength: 2000
@@ -12896,8 +12896,19 @@ components:
           type: string
           x-vocabulary-closed: true
         short_summary:
-          description: The author's short review, plain text. Empty string if none. Must not be used as a discriminant.
+          description: "The author's short review as written: Markdown in the NextMoe dialect (CommonMark, GFM strikethrough and autolinks, ||inline|| and :::spoiler block spoilers), every newline a line break. Empty string if none. Show short_summary_html or short_summary_text rather than rendering this yourself. Must not be used as a discriminant."
           maxLength: 2000
+          type: string
+        short_summary_has_spoiler:
+          description: true when short_summary hides at least one part behind a spoiler. Independent of spoiler_level, which is what the author declared for the whole review.
+          type: boolean
+        short_summary_html:
+          description: short_summary rendered and sanitized by the catalog; display it as is. Paragraphs, line breaks, emphasis, strong, strikethrough, inline code and code blocks, http(s) links (rel="nofollow ugc"), lists, blockquotes and spoilers (class="kun-spoiler kun-spoiler-hidden", a span inline and a div for a block, for the site to reveal). Raw HTML, images, headings, tables and math come out as text. Empty string if none. Must not be used as a discriminant.
+          maxLength: 24000
+          type: string
+        short_summary_text:
+          description: "short_summary as plain text, for previews and notifications: markup dropped, every spoiler replaced by ███, line breaks kept. Empty string if none. Must not be used as a discriminant."
+          maxLength: 4000
           type: string
         site:
           description: Catalog site that app is bound to, empty when none. Open vocabulary; display only, must not be used as a discriminant.
@@ -12943,6 +12954,9 @@ components:
         - recommend
         - spoiler_level
         - short_summary
+        - short_summary_html
+        - short_summary_text
+        - short_summary_has_spoiler
         - client_id
         - site
         - created_at
@@ -14650,7 +14664,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.82.0
+  version: 2.83.0
   x-stability: stable
 openapi: 3.1.0
 paths:

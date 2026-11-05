@@ -75,3 +75,10 @@ func indexOf(hay, needle string) int {
 	}
 	return -1
 }
+
+func TestPlainTextMasksSpoilers(t *testing.T) {
+	got := PlainText("前||中||后\n\n:::spoiler\n藏\n:::")
+	if got != "前 ███ 后 ███" {
+		t.Fatalf("got %q", got)
+	}
+}

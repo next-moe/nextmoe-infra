@@ -2,10 +2,12 @@ package service
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/ratingsummary"
 
 	"gorm.io/gorm"
 )
@@ -29,11 +31,16 @@ type userCollisionTable struct {
 	// parent guards a re-insert against rows the user removed with their
 	// container after the merge: a deleted folder, a deleted cover.
 	parent string
+	// derived columns are left to their defaults on a re-insert and computed
+	// again after it: a snapshot taken before they existed holds no key for
+	// them, which jsonb_populate_record turns into NULL in a NOT NULL column.
+	derived []string
 }
 
 var userCollisionTables = map[int16][]userCollisionTable{
 	model.EntityTypeWork: {
-		{table: "catalog_user_work_rating", entityCol: "work_id", naturalKey: []string{"actor_uid"}, clock: "changed_at", survivorDeleted: true},
+		{table: "catalog_user_work_rating", entityCol: "work_id", naturalKey: []string{"actor_uid"}, clock: "changed_at", survivorDeleted: true,
+			derived: ratingsummary.Columns},
 		{table: "catalog_user_folder_item", entityCol: "work_id", naturalKey: []string{"folder_id"}, clock: "updated_at",
 			parent: "EXISTS (SELECT 1 FROM catalog_user_folder f WHERE f.id = r.folder_id)"},
 		{table: "catalog_user_playtime", entityCol: "work_id", naturalKey: []string{"actor_uid", "client_id"}, clock: "updated_at", overwrites: true},
@@ -92,6 +99,9 @@ func restoreUserCollisions(tx *gorm.DB, et int16, proposalID, src, dst int64, ex
 		insertCols := make([]string, 0, len(cols))
 		values := make([]string, 0, len(cols))
 		for _, c := range cols {
+			if slices.Contains(t.derived, c) {
+				continue
+			}
 			insertCols = append(insertCols, fmt.Sprintf("%q", c))
 			if t.clock != "" && c == t.clock {
 				values = append(values, "now()")
@@ -154,6 +164,9 @@ func restoreUserCollisions(tx *gorm.DB, et int16, proposalID, src, dst int64, ex
 	}
 	if et != model.EntityTypeWork {
 		return nil
+	}
+	if _, err := ratingsummary.Cook(tx.Statement.Context, tx, ratingsummary.Scope{WorkIDs: []int64{src, dst}}); err != nil {
+		return fmt.Errorf("cook restored rating summaries: %w", err)
 	}
 	return tx.Exec(`DELETE FROM catalog_user_work_rating_tombstone t
 		USING catalog_merge_movement m

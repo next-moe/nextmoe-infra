@@ -1,4 +1,4 @@
-package sanitize
+package markdown
 
 import (
 	"strings"
@@ -13,10 +13,17 @@ import (
 
 // The sites' Markdown spoiler syntax, ported from the forum's
 // internal/infrastructure/markdown/spoiler.go (moyu carries the same file).
-// Community renders only excerpts with it; a divergence from the sites'
-// parser is what leaks a spoiler into the feed, so change them together.
+// A divergence from the sites' parser is what leaks a spoiler into a
+// community excerpt or a rating's plain text, so change them together.
 
-const spoilerClass = "kun-spoiler"
+const (
+	SpoilerClass = "kun-spoiler"
+	SpoilerMask  = "███"
+
+	spoilerClassAttr = SpoilerClass + " kun-spoiler-hidden"
+)
+
+var Spoiler goldmark.Extender = &spoilerExtension{}
 
 type spoilerInline struct{ ast.BaseInline }
 
@@ -124,7 +131,7 @@ func (r *spoilerRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer)
 func (r *spoilerRenderer) render(tag string) renderer.NodeRendererFunc {
 	return func(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if entering {
-			_, _ = w.WriteString("<" + tag + ` class="` + spoilerClass + `">`)
+			_, _ = w.WriteString("<" + tag + ` class="` + spoilerClassAttr + `">`)
 		} else {
 			_, _ = w.WriteString("</" + tag + ">")
 		}
