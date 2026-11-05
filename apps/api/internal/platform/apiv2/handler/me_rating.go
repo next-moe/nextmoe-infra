@@ -73,7 +73,7 @@ type ratingBody struct {
 	AspectScores *ratingAspectsBody `json:"aspect_scores,omitempty" doc:"Per-aspect scores. Absent means none rated."`
 	Recommend    string             `json:"recommend" enum:"strong_no,no,neutral,yes,strong_yes" example:"yes" doc:"How strongly the author recommends the work."`
 	SpoilerLevel string             `json:"spoiler_level,omitempty" enum:"none,portion,serious" example:"none" doc:"How much short_summary gives away. Absent means none."`
-	ShortSummary string             `json:"short_summary,omitempty" maxLength:"2000" example:"画面和音乐都很出色，主线一周目通关后还想再走一遍。" doc:"Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant."`
+	ShortSummary string             `json:"short_summary,omitempty" maxLength:"2000" example:"画面和音乐都很出色，主线一周目通关后还想再走一遍。" doc:"Short review in Markdown (the NextMoe dialect @kungal/editor writes; every newline is a line break), at most 2000 characters. Absent or empty means none. The catalog renders it into short_summary_html and short_summary_text. Free text; must not be used as a discriminant."`
 }
 
 func (b ratingBody) input() catsvc.RatingInput {
@@ -106,11 +106,12 @@ func userRatingRepr(r catsvc.RatingRecord) repr.UserRating {
 			Character: aspectInt(a.Character), Route: aspectInt(a.Route), System: aspectInt(a.System),
 			Voice: aspectInt(a.Voice), ReplayValue: aspectInt(a.ReplayValue),
 		},
-		Recommend:    wordAt(recommendWords, int(r.Recommend-model.RecommendStrongNo)),
-		SpoilerLevel: wordAt(spoilerWords, int(r.SpoilerLevel)),
-		ShortSummary: r.ShortSummary,
-		WorkState:    ratingAuthorState(r.AuthorState),
-		ClientID:     r.ClientID, Site: r.Site,
+		Recommend:        wordAt(recommendWords, int(r.Recommend-model.RecommendStrongNo)),
+		SpoilerLevel:     wordAt(spoilerWords, int(r.SpoilerLevel)),
+		ShortSummary:     r.ShortSummary,
+		ShortSummaryHTML: r.SummaryHTML, ShortSummaryText: r.SummaryText, ShortSummaryHasSpoiler: r.SummaryHasSpoiler,
+		WorkState: ratingAuthorState(r.AuthorState),
+		ClientID:  r.ClientID, Site: r.Site,
 		CreatedAt: r.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt: r.UpdatedAt.UTC().Format(time.RFC3339),
 	}

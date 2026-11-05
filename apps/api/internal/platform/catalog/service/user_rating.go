@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	stderrors "errors"
+	"slices"
 	"time"
 	"unicode/utf8"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/ratingsummary"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -71,12 +73,15 @@ type RatingRecord struct {
 	ActorUID int64
 	WorkID   int64
 	RatingInput
-	ClientID    string
-	Site        string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	ChangedAt   time.Time
-	AuthorState *WorkStateRecord
+	SummaryHTML       string
+	SummaryText       string
+	SummaryHasSpoiler bool
+	ClientID          string
+	Site              string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	ChangedAt         time.Time
+	AuthorState       *WorkStateRecord
 }
 
 func ratingRecord(r model.CatalogUserWorkRating) RatingRecord {
@@ -90,6 +95,7 @@ func ratingRecord(r model.CatalogUserWorkRating) RatingRecord {
 			},
 			Recommend: r.Recommend, SpoilerLevel: r.SpoilerLevel, ShortSummary: r.ShortSummary,
 		},
+		SummaryHTML: r.ShortSummaryHTML, SummaryText: r.ShortSummaryText, SummaryHasSpoiler: r.ShortSummaryHasSpoiler,
 		ClientID: r.ClientID, Site: r.Site, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, ChangedAt: r.ChangedAt,
 	}
 }
@@ -178,11 +184,12 @@ func setRatingTx(tx *gorm.DB, uid, workID int64, clientID, site string, in Ratin
 		Recommend: in.Recommend, SpoilerLevel: in.SpoilerLevel, ShortSummary: in.ShortSummary,
 		ClientID: clientID, Site: site,
 	}
+	ratingsummary.Apply(&row)
 	content := []string{"overall", "art", "story", "music", "character", "route", "system",
 		"voice", "replay_value", "recommend", "spoiler_level", "short_summary"}
 	res := tx.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "actor_uid"}, {Name: "work_id"}},
-		DoUpdates: append(clause.AssignmentColumns(content),
+		DoUpdates: append(clause.AssignmentColumns(append(slices.Clone(content), ratingsummary.Columns...)),
 			clause.Assignment{Column: clause.Column{Name: "updated_at"}, Value: gorm.Expr("now()")},
 			clause.Assignment{Column: clause.Column{Name: "changed_at"}, Value: gorm.Expr("now()")}),
 		Where: clause.Where{Exprs: []clause.Expression{gorm.Expr(rowDiffers("catalog_user_work_rating", content))}},
