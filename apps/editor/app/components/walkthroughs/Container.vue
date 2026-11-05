@@ -55,7 +55,7 @@ onMounted(() => load())
   <div class="mx-auto max-w-4xl space-y-6">
     <KunHeader
       name="待补全的攻略"
-      description="这些攻略在导入时没有完整提取出来：有的漏了选项，有的缺了通往结局的路线。它们暂时隐藏，在编辑器里补全后取消隐藏，就会出现在作品页上。"
+      description="这些攻略在导入时没有完整提取出来：有的漏了选项，有的缺了通往结局的路线。它们暂时隐藏着。在编辑器里补全后点「提交上线」，修改生效后攻略就会出现在作品页上，并从这里消失。只改内容、不上线的话，它会一直留在这个列表里。"
     />
 
     <KunLoading v-if="loading" spinner />

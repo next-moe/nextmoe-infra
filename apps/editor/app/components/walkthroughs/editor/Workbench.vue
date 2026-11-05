@@ -112,6 +112,11 @@ const trySubmit = () => {
   emit('submit')
 }
 
+const publish = () => {
+  doc.setHidden(false)
+  trySubmit()
+}
+
 const onKeydown = (event: KeyboardEvent) => {
   const key = event.key.toLowerCase()
   if (isMod(event) && key === 'z') {
@@ -166,10 +171,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       class="border-default-200 bg-content1 space-y-2 border-b px-4 py-3 empty:hidden md:px-6"
     >
       <slot name="notices" />
-      <WalkthroughsEditorImportReview
-        v-if="props.entityId"
-        :entity-id="props.entityId"
-      />
+      <WalkthroughsEditorImportReview @publish="publish" />
     </div>
 
     <KunInfo
@@ -190,7 +192,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           :roster="roster"
           :releases="releases"
           :roster-loaded="rosterLoaded"
-          :hideable="props.entityId !== null"
         />
       </aside>
 
@@ -227,7 +228,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         :roster="roster"
         :releases="releases"
         :roster-loaded="rosterLoaded"
-        :hideable="props.entityId !== null"
       />
     </KunDrawer>
 

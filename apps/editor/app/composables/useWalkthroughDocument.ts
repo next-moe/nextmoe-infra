@@ -11,6 +11,12 @@ import {
   normalizeChart,
   validateChart
 } from '~/utils/walkthrough/doc'
+import type { ImportReviewProgress } from '~/utils/walkthrough/importReview'
+import type { WalkthroughBacklogEntry } from '~/composables/useWalkthroughBacklog'
+
+export interface WalkthroughBacklogState extends WalkthroughBacklogEntry {
+  progress: ImportReviewProgress
+}
 
 const HISTORY_LIMIT = 300
 const COALESCE_MS = 1200
@@ -21,7 +27,10 @@ export interface WalkthroughDocumentSource {
   lang: () => WtLang
   setLang: (lang: WtLang) => void
   hidden: () => boolean
+  savedHidden: () => boolean
+  canHide: () => boolean
   setHidden: (hidden: boolean) => void
+  backlog: () => WalkthroughBacklogState | null
   pins: () => WtPin[]
   setPins: (pins: WtPin[]) => void
   workId: () => string | null
@@ -49,6 +58,9 @@ export const createWalkthroughDocument = (
 
   const lang = computed(() => source.lang())
   const hidden = computed(() => source.hidden())
+  const savedHidden = computed(() => source.savedHidden())
+  const canHide = computed(() => source.canHide() && !source.readonly())
+  const backlog = computed(() => source.backlog())
   const pins = computed(() => source.pins())
   const readonly = computed(() => source.readonly())
 
@@ -144,6 +156,9 @@ export const createWalkthroughDocument = (
     chart,
     lang,
     hidden,
+    savedHidden,
+    canHide,
+    backlog,
     pins,
     pinByKey,
     readonly,
