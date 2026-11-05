@@ -11,15 +11,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// A row this lane founded is a physical or digital one carrying only Getchu
+// refs; it never writes kind 0. Refs alone are not enough: on 2026-11-05 the
+// first fold pass joined 74 SKUs to eg-work-import's ref-less kind-0 rows, and
+// those rows then read as Getchu-founded, so later SKUs could not join them.
 func loadReleaseRows(ctx context.Context, db *gorm.DB, ids registryIDs, snap *snapshot) error {
 	var rows []struct {
-		ID         int64  `gorm:"column:id"`
-		WorkID     int64  `gorm:"column:work_id"`
-		Kind       int16  `gorm:"column:kind"`
-		Day        string `gorm:"column:day"`
-		Title      string `gorm:"column:title"`
-		Platforms  string `gorm:"column:platforms"`
-		GetchuOnly bool   `gorm:"column:getchu_only"`
+		ID        int64  `gorm:"column:id"`
+		WorkID    int64  `gorm:"column:work_id"`
+		Kind      int16  `gorm:"column:kind"`
+		Day       string `gorm:"column:day"`
+		Title     string `gorm:"column:title"`
+		Platforms string `gorm:"column:platforms"`
+		Founded   bool   `gorm:"column:founded"`
 	}
 	if err := db.WithContext(ctx).Raw(`
 		WITH vp AS (
@@ -44,7 +48,7 @@ func loadReleaseRows(ctx context.Context, db *gorm.DB, ids registryIDs, snap *sn
 		                 (SELECT string_agg(x, ',') FROM jsonb_array_elements_text(
 		                     CASE WHEN jsonb_typeof(rel.extra->'platforms') = 'array' THEN rel.extra->'platforms' ELSE '[]'::jsonb END) x),
 		                 vp.plats) AS platforms,
-		       coalesce(rs.has_getchu AND NOT rs.has_other, false) AS getchu_only
+		       rel.kind <> ? AND coalesce(rs.has_getchu AND NOT rs.has_other, false) AS founded
 		FROM catalog_release rel
 		JOIN catalog_work w ON w.id = rel.work_id AND w.deleted_at IS NULL
 		JOIN catalog_medium m ON m.id = w.medium_id AND m.key = 'galgame'
@@ -53,6 +57,7 @@ func loadReleaseRows(ctx context.Context, db *gorm.DB, ids registryIDs, snap *sn
 		WHERE rel.deleted_at IS NULL AND rel.kind IN (?, ?, ?)`,
 		model.EntityTypeRelease, ids.vndb,
 		ids.getchu, ids.getchu, model.EntityTypeRelease,
+		model.ReleaseKindDefault,
 		model.ReleaseKindDefault, model.ReleaseKindDigital, model.ReleaseKindPhysical,
 	).Scan(&rows).Error; err != nil {
 		return fmt.Errorf("load release rows: %w", err)
@@ -60,7 +65,7 @@ func loadReleaseRows(ctx context.Context, db *gorm.DB, ids registryIDs, snap *sn
 	for _, r := range rows {
 		snap.workReleases[r.WorkID] = append(snap.workReleases[r.WorkID], relRow{
 			ID: r.ID, Kind: r.Kind, Day: r.Day, Title: r.Title,
-			Platforms: splitPlatforms(r.Platforms), GetchuOnly: r.GetchuOnly,
+			Platforms: splitPlatforms(r.Platforms), Founded: r.Founded,
 		})
 	}
 	return nil
@@ -129,7 +134,7 @@ func loadParallel(ctx context.Context, db *gorm.DB, ids registryIDs, snap *snaps
 }
 
 func parallelRowSQL(alias string, getchu int16) (string, []any) {
-	return fmt.Sprintf(`%[1]s.extra = '{}'::jsonb AND %[1]s.field_provenance = '{}'::jsonb
+	return fmt.Sprintf(`%[1]s.kind <> ? AND %[1]s.extra = '{}'::jsonb AND %[1]s.field_provenance = '{}'::jsonb
 		  AND NOT EXISTS (SELECT 1 FROM catalog_external_ref o
 		                  WHERE o.entity_type = ? AND o.entity_id = %[1]s.id AND o.source_id <> ?)
 		  AND NOT EXISTS (SELECT 1 FROM catalog_credit c WHERE c.release_id = %[1]s.id)
@@ -137,5 +142,5 @@ func parallelRowSQL(alias string, getchu int16) (string, []any) {
 		  AND NOT EXISTS (SELECT 1 FROM catalog_walkthrough wt WHERE wt.release_id = %[1]s.id)
 		  AND NOT EXISTS (SELECT 1 FROM catalog_split_request s
 		                  WHERE s.executed_at IS NULL AND s.release_ids @> jsonb_build_array(%[1]s.id))`, alias),
-		[]any{model.EntityTypeRelease, getchu}
+		[]any{model.ReleaseKindDefault, model.EntityTypeRelease, getchu}
 }

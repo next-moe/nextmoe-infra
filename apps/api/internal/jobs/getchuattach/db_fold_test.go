@@ -164,3 +164,23 @@ func TestParallelCheckCoversEveryReleaseReference(t *testing.T) {
 	assert.Equal(t, []string{"catalog_credit", "catalog_release_label", "catalog_walkthrough"}, tables,
 		"a new table pointing at catalog_release must join parallelRowSQL, or a fold retires a row it still holds")
 }
+
+func TestAJoinedEGRowStaysACounterpart(t *testing.T) {
+	requireDB(t)
+	w := mkWork(t, "EG Minted Host")
+	egRow := mkReleaseYMD(t, w, i16(2001), i16(1), i16(1))
+	insertFetched(t, "960", "EG Minted Host 初回限定版", "", "2001/01/01")
+	first := runLane(t, true, "")
+	assert.Equal(t, 1, first.EditionAnchored)
+	assert.Equal(t, egRow, attachedRelease(t, "960").ID)
+
+	insertFetched(t, "961", "EG Minted Host 通常版", "", "2001/01/01")
+	before := releaseCount(t)
+	second := runLane(t, true, "")
+	assert.Equal(t, 1, second.EditionAnchored, "a ref-less row that took a Getchu ref still stands for its edition")
+	assert.Zero(t, second.Folds)
+	assert.Zero(t, second.ParallelKept)
+	assert.Equal(t, before, releaseCount(t))
+	assert.Equal(t, egRow, attachedRelease(t, "961").ID)
+	assert.True(t, liveRelease(t, egRow))
+}

@@ -21,12 +21,12 @@ const (
 )
 
 type relRow struct {
-	ID         int64
-	Kind       int16
-	Day        string
-	Title      string
-	Platforms  []string
-	GetchuOnly bool
+	ID        int64
+	Kind      int16
+	Day       string
+	Title     string
+	Platforms []string
+	Founded   bool
 }
 
 type placement struct {
@@ -142,7 +142,7 @@ func titleSaysDigital(title string) bool {
 func counterpart(it item, workID int64, snap snapshot) (placement, bool) {
 	var rows []relRow
 	for _, r := range snap.workReleases[workID] {
-		if !r.GetchuOnly {
+		if !r.Founded {
 			rows = append(rows, r)
 		}
 	}
