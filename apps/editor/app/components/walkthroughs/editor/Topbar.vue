@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { cn } from '@kungal/ui-core'
 import type { KunDropdownItem } from '@kungal/ui-vue'
 import type { WtIssue } from '#shared/types/walkthrough'
 
@@ -27,6 +28,26 @@ const doc = useWalkthroughDocument()
 const { link } = useReturnLink()
 
 const issueCount = computed(() => doc.issues.value.length)
+
+const visibility = computed(() => {
+  if (doc.hidden.value) {
+    return {
+      label: '已隐藏',
+      color: 'warning' as const,
+      hint: doc.canHide.value
+        ? '点击取消隐藏，提交后上线到作品页'
+        : '这篇攻略没有出现在作品页上'
+    }
+  }
+  if (doc.savedHidden.value) {
+    return {
+      label: '提交后上线',
+      color: 'success' as const,
+      hint: '点击改回隐藏'
+    }
+  }
+  return null
+})
 
 const issuesPopover = ref<{ open: () => void; close: () => void } | null>(null)
 watch(issuesOpen, (requested) => {
@@ -131,12 +152,35 @@ const jump = (issue: WtIssue) => {
         {{ props.entityId ? '编辑攻略' : '新建攻略' }}
       </span>
       <span class="truncate text-sm font-semibold">{{ props.workTitle }}</span>
-      <span
-        v-if="doc.hidden.value"
-        class="bg-warning-100 text-warning-700 shrink-0 rounded px-1.5 text-[11px] leading-5"
+      <KunTooltip
+        v-if="visibility"
+        :text="visibility.hint"
+        position="bottom"
+        class-name="shrink-0"
       >
-        已隐藏
-      </span>
+        <KunButton
+          v-if="doc.canHide.value"
+          size="xs"
+          variant="flat"
+          :color="visibility.color"
+          @click="doc.setHidden(!doc.hidden.value)"
+        >
+          {{ visibility.label }}
+        </KunButton>
+        <span
+          v-else
+          :class="
+            cn(
+              'rounded px-1.5 text-[11px] leading-5',
+              visibility.color === 'warning'
+                ? 'bg-warning-100 text-warning-700'
+                : 'bg-success-100 text-success-700'
+            )
+          "
+        >
+          {{ visibility.label }}
+        </span>
+      </KunTooltip>
     </div>
 
     <div class="flex shrink-0 items-center gap-1 md:gap-2">
