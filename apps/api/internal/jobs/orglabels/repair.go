@@ -37,6 +37,12 @@ type RepairDecision struct {
 		Source int16  `json:"src"`
 		ExtID  string `json:"ext"`
 	} `json:"target_ref,omitempty"`
+	// Mint skips the probable-holder and same-name steps. A homonym re-homed by
+	// name lands on whichever other label carries that name, and on 2026-11-05
+	// that was the wrong company again for 8 of 10 homonyms: ErogameScape's 2008
+	// ALIBI went from one アリバイ label onto its duplicate, the rock band NAZCA
+	// onto the doujin circle Nasska, the folk duo ゆず onto ももや本舗.
+	Mint bool `json:"mint,omitempty"`
 }
 
 type RepairResult struct {
@@ -237,6 +243,9 @@ func resolveRepairTarget(tx *gorm.DB, d RepairDecision, org *repairOrg) (int64, 
 	if d.Target != 0 {
 		return d.Target, "manual", anchorRepairTarget(tx, d, d.Target, ruleRepairManual)
 	}
+	if d.Mint {
+		return mintOrNone(tx, d, org)
+	}
 	var probable []int64
 	if err := tx.Raw(`SELECT DISTINCT r.entity_id FROM catalog_external_ref r
 		JOIN catalog_label l ON l.id = r.entity_id AND l.deleted_at IS NULL
@@ -269,6 +278,13 @@ func resolveRepairTarget(tx *gorm.DB, d RepairDecision, org *repairOrg) (int64, 
 	}
 	if len(named) > 1 {
 		return 0, fmt.Sprintf("none:ambiguous%v", named), nil
+	}
+	return mintOrNone(tx, d, org)
+}
+
+func mintOrNone(tx *gorm.DB, d RepairDecision, org *repairOrg) (int64, string, error) {
+	if org == nil {
+		return 0, "none:no_org_data", nil
 	}
 	if !org.canMint {
 		return 0, "none:cannot_mint", nil

@@ -151,6 +151,26 @@ func TestRepairRehomesByNameAndPromotesTheRightAnchor(t *testing.T) {
 		AND external_id = 'p10451' AND link_kind = 0`))
 }
 
+func TestRepairMintSkipsTheSameNameLabel(t *testing.T) {
+	p := repairSetup(t)
+	mkLabel(t, 41945, "アリバイ", model.LabelKindDoujinCircle)
+	mkLabel(t, 38388, "アリバイ", model.LabelKindDoujinCircle)
+	labelRef(t, 41945, sourceVNDB, "p9001", 0, ruleVNDBCoworks)
+	labelRef(t, 41945, sourceVNDB, "p9002", 0, ruleVNDBCoworks)
+	exec(t, `INSERT INTO src_vndb.producers (id,type,lang,name,latin,alias,description) VALUES
+		('p9001','ng','ja','アリバイ','','',''), ('p9002','ng','ja','アリバイ','ALIBI','','')`)
+
+	res, err := repairAll(context.Background(), p, []RepairDecision{
+		{Action: "detach", LabelID: 41945, Source: sourceVNDB, ExtID: "p9002", Reason: "the 2008 homonym", Mint: true},
+	}, true)
+	require.NoError(t, err)
+	assert.Equal(t, "detached", res[0].Status, res[0].Err)
+	assert.Equal(t, "minted", res[0].TargetHow)
+	assert.NotContains(t, []int64{41945, 38388}, res[0].TargetID)
+	assert.Zero(t, scalar(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_id = 38388`),
+		"without mint the name step would have re-homed the homonym onto the other アリバイ")
+}
+
 func TestRepairKeepsWorksAnotherAnchorStillJustifies(t *testing.T) {
 	p := repairSetup(t)
 	mkLabel(t, 50, "ブランドA", model.LabelKindGameBrand)
