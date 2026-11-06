@@ -5401,6 +5401,89 @@ export const docsModel: DocsModel = {
                               "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                             },
                             {
+                              "name": "cover_sfw",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "hash",
+                                  "required": true,
+                                  "doc": "Image-service content hash.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "height",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel height. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "origin",
+                                  "required": true,
+                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
+                                  "enum": [
+                                    "cover",
+                                    "screenshot",
+                                    "censored"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "sexual",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Sexual depiction. null means not assessed.",
+                                  "enum": [
+                                    "safe",
+                                    "suggestive",
+                                    "explicit"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "source",
+                                  "required": true,
+                                  "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "thumbhash",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Thumbhash. null if unknown.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "url",
+                                  "required": true,
+                                  "doc": "Absolute image URL. Never a bare hash.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "violence",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                  "enum": [
+                                    "tame",
+                                    "violent",
+                                    "brutal"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "width",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel width. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                }
+                              ]
+                            },
+                            {
                               "name": "covers",
                               "doc": "Present when include=covers. Every cover row the work holds, in gallery order: not ranked by the election, so render cover, not covers[0], as the work's portrait. Rows of every sexual grade are listed whatever nsfw says, Bangumi's censored art of adult games and the blurred censored stand-in among them; filter on sexual and source before showing a row. Empty array if none.",
                               "type": "array",
@@ -15129,6 +15212,89 @@ export const docsModel: DocsModel = {
                                   ],
                                   "nullable": true,
                                   "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
+                                },
+                                {
+                                  "name": "cover_sfw",
+                                  "type": "object",
+                                  "children": [
+                                    {
+                                      "name": "hash",
+                                      "required": true,
+                                      "doc": "Image-service content hash.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "height",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Pixel height. null if unknown.",
+                                      "format": "int64",
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "name": "origin",
+                                      "required": true,
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
+                                      "enum": [
+                                        "cover",
+                                        "screenshot",
+                                        "censored"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "sexual",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Sexual depiction. null means not assessed.",
+                                      "enum": [
+                                        "safe",
+                                        "suggestive",
+                                        "explicit"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "source",
+                                      "required": true,
+                                      "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "thumbhash",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Thumbhash. null if unknown.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "url",
+                                      "required": true,
+                                      "doc": "Absolute image URL. Never a bare hash.",
+                                      "format": "uri",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "violence",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                      "enum": [
+                                        "tame",
+                                        "violent",
+                                        "brutal"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "width",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Pixel width. null if unknown.",
+                                      "format": "int64",
+                                      "type": "integer"
+                                    }
+                                  ]
                                 },
                                 {
                                   "name": "covers",
@@ -29652,6 +29818,89 @@ export const docsModel: DocsModel = {
                                   ],
                                   "nullable": true,
                                   "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
+                                },
+                                {
+                                  "name": "cover_sfw",
+                                  "type": "object",
+                                  "children": [
+                                    {
+                                      "name": "hash",
+                                      "required": true,
+                                      "doc": "Image-service content hash.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "height",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Pixel height. null if unknown.",
+                                      "format": "int64",
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "name": "origin",
+                                      "required": true,
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
+                                      "enum": [
+                                        "cover",
+                                        "screenshot",
+                                        "censored"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "sexual",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Sexual depiction. null means not assessed.",
+                                      "enum": [
+                                        "safe",
+                                        "suggestive",
+                                        "explicit"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "source",
+                                      "required": true,
+                                      "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "thumbhash",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Thumbhash. null if unknown.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "url",
+                                      "required": true,
+                                      "doc": "Absolute image URL. Never a bare hash.",
+                                      "format": "uri",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "violence",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                      "enum": [
+                                        "tame",
+                                        "violent",
+                                        "brutal"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "width",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Pixel width. null if unknown.",
+                                      "format": "int64",
+                                      "type": "integer"
+                                    }
+                                  ]
                                 },
                                 {
                                   "name": "covers",
@@ -49301,6 +49550,89 @@ export const docsModel: DocsModel = {
                                   ],
                                   "nullable": true,
                                   "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
+                                },
+                                {
+                                  "name": "cover_sfw",
+                                  "type": "object",
+                                  "children": [
+                                    {
+                                      "name": "hash",
+                                      "required": true,
+                                      "doc": "Image-service content hash.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "height",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Pixel height. null if unknown.",
+                                      "format": "int64",
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "name": "origin",
+                                      "required": true,
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
+                                      "enum": [
+                                        "cover",
+                                        "screenshot",
+                                        "censored"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "sexual",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Sexual depiction. null means not assessed.",
+                                      "enum": [
+                                        "safe",
+                                        "suggestive",
+                                        "explicit"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "source",
+                                      "required": true,
+                                      "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "thumbhash",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Thumbhash. null if unknown.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "url",
+                                      "required": true,
+                                      "doc": "Absolute image URL. Never a bare hash.",
+                                      "format": "uri",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "violence",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                      "enum": [
+                                        "tame",
+                                        "violent",
+                                        "brutal"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "width",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Pixel width. null if unknown.",
+                                      "format": "int64",
+                                      "type": "integer"
+                                    }
+                                  ]
                                 },
                                 {
                                   "name": "covers",
@@ -88925,6 +89257,89 @@ export const docsModel: DocsModel = {
                               "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
                             },
                             {
+                              "name": "cover_sfw",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "hash",
+                                  "required": true,
+                                  "doc": "Image-service content hash.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "height",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel height. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "origin",
+                                  "required": true,
+                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
+                                  "enum": [
+                                    "cover",
+                                    "screenshot",
+                                    "censored"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "sexual",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Sexual depiction. null means not assessed.",
+                                  "enum": [
+                                    "safe",
+                                    "suggestive",
+                                    "explicit"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "source",
+                                  "required": true,
+                                  "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "thumbhash",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Thumbhash. null if unknown.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "url",
+                                  "required": true,
+                                  "doc": "Absolute image URL. Never a bare hash.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "violence",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                  "enum": [
+                                    "tame",
+                                    "violent",
+                                    "brutal"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "width",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel width. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                }
+                              ]
+                            },
+                            {
                               "name": "covers",
                               "doc": "Present when include=covers. Every cover row the work holds, in gallery order: not ranked by the election, so render cover, not covers[0], as the work's portrait. Rows of every sexual grade are listed whatever nsfw says, Bangumi's censored art of adult games and the blurred censored stand-in among them; filter on sexual and source before showing a row. Empty array if none.",
                               "type": "array",
@@ -92456,6 +92871,89 @@ export const docsModel: DocsModel = {
                         ],
                         "nullable": true,
                         "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
+                      },
+                      {
+                        "name": "cover_sfw",
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "hash",
+                            "required": true,
+                            "doc": "Image-service content hash.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "height",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel height. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          {
+                            "name": "origin",
+                            "required": true,
+                            "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
+                            "enum": [
+                              "cover",
+                              "screenshot",
+                              "censored"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "sexual",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Sexual depiction. null means not assessed.",
+                            "enum": [
+                              "safe",
+                              "suggestive",
+                              "explicit"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "source",
+                            "required": true,
+                            "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "thumbhash",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Thumbhash. null if unknown.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "url",
+                            "required": true,
+                            "doc": "Absolute image URL. Never a bare hash.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "violence",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                            "enum": [
+                              "tame",
+                              "violent",
+                              "brutal"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "width",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel width. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          }
+                        ]
                       },
                       {
                         "name": "covers",
@@ -108696,6 +109194,89 @@ export const docsModel: DocsModel = {
                                   ],
                                   "nullable": true,
                                   "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
+                                },
+                                {
+                                  "name": "cover_sfw",
+                                  "type": "object",
+                                  "children": [
+                                    {
+                                      "name": "hash",
+                                      "required": true,
+                                      "doc": "Image-service content hash.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "height",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Pixel height. null if unknown.",
+                                      "format": "int64",
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "name": "origin",
+                                      "required": true,
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
+                                      "enum": [
+                                        "cover",
+                                        "screenshot",
+                                        "censored"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "sexual",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Sexual depiction. null means not assessed.",
+                                      "enum": [
+                                        "safe",
+                                        "suggestive",
+                                        "explicit"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "source",
+                                      "required": true,
+                                      "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "thumbhash",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Thumbhash. null if unknown.",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "url",
+                                      "required": true,
+                                      "doc": "Absolute image URL. Never a bare hash.",
+                                      "format": "uri",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "violence",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                      "enum": [
+                                        "tame",
+                                        "violent",
+                                        "brutal"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "name": "width",
+                                      "required": true,
+                                      "nullable": true,
+                                      "doc": "Pixel width. null if unknown.",
+                                      "format": "int64",
+                                      "type": "integer"
+                                    }
+                                  ]
                                 },
                                 {
                                   "name": "covers",
@@ -144037,6 +144618,89 @@ export const docsModel: DocsModel = {
                               ],
                               "nullable": true,
                               "doc": "Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none."
+                            },
+                            {
+                              "name": "cover_sfw",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "hash",
+                                  "required": true,
+                                  "doc": "Image-service content hash.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "height",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel height. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "origin",
+                                  "required": true,
+                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
+                                  "enum": [
+                                    "cover",
+                                    "screenshot",
+                                    "censored"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "sexual",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Sexual depiction. null means not assessed.",
+                                  "enum": [
+                                    "safe",
+                                    "suggestive",
+                                    "explicit"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "source",
+                                  "required": true,
+                                  "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "thumbhash",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Thumbhash. null if unknown.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "url",
+                                  "required": true,
+                                  "doc": "Absolute image URL. Never a bare hash.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "violence",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                  "enum": [
+                                    "tame",
+                                    "violent",
+                                    "brutal"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "width",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel width. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                }
+                              ]
                             },
                             {
                               "name": "covers",

@@ -2943,3 +2943,14 @@ A letmoe user saw 君色パトラIF (VNDB v58614) in the 2026-11 new-release cal
 - **Cron.** `reconcile-getchu` prints `edition_anchored folds rows_retired parallel_kept tie_title tie_lowest`. source-import refuses a pass planning more than 300 folds, and reconcile-watch counts folds in the getchu backlog.
 
 No schema change, no migration.
+
+## Works listings carry the SFW portrait beside the elected one (spec 2.84.0, 2026-11-06)
+
+The forum's topic entity cards blur an adult work's cover for a reader who chose blur, or when the topic author asked for blurred entity covers. It read the works list with `nsfw=true`, which it must: with `nsfw=false` r18 works drop out of the population. Under `nsfw=true` an nsfw-shelf work's `cover` is the explicit election, so the forum CSS-blurred the real explicit art. What the owner wants is the cover the catalog itself elects for SFW readers. The list could not supply it: its `covers` token carries only the two elected slots, and the censored stand-in sits in the per-work gallery, an N+1 that would also make the forum rebuild the election.
+
+- **`cover_sfw`** (Work, `CoverSlot`): present on the works listings (works list and search, rankings, calendar) when `include=covers`. It is the portrait `pickCoverSlots` returns with sexual art disallowed, whatever `nsfw` says, so the ladder is the one an SFW reader gets: an editor's pin, strict top votes, then the official art ladder; real safe or suggestive art first, the `censored` stand-in (origin `censored`) when the work has none.
+- **Duplicate, not null.** When the reader's own election already excluded sexual art (`nsfw=false`, or a work whose content_limit is sfw), `cover_sfw` is the same slot as `cover` and is still emitted. The election runs a second time only for works whose `cover` was elected with sexual art allowed.
+- **Absent means none.** The field is omitted when that election finds no portrait, so under `include=covers` its absence means the work has no SFW portrait. It is never on work detail, which carries the full gallery.
+- **Series.** `GET /v2/catalog/series/{id}` carries no member works. Members are read through `GET /v2/catalog/works?series_id=`, a works listing, so they get the field there.
+
+Spec 2.84.0, additive. No schema change, no migration.
