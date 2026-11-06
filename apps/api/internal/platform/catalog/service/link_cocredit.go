@@ -207,7 +207,7 @@ func (s *LinkService) CoCreditPersonPairs(ctx context.Context) ([]CoCreditPerson
 		JOIN catalog_person pb ON pb.id = pair.b_id
 		ORDER BY pair.a_id, pair.b_id`,
 		minNameFoldLen,
-		model.EntityTypePerson, model.LinkKindExact, model.IdentityVetoExemptSourceIDsFor(model.EntityTypePerson),
+		model.EntityTypePerson, model.LinkKindExact, model.IdentityVetoExemptSourceIDs,
 		model.EntityTypePerson, model.SourceVNDB, model.LinkKindExact,
 		model.EntityTypePerson, model.SourceVNDB, model.LinkKindExact,
 		model.EntityTypePerson).Scan(&rows).Error

@@ -2,7 +2,6 @@ package llmsuggest
 
 import (
 	"fmt"
-	"slices"
 	"sort"
 
 	"api/internal/platform/catalog/model"
@@ -41,6 +40,8 @@ const (
 	// cannot be undone; keeping two works apart can, so these three park the
 	// candidate as deferred and are deliberately absent from currentStamps so
 	// a later corroborator can still accept the same verdict row.
+	// No rule writes this any more: since 2026-11-06 two claims merge into the
+	// stronger one. Rows already carrying it are re-planned like the others.
 	stampKeptApartBothClaimed    = "kept_apart_both_claimed"
 	stampKeptApartHiddenClaim    = "kept_apart_hidden_claim"
 	stampKeptApartUncorroborated = "kept_apart_uncorroborated"
@@ -57,7 +58,6 @@ const (
 
 	skipUnsure            = "skipped_unsure"
 	skipBelowConfidence   = "skipped_below_confidence"
-	skipFrozenBothClaimed = "frozen_both_claimed"
 	skipRefDifferent      = "skipped_different_held_for_human"
 	skipChainUnproven     = "skipped_chain_unproven"
 	skipUncorroborated    = "skipped_uncorroborated"
@@ -115,21 +115,19 @@ type exactRef struct {
 
 type workPairSides struct {
 	AID, BID           int64
-	ClaimedA, ClaimedB bool
+	ClaimA, ClaimB     int
 	HiddenA, HiddenB   bool
 	ExactA, ExactB     int
 	DeletedA, DeletedB bool
 	RefsA, RefsB       []exactRef
 }
 
-func bothClaimed(s workPairSides) bool { return s.ClaimedA && s.ClaimedB }
-
 // contradictingExactRef names one exact-tier disagreement between the two
 // sides, or "" when they do not contradict. Two entities can never corroborate
 // through exact refs — the partial unique uq_catalog_external_ref_exact makes
 // sharing one impossible — so disagreement is the only signal this tier
-// carries. IdentityVetoExemptSourceIDs says which sources carry no signal and
-// why; the screen drops them itself rather than trusting its caller to, because
+// carries. WorkIdentityVetoSourceIDs says which sources carry the signal and
+// why; the screen drops the rest itself rather than trusting its caller to, because
 // a rule whose safety lives in a distant loader is one refactor from being a
 // rule that vetoes on a howlongtobeat id.
 //
@@ -141,7 +139,7 @@ func bothClaimed(s workPairSides) bool { return s.ClaimedA && s.ClaimedB }
 func contradictingExactRef(s workPairSides) string {
 	byKey := map[int16][]exactRef{}
 	for _, r := range s.RefsB {
-		if slices.Contains(model.IdentityVetoExemptSourceIDsFor(model.EntityTypeWork), r.SourceID) {
+		if !model.VetoesIdentity(model.EntityTypeWork, r.SourceID) {
 			continue
 		}
 		byKey[r.SourceID] = append(byKey[r.SourceID], r)
@@ -178,9 +176,9 @@ func contradictingExactRef(s workPairSides) string {
 
 func survivorTarget(s workPairSides) (source, target int64) {
 	switch {
-	case s.ClaimedA && !s.ClaimedB:
+	case s.ClaimA > s.ClaimB:
 		return s.BID, s.AID
-	case s.ClaimedB && !s.ClaimedA:
+	case s.ClaimB > s.ClaimA:
 		return s.AID, s.BID
 	case s.ExactA > s.ExactB:
 		return s.BID, s.AID
@@ -286,7 +284,7 @@ func planCreditName(verdict string, conf, minAccept, minReject float64) applyPla
 // different pairs in needs_manual on 2026-09-18 with nothing that could move
 // them. The letters-and-digits key is same-only: 450 catalog pairs share an
 // exclusive one while carrying different exact VNDB ids.
-func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev pairEvidence) applyPlan {
+func planWorkPair(verdict string, conf, minAccept, minReject float64, s workPairSides, ev pairEvidence) applyPlan {
 	if s.DeletedA || s.DeletedB {
 		return applyPlan{Action: applyDefer, Stamp: stampObsoletePair}
 	}
@@ -300,13 +298,10 @@ func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev p
 		}
 		return applyPlan{Action: applyReject}
 	case VerdictSame, VerdictUnsure:
-		if bothClaimed(s) {
-			return applyPlan{Action: applyDefer, Stamp: stampKeptApartBothClaimed}
-		}
 		if s.HiddenA || s.HiddenB {
 			return applyPlan{Action: applyDefer, Stamp: stampKeptApartHiddenClaim}
 		}
-		if reason := ev.acceptReason(verdict); reason != "" {
+		if reason := ev.acceptReason(verdict, conf, minAccept); reason != "" {
 			src, tgt := survivorTarget(s)
 			return applyPlan{Action: applyAccept, Source: src, Target: tgt, Reason: reason}
 		}

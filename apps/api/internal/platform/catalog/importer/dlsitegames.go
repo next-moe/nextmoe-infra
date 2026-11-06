@@ -32,6 +32,7 @@ type DLsiteGamesStats struct {
 	TitleAttachedGroups int
 	RejectedSkips       int
 	QuarantinedGroups   int
+	ScreenQuarantined   int
 	MintedGroups        int
 	FoldedGroups        int
 	ReleasesPlanned     int

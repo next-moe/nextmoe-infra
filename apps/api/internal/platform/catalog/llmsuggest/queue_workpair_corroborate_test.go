@@ -65,10 +65,13 @@ func TestAMergeNeedsANameNoOtherWorkAnswersTo(t *testing.T) {
 		return got
 	}
 
-	// unsure at confidence 0: the other side is a bangumi row with nothing in
-	// it, which is what the verdict records. The name is the evidence.
+	// same at the accept bar, and no third work answers to the name.
 	soleA, soleB := mkWork("Aevum Aeterna"), mkWork("Aevum Aeterna")
-	mkPair(soleA, soleB, VerdictUnsure, 0, "hash-sole")
+	mkPair(soleA, soleB, VerdictSame, 0.9, "hash-sole")
+
+	// unsure: an exclusive name alone no longer decides it.
+	unsureA, unsureB := mkWork("Doll House"), mkWork("Doll House")
+	mkPair(unsureA, unsureB, VerdictUnsure, 0.2, "hash-unsure")
 
 	// works 16532 and 27910 on production: a 1999 Japanese title and a 2022
 	// English one, agreeing only because the first carries the second as a
@@ -103,8 +106,10 @@ func TestAMergeNeedsANameNoOtherWorkAnswersTo(t *testing.T) {
 	assert.Equal(t, 1, st.Counts["applied_"+applyAccept], "counts: %v", st.Counts)
 	assert.Equal(t, 1, st.Counts["applied_"+applyReject], "counts: %v", st.Counts)
 	assert.Equal(t, 2, st.Counts["applied_"+stampHeldSameUncorroborated], "counts: %v", st.Counts)
+	assert.Equal(t, 1, st.Counts["applied_"+stampKeptApartUncorroborated], "counts: %v", st.Counts)
 
 	assert.Equal(t, model.CandidateStatusAccepted, status(soleA, soleB))
+	assert.Equal(t, model.CandidateStatusDeferred, status(unsureA, unsureB))
 	assert.Equal(t, model.CandidateStatusNeedsManual, status(aliasA, aliasB))
 	assert.Equal(t, model.CandidateStatusNeedsManual, status(crowdedA, crowdedB))
 	assert.Equal(t, model.CandidateStatusRejected, status(vetoA, vetoB))

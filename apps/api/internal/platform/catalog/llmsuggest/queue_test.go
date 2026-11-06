@@ -11,12 +11,12 @@ import (
 )
 
 func TestSurvivorDirectionClaimed(t *testing.T) {
-	s := workPairSides{AID: 10, BID: 20, ClaimedA: true, ClaimedB: false, ExactA: 0, ExactB: 9}
+	s := workPairSides{AID: 10, BID: 20, ClaimA: 3, ClaimB: 0, ExactA: 0, ExactB: 9}
 	src, tgt := survivorTarget(s)
 	assert.Equal(t, int64(20), src)
 	assert.Equal(t, int64(10), tgt)
 
-	s = workPairSides{AID: 10, BID: 20, ClaimedA: false, ClaimedB: true, ExactA: 9, ExactB: 0}
+	s = workPairSides{AID: 10, BID: 20, ClaimA: 0, ClaimB: 3, ExactA: 9, ExactB: 0}
 	src, tgt = survivorTarget(s)
 	assert.Equal(t, int64(10), src)
 	assert.Equal(t, int64(20), tgt)
@@ -46,13 +46,11 @@ func TestSurvivorDirectionLowerID(t *testing.T) {
 	assert.Equal(t, int64(10), tgt)
 }
 
-func TestBothClaimedFreeze(t *testing.T) {
-	s := workPairSides{AID: 1, BID: 2, ClaimedA: true, ClaimedB: true}
-	assert.True(t, bothClaimed(s))
-	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole"))
-	assert.Equal(t, applyDefer, p.Action)
-	assert.Equal(t, stampKeptApartBothClaimed, p.stamp())
-	assert.Empty(t, p.Skip)
+func TestSurvivorDirectionPrefersThePublishedClaim(t *testing.T) {
+	s := workPairSides{AID: 54607, BID: 224163, ClaimA: 1, ClaimB: 3, ExactA: 2, ExactB: 1}
+	src, tgt := survivorTarget(s)
+	assert.Equal(t, int64(54607), src, "the draft folds into the published page")
+	assert.Equal(t, int64(224163), tgt)
 }
 
 func TestVerdictActionMapping(t *testing.T) {
@@ -64,9 +62,9 @@ func TestVerdictActionMapping(t *testing.T) {
 	assert.Equal(t, skipUnsure, p.Skip)
 
 	s := workPairSides{AID: 1, BID: 2}
-	p = planWorkPair(VerdictDifferent, 0.95, 0.7, s, soleName("sole"))
+	p = planWorkPair(VerdictDifferent, 0.95, 0.9, 0.7, s, soleName("sole"))
 	assert.Equal(t, applyReject, p.Action)
-	p = planWorkPair(VerdictSame, 0.95, 0.7, s, soleName("sole"))
+	p = planWorkPair(VerdictSame, 0.95, 0.9, 0.7, s, soleName("sole"))
 	assert.Equal(t, applyAccept, p.Action)
 	assert.Equal(t, int64(2), p.Source)
 	assert.Equal(t, int64(1), p.Target)

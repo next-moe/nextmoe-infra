@@ -265,6 +265,11 @@ func (im *Importer) writeDLGameMint(tx *gorm.DB, p dlGamePlan, cnResolve func(st
 		return wid, written, err
 	}
 	written += len(refs) + len(revs)
+	screened, err := screenMinted(tx, []model.CatalogWork{work})
+	if err != nil {
+		return wid, written, err
+	}
+	st.ScreenQuarantined += screened
 	if p.quarantine && len(p.hits) > 0 {
 		var cands []model.CatalogMatchCandidate
 		for _, hit := range p.hits {

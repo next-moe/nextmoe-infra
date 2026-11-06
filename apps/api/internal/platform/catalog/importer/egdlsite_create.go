@@ -161,6 +161,11 @@ func (im *Importer) createMintChunk(tx *gorm.DB, chunk []egdlItem, cnResolve fun
 	if err := im.batchRefsRevs(tx, refs, revs); err != nil {
 		return err
 	}
+	screened, err := screenMinted(tx, works)
+	if err != nil {
+		return err
+	}
+	st.ScreenQuarantined += screened
 	var cands []model.CatalogMatchCandidate
 	for i, it := range chunk {
 		if it.collidedWorkID == 0 {

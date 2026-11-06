@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"slices"
 	"testing"
 
 	"api/internal/platform/catalog/model"
@@ -73,13 +74,21 @@ func TestApproveIgnoresAnEditionSplittingWorkConflict(t *testing.T) {
 	}
 }
 
-func TestEditionSplittingSourcesStillVetoOtherEntities(t *testing.T) {
-	for _, src := range model.EditionSplittingSourceIDs {
-		require.Contains(t, model.IdentityVetoExemptSourceIDsFor(model.EntityTypeWork), src)
-		require.NotContains(t, model.IdentityVetoExemptSourceIDsFor(model.EntityTypePerson), src)
-		require.NotContains(t, model.IdentityVetoExemptSourceIDsFor(model.EntityTypeLabel), src)
+func TestOnlyRegistriesVetoAWorkMerge(t *testing.T) {
+	for _, src := range append(slices.Clone(model.EditionSplittingSourceIDs), model.SourceDLsite, model.SourceSteam, model.SourceDMM, model.SourceGetchu) {
+		require.False(t, model.VetoesIdentity(model.EntityTypeWork, src), "source %d", src)
 	}
-	require.NotContains(t, model.IdentityVetoExemptSourceIDsFor(model.EntityTypeWork), vndbSource)
+	for _, src := range model.EditionSplittingSourceIDs {
+		require.True(t, model.VetoesIdentity(model.EntityTypePerson, src))
+		require.True(t, model.VetoesIdentity(model.EntityTypeLabel, src))
+	}
+	require.True(t, model.VetoesIdentity(model.EntityTypeWork, vndbSource))
+}
+
+func TestApproveIgnoresAStorefrontWorkConflict(t *testing.T) {
+	_, status := approvePair(t, model.SourceDMM, false)
+	require.Equal(t, model.ProposalStatusApproved, status,
+		"a DMM id names one SKU, and one game sells as several")
 }
 
 func TestApproveWithNoConflictIsTheControl(t *testing.T) {
@@ -143,7 +152,7 @@ func TestApproveHoldsAMergeIntoAHiddenClaim(t *testing.T) {
 
 	var out bytes.Buffer
 	require.NoError(t, runApprove(ctx, testDB, &out, merge, resolve, 1, "llm:queue-adjudicator", 0, true))
-	require.Contains(t, out.String(), "hidden_survivor_held=1")
+	require.Contains(t, out.String(), "survivor_claim_held=1")
 	var status int16
 	require.NoError(t, testDB.Raw(`SELECT status FROM catalog_merge_proposal WHERE id = ?`, p.ID).Scan(&status).Error)
 	require.Equal(t, model.ProposalStatusOpen, status, "held, not rejected: a person flips it or unhides the target")

@@ -1406,7 +1406,7 @@
   "Which entry holds the id now.": "当前持有该 id 的一方。",
   "Registry key (vndb, bangumi, erogamescape, …). Must not be used as a discriminant.": "资料站键（vndb、bangumi、erogamescape……）。不得用作判别条件。",
   "Reasons the merge cannot be filed or run as it stands. Empty array when nothing blocks it.": "按当前情况无法提交或执行该合并的原因。没有阻断时为空数组。",
-  "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary.": "机器可读的种类：same_entity、not_live、cross_medium、hidden_survivor、conflicting_anchor、claim_dropped。开放词表。",
+  "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary.": "机器可读的种类：same_entity、not_live、cross_medium、hidden_survivor、weaker_survivor_claim、conflicting_anchor、claim_dropped。开放词表。",
   "Explanation for people, in Chinese. Must not be used as a discriminant.": "给人看的说明，中文。不得用作判别条件。",
   "Site claims on the two works and which one survives (works only). null for other families.": "两部作品上的站点认领，以及哪一个保留（仅作品）。其他家族为 null。",
   "moves: the target is unclaimed and takes the source's claim; dropped: both are claimed and the target's stays; none: the source is unclaimed.": "moves：目标方未被认领，接过源方的认领；dropped：两边都已被认领，保留目标方的认领；none：源方未被认领。",

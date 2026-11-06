@@ -7781,7 +7781,7 @@ components:
       additionalProperties: true
       properties:
         code:
-          description: "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary."
+          description: "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary."
           maxLength: 64
           pattern: ^[a-z_]+$
           type: string
@@ -14667,7 +14667,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.84.0
+  version: 2.85.0
   x-stability: stable
 openapi: 3.1.0
 paths:

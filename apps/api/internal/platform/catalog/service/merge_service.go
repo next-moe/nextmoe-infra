@@ -53,7 +53,7 @@ func (s *MergeService) CheckAbsorbable(ctx context.Context, sourceID int64) erro
 }
 
 func (s *MergeService) CheckSurvivor(ctx context.Context, entityType int16, sourceID, targetID int64) error {
-	return assertSurvivorNotHidden(s.db.WithContext(ctx), entityType, sourceID, targetID)
+	return assertSurvivorClaim(s.db.WithContext(ctx), entityType, sourceID, targetID)
 }
 
 func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string, absorb bool, origin string) (*model.CatalogMergeProposal, error) {
@@ -81,7 +81,7 @@ func (s *MergeService) proposeWith(ctx context.Context, entityType int16, source
 			return nil, err
 		}
 	}
-	if err := assertSurvivorNotHidden(s.db.WithContext(ctx), entityType, src, dst); err != nil {
+	if err := assertSurvivorClaim(s.db.WithContext(ctx), entityType, src, dst); err != nil {
 		return nil, err
 	}
 	if doc.mode == mergeModeAbsorb {
@@ -115,7 +115,7 @@ func (s *MergeService) proposeWith(ctx context.Context, entityType int16, source
 
 func (s *MergeService) ApproveMerge(ctx context.Context, proposalID, approvedBy int64) error {
 	return s.transition(ctx, proposalID, model.ProposalStatusOpen, func(tx *gorm.DB, p *model.CatalogMergeProposal) error {
-		if err := assertSurvivorNotHidden(tx, p.EntityType, p.SourceEntityID, p.TargetEntityID); err != nil {
+		if err := assertSurvivorClaim(tx, p.EntityType, p.SourceEntityID, p.TargetEntityID); err != nil {
 			return err
 		}
 		after := time.Now().Add(time.Duration(keys.CatalogMergeCoolingOffHours.Get()) * time.Hour)

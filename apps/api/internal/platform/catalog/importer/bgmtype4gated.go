@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/service"
+	"api/internal/platform/catalog/srcbangumi"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -64,6 +66,8 @@ type BgmGatedStats struct {
 	EditionGuarded     int
 	EditionAmbiguous   int
 	EditionRefsCreated int
+
+	ScreenQuarantined int
 
 	WorksCreated     int
 	TitlesCreated    int
@@ -313,6 +317,9 @@ func (im *Importer) createGatedChunk(tx *gorm.DB, chunk []candidate, st *BgmGate
 	if err := im.batchRefsRevs(tx, refs, revs); err != nil {
 		return err
 	}
+	if err := im.screenGatedChunk(tx, chunk, works, status, st); err != nil {
+		return err
+	}
 
 	if status == model.WorkStatusQuarantine {
 		var cands []model.CatalogMatchCandidate
@@ -345,6 +352,43 @@ func (im *Importer) createGatedChunk(tx *gorm.DB, chunk []candidate, st *BgmGate
 	return nil
 }
 
+// screenGatedChunk passes the chunk through service.ScreenMintedWorks with the
+// Steam appids each subject's infobox states: the store lane writes them as
+// refs only later, and by then the work has been live for days.
+func (im *Importer) screenGatedChunk(tx *gorm.DB, chunk []candidate, works []model.CatalogWork, status int16, st *BgmGatedStats) error {
+	ids := make([]int64, len(chunk))
+	for i, c := range chunk {
+		ids[i] = c.row.ID
+	}
+	var boxes []struct {
+		ID      int64  `gorm:"column:id"`
+		Infobox []byte `gorm:"column:infobox_parsed"`
+	}
+	if err := tx.Raw(`SELECT id, infobox_parsed FROM src_bangumi.subject WHERE id IN ? AND infobox_parsed IS NOT NULL`, ids).
+		Scan(&boxes).Error; err != nil {
+		return fmt.Errorf("load infoboxes: %w", err)
+	}
+	appids := make(map[int64][]string, len(boxes))
+	for _, b := range boxes {
+		appids[b.ID] = srcbangumi.SteamAppIDs(b.Infobox)
+	}
+	minted := make([]service.MintedWork, len(chunk))
+	for i, c := range chunk {
+		minted[i] = service.MintedWork{ID: works[i].ID}
+		for _, appid := range appids[c.row.ID] {
+			minted[i].Keys = append(minted[i].Keys, service.IdentityKey{SourceID: model.SourceSteam, ExternalID: appid})
+		}
+	}
+	hits, err := service.ScreenMintedWorks(tx, minted)
+	if err != nil {
+		return err
+	}
+	if status == model.WorkStatusLive {
+		st.ScreenQuarantined += len(service.ScreenedWorkIDs(hits))
+	}
+	return nil
+}
+
 func logBgmGated(st *BgmGatedStats, dry bool) {
 	slog.Info("bgm-type4-gated survey",
 		"dry", dry, "pool_total", st.PoolTotal, "excluded_console_mobile", st.ExcludedConsoleMobile,
@@ -354,6 +398,7 @@ func logBgmGated(st *BgmGatedStats, dry bool) {
 		"skipped_ascii_xonly", st.SkippedASCIIXOnly,
 		"title_collisions", st.TitleCollisions, "skipped_intra_collision", st.SkippedIntraCollision,
 		"to_create", st.ToCreate, "to_quarantine", st.ToQuarantine, "quarantined", st.Quarantined,
+		"screen_quarantined", st.ScreenQuarantined,
 		"edition_guarded", st.EditionGuarded, "edition_ambiguous", st.EditionAmbiguous,
 		"edition_refs_created", st.EditionRefsCreated,
 		"works_created", st.WorksCreated, "titles_created", st.TitlesCreated,

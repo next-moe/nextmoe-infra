@@ -38,10 +38,6 @@ func runSeedKeys(ctx context.Context, db *gorm.DB, w io.Writer, _ int64, limit i
 	if err != nil {
 		return err
 	}
-	exempt := map[int16]struct{}{}
-	for _, id := range model.IdentityVetoExemptSourceIDsFor(model.EntityTypeWork) {
-		exempt[id] = struct{}{}
-	}
 
 	var planned []seedKeyPair
 	existingSkips, conflictSkips := 0, 0
@@ -50,7 +46,7 @@ func runSeedKeys(ctx context.Context, db *gorm.DB, w io.Writer, _ int64, limit i
 			existingSkips++
 			continue
 		}
-		if conflictingExactWorkRefs(k[0], k[1], refs, exempt) {
+		if conflictingExactWorkRefs(k[0], k[1], refs) {
 			conflictSkips++
 			continue
 		}
@@ -226,16 +222,16 @@ func unionIDs(union map[[2]int64]int16) []int64 {
 	return ids
 }
 
-func conflictingExactWorkRefs(a, b int64, refs map[int64][]exactWorkRef, exempt map[int16]struct{}) bool {
+func conflictingExactWorkRefs(a, b int64, refs map[int64][]exactWorkRef) bool {
 	bySrc := map[int16][]string{}
 	for _, r := range refs[b] {
-		if _, ok := exempt[r.SourceID]; ok {
+		if !model.VetoesIdentity(model.EntityTypeWork, r.SourceID) {
 			continue
 		}
 		bySrc[r.SourceID] = append(bySrc[r.SourceID], r.ExternalID)
 	}
 	for _, r := range refs[a] {
-		if _, ok := exempt[r.SourceID]; ok {
+		if !model.VetoesIdentity(model.EntityTypeWork, r.SourceID) {
 			continue
 		}
 		for _, ext := range bySrc[r.SourceID] {

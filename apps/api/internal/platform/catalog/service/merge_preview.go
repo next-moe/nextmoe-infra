@@ -226,8 +226,11 @@ func previewBlockers(db *gorm.DB, p *MergePreview) []PreviewIssue {
 	if p.EntityType == model.EntityTypeWork && p.Source.MediumID != p.Target.MediumID {
 		out = append(out, PreviewIssue{"cross_medium", "两部作品属于不同媒介（例如游戏与小说），不能合并；它们之间应该用关联作品连接。"})
 	}
-	if err := assertSurvivorNotHidden(db, p.EntityType, p.Source.ID, p.Target.ID); errors.Is(err, ErrHiddenSurvivor) {
+	switch err := assertSurvivorClaim(db, p.EntityType, p.Source.ID, p.Target.ID); {
+	case errors.Is(err, ErrHiddenSurvivor):
 		out = append(out, PreviewIssue{"hidden_survivor", "保留方的认领已被隐藏，而被并入方没有：合并会把公开的条目并进隐藏的条目。请交换方向，或先处理认领。"})
+	case errors.Is(err, ErrWeakerSurvivorClaim):
+		out = append(out, PreviewIssue{"weaker_survivor_claim", "被并入方的认领比保留方更完整（例如已发布对草稿）：合并只保留保留方的认领。请交换方向。"})
 	}
 	return out
 }

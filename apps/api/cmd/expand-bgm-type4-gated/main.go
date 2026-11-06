@@ -59,7 +59,7 @@ func main() {
 		"sig_p", st.SigP, "sig_t", st.SigT, "sig_x", st.SigX, "sig_a", st.SigA, "gated_total", st.GatedTotal,
 		"skipped_ascii_xonly", st.SkippedASCIIXOnly,
 		"title_collisions", st.TitleCollisions, "skipped_intra_collision", st.SkippedIntraCollision,
-		"to_create", st.ToCreate, "to_quarantine", st.ToQuarantine, "quarantined", st.Quarantined,
+		"to_create", st.ToCreate, "to_quarantine", st.ToQuarantine, "quarantined", st.Quarantined, "screen_quarantined", st.ScreenQuarantined,
 		"edition_guarded", st.EditionGuarded, "edition_ambiguous", st.EditionAmbiguous,
 		"edition_refs_created", st.EditionRefsCreated,
 		"works_created", st.WorksCreated, "titles_created", st.TitlesCreated,

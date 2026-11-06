@@ -83,7 +83,7 @@ func main() {
 		"population", st.Population, "total_groups", st.TotalGroups, "pack_products", st.PackProducts,
 		"edition_groups", st.EditionGroups, "declared_groups", st.DeclaredGroups, "split_groups", st.SplitGroups,
 		"title_attached_groups", st.TitleAttachedGroups, "rejected_skips", st.RejectedSkips,
-		"quarantined_groups", st.QuarantinedGroups, "minted_groups", st.MintedGroups, "folded_groups", st.FoldedGroups,
+		"quarantined_groups", st.QuarantinedGroups, "screen_quarantined", st.ScreenQuarantined, "minted_groups", st.MintedGroups, "folded_groups", st.FoldedGroups,
 		"releases_planned", st.ReleasesPlanned, "refs_planned", st.RefsPlanned, "candidates_planned", st.CandidatesPlanned,
 		"limited_groups", st.LimitedGroups, "written", st.Written, "errors", st.Errors,
 	)

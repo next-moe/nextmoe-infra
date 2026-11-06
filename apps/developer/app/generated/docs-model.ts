@@ -222940,7 +222940,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "code",
                               "required": true,
-                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary.",
+                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary.",
                               "type": "string"
                             },
                             {
@@ -223398,7 +223398,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "code",
                               "required": true,
-                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary.",
+                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary.",
                               "type": "string"
                             },
                             {
@@ -274693,7 +274693,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "code",
                               "required": true,
-                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary.",
+                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary.",
                               "type": "string"
                             },
                             {
@@ -274766,7 +274766,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "code",
                               "required": true,
-                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary.",
+                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary.",
                               "type": "string"
                             },
                             {
@@ -275067,7 +275067,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "code",
                               "required": true,
-                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary.",
+                              "doc": "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary.",
                               "type": "string"
                             },
                             {

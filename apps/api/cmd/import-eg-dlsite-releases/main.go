@@ -80,7 +80,7 @@ func main() {
 		"releases", st.ReleasesCreated, "titles", st.TitlesCreated, "labels", st.LabelsCreated,
 		"names", st.NamesCreated, "credits", st.CreditsWritten, "edges", st.EdgesWritten,
 		"eg_refs", st.EGRefsWritten, "stubs", st.Stubs, "skipped_unmapped_role", st.SkippedUnmappedRole,
-		"title_collisions", st.TitleCollisions, "quarantined", st.Quarantined,
+		"title_collisions", st.TitleCollisions, "quarantined", st.Quarantined, "screen_quarantined", st.ScreenQuarantined,
 		"skipped_intra_collision", st.SkippedIntraCollision, "eg_aliases", st.EGAliases,
 		"skipped_multi_work", st.SkippedMultiWork, "errors", st.Errors,
 	)

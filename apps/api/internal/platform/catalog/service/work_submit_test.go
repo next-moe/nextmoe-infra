@@ -554,19 +554,19 @@ func TestSubmitWorkGateIgnoresOtherMedia(t *testing.T) {
 	}
 }
 
-func TestSubmitWorkGateIgnoresIneligibleShortTitle(t *testing.T) {
+func TestSubmitWorkGateIgnoresAOneRuneTitle(t *testing.T) {
 	s := newLifecycle(t)
-	createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "abc")
+	createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "x")
 
-	fields := submitFieldsNoAnchor("abc")
+	fields := submitFieldsNoAnchor("x")
 	fields[editspec.FieldWorkTitles] = []any{
-		map[string]any{"lang": "ja", "title": "abc", "kind": float64(0)},
+		map[string]any{"lang": "ja", "title": "x", "kind": float64(0)},
 	}
 	res, err := s.SubmitWork(t.Context(), SubmitWorkParams{
 		Site: submitSite, ProductWorkID: 90604, ActorUID: 7, Fields: fields,
 	})
 	if err != nil {
-		t.Fatalf("a 3-rune ASCII name is below the eligibility floor and must mint: %v", err)
+		t.Fatalf("a one-rune name is below the official floor and must mint: %v", err)
 	}
 	if res.WorkID == 0 {
 		t.Fatalf("result: %+v", res)

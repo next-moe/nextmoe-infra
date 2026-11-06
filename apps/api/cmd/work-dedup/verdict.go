@@ -10,16 +10,15 @@ type bucket string
 const (
 	bucketAuto           bucket = "auto"
 	bucketOutOfScope     bucket = "out-of-scope"
+	bucketVetoConflict   bucket = "veto-conflict"
 	bucketAnchorConflict bucket = "anchor-conflict"
 	bucketRelConflict    bucket = "release-conflict"
-	bucketBothKungal     bucket = "both-kungal"
 	bucketHiddenClaim    bucket = "hidden-claim"
 	bucketDateClash      bucket = "date-clash"
 	bucketBare           bucket = "bare"
-	bucketBridged        bucket = "bridged"
 	bucketAliasOnly      bucket = "alias-only"
-	bucketRefCI          bucket = "ref-case"
-	bucketReleaseRef     bucket = "release-ref"
+	bucketShortTitle     bucket = "short-title"
+	bucketSharedKey      bucket = "shared-key"
 )
 
 // dateNearDays tolerates cross-source date drift: sources record different
@@ -48,29 +47,35 @@ func classifyPair(r pairRow) bucket {
 	if r.LaneA == "dlsite" && r.LaneB == "dlsite" {
 		return bucketOutOfScope
 	}
-	corroborated := r.RefOverlapCI || r.LabelOverlap || r.SharedNorms >= 2 || datesNear(r.DateA, r.DateB)
+	corroborated := r.LabelOverlap || r.SharedNorms >= 2 || datesNear(r.DateA, r.DateB)
 	dateClash := r.DateA != nil && r.DateB != nil && r.DateA.Year() != r.DateB.Year()
 	switch {
-	case r.AnchorConflict:
-		return bucketAnchorConflict
-	case r.RelConflict:
-		return bucketRelConflict
-	case r.LaneA == "kungal" && r.LaneB == "kungal":
-		return bucketBothKungal
+	case r.VetoConflict:
+		return bucketVetoConflict
 	case r.HiddenA || r.HiddenB:
 		// Merging into hidden 61101 took a 42,200-view game off every read face;
 		// its hide was a stale backfill, but a moderation ban reads the same, so
 		// neither direction is safe without a person.
 		return bucketHiddenClaim
-	case r.RefOverlap:
+	case r.SharedRegistry:
 		// works 51010/222325 shared bangumi subject 524476 yet were filed manual because the year check ran first.
 		return bucketAuto
-	case r.SharedNorms == 0 && r.CrossRefOnly:
-		return bucketReleaseRef
-	case r.SharedNorms == 0:
-		return bucketRefCI
+	case r.SharedKey != "" && r.SharedOfficial > 0:
+		return bucketAuto
+	case r.AnchorConflict:
+		// Outside VNDB a disagreeing exact id is no proof of two games, since
+		// ErogameScape and Bangumi list editions apart, but it is no proof of one
+		// either: same-titled distinct games (銀河英雄伝説, remakes) differ there,
+		// and two titles alone must not merge across it.
+		return bucketAnchorConflict
+	case r.RelConflict:
+		return bucketRelConflict
+	case r.SharedNames == 0:
+		return bucketSharedKey
 	case r.SharedOfficial == 0:
 		return bucketAliasOnly
+	case r.SharedNorms == 0 && r.SharedKey == "":
+		return bucketShortTitle
 	case dateClash:
 		return bucketDateClash
 	case !corroborated:
@@ -80,10 +85,10 @@ func classifyPair(r pairRow) bucket {
 }
 
 // classify buckets every pair, then walks the connected components of the
-// auto pairs to pick one survivor per group. A component holding two claimed
-// kungal works was bridged together by an import mint's titles — merging
-// anything there picks between two claims, so the whole component is demoted
-// to the manual queue.
+// auto pairs to pick one survivor per group: the strongest claim, then the
+// most exact anchors, then the lowest id. propose only files a group member's
+// pair with the survivor itself, so a member reached only through a third work
+// is never merged on the strength of that bridge.
 func classify(rows []pairRow) ([]bucket, []mergeGroup) {
 	verdicts := make([]bucket, len(rows))
 	uf := map[int64]int64{}
@@ -101,7 +106,7 @@ func classify(rows []pairRow) ([]bucket, []mergeGroup) {
 	union := func(a, b int64) { uf[find(a)] = find(b) }
 
 	type workFacts struct {
-		kungal  bool
+		claim   int
 		anchors int
 		name    string
 	}
@@ -111,8 +116,8 @@ func classify(rows []pairRow) ([]bucket, []mergeGroup) {
 		if verdicts[i] != bucketAuto {
 			continue
 		}
-		facts[r.A] = workFacts{kungal: r.LaneA == "kungal", anchors: r.AnchorsA, name: r.NameA}
-		facts[r.B] = workFacts{kungal: r.LaneB == "kungal", anchors: r.AnchorsB, name: r.NameB}
+		facts[r.A] = workFacts{claim: r.ClaimA, anchors: r.AnchorsA, name: r.NameA}
+		facts[r.B] = workFacts{claim: r.ClaimB, anchors: r.AnchorsB, name: r.NameB}
 		union(r.A, r.B)
 	}
 
@@ -121,24 +126,13 @@ func classify(rows []pairRow) ([]bucket, []mergeGroup) {
 		root := find(id)
 		members[root] = append(members[root], id)
 	}
-	demoted := map[int64]bool{}
 	var groups []mergeGroup
-	for root, ids := range members {
+	for _, ids := range members {
 		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-		kungal := 0
-		for _, id := range ids {
-			if facts[id].kungal {
-				kungal++
-			}
-		}
-		if kungal > 1 {
-			demoted[root] = true
-			continue
-		}
 		survivor := ids[0]
 		for _, id := range ids[1:] {
 			s, c := facts[survivor], facts[id]
-			if (c.kungal && !s.kungal) || (c.kungal == s.kungal && c.anchors > s.anchors) {
+			if c.claim > s.claim || (c.claim == s.claim && c.anchors > s.anchors) {
 				survivor = id
 			}
 		}
@@ -151,11 +145,5 @@ func classify(rows []pairRow) ([]bucket, []mergeGroup) {
 		groups = append(groups, mergeGroup{survivor: survivor, sources: sources, sample: facts[survivor].name})
 	}
 	sort.Slice(groups, func(i, j int) bool { return groups[i].survivor < groups[j].survivor })
-
-	for i, r := range rows {
-		if verdicts[i] == bucketAuto && demoted[find(r.A)] {
-			verdicts[i] = bucketBridged
-		}
-	}
 	return verdicts, groups
 }

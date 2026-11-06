@@ -444,3 +444,41 @@ func TestBgmType4GatedPunctuationVariantsCollide(t *testing.T) {
 	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_external_ref
 		WHERE matched_by='rule:bgm-type4-gated' AND external_id IN ('3606','3607')`))
 }
+
+// bgm 589607 minted 224163 live beside 54607 (黄莓C): the name is three runes
+// with a Latin one, under the gate's four-rune rule, and the Steam appid its
+// infobox states was written as a ref only weeks later.
+func TestBgmType4GatedScreensAShortTitledTwinAndTheInfoboxAppID(t *testing.T) {
+	clean(t)
+	require.NoError(t, testDB.Exec(`ALTER TABLE games ADD COLUMN IF NOT EXISTS gamename text`).Error)
+
+	existing := seedExistingWork(t, "黄莓C")
+	byStore := seedExistingWork(t, "ストア側の既存作品")
+	rel := &model.CatalogRelease{WorkID: byStore, Kind: model.ReleaseKindDefault}
+	require.NoError(t, testDB.Create(rel).Error)
+	require.NoError(t, testDB.Create(&model.CatalogExternalRef{
+		EntityType: model.EntityTypeRelease, EntityID: rel.ID, SourceID: model.SourceSteam,
+		ExternalID: "3919400", LinkKind: model.LinkKindExact, MatchedBy: "test",
+	}).Error)
+
+	seedSubject(t, 589607, "黄莓C", "", `["Galgame","PC","游戏"]`, "", false)
+	seedSubject(t, 589608, "全く別の新規作品名", "", `["Galgame","PC","游戏"]`, "", false)
+	require.NoError(t, testDB.Exec(`UPDATE src_bangumi.subject SET infobox_parsed = ?::jsonb WHERE id = 589608`,
+		`{"Type":"Game","Fields":[{"Key":"链接","Value":"","Array":true,"Items":[{"Key":"","Value":"https://store.steampowered.com/app/3919400/"}]}]}`).Error)
+	seedSubject(t, 589609, "無関係の新規作品名", "", `["Galgame","PC","游戏"]`, "", false)
+
+	st, err := New(testDB, testDB, Options{}).RunBgmType4Gated(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 3, st.WorksCreated)
+	assert.Equal(t, 2, st.ScreenQuarantined)
+
+	short := workIDByBgmExt(t, "589607")
+	assert.Equal(t, model.WorkStatusQuarantine, workStatusOf(t, short))
+	assert.Equal(t, int64(1), countWhere(t, `SELECT count(*) FROM catalog_match_candidate WHERE a_id = ? AND b_id = ?`,
+		min(existing, short), max(existing, short)))
+	store := workIDByBgmExt(t, "589608")
+	assert.Equal(t, model.WorkStatusQuarantine, workStatusOf(t, store))
+	assert.Equal(t, int64(1), countWhere(t, `SELECT count(*) FROM catalog_match_candidate WHERE a_id = ? AND b_id = ? AND reason = ?`,
+		min(byStore, store), max(byStore, store), model.CandidateReasonSharedExternalID))
+	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workIDByBgmExt(t, "589609")))
+}

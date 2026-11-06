@@ -8,7 +8,13 @@ const (
 	SourceUser          int16 = 1
 	SourceVNDB          int16 = 2
 	SourceBangumi       int16 = 3
+	SourceDLsite        int16 = 4
 	SourceErogameScape  int16 = 5
+	SourceAniList       int16 = 6
+	SourceMAL           int16 = 7
+	SourceSteam         int16 = 8
+	SourceDMM           int16 = 15
+	SourceGetchu        int16 = 17
 	SourceCurated       int16 = 12
 	SourceUpscale       int16 = 13
 	SourceDerived       int16 = 18
@@ -45,8 +51,8 @@ const (
 // 2,107 covered works (2.373%), against 0 of 65,232 for vndb and 0 of 10,746
 // for dmm. ひぐらしのなく頃に解 alone holds three howlongtobeat ids.
 //
-// Lists editions as separate records — ErogameScape and Bangumi, exempt for
-// works only (IdentityVetoExemptSourceIDsFor). The 2026-09-14 figures "0 of
+// Lists editions as separate records — ErogameScape and Bangumi, never a veto
+// for works (WorkIdentityVetoSourceIDs). The 2026-09-14 figures "0 of
 // 21,476 works hold two EG exacts" and "1 of 33,267 for bangumi" measured our
 // own one-primary-per-work policy, not those registries. Cross-links from VNDB
 // and EG itself name several EG ids for 1,113 works ([7対応版], Remaster,
@@ -84,12 +90,20 @@ var EditionSplittingSourceIDs = []int16{
 	SourceErogameScape,
 }
 
-func IdentityVetoExemptSourceIDsFor(entityType int16) []int16 {
-	if entityType != EntityTypeWork {
-		return IdentityVetoExemptSourceIDs
+// WorkIdentityVetoSourceIDs are the only sources whose disagreeing exact ids
+// prove two works distinct: registries that fold every edition of a game into
+// one record. ErogameScape and Bangumi list editions separately
+// (EditionSplittingSourceIDs above). Storefront ids name a SKU, and one game
+// sells as many SKUs — download and package editions, all-ages cuts, platform
+// ports: on 2026-10-24 25 workpair candidates had been rejected solely on a
+// DMM or Steam id disagreement, four of them judged same.
+var WorkIdentityVetoSourceIDs = []int16{SourceVNDB, SourceAniList, SourceMAL}
+
+func VetoesIdentity(entityType, sourceID int16) bool {
+	if entityType == EntityTypeWork {
+		return slices.Contains(WorkIdentityVetoSourceIDs, sourceID)
 	}
-	out := append([]int16{}, IdentityVetoExemptSourceIDs...)
-	return append(out, EditionSplittingSourceIDs...)
+	return !slices.Contains(IdentityVetoExemptSourceIDs, sourceID)
 }
 
 // UploadedCoverSourceIDs hold covers uploaded to this platform (upscale rows

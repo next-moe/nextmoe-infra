@@ -96,7 +96,7 @@ func runApprove(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 		}
 
 		if err := merge.CheckSurvivor(ctx, p.EntityType, src, tgt); err != nil {
-			if !errors.Is(err, service.ErrHiddenSurvivor) {
+			if !errors.Is(err, service.ErrSurvivorClaim) {
 				fmt.Fprintf(w, "  proposal %d: survivor screen ERROR %v\n", p.ID, err)
 				errs++
 				continue
@@ -120,7 +120,7 @@ func runApprove(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 	if run {
 		mode = "APPLIED"
 	}
-	fmt.Fprintf(w, "%s [approve] note=%s open=%d approved=%d ref_conflict=%d cross_medium=%d superseded=%d hidden_survivor_held=%d errors=%d\n",
+	fmt.Fprintf(w, "%s [approve] note=%s open=%d approved=%d ref_conflict=%d cross_medium=%d superseded=%d survivor_claim_held=%d errors=%d\n",
 		mode, note, len(props), approved, conflicted, crossMedium, superseded, held, errs)
 	if errs > 0 {
 		return fmt.Errorf("%d approvals failed", errs)
@@ -151,13 +151,14 @@ func differentMediums(ctx context.Context, db *gorm.DB, a, b int64) (string, err
 // uq_catalog_external_ref_exact makes sharing one impossible — so disagreement
 // is the only signal this tier can carry.
 func contradictingExactRef(ctx context.Context, db *gorm.DB, entityType int16, a, b int64) (string, error) {
-	var row struct {
+	var rows []struct {
+		SourceID  int16  `gorm:"column:source_id"`
 		SourceKey string `gorm:"column:source_key"`
 		AExt      string `gorm:"column:a_ext"`
 		BExt      string `gorm:"column:b_ext"`
 	}
 	err := db.WithContext(ctx).Raw(`
-		SELECT cs.key AS source_key, ea.external_id AS a_ext, eb.external_id AS b_ext
+		SELECT ea.source_id, cs.key AS source_key, ea.external_id AS a_ext, eb.external_id AS b_ext
 		FROM catalog_external_ref ea
 		JOIN catalog_external_ref eb
 		  ON eb.entity_type = ea.entity_type
@@ -171,11 +172,14 @@ func contradictingExactRef(ctx context.Context, db *gorm.DB, entityType int16, a
 		  AND ea.entity_id   = ?
 		  AND ea.link_kind   = 0
 		  AND ea.dead_at IS NULL
-		  AND ea.source_id NOT IN ?
-		ORDER BY cs.trust_tier, cs.id
-		LIMIT 1`, b, entityType, a, model.IdentityVetoExemptSourceIDsFor(entityType)).Scan(&row).Error
-	if err != nil || row.SourceKey == "" {
+		ORDER BY cs.trust_tier, cs.id`, b, entityType, a).Scan(&rows).Error
+	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s %s vs %s", row.SourceKey, row.AExt, row.BExt), nil
+	for _, r := range rows {
+		if model.VetoesIdentity(entityType, r.SourceID) {
+			return fmt.Sprintf("%s %s vs %s", r.SourceKey, r.AExt, r.BExt), nil
+		}
+	}
+	return "", nil
 }

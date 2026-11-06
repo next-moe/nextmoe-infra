@@ -67,7 +67,7 @@ func runExecute(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 				check = func() error { return merge.ExecuteMerge(ctx, p.ID, &actor) }
 			}
 			if err := check(); err != nil {
-				if errors.Is(err, service.ErrHiddenSurvivor) {
+				if errors.Is(err, service.ErrSurvivorClaim) {
 					held++
 					fmt.Fprintf(w, "  proposal %d: HELD approved, %v\n", p.ID, err)
 					continue
@@ -83,7 +83,7 @@ func runExecute(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 	if run {
 		mode = "APPLIED"
 	}
-	fmt.Fprintf(w, "%s [execute] note=%s cooled=%d executed=%d chain_superseded=%d chain_residual=%d hidden_survivor_held=%d errors=%d\n",
+	fmt.Fprintf(w, "%s [execute] note=%s cooled=%d executed=%d chain_superseded=%d chain_residual=%d survivor_claim_held=%d errors=%d\n",
 		mode, note, len(props), executed, superseded, residual, held, errs)
 	if errs > 0 {
 		return fmt.Errorf("%d executions failed", errs)

@@ -37,7 +37,7 @@ type MergePreviewSide struct {
 
 type MergePreviewIssue struct {
 	_       struct{} `json:"-" additionalProperties:"true"`
-	Code    string   `json:"code" maxLength:"64" pattern:"^[a-z_]+$" doc:"Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary."`
+	Code    string   `json:"code" maxLength:"64" pattern:"^[a-z_]+$" doc:"Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary."`
 	Message string   `json:"message" maxLength:"1000" doc:"Explanation for people, in Chinese. Must not be used as a discriminant."`
 }
 

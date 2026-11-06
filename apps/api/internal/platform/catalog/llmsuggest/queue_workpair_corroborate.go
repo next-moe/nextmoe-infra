@@ -2,6 +2,7 @@ package llmsuggest
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -62,10 +63,8 @@ type pairEvidence struct {
 	SharedExternalID string
 	SharedHolders    int
 
-	DeclaredSubject string
-	DeclaredWorkno  string
-
-	DatesNear bool
+	DatesNear  bool
+	YearsClash bool
 
 	TitleName    string
 	TitleHolders int
@@ -89,35 +88,39 @@ func (e pairEvidence) exclusiveStripped() bool {
 	return e.StrippedName != "" && e.StrippedHolders == exclusiveNameHolders && utf8.RuneCountInString(e.StrippedName) >= looseNameMinRunes
 }
 
-func (e pairEvidence) exclusiveDeclared() bool {
-	return e.DeclaredSubject != "" && e.DeclaredWorkno != ""
-}
+// registryRecordKeys are the shared records that prove a pair on their own:
+// VNDB, Bangumi and ErogameScape ids name the game. A shared DLsite or Getchu
+// id names a SKU, which a pack or a fan disc shares with its parent.
+var registryRecordKeys = []string{"vndb", "bangumi", "erogamescape"}
 
-// acceptReason names the corroborator that decides an accept, in preference
-// order folded name, shared record, declared dlsite, loose name, stripped key,
-// dated title, dated cross-grain store id.
-// unsure cannot use loose, stripped, or declared: the 450-pair VNDB-disagreement
-// class above is the loose-key reason, and declared/stripped are same-only.
-func (e pairEvidence) acceptReason(verdict string) string {
-	if e.exclusive() {
+// acceptReason names the corroborator that decides an accept. A registry
+// record shared by the two works alone decides any verdict but different.
+// Everything else (a shared store record, the folded, loose or stripped name,
+// a dated title or cross-grain store id) needs a same verdict at the accept bar
+// and release years that agree. On 2026-11-06 the unsure-plus-exclusive-name
+// rule was about to merge Doll House (VNDB, 2020) into Dollhouse (Bangumi,
+// 2026) at confidence 0.2, and The Censor (2015) into The Censor (2025). Those
+// pairs had been held back only because both works were claimed.
+func (e pairEvidence) acceptReason(verdict string, conf, minAccept float64) string {
+	shared := fmt.Sprintf("shares %s:%s", e.SharedSourceKey, e.SharedExternalID)
+	if e.exclusiveShared() && slices.Contains(registryRecordKeys, e.SharedSourceKey) {
+		return shared
+	}
+	if verdict != VerdictSame || conf < minAccept || e.YearsClash {
+		return ""
+	}
+	switch {
+	case e.exclusiveShared():
+		return shared
+	case e.exclusive():
 		return fmt.Sprintf("sole holders of %q", e.Name)
-	}
-	if e.exclusiveShared() {
-		return fmt.Sprintf("shares %s:%s", e.SharedSourceKey, e.SharedExternalID)
-	}
-	if verdict == VerdictSame && e.exclusiveDeclared() {
-		return fmt.Sprintf("bangumi %s declares dlsite %s", e.DeclaredSubject, e.DeclaredWorkno)
-	}
-	if verdict == VerdictSame && e.exclusiveLoose() {
+	case e.exclusiveLoose():
 		return fmt.Sprintf("sole holders of loose %q", e.LooseName)
-	}
-	if verdict == VerdictSame && e.exclusiveStripped() {
+	case e.exclusiveStripped():
 		return fmt.Sprintf("sole holders of stripped %q", e.StrippedName)
-	}
-	if verdict == VerdictSame && e.exclusiveTitle() {
+	case e.exclusiveTitle():
 		return fmt.Sprintf("sole holders of title %q, release dates agree", e.TitleName)
-	}
-	if verdict == VerdictSame && e.exclusiveCrossStore() {
+	case e.exclusiveCrossStore():
 		return fmt.Sprintf("release and work share %s:%s, release dates agree", e.StoreSourceKey, e.StoreID)
 	}
 	return ""
@@ -142,9 +145,6 @@ func loadPairEvidence(db *gorm.DB, rows []QueueVerdict) (map[int64]pairEvidence,
 	attachLooseNameEvidence(rows, out, corpus, display)
 	attachStrippedKeyEvidence(rows, out, corpus, display)
 	if err := attachSharedRecordEvidence(db, rows, out); err != nil {
-		return nil, err
-	}
-	if err := attachDeclaredEvidence(db, rows, out); err != nil {
 		return nil, err
 	}
 	if err := attachDatedEvidence(db, rows, out); err != nil {
