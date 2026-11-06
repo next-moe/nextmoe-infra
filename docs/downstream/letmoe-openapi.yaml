@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NextMoe letmoe Face
-  version: 1.1.0
+  version: 2.0.0
   x-stability: stable
   summary: Which download resources 一起萌 (www.letmoe.com) holds for a game.
   description: |
@@ -221,6 +221,51 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /v2/letmoe/changes:
+    get:
+      operationId: listChanges
+      tags: [resources]
+      summary: Works whose resources changed
+      description: |
+        **The invalidation channel.** If you cache what this face answers for
+        a work — above all `GET /v2/letmoe/works/{id}/resources` — poll this
+        feed and drop your cached answers for every `work_id` it names. A
+        resource published, edited, taken down, moved to another work or given
+        a new mirror or merged download surfaces here within seconds, so a
+        long cache stays correct.
+
+        An entry carries no content: it says the work's answers may differ,
+        not how. Read them again when you need them. Adult works are named
+        too, whatever your `nsfw`, because a work can change sides.
+
+        **Call it without `cursor` once to start.** That answer is empty and
+        its `next_cursor` is the present; there is nothing to replay into a
+        cache that is empty. From then on pass the `next_cursor` of the
+        previous answer. It is always present: unchanged when nothing
+        happened, so store it after every call. Entries are oldest first, one
+        per work per page.
+
+        Entries surface 5 seconds after the change and are kept for 7 days.
+        A change inside a transaction open for longer than 5 seconds can be
+        skipped, and a consumer away for longer than 7 days loses the gap, so
+        keep a TTL on your cache as well; the feed is what lets it be long.
+        Download and view counts do not surface here.
+
+        Never cached: `Cache-Control: private, no-store`.
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: The changes since the cursor.
+          headers:
+            Cache-Control: { $ref: '#/components/headers/CacheControlPrivate' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChangeList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
 components:
   securitySchemes:
     apiKey:
@@ -240,8 +285,11 @@ components:
       description: Entity tag; send it back as `If-None-Match` for a `304`.
       schema: { type: string }
     CacheControl:
-      description: '`public, max-age=300, s-maxage=1800, stale-while-revalidate=3600`'
-      schema: { type: string, const: 'public, max-age=300, s-maxage=1800, stale-while-revalidate=3600' }
+      description: |
+        `no-cache`: no shared cache may serve it without asking. Cache it
+        yourself, revalidate with `If-None-Match`, and drop it when
+        `GET /v2/letmoe/changes` names its work.
+      schema: { type: string, const: 'no-cache' }
     CacheControlPrivate:
       description: '`private, no-store`'
       schema: { type: string, const: 'private, no-store' }
@@ -407,7 +455,6 @@ components:
         - work_id
         - title
         - type
-        - origin
         - version
         - applicable_game_version
         - language
@@ -447,12 +494,6 @@ components:
             then platform, language and type, in Chinese — for example
             `心跳文学部 Windows 电脑版 / 安卓手机版 简体中文游戏本体资源下载`.
         type: { $ref: '#/components/schemas/ResourceType' }
-        origin:
-          type: string
-          enum: [official, original, repost, unknown]
-          description: |
-            `official` is the work's own distribution, `original` is the
-            submitter's own work, `repost` is someone else's work reposted.
         version:
           type: string
           description: The version the submitter labelled it with, free text. Empty when none.
@@ -751,6 +792,31 @@ components:
           type: array
           description: Field-level failures. Empty when the failure is not field-level.
           items: { $ref: '#/components/schemas/FieldError' }
+    ChangeList:
+      type: object
+      required: [object, items, next_cursor, total]
+      properties:
+        object: { type: string, const: list }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkChange' }
+        next_cursor:
+          type: string
+          description: Pass as `cursor` on the next call. Always present.
+        total: { type: 'null' }
+    WorkChange:
+      type: object
+      required: [object, work_id, changed_at]
+      properties:
+        object: { type: string, const: work_change }
+        work_id:
+          type: string
+          description: Catalog work id, which is also letmoe's game id.
+          example: '61311'
+        changed_at:
+          type: string
+          format: date-time
+          description: The latest change to the work within this page.
     FieldError:
       type: object
       required: [parameter, reason, detail]

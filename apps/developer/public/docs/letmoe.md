@@ -11,7 +11,7 @@
 
 - 路径前缀：`/v2/letmoe`
 - 凭据：Authorization: Bearer nmk_live_…（任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/letmoe/resources/{id}/file,要 letmoe:files——每把密钥创建时自动带上）
-- 端点数：4
+- 端点数：5
 
 ## 使用须知
 
@@ -21,7 +21,8 @@
 - 唯一例外是 /v2/letmoe/resources/{id}/file：对持有 letmoe:files 的密钥给出全部下载方式——letmoe 托管文件的直链、外部网盘链接连同提取码与解压密码、以及与 moyu 补丁合并的下载。每把密钥创建时都自动带上这个 scope，不用勾选；运营从某把密钥上摘掉它之后，这把密钥一律 403 SCOPE_REQUIRED。答案一律 no-store，每次成功都给资源记一次下载，所以在读者点下载时再调，不要预取。
 - 也不带游戏名、封面、标签与 staff：那些归 catalog，同一把密钥读 /v2/catalog/works 即可。
 - /v2/letmoe/works 上的 ids= 是批量问法：一次最多 100 个作品 id，没有可见资源的原样回在 missing[] 里。这是「我手上这 100 部作品哪些能在 letmoe 下载」的一次性问法，此时 cursor、sort、limit 与 include_total 会被拒。
-- 约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。每个接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。
+- 约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。读作品与资源的接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。
+- /v2/letmoe/changes 是失效信道：缓存了某部作品的答案（尤其 /v2/letmoe/works/{id}/resources）就轮询它，凡它点名的 work_id 一律丢掉缓存重读。条目不带内容，只说这部作品的答案可能变了；成人作品不论 nsfw 都会出现。第一次不带 cursor 调，得到空列表和代表「现在」的 next_cursor，之后每次都传上一次的 next_cursor（它总在，没变化时原样返回，所以每次都存）。变更约 5 秒后出现、保留 7 天，下载量与浏览量不算变更；离开超过 7 天会丢掉中间的变更，所以缓存仍要带 TTL。元数据答案是 Cache-Control: no-cache：自己缓存、用 If-None-Match 重验，变更流点名时丢掉。
 - 错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和 letmoe 写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。
 - 只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路——nmk_ 密钥本来也不该出现在浏览器里。
 
@@ -36,6 +37,10 @@
 
 - `GET /v2/letmoe/resources/{id}` — One resource [详情](https://developer.nextmoe.dev/docs/letmoe/getResource.md)
 - `GET /v2/letmoe/resources/{id}/file` — The download options of a resource [详情](https://developer.nextmoe.dev/docs/letmoe/getResourceFile.md)
+
+### 变更流
+
+- `GET /v2/letmoe/changes` — Works whose resources changed [详情](https://developer.nextmoe.dev/docs/letmoe/listChanges.md)
 
 ---
 本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/letmoe
