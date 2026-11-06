@@ -211,7 +211,7 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts
 			DeletedA: a.DeletedA, DeletedB: b.DeletedA,
 			RefsA: a.RefsA, RefsB: b.RefsA,
 		}
-		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidenceReject, s, ev.Pair)
+		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject, s, ev.Pair)
 	case QueueRef:
 		p := planRef(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject, slotTaken, ev.Ref)
 		if p.Action == applyReject && ev.RefMatchedBy == matchedByCurated {

@@ -62,16 +62,30 @@ func TestDeclaredLinkCorroborates(t *testing.T) {
 	dlsiteReleaseAnchor(t, db, b, dlsite, "RJ010001")
 	fileWorkPair(t, db, a, b, VerdictSame, "hash-declared")
 
+	idx, err := LoadDeclaredIndex(db)
+	require.NoError(t, err)
+	sub, wn := idx.Hit(a, b)
+	assert.Equal(t, [2]string{"9001", "RJ010001"}, [2]string{sub, wn})
+
+	// seed-keys files the pair from the declaration; the declaration alone no
+	// longer decides it. VenusBlood -HYPNO- 6526 declared the original
+	// VenusBlood's VJ003627 through its Bangumi subject on 2026-11-06.
 	st, err := RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
-		Queue: QueueWorkPair, Actor: 1, MinConfidenceReject: 0.7,
+		Queue: QueueWorkPair, Actor: 1, MinConfidence: 0.9, MinConfidenceReject: 0.7,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 1, st.Counts["applied_"+applyAccept], "counts: %v", st.Counts)
-	assert.Equal(t, model.CandidateStatusAccepted, pairStatus(t, db, a, b))
-
+	assert.Zero(t, st.Counts["applied_"+applyAccept], "counts: %v", st.Counts)
 	var action string
 	require.NoError(t, db.Raw(`SELECT applied_action FROM src_llm.queue_verdict WHERE input_hash = 'hash-declared'`).Scan(&action).Error)
-	assert.Equal(t, applyAccept, action)
+	assert.Equal(t, stampHeldSameUncorroborated, action)
+}
+
+func declaredWorkno(t *testing.T, db *gorm.DB, a, b int64) string {
+	t.Helper()
+	idx, err := LoadDeclaredIndex(db)
+	require.NoError(t, err)
+	_, wn := idx.Hit(a, b)
+	return wn
 }
 
 func TestDeclaredTokenIsWholeNotPrefix(t *testing.T) {
@@ -81,11 +95,7 @@ func TestDeclaredTokenIsWholeNotPrefix(t *testing.T) {
 	createBangumiSubject(t, db, 9002, `see RJ01000270`)
 	exactWorkRef(t, db, a, bgm, "9002")
 	dlsiteReleaseAnchor(t, db, b, dlsite, "RJ010002")
-	rows := []QueueVerdict{{ID: 1, AID: min(a, b), BID: max(a, b)}}
-	ev, err := loadPairEvidence(db, rows)
-	require.NoError(t, err)
-	assert.Empty(t, ev[1].DeclaredWorkno)
-	assert.False(t, ev[1].exclusiveDeclared())
+	assert.Empty(t, declaredWorkno(t, db, a, b))
 }
 
 func TestDeclaredNeedsOneDeclarerAndOneAnchor(t *testing.T) {
@@ -108,14 +118,8 @@ func TestDeclaredNeedsOneDeclarerAndOneAnchor(t *testing.T) {
 	dlsiteReleaseAnchor(t, db, twoA, dlsite, "RJ010004")
 	dlsiteReleaseAnchor(t, db, twoC, dlsite, "https://www.dlsite.com/maniax/work/=/product_id/RJ010004.html")
 
-	rows := []QueueVerdict{
-		{ID: 1, AID: min(d1, a1), BID: max(d1, a1)},
-		{ID: 2, AID: min(oneD, twoA), BID: max(oneD, twoA)},
-	}
-	ev, err := loadPairEvidence(db, rows)
-	require.NoError(t, err)
-	assert.False(t, ev[1].exclusiveDeclared(), "two works declare the same workno")
-	assert.False(t, ev[2].exclusiveDeclared(), "two works anchor the same workno")
+	assert.Empty(t, declaredWorkno(t, db, d1, a1), "two works declare the same workno")
+	assert.Empty(t, declaredWorkno(t, db, oneD, twoA), "two works anchor the same workno")
 }
 
 func TestDeadBangumiRefDeclaresNothing(t *testing.T) {
@@ -130,10 +134,7 @@ func TestDeadBangumiRefDeclaresNothing(t *testing.T) {
 		DeadAt: &dead,
 	}).Error)
 	dlsiteReleaseAnchor(t, db, b, dlsite, "RJ010006")
-	rows := []QueueVerdict{{ID: 1, AID: min(a, b), BID: max(a, b)}}
-	ev, err := loadPairEvidence(db, rows)
-	require.NoError(t, err)
-	assert.False(t, ev[1].exclusiveDeclared())
+	assert.Empty(t, declaredWorkno(t, db, a, b))
 }
 
 func TestDeletedReleaseAnchorsNothing(t *testing.T) {
@@ -144,8 +145,5 @@ func TestDeletedReleaseAnchorsNothing(t *testing.T) {
 	exactWorkRef(t, db, a, bgm, strconv.FormatInt(9007, 10))
 	relID := dlsiteReleaseAnchor(t, db, b, dlsite, "RJ010007")
 	require.NoError(t, db.Delete(&model.CatalogRelease{}, relID).Error)
-	rows := []QueueVerdict{{ID: 1, AID: min(a, b), BID: max(a, b)}}
-	ev, err := loadPairEvidence(db, rows)
-	require.NoError(t, err)
-	assert.False(t, ev[1].exclusiveDeclared())
+	assert.Empty(t, declaredWorkno(t, db, a, b))
 }

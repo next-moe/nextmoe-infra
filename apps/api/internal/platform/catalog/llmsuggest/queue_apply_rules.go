@@ -284,7 +284,7 @@ func planCreditName(verdict string, conf, minAccept, minReject float64) applyPla
 // different pairs in needs_manual on 2026-09-18 with nothing that could move
 // them. The letters-and-digits key is same-only: 450 catalog pairs share an
 // exclusive one while carrying different exact VNDB ids.
-func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev pairEvidence) applyPlan {
+func planWorkPair(verdict string, conf, minAccept, minReject float64, s workPairSides, ev pairEvidence) applyPlan {
 	if s.DeletedA || s.DeletedB {
 		return applyPlan{Action: applyDefer, Stamp: stampObsoletePair}
 	}
@@ -301,7 +301,7 @@ func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev p
 		if s.HiddenA || s.HiddenB {
 			return applyPlan{Action: applyDefer, Stamp: stampKeptApartHiddenClaim}
 		}
-		if reason := ev.acceptReason(verdict); reason != "" {
+		if reason := ev.acceptReason(verdict, conf, minAccept); reason != "" {
 			src, tgt := survivorTarget(s)
 			return applyPlan{Action: applyAccept, Source: src, Target: tgt, Reason: reason}
 		}

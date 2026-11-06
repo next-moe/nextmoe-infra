@@ -50,6 +50,7 @@ func attachDatedEvidence(db *gorm.DB, rows []QueueVerdict, out map[int64]pairEvi
 	for _, r := range rows {
 		ev := out[r.ID]
 		ev.DatesNear = datesWithin(dates[r.AID], dates[r.BID], pairDateNearDays)
+		ev.YearsClash = yearsClash(dates[r.AID], dates[r.BID])
 		if t, ok := titles[[2]int64{r.AID, r.BID}]; ok {
 			ev.TitleName, ev.TitleHolders = t.n, t.holders
 		}
@@ -59,6 +60,12 @@ func attachDatedEvidence(db *gorm.DB, rows []QueueVerdict, out map[int64]pairEvi
 		out[r.ID] = ev
 	}
 	return nil
+}
+
+// yearsClash mirrors work-dedup's date-clash bucket: both works dated, in
+// different years.
+func yearsClash(a, b *time.Time) bool {
+	return a != nil && b != nil && a.Year() != b.Year()
 }
 
 func datesWithin(a, b *time.Time, days int) bool {
