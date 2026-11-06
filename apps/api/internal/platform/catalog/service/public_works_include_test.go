@@ -476,3 +476,53 @@ func TestWorkLabelsExcludeSoftDeleted(t *testing.T) {
 		t.Fatalf("s2s labels = %+v, want only the survivor %d", s2s.Labels, survivor)
 	}
 }
+
+func TestWorksListCoverSFWIsTheSFWElection(t *testing.T) {
+	cleanTables(t)
+	svc := newPublicSvcCDN()
+
+	explicitHash, ghostHash, safeHash := hash64("e5e5"), hash64("6060"), hash64("5a5a")
+	svc.WithImageMeta(stubMeta(map[string]ImageMeta{
+		explicitHash: {Width: 1000, Height: 1400},
+		ghostHash:    {Width: 600, Height: 900},
+		safeHash:     {Width: 700, Height: 1000},
+	}))
+
+	adult := createWorkX(t, galgameMediumID, model.ContentRatingR18, model.WorkStatusLive, "Adult")
+	addWorkCover(t, adult.ID, explicitHash, 0, "main", false, model.SexualExplicit, srcVNDB)
+	addWorkCover(t, adult.ID, ghostHash, 1, "main", false, 0, censoredTestSourceID)
+	setDisplayNSFW(t, adult.ID, true)
+	plain := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "Plain")
+	addWorkCover(t, plain.ID, safeHash, 0, "main", false, 0, srcVNDB)
+
+	page, err := svc.WorksList(t.Context(),
+		WorksListFilter{Sort: "id", NSFW: true, Include: ParseWorksListInclude("covers")}, "", 50)
+	if err != nil {
+		t.Fatalf("WorksList: %v", err)
+	}
+	byID := map[int64]dto.PublicWorkListItem{}
+	for _, it := range page.Items {
+		byID[it.ID] = it
+	}
+	a := byID[adult.ID]
+	if a.Covers == nil || a.Covers.Portrait == nil || a.Covers.Portrait.URL != svc.imageURL(explicitHash) {
+		t.Fatalf("adult portrait = %+v, want the explicit cover under nsfw=true", a.Covers)
+	}
+	if a.CoverSFW == nil || a.CoverSFW.URL != svc.imageURL(ghostHash) || a.CoverSFW.Origin != model.CensoredSourceKey {
+		t.Fatalf("adult cover_sfw = %+v, want the censored stand-in", a.CoverSFW)
+	}
+	p := byID[plain.ID]
+	if p.CoverSFW == nil || p.Covers == nil || *p.CoverSFW != *p.Covers.Portrait {
+		t.Fatalf("plain cover_sfw = %+v, want the same slot as portrait %+v", p.CoverSFW, p.Covers)
+	}
+
+	page, err = svc.WorksList(t.Context(), WorksListFilter{Sort: "id", NSFW: true}, "", 50)
+	if err != nil {
+		t.Fatalf("WorksList without covers: %v", err)
+	}
+	for _, it := range page.Items {
+		if it.CoverSFW != nil {
+			t.Fatalf("cover_sfw leaked without include=covers: %+v", it)
+		}
+	}
+}

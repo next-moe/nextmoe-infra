@@ -28,6 +28,7 @@ func workFromListItem(it dto.PublicWorkListItem, include []string, logoURL func(
 		releaseDateValue(it.ReleaseDate), releasePrecision(it.ReleaseDate), cover, banner, claimFrom(it.ClaimedBy),
 		it.ContentLimit,
 	)
+	w.CoverSFW = imageFromSlot(it.CoverSFW)
 	want := map[string]bool{}
 	for _, t := range include {
 		want[t] = true
