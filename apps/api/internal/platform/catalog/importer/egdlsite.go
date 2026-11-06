@@ -39,6 +39,7 @@ type EGDLsiteStats struct {
 
 	TitleCollisions       int
 	Quarantined           int
+	ScreenQuarantined     int
 	SkippedIntraCollision int
 	EGAliases             int
 	SkippedMultiWork      int

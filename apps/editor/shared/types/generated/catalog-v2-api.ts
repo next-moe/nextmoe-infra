@@ -7786,7 +7786,7 @@ export interface components {
             [key: string]: unknown;
         };
         MergePreviewIssue: {
-            /** @description Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary. */
+            /** @description Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, weaker_survivor_claim, conflicting_anchor, claim_dropped. Open vocabulary. */
             code: string;
             /** @description Explanation for people, in Chinese. Must not be used as a discriminant. */
             message: string;

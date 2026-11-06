@@ -18,7 +18,7 @@ func TestRefConflictOverrulesTheVerdict(t *testing.T) {
 	// works 8460 and 8501, judged same at 1.00 on a fabricated shared vndb id
 	s := workPairSides{
 		AID: 8460, BID: 8501,
-		ClaimedA: true, ClaimedB: true,
+		ClaimA: 3, ClaimB: 3,
 		RefsA: []exactRef{ref(2, "vndb", 1, "v26356")},
 		RefsB: []exactRef{ref(2, "vndb", 1, "v28983")},
 	}
@@ -26,9 +26,6 @@ func TestRefConflictOverrulesTheVerdict(t *testing.T) {
 	assert.Equal(t, applyReject, p.Action)
 	assert.Equal(t, stampRefConflict, p.stamp())
 	assert.Equal(t, "ref-conflict: vndb v26356 vs v28983", p.Reason)
-
-	// the freeze is what used to hold this pair, and it no longer gets the chance
-	assert.NotEqual(t, skipFrozenBothClaimed, p.Skip)
 
 	for _, v := range []string{VerdictUnsure, VerdictDifferent} {
 		p := planWorkPair(v, 0.1, 0.7, s, soleName("sole"))
@@ -46,6 +43,9 @@ func TestExemptSourcesDoNotVeto(t *testing.T) {
 		{"does not dedupe itself", model.SourceHowLongToBeat, "howlongtobeat"},
 		{"bangumi lists editions", model.SourceBangumi, "bangumi"},
 		{"eg lists editions", model.SourceErogameScape, "erogamescape"},
+		{"a dlsite id is a SKU", model.SourceDLsite, "dlsite"},
+		{"a dmm id is a SKU", model.SourceDMM, "dmm"},
+		{"a steam id is a SKU", model.SourceSteam, "steam"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := workPairSides{
@@ -62,10 +62,10 @@ func TestExemptSourcesDoNotVeto(t *testing.T) {
 	// so the empty results above are the exemption and not a broken compare
 	s := workPairSides{
 		AID: 1, BID: 2,
-		RefsA: []exactRef{ref(4, "dlsite", 1, "100")},
-		RefsB: []exactRef{ref(4, "dlsite", 1, "200")},
+		RefsA: []exactRef{ref(2, "vndb", 1, "v100")},
+		RefsB: []exactRef{ref(2, "vndb", 1, "v200")},
 	}
-	assert.Equal(t, "dlsite 100 vs 200", contradictingExactRef(s))
+	assert.Equal(t, "vndb v100 vs v200", contradictingExactRef(s))
 }
 
 func TestContradictionNamesTheMostTrustedSource(t *testing.T) {
@@ -352,18 +352,17 @@ func TestDatedCorroboratorsNeedAgreeingDates(t *testing.T) {
 	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.7, s, title).Action)
 }
 
-func TestBothClaimedIsKeptApart(t *testing.T) {
-	s := workPairSides{AID: 1, BID: 2, ClaimedA: true, ClaimedB: true}
+func TestBothClaimedMergeIntoTheStrongerClaim(t *testing.T) {
+	s := workPairSides{AID: 1, BID: 2, ClaimA: 1, ClaimB: 3}
 	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("folded"))
-	assert.Equal(t, applyDefer, p.Action)
-	assert.Equal(t, stampKeptApartBothClaimed, p.stamp())
-	assert.NotEqual(t, applyAccept, p.Action)
+	assert.Equal(t, applyAccept, p.Action)
+	assert.Equal(t, [2]int64{1, 2}, [2]int64{p.Source, p.Target})
 }
 
 func TestHiddenClaimIsKeptApart(t *testing.T) {
 	for _, s := range []workPairSides{
-		{AID: 1, BID: 2, ClaimedA: true, HiddenA: true, ExactA: 4},
-		{AID: 1, BID: 2, ClaimedB: true, HiddenB: true, ExactB: 4},
+		{AID: 1, BID: 2, HiddenA: true, ExactA: 4},
+		{AID: 1, BID: 2, HiddenB: true, ExactB: 4},
 	} {
 		p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("folded"))
 		assert.Equal(t, applyDefer, p.Action)
@@ -371,12 +370,12 @@ func TestHiddenClaimIsKeptApart(t *testing.T) {
 		assert.True(t, isReplannedStamp(p.stamp()))
 	}
 
-	visible := workPairSides{AID: 1, BID: 2, ClaimedA: true, ExactA: 4}
+	visible := workPairSides{AID: 1, BID: 2, ClaimA: 3, ExactA: 4}
 	p := planWorkPair(VerdictSame, 1, 0.7, visible, soleName("folded"))
 	assert.Equal(t, applyAccept, p.Action, "the same pair with a visible claim merges, the claim surviving")
 	assert.Equal(t, int64(1), p.Target)
 
-	p = planWorkPair(VerdictDifferent, 0.95, 0.7, workPairSides{AID: 1, BID: 2, ClaimedA: true, HiddenA: true}, soleName("folded"))
+	p = planWorkPair(VerdictDifferent, 0.95, 0.7, workPairSides{AID: 1, BID: 2, HiddenA: true}, soleName("folded"))
 	assert.Equal(t, applyReject, p.Action, "keeping works apart needs no person")
 }
 

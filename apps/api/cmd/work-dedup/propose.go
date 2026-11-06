@@ -170,11 +170,8 @@ func resolveWork(redirects map[int64]int64, id int64) int64 {
 
 func pairEvidence(r pairRow) string {
 	var parts []string
-	if r.RefOverlap {
-		parts = append(parts, "ref")
-	}
-	if r.RefOverlapCI && !r.RefOverlap {
-		parts = append(parts, "ref_ci")
+	if r.SharedKey != "" {
+		parts = append(parts, "key="+r.SharedKey)
 	}
 	if datesNear(r.DateA, r.DateB) {
 		parts = append(parts, fmt.Sprintf("date(%s~%s)", dateStr(r.DateA), dateStr(r.DateB)))

@@ -46,6 +46,7 @@ type VNDBWorksStats struct {
 	TitleCollisions     int
 	ToQuarantine        int
 	Quarantined         int
+	ScreenQuarantined   int
 
 	WorksCreated     int
 	TitlesCreated    int
@@ -237,6 +238,11 @@ func (im *Importer) createVNDBWorkChunk(tx *gorm.DB, chunk []VNDBWorkPlan, st *V
 	if err := im.batchRefsRevs(tx, refs, revs); err != nil {
 		return err
 	}
+	screened, err := screenMinted(tx, works)
+	if err != nil {
+		return err
+	}
+	st.ScreenQuarantined += screened
 
 	var cands []model.CatalogMatchCandidate
 	for i, p := range chunk {

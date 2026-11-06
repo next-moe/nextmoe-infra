@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/service"
 	"api/internal/platform/catalog/titlekey"
 
 	"gorm.io/gorm"
@@ -304,6 +305,17 @@ func createMintChunk(tx *gorm.DB, ids registryIDs, snap snapshot, chunk []planne
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&cands).Error; err != nil {
 			return nil, 0, err
 		}
+	}
+	minted := make([]service.MintedWork, len(works))
+	for i, w := range works {
+		minted[i] = service.MintedWork{ID: w.ID}
+	}
+	hits, err := service.ScreenMintedWorks(tx, minted)
+	if err != nil {
+		return nil, 0, err
+	}
+	if n := len(service.ScreenedWorkIDs(hits)); n > 0 {
+		slog.Info("getchu mint screen", "screened", n, "pairs", len(hits))
 	}
 	return hosts, written, nil
 }

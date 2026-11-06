@@ -611,7 +611,7 @@ func mergeRequestErr(err error) error {
 	case errors.Is(err, catsvc.ErrCoolingOff):
 		return problem.New(problem.CodeInvalidStateTransition, "", "", "the cooling-off has not ended yet.")
 	case errors.Is(err, catsvc.ErrSameEntity), errors.Is(err, catsvc.ErrCrossMedium),
-		errors.Is(err, catsvc.ErrEntityNotLive), errors.Is(err, catsvc.ErrHiddenSurvivor),
+		errors.Is(err, catsvc.ErrEntityNotLive), errors.Is(err, catsvc.ErrSurvivorClaim),
 		errors.Is(err, catsvc.ErrMergeChoice):
 		return problem.New(problem.CodeValidationFailed, "", "", err.Error())
 	case errors.Is(err, catsvc.ErrUndoUnavailable), errors.Is(err, catsvc.ErrUndoExpired), errors.Is(err, catsvc.ErrUndoBlocked):

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"api/internal/platform/catalog/model"
@@ -15,55 +14,60 @@ type pairRow struct {
 	A              int64      `gorm:"column:a"`
 	B              int64      `gorm:"column:b"`
 	SharedNorm     string     `gorm:"column:shared_norm"`
+	SharedNames    int        `gorm:"column:shared_names"`
 	SharedNorms    int        `gorm:"column:shared_norms"`
 	SharedOfficial int        `gorm:"column:shared_official"`
+	SharedKey      string     `gorm:"column:shared_key"`
+	SharedRegistry bool       `gorm:"column:shared_registry"`
+	RelatedOnly    bool       `gorm:"column:related_only"`
 	LaneA          string     `gorm:"column:lane_a"`
 	LaneB          string     `gorm:"column:lane_b"`
 	AnchorsA       int        `gorm:"column:anchors_a"`
 	AnchorsB       int        `gorm:"column:anchors_b"`
+	ClaimA         int        `gorm:"column:claim_a"`
+	ClaimB         int        `gorm:"column:claim_b"`
 	SiteA          *string    `gorm:"column:site_a"`
 	SiteB          *string    `gorm:"column:site_b"`
 	HiddenA        bool       `gorm:"column:hidden_a"`
 	HiddenB        bool       `gorm:"column:hidden_b"`
 	NameA          string     `gorm:"column:name_a"`
 	NameB          string     `gorm:"column:name_b"`
+	VetoConflict   bool       `gorm:"column:veto_conflict"`
 	AnchorConflict bool       `gorm:"column:anchor_conflict"`
 	RelConflict    bool       `gorm:"column:release_conflict"`
-	RefOverlap     bool       `gorm:"column:ref_overlap"`
-	RefOverlapCI   bool       `gorm:"column:ref_overlap_ci"`
 	DateA          *time.Time `gorm:"column:date_a"`
 	DateB          *time.Time `gorm:"column:date_b"`
 	LabelOverlap   bool       `gorm:"column:label_overlap"`
-	CrossRefOnly   bool       `gorm:"column:cross_ref_only"`
 }
 
-// pairQuerySQL is the standing duplicate detector: every pair of live works
-// sharing a folded title/display_name norm or a case-insensitively equal
-// work-level external ref (identity kinds pair outright; related-page refs
-// pair only when no exact anchors prove the works distinct), scored with the
-// corroborating facts the verdict needs. Work-level identity anchors drive
-// lanes and conflicts; dlsite identity lives on releases (entity_type 6), so
-// the dlsite lane and the release-level conflict/overlap read through
-// catalog_release — a work-level-only read files the whole dlsite family
-// under 'other' and misses every edition split.
+// pairQuerySQL is the standing duplicate detector: every pair of live works of
+// one medium that shares a folded title/display_name norm or an identity key
+// (service.WorkIdentityKeysSQL, both levels, any case), scored with the
+// corroborating facts the verdict needs.
 //
 // Every per-pair fact reads the pair's two wk rows, aggregated once per work.
 // It used to be correlated EXISTS against materialized CTEs, which have no
 // index to probe; once the 2026-09-18 drain added 39k works, the nightly
 // census hit temp_file_limit (20GB) every night.
 func pairQuerySQL() string {
+	veto := service.Int16CSV(model.WorkIdentityVetoSourceIDs)
 	return `
 WITH lw AS (
-  SELECT id, site, claim_state, display_name, medium_id FROM catalog_work WHERE deleted_at IS NULL
+  SELECT w.id, w.site, w.display_name, w.medium_id,
+    ` + model.ClaimWeightSQL("w") + ` AS claim_weight,
+    ` + model.ClaimHiddenSQL("w") + ` AS hidden
+  FROM catalog_work w WHERE w.deleted_at IS NULL
 ),
 norms AS (
-  SELECT work_id, n, bool_or(official) AS official FROM (` + service.WorkDupeCorpusSQL() + `) c GROUP BY work_id, n
+  SELECT work_id, n, bool_or(official) AS official, bool_or(long) AS long
+  FROM (` + service.WorkDupeCorpusSQL() + `) c GROUP BY work_id, n
 ),
 pairs AS (
-  SELECT a.work_id AS a, b.work_id AS b, min(a.n) AS shared_norm, count(*) AS shared_norms,
+  SELECT a.work_id AS a, b.work_id AS b, min(a.n) AS shared_norm, count(*) AS shared_names,
+    count(*) FILTER (WHERE a.long) AS shared_norms,
     count(*) FILTER (WHERE a.official AND b.official) AS shared_official
   FROM norms a JOIN norms b ON a.n = b.n AND a.work_id < b.work_id
-  WHERE ` + service.WorkDupeNormEligibleSQL("a.n") + `
+  WHERE a.long OR (a.official AND b.official)
   GROUP BY a.work_id, b.work_id
 ),
 wref AS (
@@ -73,8 +77,7 @@ wref AS (
     bool_or(link_kind = 0 AND source_id = 3) AS bgm,
     bool_or(link_kind = 0 AND source_id = 5) AS eg,
     array_agg(source_id || ':' || external_id) FILTER (WHERE link_kind = 0) AS anchor_keys,
-    array_agg(source_id || ':' || external_id) FILTER (WHERE link_kind IN (0, 1)) AS ref_keys,
-    array_agg(source_id || ':' || lower(external_id)) AS ref_keys_ci
+    array_agg(source_id || ':' || external_id) FILTER (WHERE link_kind = 0 AND source_id IN (` + veto + `)) AS veto_keys
   FROM catalog_external_ref
   WHERE entity_type = 5 AND dead_at IS NULL
   GROUP BY entity_id
@@ -82,8 +85,7 @@ wref AS (
 rref AS (
   SELECT rel.work_id,
     bool_or(r.source_id = 4) AS dlsite,
-    array_agg(r.source_id || ':' || r.external_id) AS keys,
-    array_agg(r.source_id || ':' || lower(r.external_id)) AS keys_ci
+    array_agg(r.source_id || ':' || r.external_id) AS keys
   FROM catalog_external_ref r
   JOIN catalog_release rel ON rel.id = r.entity_id AND rel.deleted_at IS NULL
   WHERE r.entity_type = 6 AND r.link_kind = 0 AND r.dead_at IS NULL
@@ -107,20 +109,17 @@ bgmdate AS (
   GROUP BY r.entity_id
 ),
 wk AS (
-  SELECT lw.id, lw.site, lw.display_name, lw.medium_id,
+  SELECT lw.id, lw.site, lw.display_name, lw.medium_id, lw.claim_weight, lw.hidden,
     CASE WHEN lw.site IS NOT NULL AND lw.site <> '' THEN 'kungal'
          WHEN w.vndb THEN 'vndb'
          WHEN w.bgm THEN 'bgm'
          WHEN w.eg THEN 'eg'
          WHEN r.dlsite THEN 'dlsite'
          ELSE 'other' END AS lane,
-    (lw.site IS NOT NULL AND lw.site <> '' AND lw.claim_state = ` + strconv.Itoa(int(model.ClaimStateHidden)) + `) AS hidden,
     coalesce(w.anchors, 0) AS anchors,
     coalesce(w.anchor_keys, '{}') AS anchor_keys,
-    coalesce(w.ref_keys, '{}') AS ref_keys,
-    coalesce(w.ref_keys_ci, '{}') AS ref_keys_ci,
+    coalesce(w.veto_keys, '{}') AS veto_keys,
     coalesce(r.keys, '{}') AS rel_keys,
-    coalesce(r.keys_ci, '{}') AS rel_keys_ci,
     coalesce(l.label_ids, '{}') AS label_ids,
     coalesce(d.d, b.d) AS released
   FROM lw
@@ -130,81 +129,65 @@ wk AS (
   LEFT JOIN wdate d ON d.work_id = lw.id
   LEFT JOIN bgmdate b ON b.work_id = lw.id
 ),
+idkeys AS (
+  ` + service.WorkIdentityKeysSQL() + `
+),
 refpairs AS (
-  SELECT a, b, bool_and(cross_ref) AS cross_ref_only FROM (
-  SELECT x.entity_id AS a, y.entity_id AS b, false AS cross_ref
-  FROM catalog_external_ref x
-  JOIN catalog_external_ref y
-    ON y.source_id = x.source_id
-   AND lower(y.external_id) = lower(x.external_id)
-   AND x.entity_id < y.entity_id
-  JOIN lw ON lw.id = x.entity_id
-  JOIN lw lw_b ON lw_b.id = y.entity_id
-  WHERE x.entity_type = 5 AND y.entity_type = 5
-    AND x.dead_at IS NULL AND y.dead_at IS NULL
-    AND x.link_kind IN (0, 1) AND y.link_kind IN (0, 1)
-  GROUP BY x.entity_id, y.entity_id
-  UNION
+  SELECT a, b, min(shared_key) FILTER (WHERE NOT related) AS shared_key, bool_or(registry) AS shared_registry, bool_and(related) AS related_only FROM (
+  SELECT x.work_id AS a, y.work_id AS b, cs.key || ':' || x.k AS shared_key,
+    x.source_id IN (` + service.Int16CSV(service.WorkRegistrySourceIDs) + `) AS registry, false AS related
+  FROM idkeys x
+  JOIN idkeys y ON y.source_id = x.source_id AND y.k = x.k AND x.work_id < y.work_id
+  JOIN catalog_source cs ON cs.id = x.source_id
+  JOIN wk ka ON ka.id = x.work_id
+  JOIN wk kb ON kb.id = y.work_id
+  WHERE NOT ` + sameSourceOtherIDSQL("ka.veto_keys", "kb.veto_keys") + `
+  UNION ALL
   -- any-kind pairing generated ~78k brand-hub pairs of which 76,632 had conflicting exact
   -- anchors; the no-conflict residue sampled 15/15 as true duplicates.
-  SELECT x.entity_id AS a, y.entity_id AS b, false AS cross_ref
+  SELECT x.entity_id AS a, y.entity_id AS b, cs.key || ':' || lower(x.external_id), false, true
   FROM catalog_external_ref x
   JOIN catalog_external_ref y
     ON y.source_id = x.source_id
    AND lower(y.external_id) = lower(x.external_id)
    AND x.entity_id < y.entity_id
+  JOIN catalog_source cs ON cs.id = x.source_id
   JOIN wk ka ON ka.id = x.entity_id
   JOIN wk kb ON kb.id = y.entity_id
   WHERE x.entity_type = 5 AND y.entity_type = 5
     AND x.dead_at IS NULL AND y.dead_at IS NULL
     AND x.link_kind = 2 AND y.link_kind = 2
     AND NOT ` + sameSourceOtherIDSQL("ka.anchor_keys", "kb.anchor_keys") + `
-  GROUP BY x.entity_id, y.entity_id
-  UNION
-  -- works 6253 and 217311 were one game for months: VNDB put dmm hobc_0507 on
-  -- 6253's release, EG put it on 217311 itself, and both branches above only
-  -- pair work-level refs.
-  SELECT least(rel.work_id, y.entity_id) AS a, greatest(rel.work_id, y.entity_id) AS b, true AS cross_ref
-  FROM catalog_external_ref x
-  JOIN catalog_release rel ON rel.id = x.entity_id AND rel.deleted_at IS NULL
-  JOIN catalog_external_ref y
-    ON y.source_id = x.source_id
-   AND lower(y.external_id) = lower(x.external_id)
-   AND y.entity_id <> rel.work_id
-  JOIN wk ka ON ka.id = rel.work_id
-  JOIN wk kb ON kb.id = y.entity_id
-  WHERE x.entity_type = 6 AND y.entity_type = 5
-    AND x.dead_at IS NULL AND y.dead_at IS NULL
-    AND x.link_kind = 0 AND y.link_kind IN (0, 1)
-    AND NOT ` + sameSourceOtherIDSQL("ka.anchor_keys", "kb.anchor_keys") + `
-  GROUP BY 1, 2
   ) rp
   GROUP BY a, b
 ),
 universe AS (
   SELECT coalesce(p.a, r.a) AS a, coalesce(p.b, r.b) AS b,
     coalesce(p.shared_norm, '') AS shared_norm,
+    coalesce(p.shared_names, 0) AS shared_names,
     coalesce(p.shared_norms, 0) AS shared_norms,
     coalesce(p.shared_official, 0) AS shared_official,
-    coalesce(r.cross_ref_only, false) AS cross_ref_only
+    coalesce(r.shared_key, '') AS shared_key,
+    coalesce(r.shared_registry, false) AS shared_registry,
+    coalesce(r.related_only, false) AS related_only
   FROM pairs p
   FULL OUTER JOIN refpairs r ON r.a = p.a AND r.b = p.b
 )
-SELECT p.a, p.b, p.shared_norm, p.shared_norms, p.shared_official,
+SELECT p.a, p.b, p.shared_norm, p.shared_names, p.shared_norms, p.shared_official,
+  p.shared_key, p.shared_registry, p.related_only,
   wa.lane AS lane_a, wb.lane AS lane_b,
   wa.anchors AS anchors_a, wb.anchors AS anchors_b,
+  wa.claim_weight AS claim_a, wb.claim_weight AS claim_b,
   wa.site AS site_a, wb.site AS site_b,
   wa.hidden AS hidden_a, wb.hidden AS hidden_b,
   wa.display_name AS name_a, wb.display_name AS name_b,
+  ` + sameSourceOtherIDSQL("wa.veto_keys", "wb.veto_keys") + ` AS veto_conflict,
   ` + sameSourceOtherIDSQL("wa.anchor_keys", "wb.anchor_keys") + ` AS anchor_conflict,
   (` + sameSourceOtherIDSQL("wa.rel_keys", "wb.rel_keys") + `
    AND NOT (wa.rel_keys && wb.rel_keys)) AS release_conflict,
-  (wa.ref_keys && wb.ref_keys OR wa.rel_keys && wb.rel_keys) AS ref_overlap,
-  (wa.ref_keys_ci && wb.ref_keys_ci OR wa.rel_keys_ci && wb.rel_keys_ci) AS ref_overlap_ci,
   wa.released AS date_a,
   wb.released AS date_b,
-  wa.label_ids && wb.label_ids AS label_overlap,
-  p.cross_ref_only
+  wa.label_ids && wb.label_ids AS label_overlap
 FROM universe p
 JOIN wk wa ON wa.id = p.a
 JOIN wk wb ON wb.id = p.b AND wb.medium_id = wa.medium_id
