@@ -326,7 +326,7 @@ func revertTarget(tx *gorm.DB, et int16, dst int64, srcRows, dstRows []movementR
 	}
 	columns := slices.Clone(undoTargetColumns[et])
 	if et == model.EntityTypeWork && before["site"] == nil && source["site"] != nil && same(now["site"], source["site"]) {
-		columns = append(columns, "site", "product_work_id", "status")
+		columns = append(columns, "site", "product_work_id", "claim_state", "owner_user_id", "status")
 	}
 	var reverted, kept []string
 	updates := map[string]any{}
@@ -334,7 +334,7 @@ func revertTarget(tx *gorm.DB, et int16, dst int64, srcRows, dstRows []movementR
 		if same(before[col], now[col]) {
 			continue
 		}
-		if !same(now[col], source[col]) && !slices.Contains([]string{"product_work_id", "status"}, col) {
+		if !same(now[col], source[col]) && !slices.Contains([]string{"product_work_id", "claim_state", "owner_user_id", "status"}, col) {
 			kept = append(kept, col)
 			continue
 		}

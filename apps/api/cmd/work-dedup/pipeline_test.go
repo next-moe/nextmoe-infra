@@ -158,10 +158,10 @@ func TestWorkDedupPipeline(t *testing.T) {
 
 	k2 := mkWork(t, medium, "K2アンカー衝突元作品", nil)
 	mkTitle(t, k2, "衝突アンカー作品検証")
-	mkAnchor(t, k2, 3, "111")
+	mkAnchor(t, k2, 2, "v111")
 	m2 := mkWork(t, medium, "M2アンカー衝突先作品", nil)
 	mkTitle(t, m2, "衝突アンカー作品検証")
-	mkAnchor(t, m2, 3, "222")
+	mkAnchor(t, m2, 2, "v222")
 
 	k3 := mkWork(t, medium, "K3年違い元作品テスト", nil)
 	mkTitle(t, k3, "年違い作品検証テスト")
@@ -175,7 +175,7 @@ func TestWorkDedupPipeline(t *testing.T) {
 	require.Len(t, c.rows, 3, "three pairs: %+v", c.rows)
 	verdicts := c.verdictByPair()
 	assert.Equal(t, bucketAuto, verdicts[[2]int64{k1, m1}])
-	assert.Equal(t, bucketAnchorConflict, verdicts[[2]int64{k2, m2}])
+	assert.Equal(t, bucketVetoConflict, verdicts[[2]int64{k2, m2}])
 	assert.Equal(t, bucketDateClash, verdicts[[2]int64{k3, m3}])
 	require.Len(t, c.groups, 1)
 	assert.Equal(t, k1, c.groups[0].survivor, "the claimed work survives")
@@ -272,10 +272,10 @@ func TestNightlyChainsSeedProposeExecute(t *testing.T) {
 
 	k2 := mkWork(t, medium, "夜間衝突元作品テスト", nil)
 	mkTitle(t, k2, "夜間衝突アンカー検証")
-	mkAnchor(t, k2, 3, "112")
+	mkAnchor(t, k2, 2, "v112")
 	m2 := mkWork(t, medium, "夜間衝突先作品テスト", nil)
 	mkTitle(t, m2, "夜間衝突アンカー検証")
-	mkAnchor(t, m2, 3, "223")
+	mkAnchor(t, m2, 2, "v223")
 
 	merge := newMerge(t)
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
@@ -319,10 +319,10 @@ func TestWatchReportsUndecidedPairs(t *testing.T) {
 
 	a := mkWork(t, medium, "監視対象作品エー", nil)
 	mkTitle(t, a, "監視新規ペア検証")
-	mkAnchor(t, a, 3, "555")
+	mkAnchor(t, a, 2, "v555")
 	b := mkWork(t, medium, "監視対象作品ビー", nil)
 	mkTitle(t, b, "監視 新規 ペア 検証")
-	mkAnchor(t, b, 3, "556")
+	mkAnchor(t, b, 2, "v556")
 
 	var out bytes.Buffer
 	fresh, err := runWatch(ctx, testDB, &out)
@@ -411,21 +411,21 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 	ctx := context.Background()
 	const officialSite int16 = 9
 
-	t.Run("a_case_insensitive_ref", func(t *testing.T) {
+	t.Run("a_case_insensitive_store_id", func(t *testing.T) {
 		cleanPipeline(t)
 		medium := galgameMedium(t)
 		a := mkWork(t, medium, "ケースエイ参照作品テスト", nil)
 		b := mkWork(t, medium, "ケースビー参照作品テスト", nil)
-		mkRef(t, a, officialSite, "www.example.com/home/x", model.LinkKindExact, nil)
-		mkRef(t, b, officialSite, "www.example.com/Home/x", model.LinkKindProbable, nil)
+		mkRef(t, a, model.SourceDMM, "abc_0001", model.LinkKindExact, nil)
+		mkRef(t, b, model.SourceDMM, "ABC_0001", model.LinkKindProbable, nil)
 
 		c, err := buildCensus(ctx, testDB)
 		require.NoError(t, err)
 		row, verdict := findPair(t, c, a, b)
-		assert.True(t, row.RefOverlapCI)
-		assert.False(t, row.RefOverlap)
-		assert.Equal(t, 0, row.SharedNorms)
-		assert.Equal(t, bucketRefCI, verdict)
+		assert.Equal(t, "dmm:abc_0001", row.SharedKey)
+		assert.False(t, row.SharedRegistry)
+		assert.Equal(t, 0, row.SharedNames)
+		assert.Equal(t, bucketSharedKey, verdict)
 
 		var out bytes.Buffer
 		require.NoError(t, runSeed(ctx, testDB, &out, 1, true))
@@ -434,20 +434,20 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 		assert.Equal(t, model.CandidateReasonSharedExternalID, got.Reason)
 	})
 
-	t.Run("b_exact_ref_outranks_year_clash", func(t *testing.T) {
+	t.Run("b_registry_id_outranks_year_clash", func(t *testing.T) {
 		cleanPipeline(t)
 		medium := galgameMedium(t)
 		a := mkWork(t, medium, "年差エイ参照作品テスト", nil)
 		b := mkWork(t, medium, "年差ビー参照作品テスト", nil)
-		mkRef(t, a, officialSite, "www.example.com/ident/b", model.LinkKindProbable, nil)
-		mkRef(t, b, officialSite, "www.example.com/ident/b", model.LinkKindExact, nil)
+		mkRef(t, a, model.SourceBangumi, "4242", model.LinkKindProbable, nil)
+		mkRef(t, b, model.SourceBangumi, "4242", model.LinkKindExact, nil)
 		mkRelease(t, a, 2014, 5, 1)
 		mkRelease(t, b, 2016, 5, 1)
 
 		c, err := buildCensus(ctx, testDB)
 		require.NoError(t, err)
 		row, verdict := findPair(t, c, a, b)
-		assert.True(t, row.RefOverlap)
+		assert.True(t, row.SharedRegistry)
 		assert.Equal(t, bucketAuto, verdict)
 	})
 
@@ -462,7 +462,7 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 		assert.True(t, hasPair(c, a, b), "3-rune all-Han display_name must pair")
 	})
 
-	t.Run("d_ascii_three_rune_no_pair", func(t *testing.T) {
+	t.Run("d_short_official_title_pairs_for_the_judge", func(t *testing.T) {
 		cleanPipeline(t)
 		medium := galgameMedium(t)
 		a := mkWork(t, medium, "abc", nil)
@@ -470,7 +470,9 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 
 		c, err := buildCensus(ctx, testDB)
 		require.NoError(t, err)
-		assert.False(t, hasPair(c, a, b), "3-rune ASCII display_name must not pair")
+		row, verdict := findPair(t, c, a, b)
+		assert.Equal(t, [3]int{1, 0, 1}, [3]int{row.SharedNames, row.SharedNorms, row.SharedOfficial})
+		assert.Equal(t, bucketShortTitle, verdict)
 	})
 
 	t.Run("e_alias_only_and_abbreviation_excluded", func(t *testing.T) {
@@ -510,8 +512,8 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 		a := mkWork(t, medium, "デッドエイ参照作品テスト", nil)
 		b := mkWork(t, medium, "デッドビー参照作品テスト", nil)
 		dead := time.Now()
-		mkRef(t, a, officialSite, "www.example.com/dead/x", model.LinkKindProbable, &dead)
-		mkRef(t, b, officialSite, "www.example.com/dead/x", model.LinkKindExact, nil)
+		mkRef(t, a, model.SourceDMM, "dead_0001", model.LinkKindProbable, &dead)
+		mkRef(t, b, model.SourceDMM, "dead_0001", model.LinkKindExact, nil)
 
 		c, err := buildCensus(ctx, testDB)
 		require.NoError(t, err)
@@ -523,8 +525,8 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 		medium := galgameMedium(t)
 		a := mkWork(t, medium, "削除エイ参照作品テスト", nil)
 		b := mkWork(t, medium, "削除ビー参照作品テスト", nil)
-		mkRef(t, a, officialSite, "www.example.com/gone/x", model.LinkKindProbable, nil)
-		mkRef(t, b, officialSite, "www.example.com/gone/x", model.LinkKindExact, nil)
+		mkRef(t, a, model.SourceDMM, "gone_0001", model.LinkKindProbable, nil)
+		mkRef(t, b, model.SourceDMM, "gone_0001", model.LinkKindExact, nil)
 		require.NoError(t, testDB.Delete(&model.CatalogWork{}, a).Error)
 
 		c, err := buildCensus(ctx, testDB)
@@ -543,9 +545,9 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 		c, err := buildCensus(ctx, testDB)
 		require.NoError(t, err)
 		row, verdict := findPair(t, c, a, b)
-		assert.True(t, row.RefOverlapCI)
-		assert.False(t, row.RefOverlap)
-		assert.Equal(t, bucketRefCI, verdict)
+		assert.True(t, row.RelatedOnly)
+		assert.Empty(t, row.SharedKey)
+		assert.Equal(t, bucketSharedKey, verdict)
 	})
 
 	t.Run("i_related_url_conflicting_anchors_no_pair", func(t *testing.T) {
@@ -578,8 +580,8 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 		c, err := buildCensus(ctx, testDB)
 		require.NoError(t, err)
 		row, verdict := findPair(t, c, a, b)
-		assert.False(t, row.RefOverlap)
-		assert.True(t, row.RefOverlapCI)
+		assert.True(t, row.RelatedOnly)
+		assert.Empty(t, row.SharedKey)
 		assert.Equal(t, bucketDateClash, verdict)
 	})
 
@@ -597,9 +599,8 @@ func TestWorkDedupCensusWidening(t *testing.T) {
 		c, err := buildCensus(ctx, testDB)
 		require.NoError(t, err)
 		row, verdict := findPair(t, c, a, b)
-		assert.True(t, row.CrossRefOnly)
-		assert.False(t, row.RefOverlap, "a cross-level id is a lead for the judge, not an auto merge")
-		assert.Equal(t, bucketReleaseRef, verdict)
+		assert.Equal(t, "dmm:hobc_0507", row.SharedKey)
+		assert.Equal(t, bucketSharedKey, verdict, "a store id with no shared name is a lead for the judge, not an auto merge")
 
 		var out bytes.Buffer
 		require.NoError(t, runSeed(ctx, testDB, &out, 1, true))
@@ -681,17 +682,15 @@ func TestWorkDedupCensusMediumGate(t *testing.T) {
 		cleanPipeline(t)
 		gal := galgameMedium(t)
 		anime := catalogMedium(t, "anime")
-		const officialSite int16 = 9
-
 		crossA := mkWork(t, gal, "クロスメディア参照エイ作品", nil)
 		crossB := mkWork(t, anime, "クロスメディア参照ビー作品", nil)
-		mkRef(t, crossA, officialSite, "www.example.com/medium/gate", model.LinkKindExact, nil)
-		mkRef(t, crossB, officialSite, "www.example.com/medium/gate", model.LinkKindProbable, nil)
+		mkRef(t, crossA, model.SourceBangumi, "8001", model.LinkKindExact, nil)
+		mkRef(t, crossB, model.SourceBangumi, "8001", model.LinkKindProbable, nil)
 
 		sameA := mkWork(t, gal, "同メディア参照エイ作品テスト", nil)
 		sameB := mkWork(t, gal, "同メディア参照ビー作品テスト", nil)
-		mkRef(t, sameA, officialSite, "www.example.com/medium/gate-same", model.LinkKindExact, nil)
-		mkRef(t, sameB, officialSite, "www.example.com/medium/gate-same", model.LinkKindProbable, nil)
+		mkRef(t, sameA, model.SourceBangumi, "8002", model.LinkKindExact, nil)
+		mkRef(t, sameB, model.SourceBangumi, "8002", model.LinkKindProbable, nil)
 
 		c, err := buildCensus(ctx, testDB)
 		require.NoError(t, err)

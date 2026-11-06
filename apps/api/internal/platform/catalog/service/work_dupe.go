@@ -53,24 +53,38 @@ func WorkDupeNormEligible(n string) bool {
 	return true
 }
 
+// WorkDupeOfficialMinRunes is the shortest folded norm an official title or
+// display_name is compared on. The long rule above is for aliases, where short
+// strings are genre noise; an official title is the work's name however short
+// it is. 黄莓C folds to three runes with a Latin one, and below the long rule
+// it was invisible to every detector and mint guard: bgm 589607 minted work
+// 224163 live beside 54607, and the census never paired the two.
+const WorkDupeOfficialMinRunes = 2
+
+func WorkDupeOfficialNormEligibleSQL(expr string) string {
+	return `(length(` + expr + `) >= ` + strconv.Itoa(WorkDupeOfficialMinRunes) + `)`
+}
+
 // WorkDupeCorpusSQL selects every live work's folded identity norms as
-// (work_id, n, official): official and alias titles plus display_name, with
-// official=false marking alias-sourced norms so the verdict can refuse to
-// auto-merge on alias evidence alone. display_name must be in the corpus —
+// (work_id, n, official, long): official and alias titles plus display_name,
+// with official=false marking alias-sourced norms so the verdict can refuse to
+// auto-merge on alias evidence alone, and long marking a norm that passes
+// WorkDupeNormEligible — a pair whose shared names are all short is judged,
+// never merged on the name. display_name must be in the corpus —
 // wiki-claimed works were born with zero title rows, which is the other hole
 // the 2026-07 wave slipped through.
 func WorkDupeCorpusSQL() string {
 	foldTitle := WorkTitleFoldSQL("t.title_norm")
 	foldDisplay := WorkTitleFoldSQL("lower(normalize(w.display_name, NFKC))")
-	return `SELECT t.work_id, ` + foldTitle + ` AS n, (t.kind = 0) AS official
+	return `SELECT t.work_id, ` + foldTitle + ` AS n, (t.kind = 0) AS official, ` + WorkDupeNormEligibleSQL(foldTitle) + ` AS long
 		FROM catalog_work_title t
 		JOIN catalog_work tw ON tw.id = t.work_id AND tw.deleted_at IS NULL
-		WHERE t.kind IN (0, 1) AND ` + WorkDupeNormEligibleSQL(foldTitle) + `
+		WHERE ((t.kind = 0 AND ` + WorkDupeOfficialNormEligibleSQL(foldTitle) + `) OR (t.kind = 1 AND ` + WorkDupeNormEligibleSQL(foldTitle) + `))
 		  AND ` + editspec.NotSuppressedWorkTitleSQL("t") + `
 		UNION
-		SELECT w.id, ` + foldDisplay + `, true AS official
+		SELECT w.id, ` + foldDisplay + `, true AS official, ` + WorkDupeNormEligibleSQL(foldDisplay) + ` AS long
 		FROM catalog_work w
-		WHERE w.deleted_at IS NULL AND ` + WorkDupeNormEligibleSQL(foldDisplay)
+		WHERE w.deleted_at IS NULL AND ` + WorkDupeOfficialNormEligibleSQL(foldDisplay)
 }
 
 type WorkDupeSuspect struct {
@@ -106,7 +120,7 @@ func findWorkDupeSuspectsByNames(tx *gorm.DB, mediumID int16, names []string) ([
 		FROM folded f
 		JOIN corpus c ON c.n = f.n
 		JOIN catalog_work w ON w.id = c.work_id AND w.deleted_at IS NULL AND w.medium_id = ?
-		WHERE `+WorkDupeNormEligibleSQL("f.n")+`
+		WHERE `+WorkDupeNormEligibleSQL("f.n")+` OR c.official
 		GROUP BY c.work_id, w.display_name
 		ORDER BY c.work_id
 		LIMIT `+strconv.Itoa(maxWorkDupeSuspects), args...).Scan(&out).Error
@@ -129,7 +143,7 @@ func recordWorkDupeSuspects(tx *gorm.DB, workID int64) error {
 		JOIN corpus o ON o.n = mine.n AND o.work_id <> mine.work_id
 		JOIN catalog_work wm ON wm.id = mine.work_id
 		JOIN catalog_work wo ON wo.id = o.work_id AND wo.medium_id = wm.medium_id
-		WHERE mine.work_id = ? AND `+WorkDupeNormEligibleSQL("mine.n")+`
+		WHERE mine.work_id = ? AND (mine.long OR (mine.official AND o.official))
 		ORDER BY o.work_id`, workID).Scan(&hits).Error
 	if err != nil || len(hits) == 0 {
 		return err

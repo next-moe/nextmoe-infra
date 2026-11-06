@@ -25,24 +25,6 @@ type DeclaredIndex struct {
 	byWork    map[int64][]declaredHit
 }
 
-func attachDeclaredEvidence(db *gorm.DB, rows []QueueVerdict, out map[int64]pairEvidence) error {
-	idx, err := LoadDeclaredIndex(db)
-	if err != nil {
-		return err
-	}
-	for _, r := range rows {
-		sub, wn := idx.Hit(r.AID, r.BID)
-		if sub == "" {
-			continue
-		}
-		ev := out[r.ID]
-		ev.DeclaredSubject = sub
-		ev.DeclaredWorkno = wn
-		out[r.ID] = ev
-	}
-	return nil
-}
-
 // A Bangumi subject's infobox_raw often names a DLsite workno that is not an
 // external ref. For worknos already anchored to a work by an exact DLsite
 // release ref, the work holding the naming subject's exact Bangumi ref is that

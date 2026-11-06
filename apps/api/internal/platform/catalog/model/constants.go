@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 const (
 	EntityTypePerson     int16 = 0
 	EntityTypeCreditName int16 = 1
@@ -236,6 +238,42 @@ func ClaimStateKey(site *string, productWorkID *int64, claimState *int16) string
 	default:
 		return ClaimStateKeyHidden
 	}
+}
+
+// ClaimWeight orders claims for a merge: the survivor must hold the stronger
+// one. A draft, pending or declined claim is a page its site has not
+// published; on 2026-11-05 forum's unpublished draft 54607 kept its published
+// twin 224163 (黄莓C) out of every merge because any claim counted as one.
+// Hidden weighs nothing here: ErrHiddenSurvivor and the hidden-claim bucket
+// handle it, and a ban is never decided by rank.
+func ClaimWeight(key string) int {
+	switch key {
+	case ClaimStateKeyLive:
+		return 3
+	case ClaimStateKeyPending:
+		return 2
+	case ClaimStateKeyDraft:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// ClaimWeightSQL is ClaimWeight over a catalog_work alias, through the same
+// reading of site / product_work_id / claim_state as ClaimStateKey.
+func ClaimWeightSQL(w string) string {
+	return fmt.Sprintf(`(CASE WHEN %[1]s.site IS NULL OR %[1]s.site = '' OR %[1]s.product_work_id IS NULL THEN 0
+		WHEN %[1]s.claim_state IS NULL OR %[1]s.claim_state = %[2]d THEN 3
+		WHEN %[1]s.claim_state = %[3]d THEN 2
+		WHEN %[1]s.claim_state = %[4]d THEN 1
+		ELSE 0 END)`, w, ClaimStateLive, ClaimStatePending, ClaimStateDraft)
+}
+
+// ClaimHiddenSQL mirrors ClaimStateKey's hidden reading over a catalog_work alias.
+func ClaimHiddenSQL(w string) string {
+	return fmt.Sprintf(`(%[1]s.site IS NOT NULL AND %[1]s.site <> '' AND %[1]s.product_work_id IS NOT NULL
+		AND %[1]s.claim_state IS NOT NULL AND %[1]s.claim_state NOT IN (%[2]d, %[3]d, %[4]d, %[5]d))`,
+		w, ClaimStateLive, ClaimStateDraft, ClaimStatePending, ClaimStateDeclined)
 }
 
 // SiteWorkIDIsCatalogID names the sites whose own work id IS the catalog work

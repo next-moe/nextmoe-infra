@@ -111,19 +111,28 @@ func TestSubmitWorkFilesHanThreeRuneDupeCandidate(t *testing.T) {
 	assert.Equal(t, model.CandidateStatusPending, got.Status)
 }
 
-func TestSubmitWorkSkipsShortASCIICollision(t *testing.T) {
+func TestSubmitWorkFlagsAShortOfficialTitle(t *testing.T) {
 	s := newLifecycle(t)
-	createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "abc")
+	existing := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "黄莓C")
 
 	_, err := s.SubmitWork(t.Context(), SubmitWorkParams{
 		Site: submitSite, ProductWorkID: 90504, ActorUID: 7,
-		Fields: submitFields("abc"),
+		Fields: submitFields("黄莓C"),
+	})
+	var suspects *WorkDupeSuspectsError
+	require.ErrorAs(t, err, &suspects, "a three-rune official title is the work's name, not genre noise")
+	require.Len(t, suspects.Suspects, 1)
+	assert.Equal(t, existing.ID, suspects.Suspects[0].WorkID)
+
+	res, err := s.SubmitWork(t.Context(), SubmitWorkParams{
+		Site: submitSite, ProductWorkID: 90504, ActorUID: 7,
+		Fields: submitFields("黄莓C"), ConfirmDuplicates: true,
 	})
 	require.NoError(t, err)
-
-	var filed int64
-	require.NoError(t, testDB.Model(&model.CatalogMatchCandidate{}).Count(&filed).Error)
-	assert.Zero(t, filed)
+	var cands []model.CatalogMatchCandidate
+	require.NoError(t, testDB.Find(&cands).Error)
+	require.Len(t, cands, 1)
+	assert.Equal(t, [2]int64{min(existing.ID, res.WorkID), max(existing.ID, res.WorkID)}, [2]int64{cands[0].AID, cands[0].BID})
 }
 
 func TestSubmitWorkFilesTrailingWaveDashDupeCandidate(t *testing.T) {
@@ -145,17 +154,17 @@ func TestSubmitWorkFilesTrailingWaveDashDupeCandidate(t *testing.T) {
 	assert.Equal(t, model.CandidateReasonNameNormEqual, cands[0].Reason)
 }
 
-func TestSubmitWorkStillSkipsShortTitleBaredByTheWaveDashStrip(t *testing.T) {
+func TestSubmitWorkStillSkipsAOneRuneTitleBaredByTheWaveDashStrip(t *testing.T) {
 	s := newLifecycle(t)
-	createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "幽閉～")
+	createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "夏～")
 
 	_, err := s.SubmitWork(t.Context(), SubmitWorkParams{
 		Site: submitSite, ProductWorkID: 90507, ActorUID: 7,
-		Fields: submitFields("幽閉"),
+		Fields: submitFields("夏"),
 	})
 	require.NoError(t, err)
 
 	var filed int64
 	require.NoError(t, testDB.Model(&model.CatalogMatchCandidate{}).Count(&filed).Error)
-	assert.Zero(t, filed, "stripping the dash must not push a 2-rune norm past the eligibility floor")
+	assert.Zero(t, filed, "stripping the dash must not push a one-rune norm past the official floor")
 }

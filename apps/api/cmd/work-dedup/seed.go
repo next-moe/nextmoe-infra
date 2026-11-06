@@ -41,7 +41,7 @@ func seedFromCensus(ctx context.Context, db *gorm.DB, w io.Writer, c *census, ac
 			continue
 		}
 		reason := model.CandidateReasonNameNormEqual
-		if r.SharedNorms == 0 {
+		if r.SharedNames == 0 {
 			reason = model.CandidateReasonSharedExternalID
 		}
 		planned[b] = append(planned[b], model.CatalogMatchCandidate{

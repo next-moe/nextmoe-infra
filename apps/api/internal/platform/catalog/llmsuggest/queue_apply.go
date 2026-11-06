@@ -205,13 +205,13 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts
 		b := sides[row.BID]
 		s := workPairSides{
 			AID: row.AID, BID: row.BID,
-			ClaimedA: a.ClaimedA, ClaimedB: b.ClaimedA,
+			ClaimA: a.ClaimA, ClaimB: b.ClaimA,
 			HiddenA: a.HiddenA, HiddenB: b.HiddenA,
 			ExactA: a.ExactA, ExactB: b.ExactA,
 			DeletedA: a.DeletedA, DeletedB: b.DeletedA,
 			RefsA: a.RefsA, RefsB: b.RefsA,
 		}
-		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidenceReject, s, ev.Pair)
+		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject, s, ev.Pair)
 	case QueueRef:
 		p := planRef(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject, slotTaken, ev.Ref)
 		if p.Action == applyReject && ev.RefMatchedBy == matchedByCurated {
@@ -323,19 +323,21 @@ func loadApplySides(db *gorm.DB, rows []QueueVerdict) (map[int64]workPairSides, 
 	}
 	for _, chunk := range chunkBy(ids, 500) {
 		var works []struct {
-			ID         int64      `gorm:"column:id"`
-			Site       *string    `gorm:"column:site"`
-			ClaimState *int16     `gorm:"column:claim_state"`
-			Deleted    *time.Time `gorm:"column:deleted_at"`
+			ID            int64      `gorm:"column:id"`
+			Site          *string    `gorm:"column:site"`
+			ProductWorkID *int64     `gorm:"column:product_work_id"`
+			ClaimState    *int16     `gorm:"column:claim_state"`
+			Deleted       *time.Time `gorm:"column:deleted_at"`
 		}
-		if err := db.Raw(`SELECT id, site, claim_state, deleted_at FROM catalog_work WHERE id IN ?`, chunk).Scan(&works).Error; err != nil {
+		if err := db.Raw(`SELECT id, site, product_work_id, claim_state, deleted_at FROM catalog_work WHERE id IN ?`, chunk).Scan(&works).Error; err != nil {
 			return nil, err
 		}
 		for _, w := range works {
 			s := out[w.ID]
 			s.AID = w.ID
-			s.ClaimedA = siteClaimed(w.Site)
-			s.HiddenA = s.ClaimedA && w.ClaimState != nil && *w.ClaimState == model.ClaimStateHidden
+			claim := model.ClaimStateKey(w.Site, w.ProductWorkID, w.ClaimState)
+			s.ClaimA = model.ClaimWeight(claim)
+			s.HiddenA = claim == model.ClaimStateKeyHidden
 			s.DeletedA = w.Deleted != nil
 			out[w.ID] = s
 		}

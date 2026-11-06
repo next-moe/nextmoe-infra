@@ -18,20 +18,17 @@ func TestRefConflictOverrulesTheVerdict(t *testing.T) {
 	// works 8460 and 8501, judged same at 1.00 on a fabricated shared vndb id
 	s := workPairSides{
 		AID: 8460, BID: 8501,
-		ClaimedA: true, ClaimedB: true,
+		ClaimA: 3, ClaimB: 3,
 		RefsA: []exactRef{ref(2, "vndb", 1, "v26356")},
 		RefsB: []exactRef{ref(2, "vndb", 1, "v28983")},
 	}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole"))
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, soleName("sole"))
 	assert.Equal(t, applyReject, p.Action)
 	assert.Equal(t, stampRefConflict, p.stamp())
 	assert.Equal(t, "ref-conflict: vndb v26356 vs v28983", p.Reason)
 
-	// the freeze is what used to hold this pair, and it no longer gets the chance
-	assert.NotEqual(t, skipFrozenBothClaimed, p.Skip)
-
 	for _, v := range []string{VerdictUnsure, VerdictDifferent} {
-		p := planWorkPair(v, 0.1, 0.7, s, soleName("sole"))
+		p := planWorkPair(v, 0.1, 0.9, 0.7, s, soleName("sole"))
 		assert.Equal(t, applyReject, p.Action, v)
 	}
 }
@@ -46,6 +43,9 @@ func TestExemptSourcesDoNotVeto(t *testing.T) {
 		{"does not dedupe itself", model.SourceHowLongToBeat, "howlongtobeat"},
 		{"bangumi lists editions", model.SourceBangumi, "bangumi"},
 		{"eg lists editions", model.SourceErogameScape, "erogamescape"},
+		{"a dlsite id is a SKU", model.SourceDLsite, "dlsite"},
+		{"a dmm id is a SKU", model.SourceDMM, "dmm"},
+		{"a steam id is a SKU", model.SourceSteam, "steam"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := workPairSides{
@@ -54,7 +54,7 @@ func TestExemptSourcesDoNotVeto(t *testing.T) {
 				RefsB: []exactRef{ref(c.source, c.key, 1, "200")},
 			}
 			assert.Empty(t, contradictingExactRef(s))
-			assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole")).Action)
+			assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.9, 0.7, s, soleName("sole")).Action)
 		})
 	}
 
@@ -62,10 +62,10 @@ func TestExemptSourcesDoNotVeto(t *testing.T) {
 	// so the empty results above are the exemption and not a broken compare
 	s := workPairSides{
 		AID: 1, BID: 2,
-		RefsA: []exactRef{ref(4, "dlsite", 1, "100")},
-		RefsB: []exactRef{ref(4, "dlsite", 1, "200")},
+		RefsA: []exactRef{ref(2, "vndb", 1, "v100")},
+		RefsB: []exactRef{ref(2, "vndb", 1, "v200")},
 	}
-	assert.Equal(t, "dlsite 100 vs 200", contradictingExactRef(s))
+	assert.Equal(t, "vndb v100 vs v200", contradictingExactRef(s))
 }
 
 func TestContradictionNamesTheMostTrustedSource(t *testing.T) {
@@ -89,7 +89,7 @@ func TestAgreeingRefsAreNotAContradiction(t *testing.T) {
 
 func TestDeletedEndpointDefersTheCandidate(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2, DeletedB: true}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole"))
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, soleName("sole"))
 	assert.Equal(t, applyDefer, p.Action, "the candidate has to leave needs_manual")
 	assert.NotEqual(t, applyReject, p.Action, "a retired endpoint is no evidence the works differ")
 	assert.Equal(t, stampObsoletePair, p.stamp())
@@ -99,9 +99,9 @@ func TestDeletedEndpointDefersTheCandidate(t *testing.T) {
 	// rejected: the pair it names no longer exists to be judged
 	s.RefsA = []exactRef{ref(2, "vndb", 1, "v1")}
 	s.RefsB = []exactRef{ref(2, "vndb", 1, "v2")}
-	assert.Equal(t, applyDefer, planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole")).Action)
+	assert.Equal(t, applyDefer, planWorkPair(VerdictSame, 1, 0.9, 0.7, s, soleName("sole")).Action)
 
-	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.7, workPairSides{AID: 1, BID: 2}, soleName("sole")).Action)
+	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{AID: 1, BID: 2}, soleName("sole")).Action)
 }
 
 func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
@@ -117,10 +117,10 @@ func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
 		}
 	}
 	s := workPairSides{AID: 1, BID: 2}
-	record(planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole")))
-	record(planWorkPair(VerdictDifferent, 1, 0.7, s, soleName("sole")))
-	record(planWorkPair(VerdictSame, 1, 0.7, workPairSides{AID: 1, BID: 2, DeletedB: true}, soleName("sole")))
-	record(planWorkPair(VerdictSame, 1, 0.7, workPairSides{
+	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, s, soleName("sole")))
+	record(planWorkPair(VerdictDifferent, 1, 0.9, 0.7, s, soleName("sole")))
+	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{AID: 1, BID: 2, DeletedB: true}, soleName("sole")))
+	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{
 		AID: 1, BID: 2,
 		RefsA: []exactRef{ref(2, "vndb", 1, "v1")},
 		RefsB: []exactRef{ref(2, "vndb", 1, "v2")},
@@ -142,15 +142,15 @@ func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
 
 func TestRejectThresholdIsIndependentOfAccept(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
-	assert.Equal(t, applyReject, planWorkPair(VerdictDifferent, 0.8, 0.7, s, soleName("sole")).Action)
-	assert.Equal(t, stampKeptApartLowConfidence, planWorkPair(VerdictDifferent, 0.6, 0.7, s, soleName("sole")).stamp())
+	assert.Equal(t, applyReject, planWorkPair(VerdictDifferent, 0.8, 0.9, 0.7, s, soleName("sole")).Action)
+	assert.Equal(t, stampKeptApartLowConfidence, planWorkPair(VerdictDifferent, 0.6, 0.9, 0.7, s, soleName("sole")).stamp())
 
-	// The accept direction has no bar left to be independent of: confidence
-	// gates rejects only. An accept at 0.10 lands, and an accept at 1.00 whose
-	// name a third work also answers to is held for a person rather than merged.
-	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 0.1, 0.7, s, soleName("sole")).Action)
+	// A name decides an accept only at the accept bar; below it, or when a third
+	// work answers to the name, the pair is held for a person.
+	assert.Equal(t, stampHeldSameUncorroborated, planWorkPair(VerdictSame, 0.1, 0.9, 0.7, s, soleName("sole")).stamp())
+	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 0.9, 0.9, 0.7, s, soleName("sole")).Action)
 	assert.Equal(t, stampHeldSameUncorroborated,
-		planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{Name: "memoria", Holders: 3}).stamp())
+		planWorkPair(VerdictSame, 1, 0.9, 0.7, s, pairEvidence{Name: "memoria", Holders: 3}).stamp())
 
 	assert.Equal(t, applyReject, planCreditName(VerdictDifferent, 0.8, 0.9, 0.7).Action)
 	assert.Equal(t, skipBelowConfidence, planCreditName(VerdictSame, 0.8, 0.9, 0.7).Skip)
@@ -210,7 +210,7 @@ func exclusiveShared(key, ext string) pairEvidence {
 
 func TestSameAcceptsOnLooseName(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, exclusiveLoose("abcdefgh"))
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, exclusiveLoose("abcdefgh"))
 	assert.Equal(t, applyAccept, p.Action)
 	assert.Equal(t, `sole holders of loose "abcdefgh"`, p.Reason)
 
@@ -219,35 +219,35 @@ func TestSameAcceptsOnLooseName(t *testing.T) {
 		LooseName: "abcdefgh", LooseHolders: exclusiveNameHolders,
 		SharedSourceKey: "vndb", SharedExternalID: "v1", SharedHolders: exclusiveNameHolders,
 	}
-	assert.Equal(t, `sole holders of "folded"`, planWorkPair(VerdictSame, 1, 0.7, s, all).Reason)
+	assert.Equal(t, "shares vndb:v1", planWorkPair(VerdictSame, 1, 0.9, 0.7, s, all).Reason)
 	foldedAndLoose := pairEvidence{Name: "folded", Holders: exclusiveNameHolders, LooseName: "abcdefgh", LooseHolders: exclusiveNameHolders}
 	sharedAndLoose := pairEvidence{
 		LooseName: "abcdefgh", LooseHolders: exclusiveNameHolders,
 		SharedSourceKey: "vndb", SharedExternalID: "v1", SharedHolders: exclusiveNameHolders,
 	}
-	assert.Equal(t, `sole holders of "folded"`, planWorkPair(VerdictSame, 1, 0.7, s, foldedAndLoose).Reason)
-	assert.Equal(t, "shares vndb:v1", planWorkPair(VerdictSame, 1, 0.7, s, sharedAndLoose).Reason)
+	assert.Equal(t, `sole holders of "folded"`, planWorkPair(VerdictSame, 1, 0.9, 0.7, s, foldedAndLoose).Reason)
+	assert.Equal(t, "shares vndb:v1", planWorkPair(VerdictSame, 1, 0.9, 0.7, s, sharedAndLoose).Reason)
 }
 
 func TestUnsureDoesNotAcceptOnLooseName(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
-	p := planWorkPair(VerdictUnsure, 0, 0.7, s, exclusiveLoose("abcdefgh"))
+	p := planWorkPair(VerdictUnsure, 0, 0.9, 0.7, s, exclusiveLoose("abcdefgh"))
 	assert.Equal(t, applyDefer, p.Action)
 	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
-	assert.Equal(t, applyAccept, planWorkPair(VerdictUnsure, 0, 0.7, s, soleName("folded")).Action)
+	assert.Equal(t, applyDefer, planWorkPair(VerdictUnsure, 0, 0.9, 0.7, s, soleName("folded")).Action)
 }
 
 func TestLooseNameNeedsFiveRunes(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, exclusiveLoose("mine"))
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, exclusiveLoose("mine"))
 	assert.Equal(t, applyHold, p.Action)
 	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
-	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.7, s, exclusiveLoose("puppy")).Action)
+	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.9, 0.7, s, exclusiveLoose("puppy")).Action)
 }
 
 func TestLooseNameNeedsExactlyTwoHolders(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{LooseName: "abcdefgh", LooseHolders: 3})
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, pairEvidence{LooseName: "abcdefgh", LooseHolders: 3})
 	assert.Equal(t, applyHold, p.Action)
 	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
 }
@@ -255,10 +255,10 @@ func TestLooseNameNeedsExactlyTwoHolders(t *testing.T) {
 func TestSameAndUnsureAcceptOnSharedRecord(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
 	ev := exclusiveShared("vndb", "v1")
-	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.7, s, ev).Action)
-	assert.Equal(t, "shares vndb:v1", planWorkPair(VerdictSame, 1, 0.7, s, ev).Reason)
-	assert.Equal(t, applyAccept, planWorkPair(VerdictUnsure, 0, 0.7, s, ev).Action)
-	assert.Equal(t, "shares vndb:v1", planWorkPair(VerdictUnsure, 0, 0.7, s, ev).Reason)
+	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.9, 0.7, s, ev).Action)
+	assert.Equal(t, "shares vndb:v1", planWorkPair(VerdictSame, 1, 0.9, 0.7, s, ev).Reason)
+	assert.Equal(t, applyAccept, planWorkPair(VerdictUnsure, 0, 0.9, 0.7, s, ev).Action)
+	assert.Equal(t, "shares vndb:v1", planWorkPair(VerdictUnsure, 0, 0.9, 0.7, s, ev).Reason)
 }
 
 func TestBundleRecordNeverCorroborates(t *testing.T) {
@@ -271,7 +271,7 @@ func TestBundleRecordNeverCorroborates(t *testing.T) {
 	assert.Zero(t, n)
 
 	s := workPairSides{AID: 1, BID: 2}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{})
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, pairEvidence{})
 	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
 }
 
@@ -293,7 +293,7 @@ func TestSharedRecordNeedsExactlyTwoHolders(t *testing.T) {
 	assert.Empty(t, sk)
 
 	s := workPairSides{AID: 1, BID: 2}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, pairEvidence{
 		SharedSourceKey: "erogamescape", SharedExternalID: "100", SharedHolders: 3,
 	})
 	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
@@ -310,21 +310,21 @@ func TestRefConflictStillWinsOverNewCorroborators(t *testing.T) {
 		LooseName: "abcdefgh", LooseHolders: exclusiveNameHolders,
 		SharedSourceKey: "erogamescape", SharedExternalID: "100", SharedHolders: exclusiveNameHolders,
 	}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, ev)
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, ev)
 	assert.Equal(t, applyReject, p.Action)
 	assert.Equal(t, stampRefConflict, p.stamp())
 }
 
 func TestUncorroboratedSameIsHeldUnsureKeptApart(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{})
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, pairEvidence{})
 	assert.Equal(t, applyHold, p.Action)
 	assert.Equal(t, stampHeldSameUncorroborated, p.stamp())
 	assert.False(t, p.recordOnly())
 	assert.True(t, isReplannedStamp(p.stamp()))
 	assert.NotContains(t, currentStamps, p.stamp())
 
-	p = planWorkPair(VerdictUnsure, 0, 0.7, s, pairEvidence{})
+	p = planWorkPair(VerdictUnsure, 0, 0.9, 0.7, s, pairEvidence{})
 	assert.Equal(t, applyDefer, p.Action)
 	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
 }
@@ -334,55 +334,54 @@ func TestDatedCorroboratorsNeedAgreeingDates(t *testing.T) {
 	title := pairEvidence{TitleName: "d.c.5to4luminousmemories", TitleHolders: exclusiveNameHolders}
 	store := pairEvidence{StoreSourceKey: "dmm", StoreID: "hobc_0507", StoreHolders: exclusiveNameHolders}
 
-	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.7, s, title).Action, "a shared title alone is the ラブレッスン shape")
-	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.7, s, store).Action, "a shared store id alone is the DLC shape")
+	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.9, 0.7, s, title).Action, "a shared title alone is the ラブレッスン shape")
+	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.9, 0.7, s, store).Action, "a shared store id alone is the DLC shape")
 
 	title.DatesNear, store.DatesNear = true, true
-	p := planWorkPair(VerdictSame, 1, 0.7, s, title)
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, title)
 	assert.Equal(t, applyAccept, p.Action)
 	assert.Equal(t, `sole holders of title "d.c.5to4luminousmemories", release dates agree`, p.Reason)
-	p = planWorkPair(VerdictSame, 1, 0.7, s, store)
+	p = planWorkPair(VerdictSame, 1, 0.9, 0.7, s, store)
 	assert.Equal(t, applyAccept, p.Action)
 	assert.Equal(t, "release and work share dmm:hobc_0507, release dates agree", p.Reason)
 
-	assert.Equal(t, applyDefer, planWorkPair(VerdictUnsure, 0, 0.7, s, title).Action, "unsure cannot use them")
-	assert.Equal(t, applyDefer, planWorkPair(VerdictUnsure, 0, 0.7, s, store).Action)
+	assert.Equal(t, applyDefer, planWorkPair(VerdictUnsure, 0, 0.9, 0.7, s, title).Action, "unsure cannot use them")
+	assert.Equal(t, applyDefer, planWorkPair(VerdictUnsure, 0, 0.9, 0.7, s, store).Action)
 
 	title.TitleHolders = 3
-	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.7, s, title).Action)
+	assert.Equal(t, applyHold, planWorkPair(VerdictSame, 1, 0.9, 0.7, s, title).Action)
 }
 
-func TestBothClaimedIsKeptApart(t *testing.T) {
-	s := workPairSides{AID: 1, BID: 2, ClaimedA: true, ClaimedB: true}
-	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("folded"))
-	assert.Equal(t, applyDefer, p.Action)
-	assert.Equal(t, stampKeptApartBothClaimed, p.stamp())
-	assert.NotEqual(t, applyAccept, p.Action)
+func TestBothClaimedMergeIntoTheStrongerClaim(t *testing.T) {
+	s := workPairSides{AID: 1, BID: 2, ClaimA: 1, ClaimB: 3}
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, soleName("folded"))
+	assert.Equal(t, applyAccept, p.Action)
+	assert.Equal(t, [2]int64{1, 2}, [2]int64{p.Source, p.Target})
 }
 
 func TestHiddenClaimIsKeptApart(t *testing.T) {
 	for _, s := range []workPairSides{
-		{AID: 1, BID: 2, ClaimedA: true, HiddenA: true, ExactA: 4},
-		{AID: 1, BID: 2, ClaimedB: true, HiddenB: true, ExactB: 4},
+		{AID: 1, BID: 2, HiddenA: true, ExactA: 4},
+		{AID: 1, BID: 2, HiddenB: true, ExactB: 4},
 	} {
-		p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("folded"))
+		p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s, soleName("folded"))
 		assert.Equal(t, applyDefer, p.Action)
 		assert.Equal(t, stampKeptApartHiddenClaim, p.stamp())
 		assert.True(t, isReplannedStamp(p.stamp()))
 	}
 
-	visible := workPairSides{AID: 1, BID: 2, ClaimedA: true, ExactA: 4}
-	p := planWorkPair(VerdictSame, 1, 0.7, visible, soleName("folded"))
+	visible := workPairSides{AID: 1, BID: 2, ClaimA: 3, ExactA: 4}
+	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, visible, soleName("folded"))
 	assert.Equal(t, applyAccept, p.Action, "the same pair with a visible claim merges, the claim surviving")
 	assert.Equal(t, int64(1), p.Target)
 
-	p = planWorkPair(VerdictDifferent, 0.95, 0.7, workPairSides{AID: 1, BID: 2, ClaimedA: true, HiddenA: true}, soleName("folded"))
+	p = planWorkPair(VerdictDifferent, 0.95, 0.9, 0.7, workPairSides{AID: 1, BID: 2, HiddenA: true}, soleName("folded"))
 	assert.Equal(t, applyReject, p.Action, "keeping works apart needs no person")
 }
 
 func TestLowConfidenceDifferentIsKeptApart(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
-	p := planWorkPair(VerdictDifferent, 0.6, 0.7, s, soleName("folded"))
+	p := planWorkPair(VerdictDifferent, 0.6, 0.9, 0.7, s, soleName("folded"))
 	assert.Equal(t, applyDefer, p.Action)
 	assert.Equal(t, stampKeptApartLowConfidence, p.stamp())
 }
