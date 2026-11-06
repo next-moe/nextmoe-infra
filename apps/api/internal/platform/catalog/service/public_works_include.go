@@ -189,6 +189,13 @@ func (s *PublicService) attachWorkListCoverSlots(
 	for i, r := range rows {
 		allow[i] = nsfw && effectiveDisplayNSFW(r.Site, r.ProductWorkID, displayNSFW[r.ID], r.ContentRating)
 		items[i].Covers = s.pickCoverSlots(covers[r.ID], meta, allow[i])
+		sfw := items[i].Covers
+		if allow[i] {
+			sfw = s.pickCoverSlots(covers[r.ID], meta, false)
+		}
+		if sfw != nil {
+			items[i].CoverSFW = sfw.Portrait
+		}
 		if bannerMissing(items[i].Covers) {
 			needShots = append(needShots, claimSubject{WorkID: r.ID})
 		}
