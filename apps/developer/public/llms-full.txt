@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 210 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 211 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -8903,7 +8903,7 @@ curl "https://api.nextmoe.dev/v2/sticker/tags" \
 
 - 路径前缀：`/v2/letmoe`
 - 凭据：Authorization: Bearer nmk_live_…（任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/letmoe/resources/{id}/file,要 letmoe:files——每把密钥创建时自动带上）
-- 端点数：4
+- 端点数：5
 
 > 下游站点面：由 一起萌（www.letmoe.com）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。
 
@@ -8917,7 +8917,9 @@ curl "https://api.nextmoe.dev/v2/sticker/tags" \
 
 > /v2/letmoe/works 上的 ids= 是批量问法：一次最多 100 个作品 id，没有可见资源的原样回在 missing[] 里。这是「我手上这 100 部作品哪些能在 letmoe 下载」的一次性问法，此时 cursor、sort、limit 与 include_total 会被拒。
 
-> 约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。每个接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。
+> 约定与 catalog /v2、moyu 面相同：id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，超过 100 是 LIMIT_TOO_LARGE、不截断，include_total=true 才给 total），200 带 ETag 可 304。读作品与资源的接口都接受 nsfw，缺省 false：成人作品不出现在列表里，它的资源单条读取是 404。
+
+> /v2/letmoe/changes 是失效信道：缓存了某部作品的答案（尤其 /v2/letmoe/works/{id}/resources）就轮询它，凡它点名的 work_id 一律丢掉缓存重读。条目不带内容，只说这部作品的答案可能变了；成人作品不论 nsfw 都会出现。第一次不带 cursor 调，得到空列表和代表「现在」的 next_cursor，之后每次都传上一次的 next_cursor（它总在，没变化时原样返回，所以每次都存）。变更约 5 秒后出现、保留 7 天，下载量与浏览量不算变更；离开超过 7 天会丢掉中间的变更，所以缓存仍要带 TTL。元数据答案是 Cache-Control: no-cache：自己缓存、用 If-None-Match 重验，变更流点名时丢掉。
 
 > 错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和 letmoe 写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。
 
@@ -9040,6 +9042,53 @@ download.
 
 ```bash
 curl "https://api.nextmoe.dev/v2/letmoe/resources/1024/file" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+## 变更流
+
+### GET /v2/letmoe/changes
+
+Works whose resources changed
+
+**The invalidation channel.** If you cache what this face answers for
+a work — above all `GET /v2/letmoe/works/{id}/resources` — poll this
+feed and drop your cached answers for every `work_id` it names. A
+resource published, edited, taken down, moved to another work or given
+a new mirror or merged download surfaces here within seconds, so a
+long cache stays correct.
+
+An entry carries no content: it says the work's answers may differ,
+not how. Read them again when you need them. Adult works are named
+too, whatever your `nsfw`, because a work can change sides.
+
+**Call it without `cursor` once to start.** That answer is empty and
+its `next_cursor` is the present; there is nothing to replay into a
+cache that is empty. From then on pass the `next_cursor` of the
+previous answer. It is always present: unchanged when nothing
+happened, so store it after every call. Entries are oldest first, one
+per work per page.
+
+Entries surface 5 seconds after the change and are kept for 7 days.
+A change inside a transaction open for longer than 5 seconds can be
+skipped, and a consumer away for longer than 7 days loses the gap, so
+keep a TTL on your cache as well; the feed is what lets it be long.
+Download and view counts do not surface here.
+
+Never cached: `Cache-Control: private, no-store`.
+
+
+- 所属 API：letmoe 下载资源链接面（/v2/letmoe）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `limit` | query | 否 | integer | 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/letmoe/changes" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
