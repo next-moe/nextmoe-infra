@@ -129,7 +129,8 @@ func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
 	record(planRef(VerdictChainVerified, 1, 0.9, 0, false, refEvidence{}))
 	record(planRef(VerdictChainVerified, 1, 0.9, 0, true, refEvidence{}))
 	record(planRef(VerdictDifferent, 0.5, 0.9, 0.8, false, refEvidence{}))
-	written[stampTargetGone] = true // written by the apply loop, not by a plan
+	written[stampTargetGone] = true         // written by the apply loop, not by a plan
+	written[stampWithdrawnOnRecheck] = true // written by the recheck pass
 
 	for stamp := range written {
 		assert.Contains(t, currentStamps, stamp)

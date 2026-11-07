@@ -86,7 +86,7 @@ const (
 var currentStamps = []string{
 	applyAccept, applyReject, applyConfirm, applyConfirmRelated,
 	stampRefConflict, stampObsoletePair, stampTargetGone,
-	stampHeldProbableDisputed,
+	stampHeldProbableDisputed, stampWithdrawnOnRecheck,
 }
 
 // currentPrompts is to prompt_version what currentStamps is to applied_action,
