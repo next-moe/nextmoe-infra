@@ -1787,7 +1787,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get one folder item
+         * @description One membership with its note and position, e.g. to prefill the note when the work is already in the folder. 404 when the bearer owns no folder with this id or the work is not in it. Requires a user access token with folder:read (folder:write also grants reads).
+         */
+        get: operations["getMyFolderItem"];
         /**
          * Add a work to a folder
          * @description Naturally idempotent: re-adding an existing membership answers the stored row and touches nothing. Requires a user access token with folder:write.
@@ -10749,6 +10753,8 @@ export interface components {
             object: "folder";
             /** @description The account that owns this folder. This is the central sign-in user id shared by every NextMoe site, not one site's own user id. */
             owner_uid: string;
+            /** @description Up to four of the most recently added works, newest first, deleted works skipped. Empty array, never null. Ids only, so a caller hydrates a whole page of folders in one works request and applies its own content_rating gate there. */
+            recent_work_ids: string[];
             /**
              * Format: date-time
              * @description RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.
@@ -22615,6 +22621,110 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyFolderItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Folder id. */
+                id: string;
+                /** @description Catalog work id. */
+                work_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserFolderItem"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

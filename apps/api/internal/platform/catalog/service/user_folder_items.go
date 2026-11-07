@@ -224,6 +224,21 @@ func renumberFolderItems(tx *gorm.DB, folderID int64) error {
 		 WHERE i.id = r.id AND i.position <> r.pos`, model.FolderItemPositionGap, folderID).Error
 }
 
+func (s *UserFolderService) Item(ctx context.Context, uid, folderID, workID int64) (*model.CatalogUserFolderItem, error) {
+	if uid <= 0 {
+		return nil, ErrFolderActorRequired
+	}
+	db := s.db.WithContext(ctx)
+	if err := ownedFolder(db, uid, folderID, &model.CatalogUserFolder{}); err != nil {
+		return nil, err
+	}
+	var row model.CatalogUserFolderItem
+	if err := folderItem(db, folderID, workID, &row); err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
 func (s *UserFolderService) PublicItem(ctx context.Context, folderID, workID int64) (*model.CatalogUserFolderItem, error) {
 	if _, err := s.GetPublic(ctx, folderID); err != nil {
 		return nil, err

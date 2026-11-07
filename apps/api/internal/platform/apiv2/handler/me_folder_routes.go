@@ -118,6 +118,11 @@ func registerMeFolders(api huma.API, cat *Catalog) {
 		Tags: me, Errors: errs, SkipValidateParams: true,
 	}, listMyFolderItems(cat))
 	huma.Register(api, huma.Operation{
+		OperationID: "getMyFolderItem", Method: http.MethodGet, Path: "/v2/me/folders/{id}/items/{work_id}",
+		Summary: "Get one folder item", Description: "One membership with its note and position, e.g. to prefill the note when the work is already in the folder. 404 when the bearer owns no folder with this id or the work is not in it. Requires a user access token with folder:read (folder:write also grants reads).",
+		Tags: me, Errors: errs, SkipValidateParams: true,
+	}, getMyFolderItem(cat))
+	huma.Register(api, huma.Operation{
 		OperationID: "putMyFolderItem", Method: http.MethodPut, Path: "/v2/me/folders/{id}/items/{work_id}",
 		Summary: "Add a work to a folder", Description: "Naturally idempotent: re-adding an existing membership answers the stored row and touches nothing. Requires a user access token with folder:write.",
 		Tags: me, Errors: writeErrs, SkipValidateParams: true,
@@ -241,6 +246,27 @@ func listMyFolderItems(cat *Catalog) func(context.Context, *listFolderItemsInput
 			return nil, catalogErr(ctx, lerr)
 		}
 		return &listFolderItemsOutput{Body: page}, nil
+	}
+}
+
+func getMyFolderItem(cat *Catalog) func(context.Context, *putFolderItemInput) (*folderItemOutput, error) {
+	return func(ctx context.Context, in *putFolderItemInput) (*folderItemOutput, error) {
+		if in == nil {
+			in = &putFolderItemInput{}
+		}
+		id, ok := repr.ParseID(in.ID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.ID))
+		}
+		workID, ok := repr.ParseID(in.WorkID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.WorkID))
+		}
+		rec, err := cat.GetFolderItem(ctx, id, workID)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &folderItemOutput{Body: rec}, nil
 	}
 }
 

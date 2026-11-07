@@ -169,6 +169,7 @@ type UserFolder struct {
 	ItemCount     int      `json:"item_count" minimum:"0" doc:"Number of works in this folder."`
 	FollowerCount int      `json:"follower_count" minimum:"0" doc:"How many accounts follow this folder through /v2/me/followed-folders. Who they are is not published."`
 	ContentRating string   `json:"content_rating" enum:"all_ages,sensitive,r18" doc:"The strictest content_rating among the works this folder holds; all_ages when it holds none. Read it the way a work's content_rating is read: a caller that hides r18 hides an r18 folder's cover art and titles, or the folder itself."`
+	RecentWorkIDs []string `json:"recent_work_ids" maxItems:"4" doc:"Up to four of the most recently added works, newest first, deleted works skipped. Empty array, never null. Ids only, so a caller hydrates a whole page of folders in one works request and applies its own content_rating gate there."`
 	CreatedAt     string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 	UpdatedAt     string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it."`
 }

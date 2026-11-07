@@ -26,9 +26,10 @@ type folderItemsPage struct {
 
 type directoryPage struct {
 	Items []struct {
-		ID            string `json:"id"`
-		FollowerCount int    `json:"follower_count"`
-		ContentRating string `json:"content_rating"`
+		ID            string   `json:"id"`
+		FollowerCount int      `json:"follower_count"`
+		ContentRating string   `json:"content_rating"`
+		RecentWorkIDs []string `json:"recent_work_ids"`
 	} `json:"items"`
 	NextCursor *string `json:"next_cursor"`
 }
@@ -87,6 +88,16 @@ func TestLiveFolderItemPatchAndPositionSort(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(raw, &item))
 	require.Equal(t, "先玩这个", item.Note)
+
+	status, _, raw = liveDo(t, env, http.MethodGet, base+"/"+idstr(c), liveUserToken, "")
+	require.Equal(t, 200, status, string(raw))
+	require.NoError(t, json.Unmarshal(raw, &item))
+	require.Equal(t, "先玩这个", item.Note)
+	status, _, raw = liveDo(t, env, http.MethodGet, base+"/99887766", liveUserToken, "")
+	require.Equal(t, 404, status, string(raw))
+	others := seedListFolder(t, env.db, livePlainUID, "Order Others", a)
+	status, _, raw = liveDo(t, env, http.MethodGet, "/v2/me/folders/"+idstr(others)+"/items/"+idstr(a), liveUserToken, "")
+	require.Equal(t, 404, status, string(raw))
 
 	var got []string
 	cursor := ""
@@ -167,6 +178,11 @@ func TestLiveFolderDirectoryAndFollows(t *testing.T) {
 	}
 	page := ids("/v2/folders?contains_work_id=" + idstr(works[0]) + "&limit=100")
 	require.True(t, contains(page, listed))
+	for _, it := range page.Items {
+		if it.ID == idstr(listed) {
+			require.ElementsMatch(t, []string{idstr(works[0]), idstr(works[1]), idstr(works[2])}, it.RecentWorkIDs)
+		}
+	}
 	require.False(t, contains(page, adultList), "nsfw absent leaves r18 folders out of the directory")
 	require.False(t, contains(page, short), "a folder below the item floor is not a curated list")
 	page = ids("/v2/folders?contains_work_id=" + idstr(works[0]) + "&nsfw=true&limit=100")

@@ -209,6 +209,21 @@ func (c *Catalog) ListFolderItems(ctx context.Context, folderID int64, q collect
 	return finishList(items, next, total, q, nil), nil
 }
 
+func (c *Catalog) GetFolderItem(ctx context.Context, folderID, workID int64) (repr.UserFolderItem, error) {
+	if c == nil || c.Folders == nil {
+		return repr.UserFolderItem{}, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound.")
+	}
+	uid, _, err := requireUser(ctx)
+	if err != nil {
+		return repr.UserFolderItem{}, err
+	}
+	row, gerr := c.Folders.Item(ctx, uid, folderID, workID)
+	if gerr != nil {
+		return repr.UserFolderItem{}, folderErr(gerr)
+	}
+	return folderItemView(*row), nil
+}
+
 func (c *Catalog) PutFolderItem(ctx context.Context, folderID, workID int64) (repr.UserFolderItem, error) {
 	if c == nil || c.Folders == nil {
 		return repr.UserFolderItem{}, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound.")

@@ -305,3 +305,41 @@ func TestFolderMergeCarriesTheNote(t *testing.T) {
 	require.Equal(t, dst.ID, rows[0].WorkID)
 	require.Equal(t, note, rows[0].Note, "the survivor had no note, so the folded one's note carries over")
 }
+
+func TestFolderRecentWorksAndOwnerItem(t *testing.T) {
+	svc := newFolderSvc(t)
+	ctx := context.Background()
+	f, err := svc.Create(ctx, FolderCreate{OwnerUID: 1, Name: "最近收藏"})
+	require.NoError(t, err)
+	empty, err := svc.Create(ctx, FolderCreate{OwnerUID: 1, Name: "空的"})
+	require.NoError(t, err)
+	base := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	var w []int64
+	for i := 0; i < 6; i++ {
+		work := createWorkX(t, galgameMediumID, model.ContentRatingR18, model.WorkStatusLive, "最近作品"+string(rune('A'+i)))
+		_, err := svc.PutItem(ctx, 1, f.ID, work.ID)
+		require.NoError(t, err)
+		require.NoError(t, testDB.Exec("UPDATE catalog_user_folder_item SET created_at = ? WHERE folder_id = ? AND work_id = ?",
+			base.Add(time.Duration(i)*time.Hour), f.ID, work.ID).Error)
+		w = append(w, work.ID)
+	}
+	require.NoError(t, testDB.Exec("UPDATE catalog_work SET deleted_at = now() WHERE id = ?", w[4]).Error)
+
+	recent, err := svc.FolderRecentWorks(ctx, []int64{f.ID, empty.ID})
+	require.NoError(t, err)
+	require.Equal(t, []int64{w[5], w[3], w[2], w[1]}, recent[f.ID], "newest first, capped at four, deleted works skipped")
+	require.Empty(t, recent[empty.ID])
+
+	note := "先玩这个"
+	_, _, err = svc.PatchItem(ctx, 1, f.ID, w[1], FolderItemPatch{Note: &note})
+	require.NoError(t, err)
+	item, err := svc.Item(ctx, 1, f.ID, w[1])
+	require.NoError(t, err)
+	require.Equal(t, note, item.Note)
+	_, err = svc.Item(ctx, 2, f.ID, w[1])
+	require.ErrorIs(t, err, ErrFolderNotFound, "another account's folder reads as absent")
+	_, err = svc.Item(ctx, 1, empty.ID, w[1])
+	require.ErrorIs(t, err, ErrFolderItemNotFound)
+	_, err = svc.Item(ctx, 1, f.ID, w[4])
+	require.ErrorIs(t, err, ErrFolderItemNotFound, "a deleted work is not an item")
+}

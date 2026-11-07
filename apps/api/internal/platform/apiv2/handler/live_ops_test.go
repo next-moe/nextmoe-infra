@@ -174,6 +174,7 @@ var liveReadsNotSwept = map[string]string{
 	"/v2/me/work-states/{work_id}":           "404 until a state is written, which is TestLiveWorkStateLifecycle's job",
 	"/v2/me/followed-companies/{company_id}": "404 until a follow is written, which is TestLiveCompanyFollowLifecycle's job",
 	"/v2/me/followed-folders/{folder_id}":    "404 until a follow is written, which is TestLiveFolderDirectoryAndFollows's job",
+	"/v2/me/folders/{id}/items/{work_id}":    "404 unless the fixture folder holds the work; TestLiveFolderItemPatchAndPositionSort reads it",
 	"/v2/me/blocked-tags/{tag_id}":           "404 until a block is written, which is TestLiveTagBlockLifecycle's job",
 	"/v2/me/ratings/{work_id}":               "404 until a rating is written, which is TestLiveRatingLifecycle's job",
 	"/v2/ratings/{id}":                       "no rating survives seedLiveFixtures; TestLiveRatingLifecycle reads the one it writes",

@@ -12884,6 +12884,12 @@ components:
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        recent_work_ids:
+          description: Up to four of the most recently added works, newest first, deleted works skipped. Empty array, never null. Ids only, so a caller hydrates a whole page of folders in one works request and applies its own content_rating gate there.
+          items:
+            type: string
+          maxItems: 4
+          type: array
         updated_at:
           description: RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.
           format: date-time
@@ -12907,6 +12913,7 @@ components:
         - item_count
         - follower_count
         - content_rating
+        - recent_work_ids
         - created_at
         - updated_at
       type: object
@@ -26510,6 +26517,92 @@ paths:
       security:
         - userToken: []
       summary: Remove a work from a folder
+      tags:
+        - me
+    get:
+      description: One membership with its note and position, e.g. to prefill the note when the work is already in the folder. 404 when the bearer owns no folder with this id or the work is not in it. Requires a user access token with folder:read (folder:write also grants reads).
+      operationId: getMyFolderItem
+      parameters:
+        - description: Folder id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Folder id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserFolderItem"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Get one folder item
       tags:
         - me
     patch:

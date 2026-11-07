@@ -948,7 +948,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 194 个端点",
+    "d": "/v2 · 195 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1720,6 +1720,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "POST /v2/me/folders/{id}/items",
     "b": "batchMyFolderItems /v2/me/folders/{id}/items post Batch add works to a folder 207 Multi-Status. Each item is a folder_item or a problem. Requires a user access token with folder:write. 207 多状态。每项为 folder_item 或 problem。需要带 folder:write 的用户访问令牌。 folder:write id Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/getMyFolderItem",
+    "t": "读取收藏夹里的单个条目",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/folders/{id}/items/{work_id}",
+    "b": "getMyFolderItem /v2/me/folders/{id}/items/{work_id} get Get one folder item One membership with its note and position, e.g. to prefill the note when the work is already in the folder. 404 when the bearer owns no folder with this id or the work is not in it. Requires a user access token with folder:read (folder:write also grants reads). 读取一条收藏关系及其备注和位置，例如作品已在收藏夹里时回显原备注。调用者没有这个 id 的收藏夹，或作品不在其中时返回 404。需要带 folder:read 的用户访问令牌（folder:write 也可读取）。 folder:read 或 folder:write id work_id"
   },
   {
     "r": "/docs/v2/putMyFolderItem",

@@ -35,9 +35,41 @@ type PublicFolderQuery struct {
 	Limit          int
 }
 
+// OFFSET 0 keeps the planner from pulling the EXISTS up into an anti join.
+// Pulled up, the directory's NOT EXISTS hash-joined every folder item against
+// catalog_work (122ms locally on 394k items); as a per-folder subplan it stops
+// at the first r18 work, which ~97% of works are (3ms).
 func folderHoldsRated(rating int16) string {
 	return fmt.Sprintf(`EXISTS (SELECT 1 FROM catalog_user_folder_item ri JOIN catalog_work rw ON rw.id = ri.work_id
-		WHERE ri.folder_id = catalog_user_folder.id AND rw.deleted_at IS NULL AND rw.content_rating = %d)`, rating)
+		WHERE ri.folder_id = catalog_user_folder.id AND rw.deleted_at IS NULL AND rw.content_rating = %d OFFSET 0)`, rating)
+}
+
+func (s *UserFolderService) FolderRecentWorks(ctx context.Context, folderIDs []int64) (map[int64][]int64, error) {
+	out := make(map[int64][]int64, len(folderIDs))
+	if len(folderIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		FolderID, WorkID int64
+	}
+	err := s.db.WithContext(ctx).Raw(`
+		SELECT f.id AS folder_id, r.work_id
+		  FROM catalog_user_folder f
+		  CROSS JOIN LATERAL (
+		        SELECT i.work_id, i.created_at FROM catalog_user_folder_item i
+		          JOIN catalog_work w ON w.id = i.work_id AND w.deleted_at IS NULL
+		         WHERE i.folder_id = f.id
+		         ORDER BY i.created_at DESC, i.work_id DESC LIMIT ?) r
+		 WHERE f.id IN ?
+		 ORDER BY f.id, r.created_at DESC, r.work_id DESC`,
+		model.FolderRecentWorksMax, folderIDs).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.FolderID] = append(out[r.FolderID], r.WorkID)
+	}
+	return out, nil
 }
 
 func (s *UserFolderService) publicFolders(ctx context.Context, q PublicFolderQuery) *gorm.DB {
