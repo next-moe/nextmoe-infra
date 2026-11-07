@@ -1,5 +1,3 @@
-import { isSafeInternalPath } from '~/utils/safe-path'
-
 export const useLoginModal = () => {
   const isOpen = useState<boolean>('login-modal-open', () => false)
   const redirect = useState<string | null>('login-modal-redirect', () => null)
