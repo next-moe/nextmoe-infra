@@ -35,6 +35,12 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 	if !ok {
 		return ApplyStats{}, fmt.Errorf("apply has no current prompt for queue %q", opts.Queue)
 	}
+	st := &tally{}
+	if opts.Queue == QueueWorkPair {
+		if err := recheckPendingAccepts(ctx, db, queues, opts, st); err != nil {
+			return ApplyStats{}, err
+		}
+	}
 	var rows []QueueVerdict
 	minConf, verdicts := applySelection(opts)
 	q := db.Where("queue = ? AND prompt_version IN ? AND applied_action NOT IN ? AND error = '' AND confidence >= ? AND verdict IN ?",
@@ -85,7 +91,6 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 		}
 	}
 
-	st := &tally{}
 	for _, row := range rows {
 		h, held := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]
 		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID,
