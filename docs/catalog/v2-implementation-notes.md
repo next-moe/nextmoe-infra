@@ -2969,3 +2969,13 @@ A user reported 54607 and 224163 as one game, 黄莓C. Bangumi 589607 had minted
 - **Measured on the 2026-10-24 local copy.** Auto pairs went from 7 to 36. All 29 new ones were read: short CJK titles with a shared Steam/DMM id (黄莓C, 雪华, 荷莱, 花母, 井底, 浊令, 白线, 盗作, 辱島 …), Android ports and DLC bundles of the same game sharing a Bangumi subject, and two claimed twins. Of the 77 pairs the store-ref lanes had flagged `already anchors work …`, the old census missed 26. The new one misses one, 極限脱出 1 ⇔ 2, which is a VNDB veto.
 
 Spec 2.85.0: the merge-preview blocker vocabulary gains `weaker_survivor_claim`. No schema change, no migration.
+
+### Accepts still cooling are planned again (2026-11-07)
+
+The tightened judge rules only reached verdicts applied after the deploy. The approve step had already approved 1,200 work-pair merges from 11-05 and 11-06, and 82 more were open. `execute` checks only the survivor claim, so all of them would have merged once their 48 h ran out. The work-pair apply step now starts with a recheck pass. It plans every verdict stamped `accept` whose proposal is still open or approved under the rules this build ships, and takes one of three actions:
+
+- **Still accepted, same direction:** left alone (`recheck_kept`).
+- **Accepted, but the current rules pick the other survivor:** the proposal is rejected, the candidate goes back to pending, and the same run files the merge again (`accept_redirected_on_recheck`).
+- **Not accepted:** the proposal is rejected, the candidate goes to needs_manual and its quarantined side stays quarantined (`withdrawn_on_recheck`, a terminal stamp). The kept-apart stamps would have released and published it. A verdict good enough to merge once is a person's call.
+
+Each withdrawal is one transaction (`AdminQueueService.WithdrawWorkAccept`): the proposal, the candidate and the verdict stamp. On prod, 2026-11-07, the pass kept 349 of the 1,282 and withdrew 933 (468 same with no corroborator, 465 unsure). None needed redirecting.
