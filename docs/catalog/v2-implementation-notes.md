@@ -2979,3 +2979,5 @@ The tightened judge rules only reached verdicts applied after the deploy. The ap
 - **Not accepted:** the proposal is rejected, the candidate goes to needs_manual and its quarantined side stays quarantined (`withdrawn_on_recheck`, a terminal stamp). The kept-apart stamps would have released and published it. A verdict good enough to merge once is a person's call.
 
 Each withdrawal is one transaction (`AdminQueueService.WithdrawWorkAccept`): the proposal, the candidate and the verdict stamp. On prod, 2026-11-07, the pass kept 349 of the 1,282 and withdrew 933 (468 same with no corroborator, 465 unsure). None needed redirecting.
+
+`work-dedup -mode decide -decisions <tsv> -note <tag>` applies a reviewed decision file (`a_id, b_id, merge|reject|defer, source_id, target_id, evidence`) through `DecideCandidate`, the same path a person takes in the admin queue. A merge files an open proposal under the note, which `-mode approve -note <tag>` and `-mode execute -note <tag>` then carry. A reject records the rejection and releases quarantine. A candidate that is no longer pending, deferred or needs_manual is skipped.
