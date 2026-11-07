@@ -155,6 +155,9 @@ func deleteFolderRows(tx *gorm.DB, folderID int64) error {
 	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderItem{}).Error; err != nil {
 		return err
 	}
+	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderFollow{}).Error; err != nil {
+		return err
+	}
 	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderImport{}).Error; err != nil {
 		return err
 	}
@@ -195,24 +198,14 @@ func (s *UserFolderService) CountMine(ctx context.Context, uid int64) (int64, er
 	return n, err
 }
 
-func (s *UserFolderService) ListItems(ctx context.Context, uid, folderID int64, since time.Time, sinceWorkID int64, limit int) ([]model.CatalogUserFolderItem, error) {
+func (s *UserFolderService) ListItems(ctx context.Context, uid, folderID int64, p FolderItemPage) ([]model.CatalogUserFolderItem, error) {
 	if uid <= 0 {
 		return nil, ErrFolderActorRequired
 	}
 	if err := ownedFolder(s.db.WithContext(ctx), uid, folderID, &model.CatalogUserFolder{}); err != nil {
 		return nil, err
 	}
-	q := s.db.WithContext(ctx).Where("folder_id = ?", folderID).Where(liveWorkCond("catalog_user_folder_item.work_id"))
-	if !since.IsZero() {
-		if sinceWorkID > 0 {
-			q = q.Where("updated_at > ? OR (updated_at = ? AND work_id > ?)", since, since, sinceWorkID)
-		} else {
-			q = q.Where("updated_at > ?", since)
-		}
-	}
-	var rows []model.CatalogUserFolderItem
-	err := q.Order("updated_at ASC, work_id ASC").Limit(limit).Find(&rows).Error
-	return rows, err
+	return folderItemsPage(s.db.WithContext(ctx), folderID, p)
 }
 
 func (s *UserFolderService) CountItems(ctx context.Context, uid, folderID int64) (int64, error) {
@@ -229,7 +222,7 @@ func (s *UserFolderService) PutItem(ctx context.Context, uid, folderID, workID i
 	var out model.CatalogUserFolderItem
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var folder model.CatalogUserFolder
-		if err := ownedFolder(tx, uid, folderID, &folder); err != nil {
+		if err := ownedFolder(tx.Clauses(clause.Locking{Strength: "UPDATE"}), uid, folderID, &folder); err != nil {
 			return err
 		}
 		if err := assertFolderableWork(tx, workID); err != nil {
@@ -238,7 +231,11 @@ func (s *UserFolderService) PutItem(ctx context.Context, uid, folderID, workID i
 		if folder.ItemCount >= model.FolderItemsMax {
 			return ErrFolderItemLimit
 		}
-		row := model.CatalogUserFolderItem{FolderID: folderID, WorkID: workID, OwnerUID: uid}
+		pos, err := nextFolderItemPosition(tx, folderID)
+		if err != nil {
+			return err
+		}
+		row := model.CatalogUserFolderItem{FolderID: folderID, WorkID: workID, OwnerUID: uid, Position: pos}
 		res := tx.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "folder_id"}, {Name: "work_id"}},
 			DoNothing: true,

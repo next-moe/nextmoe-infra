@@ -31,6 +31,14 @@ type purgeFoldersOutput struct {
 	Body repr.FolderPurgeReceipt
 }
 
+type patchModerationFolderItemInput struct {
+	ID     string `path:"id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Folder id."`
+	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
+	Body   struct {
+		Note string `json:"note" maxLength:"500" doc:"The note's replacement; an empty string clears it, which is the usual action. Must not be used as a discriminant."`
+	}
+}
+
 type patchModerationFolderInput struct {
 	ID   string `path:"id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Folder id."`
 	Body struct {
@@ -55,6 +63,13 @@ func registerModerationFolders(api huma.API, cat *Catalog) {
 		Description: "Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items." + folderModerationGate,
 		Tags:        tags, Errors: errs, SkipValidateParams: true,
 	}, patchModerationFolder(cat))
+
+	huma.Register(api, huma.Operation{
+		OperationID: "patchModerationFolderItem", Method: http.MethodPatch, Path: "/v2/moderation/folders/{id}/items/{work_id}",
+		Summary:     "Moderate a folder item's note",
+		Description: "Rewrite or clear the note an owner wrote on one work in any folder; the membership itself stays. The change moves the item's updated_at, so it reaches the owner's incremental sync. 404 when the work is not in the folder." + folderModerationGate,
+		Tags:        tags, Errors: errs, SkipValidateParams: true,
+	}, patchModerationFolderItem(cat))
 
 	huma.Register(api, huma.Operation{
 		OperationID: "deleteModerationFolder", Method: http.MethodDelete, Path: "/v2/moderation/folders/{id}",
@@ -161,9 +176,9 @@ func (c *Catalog) ListUserFolders(ctx context.Context, ownerUID int64, q collect
 		s := repr.ID(rows[len(rows)-1].ID)
 		next = &s
 	}
-	items := make([]repr.UserFolder, 0, len(rows))
-	for _, r := range rows {
-		items = append(items, folderView(r))
+	items, err := c.folderViews(ctx, rows)
+	if err != nil {
+		return empty, err
 	}
 	var total int64
 	if q.IncludeTotal {
@@ -214,7 +229,38 @@ func patchModerationFolder(cat *Catalog) func(context.Context, *patchModerationF
 		if err != nil {
 			return nil, catalogErr(ctx, folderErr(err))
 		}
-		return &folderOutput{Body: folderView(*row)}, nil
+		view, err := cat.folderViewOf(ctx, *row)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &folderOutput{Body: view}, nil
+	}
+}
+
+func patchModerationFolderItem(cat *Catalog) func(context.Context, *patchModerationFolderItemInput) (*folderItemOutput, error) {
+	return func(ctx context.Context, in *patchModerationFolderItemInput) (*folderItemOutput, error) {
+		if in == nil {
+			in = &patchModerationFolderItemInput{}
+		}
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate, rolesFrom(ctx)); err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		if cat == nil || cat.Folders == nil {
+			return nil, catalogErr(ctx, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound."))
+		}
+		id, ok := repr.ParseID(in.ID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.ID))
+		}
+		workID, ok := repr.ParseID(in.WorkID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.WorkID))
+		}
+		row, err := cat.Folders.ModerationSetItemNote(ctx, id, workID, in.Body.Note)
+		if err != nil {
+			return nil, catalogErr(ctx, folderErr(err))
+		}
+		return &folderItemOutput{Body: folderItemView(*row)}, nil
 	}
 }
 

@@ -56,6 +56,9 @@ func Run(db *gorm.DB) error {
 	if err := seedCatalogDiscussionKind(db); err != nil {
 		return err
 	}
+	if err := seedCatalogFolderKinds(db); err != nil {
+		return err
+	}
 	if err := classifyImportedTermPurpose(db); err != nil {
 		return err
 	}
@@ -378,6 +381,24 @@ func seedCatalogDiscussionKind(db *gorm.DB) error {
 		ON CONFLICT (site, key) DO NOTHING
 	`).Error; err != nil {
 		return fmt.Errorf("seed catalog discussion subject kind: %w", err)
+	}
+	return nil
+}
+
+// seedCatalogFolderKinds registers the two subjects the catalog scans and
+// reports public folder text under (2026-11-07, folder lists):
+// (nextmoe, user_folder) is a folder's name and description, subject_id the
+// folder id; (nextmoe, user_folder_note) is one item's note, subject_id
+// "<folder_id>:<work_id>". Seeded here for the same reason as user_rating.
+// No callback: a flagged folder or note is blanked or removed through the
+// catalog's folder moderation face. Inserts only when missing.
+func seedCatalogFolderKinds(db *gorm.DB) error {
+	if err := db.Exec(`
+		INSERT INTO trust_subject_kind (site, key, created_at)
+		VALUES ('nextmoe', 'user_folder', now()), ('nextmoe', 'user_folder_note', now())
+		ON CONFLICT (site, key) DO NOTHING
+	`).Error; err != nil {
+		return fmt.Errorf("seed catalog folder subject kinds: %w", err)
 	}
 	return nil
 }

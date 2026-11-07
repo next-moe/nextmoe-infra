@@ -13,7 +13,7 @@
 
 Update a folder
 
-Partial update: name, description, visibility, is_default. Requires a user access token with folder:write.
+Partial update: name, description, visibility, is_default. A changed name or description first passes the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway). While the folder is public, its text goes to the platform's content scan after every change, and making it public scans its text and every item note. Requires a user access token with folder:write.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

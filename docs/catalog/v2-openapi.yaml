@@ -3420,6 +3420,42 @@ components:
       required:
         - work_id
       type: object
+    FolderFollow:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/FolderFollow.json
+          format: uri
+          readOnly: true
+          type: string
+        created_at:
+          description: When the bearer followed this folder.
+          format: date-time
+          maxLength: 32
+          type: string
+        folder:
+          $ref: "#/components/schemas/UserFolder"
+          description: The followed folder as GET /v2/folders/{id} answers it.
+        folder_id:
+          description: The followed folder.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        object:
+          description: Type discriminant. Always folder_follow.
+          enum:
+            - folder_follow
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - folder_id
+        - folder
+        - created_at
+      type: object
     FolderHolder:
       additionalProperties: true
       properties:
@@ -4460,6 +4496,62 @@ components:
           description: Members of this page. Empty array, never null.
           items:
             $ref: "#/components/schemas/Engine"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
+    ListFolderFollow:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListFolderFollow.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/FolderFollow"
           type: array
         missing:
           description: ids requested but not visible. Present only on the ids=/refs= batch lane.
@@ -8743,6 +8835,33 @@ components:
           type: string
           x-vocabulary-closed: true
       type: object
+    PatchFolderItemInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PatchFolderItemInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        after_work_id:
+          description: Move this work to directly after that one in the folder's display order (sort=position).
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        before_work_id:
+          description: "Move this work to directly before that one. Send after_work_id or before_work_id, not both: to move to the top name the current first work, to the end the current last."
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        note:
+          description: New note on this work; an empty string clears it. Trimmed. Must not be used as a discriminant.
+          examples:
+            - 入坑首选，共通线就很好哭
+          maxLength: 500
+          type: string
+      type: object
     PatchMergeRequestInputBody:
       additionalProperties: true
       properties:
@@ -8787,6 +8906,23 @@ components:
             - public
           type: string
           x-vocabulary-closed: true
+      type: object
+    PatchModerationFolderItemInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PatchModerationFolderItemInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        note:
+          description: The note's replacement; an empty string clears it, which is the usual action. Must not be used as a discriminant.
+          maxLength: 500
+          type: string
+      required:
+        - note
       type: object
     PatchNewsSubmissionInputBody:
       additionalProperties: true
@@ -10606,6 +10742,48 @@ components:
         - official
         - min_age
         - refs
+      type: object
+    ReportFolderInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ReportFolderInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        folder_id:
+          description: The public folder being reported.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        note:
+          description: The reporter's own words for the moderator. Must not be used as a discriminant.
+          maxLength: 500
+          type: string
+        reason:
+          description: Why the folder is reported.
+          enum:
+            - abuse
+            - spam
+            - illegal
+            - rating_mislabel
+            - copyright
+            - other
+          examples:
+            - spam
+          type: string
+          x-vocabulary-closed: true
+        work_id:
+          description: Report the note the owner wrote on this work instead of the folder's name and description. The work must be in the folder and carry a note.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - folder_id
+        - reason
       type: object
     RevertInputBody:
       additionalProperties: true
@@ -12654,6 +12832,14 @@ components:
           format: uri
           readOnly: true
           type: string
+        content_rating:
+          description: "The strictest content_rating among the works this folder holds; all_ages when it holds none. Read it the way a work's content_rating is read: a caller that hides r18 hides an r18 folder's cover art and titles, or the folder itself."
+          enum:
+            - all_ages
+            - sensitive
+            - r18
+          type: string
+          x-vocabulary-closed: true
         created_at:
           description: RFC 3339 UTC.
           format: date-time
@@ -12663,6 +12849,11 @@ components:
           description: Owner's own note. Empty string when none. Must not be used as a discriminant.
           maxLength: 500
           type: string
+        follower_count:
+          description: How many accounts follow this folder through /v2/me/followed-folders. Who they are is not published.
+          format: int64
+          minimum: 0
+          type: integer
         id:
           description: Folder id.
           maxLength: 20
@@ -12694,7 +12885,7 @@ components:
           pattern: ^[0-9]+$
           type: string
         updated_at:
-          description: RFC 3339 UTC.
+          description: RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.
           format: date-time
           maxLength: 32
           type: string
@@ -12714,6 +12905,8 @@ components:
         - visibility
         - is_default
         - item_count
+        - follower_count
+        - content_rating
         - created_at
         - updated_at
       type: object
@@ -12738,14 +12931,23 @@ components:
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        note:
+          description: The owner's note on this work in this folder. Empty string when none. Must not be used as a discriminant.
+          maxLength: 500
+          type: string
         object:
           description: Type discriminant. Always folder_item.
           enum:
             - folder_item
           type: string
           x-vocabulary-closed: true
+        position:
+          description: "The owner's display order: sort=position lists items by it, ascending. Only the order is meaningful; the values are spaced out and are renumbered when a move runs out of room, so compare them, do not count with them."
+          format: int64
+          minimum: 0
+          type: integer
         updated_at:
-          description: RFC 3339 UTC. The incremental-sync watermark; re-adding an existing membership does not touch it.
+          description: "RFC 3339 UTC. The incremental-sync watermark: it moves when the item's note or position changes (a renumbering moves every item it repositions), and re-adding an existing membership does not touch it."
           format: date-time
           maxLength: 32
           type: string
@@ -12759,6 +12961,8 @@ components:
         - object
         - folder_id
         - work_id
+        - position
+        - note
         - created_at
         - updated_at
       type: object
@@ -14667,7 +14871,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.85.0
+  version: 2.86.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -22100,7 +22304,7 @@ paths:
         - catalog
   /v2/folders:
     get:
-      description: "The public favorite folders of one account, id-ascending. owner_uid is required: there is no platform-wide folder directory. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read."
+      description: "Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read."
       operationId: listPublicFolders
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -22191,14 +22395,21 @@ paths:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
             type: string
-        - description: Required. The account whose public folders to list — the central sign-in user id, the same one a folder reports as owner_uid.
+        - description: "The account whose public folders to list — the central sign-in user id, the same one a folder reports as owner_uid. Absent: the folder directory instead."
           explode: false
           in: query
           name: owner_uid
           schema:
-            description: Required. The account whose public folders to list — the central sign-in user id, the same one a folder reports as owner_uid.
+            description: "The account whose public folders to list — the central sign-in user id, the same one a folder reports as owner_uid. Absent: the folder directory instead."
             maxLength: 20
-            minLength: 1
+            type: string
+        - description: "Keep only the folders holding this catalog work: on the directory lane, the curated lists a work page shows."
+          explode: false
+          in: query
+          name: contains_work_id
+          schema:
+            description: "Keep only the folders holding this catalog work: on the directory lane, the curated lists a work page shows."
+            maxLength: 20
             type: string
       responses:
         "200":
@@ -22260,7 +22471,7 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
-      summary: List a user's public folders
+      summary: List public folders
       tags:
         - folders
   /v2/folders/holders:
@@ -22428,7 +22639,7 @@ paths:
         - folders
   /v2/folders/{id}/items:
     get:
-      description: Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read.
+      description: "The same shape and the same two sorts /v2/me/folders/{id}/items answers: updated (default) for incremental sync, position for the owner's display order. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read."
       operationId: listPublicFolderItems
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -25337,6 +25548,87 @@ paths:
       summary: My editing quota
       tags:
         - me
+  /v2/me/folder-reports:
+    post:
+      description: "Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. 404 when the folder is not public; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required."
+      operationId: reportFolder
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportFolderInputBody"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Report a public folder
+      tags:
+        - me
   /v2/me/folders:
     get:
       description: The bearer user's favorite folders, id-ascending. Requires a user access token with folder:read (folder:write also grants reads).
@@ -25501,7 +25793,7 @@ paths:
       tags:
         - me
     post:
-      description: Requires a user access token with folder:write.
+      description: "name and description first pass the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway); a public folder's text then goes to the platform's content scan. Requires a user access token with folder:write."
       operationId: createMyFolder
       parameters:
         - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
@@ -25801,7 +26093,7 @@ paths:
       tags:
         - me
     patch:
-      description: "Partial update: name, description, visibility, is_default. Requires a user access token with folder:write."
+      description: "Partial update: name, description, visibility, is_default. A changed name or description first passes the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway). While the folder is public, its text goes to the platform's content scan after every change, and making it public scans its text and every item note. Requires a user access token with folder:write."
       operationId: patchMyFolder
       parameters:
         - description: Folder id.
@@ -25882,7 +26174,7 @@ paths:
         - me
   /v2/me/folders/{id}/items:
     get:
-      description: Keyset-paginated by updated_at; the final next_cursor can be stored and replayed later as an incremental-sync watermark (deletions are not replayed). Requires a user access token with folder:read (folder:write also grants reads).
+      description: "sort=updated (default) is keyset-paginated by updated_at; the final next_cursor can be stored and replayed later as an incremental-sync watermark (deletions are not replayed). sort=position is the owner's display order: new works are appended at the end and PATCH moves them. A cursor belongs to the sort it was issued for. Requires a user access token with folder:read (folder:write also grants reads)."
       operationId: listMyFolderItems
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -26218,6 +26510,96 @@ paths:
       security:
         - userToken: []
       summary: Remove a work from a folder
+      tags:
+        - me
+    patch:
+      description: "Partial update of one membership: note, and its place in the display order (after_work_id or before_work_id). Both move updated_at, so the change reaches incremental sync; an unchanged note writes nothing. On a public folder a changed note goes to the platform's content scan. 404 when the work is not in the folder. Requires a user access token with folder:write."
+      operationId: patchMyFolderItem
+      parameters:
+        - description: Folder id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Folder id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchFolderItemInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserFolderItem"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Update a folder item
       tags:
         - me
     put:
@@ -26686,6 +27068,390 @@ paths:
       security:
         - userToken: []
       summary: Follow a company
+      tags:
+        - me
+  /v2/me/followed-folders:
+    get:
+      description: The public folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.
+      operationId: listMyFolderFollows
+      parameters:
+        - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
+            maxLength: 512
+            type: string
+        - description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+            maxLength: 8
+            type: string
+        - description: basic (default) or full. Closed vocabulary.
+          explode: false
+          in: query
+          name: view
+          schema:
+            description: basic (default) or full. Closed vocabulary.
+            maxLength: 16
+            type: string
+        - description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+          explode: false
+          in: query
+          name: include
+          schema:
+            description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+            maxLength: 1024
+            type: string
+        - description: Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+          explode: false
+          in: query
+          name: fields
+          schema:
+            description: Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+            maxLength: 1024
+            type: string
+        - description: "Comma-separated ids, max 100. Batch lane: no pagination."
+          explode: false
+          in: query
+          name: ids
+          schema:
+            description: "Comma-separated ids, max 100. Batch lane: no pagination."
+            maxLength: 4096
+            type: string
+        - description: "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+          explode: false
+          in: query
+          name: refs
+          schema:
+            description: "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+            maxLength: 4096
+            type: string
+        - description: true to include total. Only true or false.
+          explode: false
+          in: query
+          name: include_total
+          schema:
+            description: true to include total. Only true or false.
+            maxLength: 8
+            type: string
+        - description: Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET.
+          explode: false
+          in: query
+          name: facets
+          schema:
+            description: Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET.
+            maxLength: 512
+            type: string
+        - description: Closed per-collection sort key.
+          explode: false
+          in: query
+          name: sort
+          schema:
+            description: Closed per-collection sort key.
+            maxLength: 32
+            type: string
+        - description: true includes r18. false or absent hides r18. Only true or false.
+          explode: false
+          in: query
+          name: nsfw
+          schema:
+            description: true includes r18. false or absent hides r18. Only true or false.
+            maxLength: 8
+            type: string
+        - description: "Comma-separated folder ids, max 100. Batch read, no pagination: which of these the bearer follows."
+          explode: false
+          in: query
+          name: folder_ids
+          schema:
+            description: "Comma-separated folder ids, max 100. Batch read, no pagination: which of these the bearer follows."
+            maxLength: 4096
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListFolderFollow"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: List my followed folders
+      tags:
+        - me
+  /v2/me/followed-folders/{folder_id}:
+    delete:
+      description: 204 with no body, also when the bearer was not following, and also for a folder that has since gone private. Requires a user access token. Any app may call this; no scope is required.
+      operationId: deleteMyFolderFollow
+      parameters:
+        - description: Folder id.
+          in: path
+          name: folder_id
+          required: true
+          schema:
+            description: Folder id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Unfollow a folder
+      tags:
+        - me
+    get:
+      description: 404 when the bearer does not follow this folder, or it is not public. Requires a user access token. Any app may call this; no scope is required.
+      operationId: getMyFolderFollow
+      parameters:
+        - description: Folder id.
+          in: path
+          name: folder_id
+          required: true
+          schema:
+            description: Folder id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderFollow"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Get my follow on one folder
+      tags:
+        - me
+    put:
+      description: "No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. 404 when the folder is not public; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required."
+      operationId: putMyFolderFollow
+      parameters:
+        - description: Folder id.
+          in: path
+          name: folder_id
+          required: true
+          schema:
+            description: Folder id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderFollow"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Follow a folder
       tags:
         - me
   /v2/me/history:
@@ -32479,6 +33245,97 @@ paths:
       security:
         - userToken: []
       summary: Moderate a folder's text
+      tags:
+        - moderation
+  /v2/moderation/folders/{id}/items/{work_id}:
+    patch:
+      description: "Rewrite or clear the note an owner wrote on one work in any folder; the membership itself stays. The change moves the item's updated_at, so it reaches the owner's incremental sync. 404 when the work is not in the folder. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it."
+      operationId: patchModerationFolderItem
+      parameters:
+        - description: Folder id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Folder id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchModerationFolderItemInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserFolderItem"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Moderate a folder item's note
       tags:
         - moderation
   /v2/moderation/merge-requests:

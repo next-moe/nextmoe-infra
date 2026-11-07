@@ -3,16 +3,20 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/repr"
+	"api/internal/platform/catalog/model"
+	catsvc "api/internal/platform/catalog/service"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 type listPublicFoldersInput struct {
 	CollectionInput
-	OwnerUID string `query:"owner_uid" minLength:"1" maxLength:"20" doc:"Required. The account whose public folders to list — the central sign-in user id, the same one a folder reports as owner_uid."`
+	OwnerUID       string `query:"owner_uid" maxLength:"20" doc:"The account whose public folders to list — the central sign-in user id, the same one a folder reports as owner_uid. Absent: the folder directory instead."`
+	ContainsWorkID string `query:"contains_work_id" maxLength:"20" doc:"Keep only the folders holding this catalog work: on the directory lane, the curated lists a work page shows."`
 }
 
 type getPublicFolderInput struct {
@@ -33,8 +37,8 @@ func registerPublicFolders(api huma.API, cat *Catalog) {
 
 	huma.Register(api, huma.Operation{
 		OperationID: "listPublicFolders", Method: http.MethodGet, Path: "/v2/folders",
-		Summary:     "List a user's public folders",
-		Description: "The public favorite folders of one account, id-ascending. owner_uid is required: there is no platform-wide folder directory. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read.",
+		Summary:     "List public folders",
+		Description: "Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least " + strconv.Itoa(model.FolderDirectoryMinItems) + " works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read.",
 		Tags:        tags, Errors: errs, SkipValidateParams: true,
 	}, listPublicFolders(cat))
 
@@ -48,7 +52,7 @@ func registerPublicFolders(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listPublicFolderItems", Method: http.MethodGet, Path: "/v2/folders/{id}/items",
 		Summary:     "List a public folder's items",
-		Description: "Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read.",
+		Description: "The same shape and the same two sorts /v2/me/folders/{id}/items answers: updated (default) for incremental sync, position for the owner's display order. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read.",
 		Tags:        tags, Errors: errs, SkipValidateParams: true,
 	}, listPublicFolderItems(cat))
 }
@@ -58,15 +62,25 @@ func listPublicFolders(cat *Catalog) func(context.Context, *listPublicFoldersInp
 		if in == nil {
 			in = &listPublicFoldersInput{}
 		}
-		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.FolderSpec())
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.PublicFolderSpec())
 		if err != nil {
 			return nil, err
 		}
-		ownerUID, err := requiredIDParam("owner_uid", in.OwnerUID)
+		ownerUID, err := optionalIDParam("owner_uid", in.OwnerUID)
 		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}
-		page, lerr := cat.ListPublicFolders(ctx, ownerUID, q)
+		containsWorkID, err := optionalIDParam("contains_work_id", in.ContainsWorkID)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		sort := folderSortOf(q.Sort)
+		if ownerUID == 0 && in.Sort == "" {
+			sort = catsvc.FolderSortFollowers
+		}
+		page, lerr := cat.ListPublicFolders(ctx, catsvc.PublicFolderQuery{
+			OwnerUID: ownerUID, ContainsWorkID: containsWorkID, NSFW: q.NSFW, Sort: sort,
+		}, q)
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}

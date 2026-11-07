@@ -54,6 +54,15 @@ type putFolderItemInput struct {
 type folderItemOutput struct {
 	Body repr.UserFolderItem
 }
+type patchFolderItemInput struct {
+	ID     string `path:"id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Folder id."`
+	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
+	Body   struct {
+		Note         *string `json:"note,omitempty" maxLength:"500" example:"入坑首选，共通线就很好哭" doc:"New note on this work; an empty string clears it. Trimmed. Must not be used as a discriminant."`
+		AfterWorkID  *string `json:"after_work_id,omitempty" maxLength:"20" pattern:"^[0-9]+$" doc:"Move this work to directly after that one in the folder's display order (sort=position)."`
+		BeforeWorkID *string `json:"before_work_id,omitempty" maxLength:"20" pattern:"^[0-9]+$" doc:"Move this work to directly before that one. Send after_work_id or before_work_id, not both: to move to the top name the current first work, to the end the current last."`
+	}
+}
 
 // Named, not anonymous: huma names an anonymous `Items []struct{...}` element
 // "Item" after the field, and two batch routes with that shape panic the
@@ -85,7 +94,7 @@ func registerMeFolders(api huma.API, cat *Catalog) {
 	}, listMyFolders(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "createMyFolder", Method: http.MethodPost, Path: "/v2/me/folders",
-		Summary: "Create a folder", Description: "Requires a user access token with folder:write.",
+		Summary: "Create a folder", Description: "name and description first pass the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway); a public folder's text then goes to the platform's content scan. Requires a user access token with folder:write.",
 		Tags: me, Errors: writeErrs, DefaultStatus: http.StatusCreated, SkipValidateParams: true,
 	}, createMyFolder(cat))
 	huma.Register(api, huma.Operation{
@@ -95,7 +104,7 @@ func registerMeFolders(api huma.API, cat *Catalog) {
 	}, getMyFolder(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "patchMyFolder", Method: http.MethodPatch, Path: "/v2/me/folders/{id}",
-		Summary: "Update a folder", Description: "Partial update: name, description, visibility, is_default. Requires a user access token with folder:write.",
+		Summary: "Update a folder", Description: "Partial update: name, description, visibility, is_default. A changed name or description first passes the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway). While the folder is public, its text goes to the platform's content scan after every change, and making it public scans its text and every item note. Requires a user access token with folder:write.",
 		Tags: me, Errors: writeErrs, SkipValidateParams: true,
 	}, patchMyFolder(cat))
 	huma.Register(api, huma.Operation{
@@ -105,7 +114,7 @@ func registerMeFolders(api huma.API, cat *Catalog) {
 	}, deleteMyFolder(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyFolderItems", Method: http.MethodGet, Path: "/v2/me/folders/{id}/items",
-		Summary: "List a folder's items", Description: "Keyset-paginated by updated_at; the final next_cursor can be stored and replayed later as an incremental-sync watermark (deletions are not replayed). Requires a user access token with folder:read (folder:write also grants reads).",
+		Summary: "List a folder's items", Description: "sort=updated (default) is keyset-paginated by updated_at; the final next_cursor can be stored and replayed later as an incremental-sync watermark (deletions are not replayed). sort=position is the owner's display order: new works are appended at the end and PATCH moves them. A cursor belongs to the sort it was issued for. Requires a user access token with folder:read (folder:write also grants reads).",
 		Tags: me, Errors: errs, SkipValidateParams: true,
 	}, listMyFolderItems(cat))
 	huma.Register(api, huma.Operation{
@@ -113,6 +122,11 @@ func registerMeFolders(api huma.API, cat *Catalog) {
 		Summary: "Add a work to a folder", Description: "Naturally idempotent: re-adding an existing membership answers the stored row and touches nothing. Requires a user access token with folder:write.",
 		Tags: me, Errors: writeErrs, SkipValidateParams: true,
 	}, putMyFolderItem(cat))
+	huma.Register(api, huma.Operation{
+		OperationID: "patchMyFolderItem", Method: http.MethodPatch, Path: "/v2/me/folders/{id}/items/{work_id}",
+		Summary: "Update a folder item", Description: "Partial update of one membership: note, and its place in the display order (after_work_id or before_work_id). Both move updated_at, so the change reaches incremental sync; an unchanged note writes nothing. On a public folder a changed note goes to the platform's content scan. 404 when the work is not in the folder. Requires a user access token with folder:write.",
+		Tags: me, Errors: writeErrs, SkipValidateParams: true,
+	}, patchMyFolderItem(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "deleteMyFolderItem", Method: http.MethodDelete, Path: "/v2/me/folders/{id}/items/{work_id}",
 		Summary: "Remove a work from a folder", Description: "204 with no body, also when the work was not in the folder. Requires a user access token with folder:write.",
@@ -244,6 +258,27 @@ func putMyFolderItem(cat *Catalog) func(context.Context, *putFolderItemInput) (*
 			return nil, catalogErr(ctx, problemInvalidID(in.WorkID))
 		}
 		rec, err := cat.PutFolderItem(ctx, id, workID)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &folderItemOutput{Body: rec}, nil
+	}
+}
+
+func patchMyFolderItem(cat *Catalog) func(context.Context, *patchFolderItemInput) (*folderItemOutput, error) {
+	return func(ctx context.Context, in *patchFolderItemInput) (*folderItemOutput, error) {
+		if in == nil {
+			in = &patchFolderItemInput{}
+		}
+		id, ok := repr.ParseID(in.ID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.ID))
+		}
+		workID, ok := repr.ParseID(in.WorkID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.WorkID))
+		}
+		rec, err := cat.PatchFolderItem(ctx, id, workID, in.Body.Note, in.Body.AfterWorkID, in.Body.BeforeWorkID)
 		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}

@@ -161,6 +161,10 @@ func workFacetStmts(p mergePlan) []mergeStmt {
 		    WHERE f.work_id = ?
 		    AND NOT EXISTS (SELECT 1 FROM catalog_user_folder_item x
 		                     WHERE x.work_id = ? AND x.folder_id = f.folder_id)`, []any{dst, src, dst}, false},
+		{`UPDATE catalog_user_folder_item d SET note = s.note, updated_at = now()
+		    FROM catalog_user_folder_item s
+		    WHERE d.work_id = ? AND s.work_id = ? AND s.folder_id = d.folder_id
+		      AND d.note = '' AND s.note <> ''`, []any{dst, src}, false},
 		{`DELETE FROM catalog_user_folder_item WHERE work_id = ?`, []any{src}, false},
 		// Every folder the merge touched holds dst afterwards (a src-only row
 		// was repointed to dst; a duplicate was deleted because dst was already

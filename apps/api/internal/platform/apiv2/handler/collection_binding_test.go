@@ -215,6 +215,7 @@ var batchRefusingFaces = map[string]string{
 	"/v2/me/playtimes":          "collect.PlaytimeSpec is NoBatch; work_ids= is this lane's batch",
 	"/v2/me/work-states":        "collect.WorkStateSpec is NoBatch; work_ids= is this lane's batch",
 	"/v2/me/followed-companies": "collect.CompanyFollowSpec is NoBatch; company_ids= is this lane's batch",
+	"/v2/me/followed-folders":   "collect.FolderFollowSpec is NoBatch; folder_ids= is this lane's batch",
 	"/v2/me/blocked-tags":       "collect.TagBlockSpec is NoBatch; tag_ids= is this lane's batch",
 	"/v2/me/ratings":            "collect.MyRatingSpec is NoBatch; work_ids= is this lane's batch",
 	"/v2/ratings":               "collect.RatingSpec is NoBatch; work_id= and user_id= address this face",

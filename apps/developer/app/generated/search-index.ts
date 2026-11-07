@@ -948,7 +948,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 187 个端点",
+    "d": "/v2 · 194 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1408,10 +1408,10 @@ export const searchIndex: SearchEntry[] = [
   },
   {
     "r": "/docs/v2/listPublicFolders",
-    "t": "列出某人的公开收藏夹",
+    "t": "列出公开收藏夹",
     "s": "端点 · 公开收藏夹",
     "d": "GET /v2/folders",
-    "b": "listPublicFolders /v2/folders get List a user's public folders The public favorite folders of one account, id-ascending. owner_uid is required: there is no platform-wide folder directory. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read. 某个账号的公开收藏夹，按 id 升序。owner_uid 必填：本站没有全站收藏夹名录。私密收藏夹在这里永远不出现，对夹主本人也一样——那是 /v2/me/folders 的职责。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw owner_uid"
+    "b": "listPublicFolders /v2/folders get List public folders Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read. 两条通道。带 owner_uid：该账号保持公开的全部收藏夹，缺省按 id 排序。不带 owner_uid：目录广场，只列像一份精选清单的公开收藏夹（不是夹主的默认收藏夹、名称非空、至少 3 部作品），缺省按 followers_desc 排序。sort 可取 id（升序）、followers_desc、updated_desc（收藏夹的文本或条目有变动）、created_desc。contains_work_id 在两条通道上都把结果收窄到收藏了该作品的收藏夹。nsfw 只作用于广场通道：false 或不带时不列 content_rating 为 r18 的收藏夹；夹主通道总是列出夹主公开的全部收藏夹，每个都带 content_rating。私密收藏夹在这里永远不出现，对夹主本人也是如此——那是 /v2/me/folders 的事。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw owner_uid contains_work_id"
   },
   {
     "r": "/docs/v2/listFolderHolders",
@@ -1432,7 +1432,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出公开收藏夹里的条目",
     "s": "端点 · 公开收藏夹",
     "d": "GET /v2/folders/{id}/items",
-    "b": "listPublicFolderItems /v2/folders/{id}/items get List a public folder's items Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read. 按 updated_at 做 keyset 分页，与 /v2/me/folders/{id}/items 的形状相同。列表返回收藏夹里的全部作品、不做分级过滤，因此 item_count 与返回内容一致；要屏蔽 r18 的调用方在补全作品详情时按自己的口径过滤。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listPublicFolderItems /v2/folders/{id}/items get List a public folder's items The same shape and the same two sorts /v2/me/folders/{id}/items answers: updated (default) for incremental sync, position for the owner's display order. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read. 与 /v2/me/folders/{id}/items 相同的形状和相同的两种排序：updated（缺省）用于增量同步，position 是夹主排的展示顺序。列表包含收藏夹里的每一部作品，不做任何编辑侧过滤，因此 item_count 与返回的条数一致；隐藏 r18 的调用方在补全作品时自行过滤。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read id cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/listRatings",
@@ -1659,6 +1659,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "getMyEditQuota /v2/me/edit-quota get My editing quota The bearer's quota tier and, per counter, the limit, how much of it is used and what remains: proposals filed inside the sliding window, edits applied without review inside it, and proposals still awaiting a decision. Counted per person across every catalog site; the limits are runtime configuration. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 调用者的配额档位,以及每个计数项的上限、已用与剩余:滑动窗口内提交的提案、窗口内免审生效的编辑、仍待裁决的提案。按人跨所有 catalog 站点计数;各上限为运行时配置。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
   },
   {
+    "r": "/docs/v2/reportFolder",
+    "t": "举报公开收藏夹",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/folder-reports",
+    "b": "reportFolder /v2/me/folder-reports post Report a public folder Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. 404 when the folder is not public; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required. 把调用者的举报提交到平台的统一审核收件箱：举报对象是收藏夹的名称与简介 (nextmoe, user_folder)，带 work_id 时是某个条目的推荐语 (nextmoe, user_folder_note)。举报时的文本会随举报一起提交。版主通过 /v2/moderation/folders 处置。收藏夹不是公开的时回 404；work_id 指向收藏夹里没有的作品，或该条目没有推荐语时回 422。成功回 204，无响应体。该账号举报过于频繁时回 429；审核收件箱不可达时回 503。需要用户访问令牌。任何应用都能调用，不需要 scope。 Idempotency-Key"
+  },
+  {
     "r": "/docs/v2/listMyFolders",
     "t": "列出我的收藏夹",
     "s": "端点 · 我的",
@@ -1670,7 +1677,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "创建收藏夹",
     "s": "端点 · 我的",
     "d": "POST /v2/me/folders",
-    "b": "createMyFolder /v2/me/folders post Create a folder Requires a user access token with folder:write. 需要带 folder:write 的用户访问令牌。 folder:write Idempotency-Key"
+    "b": "createMyFolder /v2/me/folders post Create a folder name and description first pass the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway); a public folder's text then goes to the platform's content scan. Requires a user access token with folder:write. name 与 description 先经过平台的词表检查（被拒：在 /name 或 /description 处回 422，不写入任何东西；检查不可用：照常写入）；公开收藏夹的文本随后送平台内容扫描。需要带 folder:write 的用户访问令牌。 folder:write Idempotency-Key"
   },
   {
     "r": "/docs/v2/listMyFolderHoldings",
@@ -1691,7 +1698,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "更新收藏夹",
     "s": "端点 · 我的",
     "d": "PATCH /v2/me/folders/{id}",
-    "b": "patchMyFolder /v2/me/folders/{id} patch Update a folder Partial update: name, description, visibility, is_default. Requires a user access token with folder:write. 部分更新：name、description、visibility、is_default。需要带 folder:write 的用户访问令牌。 folder:write id"
+    "b": "patchMyFolder /v2/me/folders/{id} patch Update a folder Partial update: name, description, visibility, is_default. A changed name or description first passes the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway). While the folder is public, its text goes to the platform's content scan after every change, and making it public scans its text and every item note. Requires a user access token with folder:write. 部分更新：name、description、visibility、is_default。改动的 name 或 description 先经过平台的词表检查（被拒：在 /name 或 /description 处回 422，不写入任何东西；检查不可用：照常写入）。收藏夹公开期间，每次改动后其文本都会送平台内容扫描；改为公开时会扫描其文本和每一条推荐语。需要带 folder:write 的用户访问令牌。 folder:write id"
   },
   {
     "r": "/docs/v2/deleteMyFolder",
@@ -1705,7 +1712,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出收藏夹内的条目",
     "s": "端点 · 我的",
     "d": "GET /v2/me/folders/{id}/items",
-    "b": "listMyFolderItems /v2/me/folders/{id}/items get List a folder's items Keyset-paginated by updated_at; the final next_cursor can be stored and replayed later as an incremental-sync watermark (deletions are not replayed). Requires a user access token with folder:read (folder:write also grants reads). 按 updated_at 做 keyset 分页；最后一页的 next_cursor 可以存下来，之后原样回放，充当增量同步的水位线（删除不会回放）。需要带 folder:read 的用户访问令牌（folder:write 同样满足读取）。 folder:read 或 folder:write id cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listMyFolderItems /v2/me/folders/{id}/items get List a folder's items sort=updated (default) is keyset-paginated by updated_at; the final next_cursor can be stored and replayed later as an incremental-sync watermark (deletions are not replayed). sort=position is the owner's display order: new works are appended at the end and PATCH moves them. A cursor belongs to the sort it was issued for. Requires a user access token with folder:read (folder:write also grants reads). sort=updated（缺省）按 updated_at 做 keyset 分页；最后一页的 next_cursor 可以保存下来，之后当作增量同步的水位线重放（删除不会重放）。sort=position 是夹主排的展示顺序：新作品追加在末尾，用 PATCH 移动。游标只对签发它的那种排序有效。需要带 folder:read 的用户访问令牌（folder:write 也可读）。 folder:read 或 folder:write id cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/batchMyFolderItems",
@@ -1720,6 +1727,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "PUT /v2/me/folders/{id}/items/{work_id}",
     "b": "putMyFolderItem /v2/me/folders/{id}/items/{work_id} put Add a work to a folder Naturally idempotent: re-adding an existing membership answers the stored row and touches nothing. Requires a user access token with folder:write. 天然幂等：重复添加一条已存在的条目会返回已存的那一行，不改动任何东西。需要带 folder:write 的用户访问令牌。 folder:write id work_id"
+  },
+  {
+    "r": "/docs/v2/patchMyFolderItem",
+    "t": "更新收藏夹条目",
+    "s": "端点 · 我的",
+    "d": "PATCH /v2/me/folders/{id}/items/{work_id}",
+    "b": "patchMyFolderItem /v2/me/folders/{id}/items/{work_id} patch Update a folder item Partial update of one membership: note, and its place in the display order (after_work_id or before_work_id). Both move updated_at, so the change reaches incremental sync; an unchanged note writes nothing. On a public folder a changed note goes to the platform's content scan. 404 when the work is not in the folder. Requires a user access token with folder:write. 部分更新一个条目：推荐语，以及它在展示顺序中的位置（after_work_id 或 before_work_id）。两者都会更新 updated_at，变化会进入增量同步；推荐语没变时不写任何东西。公开收藏夹上改动的推荐语会送平台内容扫描。作品不在收藏夹里时回 404。需要带 folder:write 的用户访问令牌。 folder:write id work_id"
   },
   {
     "r": "/docs/v2/deleteMyFolderItem",
@@ -1755,6 +1769,34 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/followed-companies/{company_id}",
     "b": "deleteMyCompanyFollow /v2/me/followed-companies/{company_id} delete Unfollow a company 204 with no body, also when the bearer was not following. Requires a user access token. Any app may call this; no scope is required. 204 无响应体；持有者本来就未关注时同样如此。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 company_id"
+  },
+  {
+    "r": "/docs/v2/listMyFolderFollows",
+    "t": "列出我收藏的目录",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/followed-folders",
+    "b": "listMyFolderFollows /v2/me/followed-folders get List my followed folders The public folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required. 调用者收藏的公开收藏夹，最新收藏的在前，每条都带 GET /v2/folders/{id} 返回的收藏夹本身。夹主之后改为私密的收藏夹会从这个列表（以及 folder_ids= 的结果）中消失，但收藏关系保留，收藏夹重新公开后会回来。列表只对本人可见，公开的只有数量（收藏夹上的 follower_count）。需要用户访问令牌。任何应用都能调用，不需要 scope。 cursor limit view include fields ids refs include_total facets sort nsfw folder_ids"
+  },
+  {
+    "r": "/docs/v2/getMyFolderFollow",
+    "t": "读取我对某个收藏夹的收藏",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/followed-folders/{folder_id}",
+    "b": "getMyFolderFollow /v2/me/followed-folders/{folder_id} get Get my follow on one folder 404 when the bearer does not follow this folder, or it is not public. Requires a user access token. Any app may call this; no scope is required. 调用者没有收藏这个收藏夹，或它不是公开的时回 404。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id"
+  },
+  {
+    "r": "/docs/v2/putMyFolderFollow",
+    "t": "收藏一个收藏夹",
+    "s": "端点 · 我的",
+    "d": "PUT /v2/me/followed-folders/{folder_id}",
+    "b": "putMyFolderFollow /v2/me/followed-folders/{folder_id} put Follow a folder No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. 404 when the folder is not public; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required. 无请求体。幂等：重复收藏已收藏的收藏夹会返回已存的记录，不写任何东西。收藏夹不是公开的时回 404；收藏自己的收藏夹回 422。最多收藏 1000 个。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id"
+  },
+  {
+    "r": "/docs/v2/deleteMyFolderFollow",
+    "t": "取消收藏一个收藏夹",
+    "s": "端点 · 我的",
+    "d": "DELETE /v2/me/followed-folders/{folder_id}",
+    "b": "deleteMyFolderFollow /v2/me/followed-folders/{folder_id} delete Unfollow a folder 204 with no body, also when the bearer was not following, and also for a folder that has since gone private. Requires a user access token. Any app may call this; no scope is required. 成功回 204，无响应体；调用者本来就没收藏，或收藏夹已改为私密时也一样。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id"
   },
   {
     "r": "/docs/v2/listMyBrowsingHistory",
@@ -2147,6 +2189,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 审核",
     "d": "DELETE /v2/moderation/folders/{id}",
     "b": "deleteModerationFolder /v2/moderation/folders/{id} delete Delete any folder Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 删除该收藏夹及其条目。与夹主自己的删除不同，这里接受默认收藏夹：is_default 是夹主自己设的，如果这里也照办，任何人都能靠标成默认让收藏夹删不掉。返回 204 空响应。需要持有人具备 catalog.folder.moderate 权限的用户访问令牌：moderator、admin、ren 角色默认具备，权限控制台可以授予其他角色。审核目录编辑或投稿认领的权限不包含它。 id"
+  },
+  {
+    "r": "/docs/v2/patchModerationFolderItem",
+    "t": "处置收藏夹条目的推荐语",
+    "s": "端点 · 审核",
+    "d": "PATCH /v2/moderation/folders/{id}/items/{work_id}",
+    "b": "patchModerationFolderItem /v2/moderation/folders/{id}/items/{work_id} patch Moderate a folder item's note Rewrite or clear the note an owner wrote on one work in any folder; the membership itself stays. The change moves the item's updated_at, so it reaches the owner's incremental sync. 404 when the work is not in the folder. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 改写或清除夹主在任意收藏夹里为某部作品写的推荐语；条目本身保留。改动会更新条目的 updated_at，因此会进入夹主的增量同步。作品不在收藏夹里时回 404。需要用户访问令牌，且持有人具备 catalog.folder.moderate 权限：moderator、admin、ren 角色默认具备，权限控制台也可以授予其他角色。审核目录编辑或认领的权限不包含它。 id work_id"
   },
   {
     "r": "/docs/v2/listModerationMergeRequests",

@@ -93,8 +93,8 @@ func validateAnchorIdentity(userID int64, anchorKind int16, anchorID string) err
 	if anchorID == "" {
 		return &InvalidError{Reason: "anchor_id is required"}
 	}
-	if anchorKind < model.AnchorKindBoard || anchorKind > model.AnchorKindCatalogPerson {
-		return &InvalidError{Reason: "anchor_kind must be 0-4"}
+	if anchorKind < model.AnchorKindBoard || anchorKind > model.AnchorKindCatalogFolder {
+		return &InvalidError{Reason: "anchor_kind must be 0-5"}
 	}
 	return nil
 }

@@ -158,17 +158,27 @@ type CoverVote struct {
 }
 
 type UserFolder struct {
-	_           struct{} `json:"-" additionalProperties:"true"`
-	Object      string   `json:"object" enum:"folder" doc:"Type discriminant. Always folder."`
-	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Folder id."`
-	OwnerUID    string   `json:"owner_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The account that owns this folder. This is the central sign-in user id shared by every NextMoe site, not one site's own user id."`
-	Name        string   `json:"name" maxLength:"100" doc:"Display name. Must not be used as a discriminant."`
-	Description string   `json:"description" maxLength:"500" doc:"Owner's own note. Empty string when none. Must not be used as a discriminant."`
-	Visibility  string   `json:"visibility" enum:"private,public" doc:"public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders."`
-	IsDefault   bool     `json:"is_default" doc:"At most one folder per user carries this. Setting it on a folder clears it on the previous holder."`
-	ItemCount   int      `json:"item_count" minimum:"0" doc:"Number of works in this folder."`
-	CreatedAt   string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
-	UpdatedAt   string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	_             struct{} `json:"-" additionalProperties:"true"`
+	Object        string   `json:"object" enum:"folder" doc:"Type discriminant. Always folder."`
+	ID            string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Folder id."`
+	OwnerUID      string   `json:"owner_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The account that owns this folder. This is the central sign-in user id shared by every NextMoe site, not one site's own user id."`
+	Name          string   `json:"name" maxLength:"100" doc:"Display name. Must not be used as a discriminant."`
+	Description   string   `json:"description" maxLength:"500" doc:"Owner's own note. Empty string when none. Must not be used as a discriminant."`
+	Visibility    string   `json:"visibility" enum:"private,public" doc:"public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders."`
+	IsDefault     bool     `json:"is_default" doc:"At most one folder per user carries this. Setting it on a folder clears it on the previous holder."`
+	ItemCount     int      `json:"item_count" minimum:"0" doc:"Number of works in this folder."`
+	FollowerCount int      `json:"follower_count" minimum:"0" doc:"How many accounts follow this folder through /v2/me/followed-folders. Who they are is not published."`
+	ContentRating string   `json:"content_rating" enum:"all_ages,sensitive,r18" doc:"The strictest content_rating among the works this folder holds; all_ages when it holds none. Read it the way a work's content_rating is read: a caller that hides r18 hides an r18 folder's cover art and titles, or the folder itself."`
+	CreatedAt     string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	UpdatedAt     string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it."`
+}
+
+type FolderFollow struct {
+	_         struct{}   `json:"-" additionalProperties:"true"`
+	Object    string     `json:"object" enum:"folder_follow" doc:"Type discriminant. Always folder_follow."`
+	FolderID  string     `json:"folder_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The followed folder."`
+	Folder    UserFolder `json:"folder" doc:"The followed folder as GET /v2/folders/{id} answers it."`
+	CreatedAt string     `json:"created_at" format:"date-time" maxLength:"32" doc:"When the bearer followed this folder."`
 }
 
 type FolderHolding struct {
@@ -207,8 +217,10 @@ type UserFolderItem struct {
 	Object    string   `json:"object" enum:"folder_item" doc:"Type discriminant. Always folder_item."`
 	FolderID  string   `json:"folder_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Folder this membership belongs to."`
 	WorkID    string   `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id."`
+	Position  int64    `json:"position" minimum:"0" doc:"The owner's display order: sort=position lists items by it, ascending. Only the order is meaningful; the values are spaced out and are renumbered when a move runs out of room, so compare them, do not count with them."`
+	Note      string   `json:"note" maxLength:"500" doc:"The owner's note on this work in this folder. Empty string when none. Must not be used as a discriminant."`
 	CreatedAt string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC when the work was added."`
-	UpdatedAt string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. The incremental-sync watermark; re-adding an existing membership does not touch it."`
+	UpdatedAt string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. The incremental-sync watermark: it moves when the item's note or position changes (a renumbering moves every item it repositions), and re-adding an existing membership does not touch it."`
 }
 
 type FolderItemBatchItem struct {

@@ -13,9 +13,10 @@ import (
 )
 
 type ReportService struct {
-	db      *gorm.DB
-	weigher Weigher
-	policy  *PolicyService
+	db         *gorm.DB
+	weigher    Weigher
+	policy     *PolicyService
+	forwarders map[string]bool
 }
 
 func NewReportService(db *gorm.DB, weigher Weigher, opts ...ReportServiceOption) *ReportService {
@@ -32,6 +33,10 @@ func WithReportPolicy(p *PolicyService) ReportServiceOption {
 	return func(s *ReportService) { s.policy = p }
 }
 
+func WithReportForwarders(allowlist map[string]bool) ReportServiceOption {
+	return func(s *ReportService) { s.forwarders = allowlist }
+}
+
 func (s *ReportService) aggregateThresholdFor(site string) float32 {
 	if s.policy == nil {
 		return DefaultAggregateThreshold()
@@ -40,15 +45,17 @@ func (s *ReportService) aggregateThresholdFor(site string) float32 {
 }
 
 type ReportParams struct {
-	Site        string
-	SubjectKind string
-	SubjectID   string
-	ReasonKey   string
-	Note        *string
-	Snapshot    *string
-	SubjectURL  *string
-	AuthorID    *int64
-	ReporterID  int64
+	CallerClientID string
+	Site           string
+	WireSite       string
+	SubjectKind    string
+	SubjectID      string
+	ReasonKey      string
+	Note           *string
+	Snapshot       *string
+	SubjectURL     *string
+	AuthorID       *int64
+	ReporterID     int64
 }
 
 type ReportResult struct {
@@ -59,6 +66,12 @@ type ReportResult struct {
 func (s *ReportService) Submit(ctx context.Context, p ReportParams) (ReportResult, error) {
 	if err := validateSubjectURL(p.SubjectURL); err != nil {
 		return ReportResult{}, err
+	}
+	if p.WireSite != "" {
+		if p.CallerClientID == "" || !s.forwarders[p.CallerClientID] {
+			return ReportResult{}, ErrForwarderNotAllowed
+		}
+		p.Site = p.WireSite
 	}
 
 	var kindCount int64

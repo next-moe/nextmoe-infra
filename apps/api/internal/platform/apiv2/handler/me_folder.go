@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
@@ -28,54 +26,6 @@ func folderVisibilityValue(token string) (int16, bool) {
 		return model.FolderVisibilityPublic, true
 	}
 	return 0, false
-}
-
-func folderView(row model.CatalogUserFolder) repr.UserFolder {
-	return repr.UserFolder{
-		Object: "folder", ID: repr.ID(row.ID), OwnerUID: repr.ID(row.OwnerUID),
-		Name: row.Name, Description: row.Description,
-		Visibility: folderVisibilityToken(row.Visibility), IsDefault: row.IsDefault,
-		ItemCount: row.ItemCount,
-		CreatedAt: row.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339),
-	}
-}
-
-func folderItemView(row model.CatalogUserFolderItem) repr.UserFolderItem {
-	return repr.UserFolderItem{
-		Object: "folder_item", FolderID: repr.ID(row.FolderID), WorkID: repr.ID(row.WorkID),
-		CreatedAt: row.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339),
-	}
-}
-
-// One reader and one writer for the folder-item keyset, shared by the owner
-// lane and the public one. collect.Parse has already stripped the cur_
-// envelope and finishList puts it back, so what travels here is the bare key;
-// encoding it a second time shipped a double-wrapped cursor in 2.12.0 that
-// round-tripped, so the limit=1 crawl stayed green and only the bytes were wrong.
-func parseFolderItemCursor(cursor string) (time.Time, int64, error) {
-	if cursor == "" {
-		return time.Time{}, 0, nil
-	}
-	ts, workID := cursor, int64(0)
-	if i := strings.LastIndexByte(ts, '|'); i >= 0 {
-		id, ok := repr.ParseID(ts[i+1:])
-		if !ok {
-			return time.Time{}, 0, collectInvalidCursor()
-		}
-		ts, workID = ts[:i], id
-	}
-	t, err := time.Parse(time.RFC3339, ts)
-	if err != nil {
-		return time.Time{}, 0, collectInvalidCursor()
-	}
-	return t, workID, nil
-}
-
-func folderItemNextCursor(last model.CatalogUserFolderItem) *string {
-	s := last.UpdatedAt.UTC().Format(time.RFC3339Nano) + "|" + repr.ID(last.WorkID)
-	return &s
 }
 
 func (c *Catalog) ListFolders(ctx context.Context, q collect.Query, containsWorkID int64) (repr.List[repr.UserFolder], error) {
@@ -117,9 +67,9 @@ func (c *Catalog) ListFolders(ctx context.Context, q collect.Query, containsWork
 		s := repr.ID(rows[len(rows)-1].ID)
 		next = &s
 	}
-	items := make([]repr.UserFolder, 0, len(rows))
-	for _, r := range rows {
-		items = append(items, folderView(r))
+	items, verr := c.folderViews(ctx, rows)
+	if verr != nil {
+		return repr.List[repr.UserFolder]{}, verr
 	}
 	var total int64
 	if q.IncludeTotal {
@@ -142,13 +92,17 @@ func (c *Catalog) CreateFolder(ctx context.Context, name, description, visibilit
 	if !ok {
 		return repr.UserFolder{}, folderErr(catsvc.ErrFolderBadVisibility)
 	}
+	if err := c.checkFolderText(ctx, uid, folderText{name, "/name"}, folderText{description, "/description"}); err != nil {
+		return repr.UserFolder{}, err
+	}
 	row, cerr := c.Folders.Create(ctx, catsvc.FolderCreate{
 		OwnerUID: uid, Name: name, Description: description, Visibility: vis, IsDefault: isDefault,
 	})
 	if cerr != nil {
 		return repr.UserFolder{}, folderErr(cerr)
 	}
-	return folderView(*row), nil
+	c.scanFolder(*row)
+	return c.folderViewOf(ctx, *row)
 }
 
 func (c *Catalog) GetFolder(ctx context.Context, folderID int64) (repr.UserFolder, error) {
@@ -166,7 +120,7 @@ func (c *Catalog) GetFolder(ctx context.Context, folderID int64) (repr.UserFolde
 	if row == nil {
 		return repr.UserFolder{}, problem.New(problem.CodeNotFound, "", "", "No such folder.")
 	}
-	return folderView(*row), nil
+	return c.folderViewOf(ctx, *row)
 }
 
 func (c *Catalog) PatchFolder(ctx context.Context, folderID int64, name, description, visibility *string, isDefault *bool) (repr.UserFolder, error) {
@@ -185,11 +139,37 @@ func (c *Catalog) PatchFolder(ctx context.Context, folderID int64, name, descrip
 		}
 		p.Visibility = &vis
 	}
+	prev, gerr := c.Folders.Get(ctx, uid, folderID)
+	if gerr != nil {
+		return repr.UserFolder{}, folderErr(gerr)
+	}
+	if prev == nil {
+		return repr.UserFolder{}, folderErr(catsvc.ErrFolderNotFound)
+	}
+	var texts []folderText
+	if name != nil && *name != prev.Name {
+		texts = append(texts, folderText{*name, "/name"})
+	}
+	if description != nil && *description != prev.Description {
+		texts = append(texts, folderText{*description, "/description"})
+	}
+	if err := c.checkFolderText(ctx, uid, texts...); err != nil {
+		return repr.UserFolder{}, err
+	}
 	row, perr := c.Folders.Patch(ctx, uid, folderID, p)
 	if perr != nil {
 		return repr.UserFolder{}, folderErr(perr)
 	}
-	return folderView(*row), nil
+	published := row.Visibility == model.FolderVisibilityPublic && prev.Visibility != model.FolderVisibilityPublic
+	if published || row.Name != prev.Name || row.Description != prev.Description {
+		c.scanFolder(*row)
+	}
+	if published {
+		if noted, nerr := c.Folders.NotedItems(ctx, row.ID); nerr == nil {
+			c.scanFolderNotes(row.OwnerUID, noted)
+		}
+	}
+	return c.folderViewOf(ctx, *row)
 }
 
 func (c *Catalog) DeleteFolder(ctx context.Context, folderID int64) error {
@@ -211,27 +191,15 @@ func (c *Catalog) ListFolderItems(ctx context.Context, folderID int64, q collect
 	if err != nil {
 		return repr.List[repr.UserFolderItem]{}, err
 	}
-	since, sinceWorkID, cerr := parseFolderItemCursor(q.Cursor)
+	page, cerr := parseFolderItemCursor(q)
 	if cerr != nil {
 		return repr.List[repr.UserFolderItem]{}, cerr
 	}
-	limit := q.Limit
-	if limit <= 0 {
-		limit = collect.DefaultLimit
-	}
-	rows, lerr := c.Folders.ListItems(ctx, uid, folderID, since, sinceWorkID, limit+1)
+	rows, lerr := c.Folders.ListItems(ctx, uid, folderID, page)
 	if lerr != nil {
 		return repr.List[repr.UserFolderItem]{}, folderErr(lerr)
 	}
-	var next *string
-	if len(rows) > limit {
-		rows = rows[:limit]
-		next = folderItemNextCursor(rows[len(rows)-1])
-	}
-	items := make([]repr.UserFolderItem, 0, len(rows))
-	for _, r := range rows {
-		items = append(items, folderItemView(r))
-	}
+	items, next := folderItemsList(rows, page)
 	var total int64
 	if q.IncludeTotal {
 		if total, lerr = c.Folders.CountItems(ctx, uid, folderID); lerr != nil {
@@ -252,6 +220,58 @@ func (c *Catalog) PutFolderItem(ctx context.Context, folderID, workID int64) (re
 	row, perr := c.Folders.PutItem(ctx, uid, folderID, workID)
 	if perr != nil {
 		return repr.UserFolderItem{}, folderErr(perr)
+	}
+	return folderItemView(*row), nil
+}
+
+func (c *Catalog) PatchFolderItem(ctx context.Context, folderID, workID int64, note, afterWorkID, beforeWorkID *string) (repr.UserFolderItem, error) {
+	if c == nil || c.Folders == nil {
+		return repr.UserFolderItem{}, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound.")
+	}
+	uid, _, err := requireUser(ctx)
+	if err != nil {
+		return repr.UserFolderItem{}, err
+	}
+	p := catsvc.FolderItemPatch{}
+	for _, a := range []struct {
+		raw     *string
+		dst     **int64
+		pointer string
+	}{{afterWorkID, &p.AfterWorkID, "/after_work_id"}, {beforeWorkID, &p.BeforeWorkID, "/before_work_id"}} {
+		if a.raw == nil {
+			continue
+		}
+		id, ok := repr.ParseID(*a.raw)
+		if !ok {
+			pr := problem.New(problem.CodeValidationFailed, "", "", "the move anchor must be a decimal catalog id.")
+			pr.Errors = []problem.FieldError{{Pointer: a.pointer, Reason: problem.ReasonInvalidFormat, Detail: *a.raw}}
+			return repr.UserFolderItem{}, pr
+		}
+		*a.dst = &id
+	}
+	folder, gerr := c.Folders.Get(ctx, uid, folderID)
+	if gerr != nil {
+		return repr.UserFolderItem{}, folderErr(gerr)
+	}
+	if folder == nil {
+		return repr.UserFolderItem{}, folderErr(catsvc.ErrFolderNotFound)
+	}
+	if note != nil {
+		normalized, nerr := catsvc.NormalizeFolderItemNote(*note)
+		if nerr != nil {
+			return repr.UserFolderItem{}, folderErr(nerr)
+		}
+		if err := c.checkFolderText(ctx, uid, folderText{normalized, "/note"}); err != nil {
+			return repr.UserFolderItem{}, err
+		}
+		p.Note = &normalized
+	}
+	row, noteChanged, perr := c.Folders.PatchItem(ctx, uid, folderID, workID, p)
+	if perr != nil {
+		return repr.UserFolderItem{}, folderErr(perr)
+	}
+	if noteChanged && folder.Visibility == model.FolderVisibilityPublic {
+		c.scanFolderNotes(uid, []model.CatalogUserFolderItem{*row})
 	}
 	return folderItemView(*row), nil
 }
@@ -335,6 +355,30 @@ func folderErr(err error) error {
 	case catsvc.ErrFolderItemLimit:
 		p := problem.New(problem.CodeValidationFailed, "", "", fmt.Sprintf("a folder may hold at most %d works.", model.FolderItemsMax))
 		return p
+	case catsvc.ErrFolderItemNotFound:
+		return problem.New(problem.CodeNotFound, "", "", "work is not in this folder.")
+	case catsvc.ErrFolderItemAnchor:
+		p := problem.New(problem.CodeValidationFailed, "", "", "the move anchor must be another work in this folder.")
+		p.Errors = []problem.FieldError{{Pointer: "", Reason: problem.ReasonNotAllowedValue, Detail: "after_work_id / before_work_id must name another work this folder holds"}}
+		return p
+	case catsvc.ErrFolderItemAnchorBoth:
+		p := problem.New(problem.CodeValidationFailed, "", "", "send after_work_id or before_work_id, not both.")
+		p.Errors = []problem.FieldError{{Pointer: "/before_work_id", Reason: problem.ReasonNotAllowedValue, Detail: "after_work_id is already set"}}
+		return p
+	case catsvc.ErrFolderItemNoteTooLong:
+		p := problem.New(problem.CodeValidationFailed, "", "", fmt.Sprintf("a note may be at most %d characters.", model.FolderItemNoteMax))
+		p.Errors = []problem.FieldError{{Pointer: "/note", Reason: problem.ReasonInvalidFormat, Detail: "too long"}}
+		return p
+	case catsvc.ErrFolderItemNothingToSet:
+		p := problem.New(problem.CodeValidationFailed, "", "", "the patch names no field to update.")
+		p.Errors = []problem.FieldError{{Pointer: "", Reason: problem.ReasonRequired, Detail: "send at least one of note, after_work_id, before_work_id"}}
+		return p
+	case catsvc.ErrFolderFollowOwn:
+		p := problem.New(problem.CodeValidationFailed, "", "", "a folder's owner cannot follow it.")
+		p.Errors = []problem.FieldError{{Parameter: "folder_id", Reason: problem.ReasonNotAllowedValue, Detail: "this is the bearer's own folder"}}
+		return p
+	case catsvc.ErrFolderFollowLimit:
+		return problem.New(problem.CodeValidationFailed, "", "", fmt.Sprintf("a user may follow at most %d folders.", model.FolderFollowsPerUserMax))
 	}
 	return err
 }
