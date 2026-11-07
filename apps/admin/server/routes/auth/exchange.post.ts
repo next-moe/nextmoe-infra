@@ -7,8 +7,13 @@ import {
 } from '../../utils/oauth-session'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ code?: string; code_verifier?: string }>(event)
-  if (!body?.code || !body?.code_verifier) {
+  const body = await readBody<{ code?: string; state?: string }>(event)
+  const attempt = takeOAuthLogin(event, body?.state)
+  if (!attempt) {
+    setResponseStatus(event, 400)
+    return { code: 8, message: '登录状态已失效，请重新登录' }
+  }
+  if (!body?.code) {
     setResponseStatus(event, 400)
     return { code: 8, message: '缺少授权码' }
   }
@@ -24,7 +29,7 @@ export default defineEventHandler(async (event) => {
         redirect_uri: config.public.oauthRedirectUri,
         client_id: config.public.oauthClientId,
         client_secret: config.oauthClientSecret,
-        code_verifier: body.code_verifier
+        code_verifier: attempt.verifier
       }
     }
   ).catch(
@@ -39,5 +44,8 @@ export default defineEventHandler(async (event) => {
   }
 
   landOAuthSession(event, tokens)
-  return { code: 0, data: { access_token: tokens.access_token } }
+  return {
+    code: 0,
+    data: { access_token: tokens.access_token, redirect: attempt.returnPath }
+  }
 })

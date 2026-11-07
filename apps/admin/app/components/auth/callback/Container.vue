@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { isSafeInternalPath } from '~/utils/safe-path'
-
 const route = useRoute()
 const auth = useAuth()
 const { startLogin } = useOAuthLogin()
@@ -12,30 +10,24 @@ onMounted(async () => {
   const state = route.query.state as string | undefined
   const oauthError = route.query.error as string | undefined
 
-  const savedState = sessionStorage.getItem('oauth_state')
-  const verifier = sessionStorage.getItem('oauth_code_verifier')
-  const redirect = sessionStorage.getItem('oauth_redirect')
-  sessionStorage.removeItem('oauth_state')
-  sessionStorage.removeItem('oauth_code_verifier')
-  sessionStorage.removeItem('oauth_redirect')
-
   if (oauthError) {
     error.value = '授权被取消或失败，请重试'
     return
   }
-  if (!code || !state || state !== savedState || !verifier) {
+  if (!code || !state) {
     error.value = '登录校验失败，请重新登录'
     return
   }
 
+  let dest: string
   try {
     const res = await $fetch<{
       code: number
       message?: string
-      data?: { access_token: string }
+      data?: { access_token: string; redirect: string | null }
     }>('/auth/exchange', {
       method: 'POST',
-      body: { code, code_verifier: verifier }
+      body: { code, state }
     })
     if (res.code !== 0 || !res.data?.access_token) {
       error.value = res.message || '登录失败，请重试'
@@ -43,12 +35,14 @@ onMounted(async () => {
     }
     auth.setAccessToken(res.data.access_token)
     await auth.fetchUser()
-  } catch {
-    error.value = '登录失败，请重试'
+    dest = res.data.redirect ?? '/'
+  } catch (e) {
+    error.value =
+      (e as { data?: { message?: string } }).data?.message ||
+      '登录失败，请重试'
     return
   }
 
-  const dest = isSafeInternalPath(redirect) ? redirect : '/'
   await navigateTo(dest)
 })
 
