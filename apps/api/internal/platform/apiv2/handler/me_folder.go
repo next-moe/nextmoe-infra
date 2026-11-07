@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
@@ -12,8 +14,11 @@ import (
 )
 
 func folderVisibilityToken(v int16) string {
-	if v == model.FolderVisibilityPublic {
+	switch v {
+	case model.FolderVisibilityPublic:
 		return "public"
+	case model.FolderVisibilityUnlisted:
+		return "unlisted"
 	}
 	return "private"
 }
@@ -24,6 +29,8 @@ func folderVisibilityValue(token string) (int16, bool) {
 		return model.FolderVisibilityPrivate, true
 	case "public":
 		return model.FolderVisibilityPublic, true
+	case "unlisted":
+		return model.FolderVisibilityUnlisted, true
 	}
 	return 0, false
 }
@@ -80,7 +87,14 @@ func (c *Catalog) ListFolders(ctx context.Context, q collect.Query, containsWork
 	return finishList(items, next, total, q, nil), nil
 }
 
-func (c *Catalog) CreateFolder(ctx context.Context, name, description, visibility string, isDefault bool) (repr.UserFolder, error) {
+type folderWrite struct {
+	Name, Description, Visibility *string
+	IsDefault                     *bool
+	Tags                          *[]string
+	CoverWorkID                   *string
+}
+
+func (c *Catalog) CreateFolder(ctx context.Context, name, description, visibility string, isDefault bool, tags []string) (repr.UserFolder, error) {
 	if c == nil || c.Folders == nil {
 		return repr.UserFolder{}, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound.")
 	}
@@ -92,16 +106,21 @@ func (c *Catalog) CreateFolder(ctx context.Context, name, description, visibilit
 	if !ok {
 		return repr.UserFolder{}, folderErr(catsvc.ErrFolderBadVisibility)
 	}
-	if err := c.checkFolderText(ctx, uid, folderText{name, "/name"}, folderText{description, "/description"}); err != nil {
+	tags, terr := catsvc.NormalizeFolderTags(tags)
+	if terr != nil {
+		return repr.UserFolder{}, folderErr(terr)
+	}
+	if err := c.checkFolderText(ctx, uid, folderText{name, "/name"}, folderText{description, "/description"},
+		folderText{strings.Join(tags, " "), "/tags"}); err != nil {
 		return repr.UserFolder{}, err
 	}
 	row, cerr := c.Folders.Create(ctx, catsvc.FolderCreate{
-		OwnerUID: uid, Name: name, Description: description, Visibility: vis, IsDefault: isDefault,
+		OwnerUID: uid, Name: name, Description: description, Visibility: vis, IsDefault: isDefault, Tags: tags,
 	})
 	if cerr != nil {
 		return repr.UserFolder{}, folderErr(cerr)
 	}
-	c.scanFolder(*row)
+	c.scanFolder(*row, tags)
 	return c.folderViewOf(ctx, *row)
 }
 
@@ -123,7 +142,7 @@ func (c *Catalog) GetFolder(ctx context.Context, folderID int64) (repr.UserFolde
 	return c.folderViewOf(ctx, *row)
 }
 
-func (c *Catalog) PatchFolder(ctx context.Context, folderID int64, name, description, visibility *string, isDefault *bool) (repr.UserFolder, error) {
+func (c *Catalog) PatchFolder(ctx context.Context, folderID int64, w folderWrite) (repr.UserFolder, error) {
 	if c == nil || c.Folders == nil {
 		return repr.UserFolder{}, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound.")
 	}
@@ -131,13 +150,32 @@ func (c *Catalog) PatchFolder(ctx context.Context, folderID int64, name, descrip
 	if err != nil {
 		return repr.UserFolder{}, err
 	}
-	p := catsvc.FolderPatch{Name: name, Description: description, IsDefault: isDefault}
-	if visibility != nil {
-		vis, ok := folderVisibilityValue(*visibility)
+	name, description := w.Name, w.Description
+	p := catsvc.FolderPatch{Name: name, Description: description, IsDefault: w.IsDefault}
+	if w.Visibility != nil {
+		vis, ok := folderVisibilityValue(*w.Visibility)
 		if !ok {
 			return repr.UserFolder{}, folderErr(catsvc.ErrFolderBadVisibility)
 		}
 		p.Visibility = &vis
+	}
+	if w.Tags != nil {
+		tags, terr := catsvc.NormalizeFolderTags(*w.Tags)
+		if terr != nil {
+			return repr.UserFolder{}, folderErr(terr)
+		}
+		p.Tags = &tags
+	}
+	if w.CoverWorkID != nil {
+		cover := int64(0)
+		if *w.CoverWorkID != "" {
+			id, ok := repr.ParseID(*w.CoverWorkID)
+			if !ok {
+				return repr.UserFolder{}, problemInvalidID(*w.CoverWorkID)
+			}
+			cover = id
+		}
+		p.CoverWorkID = &cover
 	}
 	prev, gerr := c.Folders.Get(ctx, uid, folderID)
 	if gerr != nil {
@@ -153,6 +191,14 @@ func (c *Catalog) PatchFolder(ctx context.Context, folderID int64, name, descrip
 	if description != nil && *description != prev.Description {
 		texts = append(texts, folderText{*description, "/description"})
 	}
+	prevTags, terr := c.Folders.FolderTags(ctx, []int64{folderID})
+	if terr != nil {
+		return repr.UserFolder{}, terr
+	}
+	tagsChanged := p.Tags != nil && !slices.Equal(*p.Tags, prevTags[folderID])
+	if tagsChanged {
+		texts = append(texts, folderText{strings.Join(*p.Tags, " "), "/tags"})
+	}
 	if err := c.checkFolderText(ctx, uid, texts...); err != nil {
 		return repr.UserFolder{}, err
 	}
@@ -160,9 +206,13 @@ func (c *Catalog) PatchFolder(ctx context.Context, folderID int64, name, descrip
 	if perr != nil {
 		return repr.UserFolder{}, folderErr(perr)
 	}
-	published := row.Visibility == model.FolderVisibilityPublic && prev.Visibility != model.FolderVisibilityPublic
-	if published || row.Name != prev.Name || row.Description != prev.Description {
-		c.scanFolder(*row)
+	published := model.FolderReadable(row.Visibility) && !model.FolderReadable(prev.Visibility)
+	if published || tagsChanged || row.Name != prev.Name || row.Description != prev.Description {
+		tags := prevTags[folderID]
+		if p.Tags != nil {
+			tags = *p.Tags
+		}
+		c.scanFolder(*row, tags)
 	}
 	if published {
 		if noted, nerr := c.Folders.NotedItems(ctx, row.ID); nerr == nil {
@@ -285,7 +335,7 @@ func (c *Catalog) PatchFolderItem(ctx context.Context, folderID, workID int64, n
 	if perr != nil {
 		return repr.UserFolderItem{}, folderErr(perr)
 	}
-	if noteChanged && folder.Visibility == model.FolderVisibilityPublic {
+	if noteChanged && model.FolderReadable(folder.Visibility) {
 		c.scanFolderNotes(uid, []model.CatalogUserFolderItem{*row})
 	}
 	return folderItemView(*row), nil
@@ -349,8 +399,8 @@ func folderErr(err error) error {
 		p.Errors = []problem.FieldError{{Pointer: "/name", Reason: problem.ReasonRequired, Detail: "send a non-blank name"}}
 		return p
 	case catsvc.ErrFolderBadVisibility:
-		p := problem.New(problem.CodeValidationFailed, "", "", "visibility must be private or public.")
-		p.Errors = []problem.FieldError{{Pointer: "/visibility", Reason: problem.ReasonInvalidFormat, Detail: "private or public"}}
+		p := problem.New(problem.CodeValidationFailed, "", "", "visibility must be private, unlisted or public.")
+		p.Errors = []problem.FieldError{{Pointer: "/visibility", Reason: problem.ReasonInvalidFormat, Detail: "private, unlisted or public"}}
 		return p
 	case catsvc.ErrFolderDefaultOnly:
 		p := problem.New(problem.CodeValidationFailed, "", "", "is_default can only be set to true; set it on another folder to move it.")
@@ -358,7 +408,7 @@ func folderErr(err error) error {
 		return p
 	case catsvc.ErrFolderNothingToUpdate:
 		p := problem.New(problem.CodeValidationFailed, "", "", "the patch names no field to update.")
-		p.Errors = []problem.FieldError{{Pointer: "", Reason: problem.ReasonRequired, Detail: "send at least one of name, description, visibility, is_default"}}
+		p.Errors = []problem.FieldError{{Pointer: "", Reason: problem.ReasonRequired, Detail: "send at least one of name, description, visibility, is_default, tags, cover_work_id"}}
 		return p
 	case catsvc.ErrFolderDefaultDeletion:
 		p := problem.New(problem.CodeValidationFailed, "", "", "the default folder cannot be deleted; make another folder the default first.")
@@ -391,6 +441,18 @@ func folderErr(err error) error {
 	case catsvc.ErrFolderFollowOwn:
 		p := problem.New(problem.CodeValidationFailed, "", "", "a folder's owner cannot follow it.")
 		p.Errors = []problem.FieldError{{Parameter: "folder_id", Reason: problem.ReasonNotAllowedValue, Detail: "this is the bearer's own folder"}}
+		return p
+	case catsvc.ErrFolderTooManyTags:
+		p := problem.New(problem.CodeValidationFailed, "", "", fmt.Sprintf("a folder may carry at most %d tags.", model.FolderTagsMax))
+		p.Errors = []problem.FieldError{{Pointer: "/tags", Reason: problem.ReasonInvalidFormat, Detail: "too many tags"}}
+		return p
+	case catsvc.ErrFolderTagTooLong:
+		p := problem.New(problem.CodeValidationFailed, "", "", fmt.Sprintf("a tag may be at most %d characters.", model.FolderTagMaxRunes))
+		p.Errors = []problem.FieldError{{Pointer: "/tags", Reason: problem.ReasonInvalidFormat, Detail: "tag too long"}}
+		return p
+	case catsvc.ErrFolderCoverNotMember:
+		p := problem.New(problem.CodeValidationFailed, "", "", "the cover must be a work this folder holds.")
+		p.Errors = []problem.FieldError{{Pointer: "/cover_work_id", Reason: problem.ReasonNotAllowedValue, Detail: "not in the folder"}}
 		return p
 	case catsvc.ErrFolderFollowLimit:
 		return problem.New(problem.CodeValidationFailed, "", "", fmt.Sprintf("a user may follow at most %d folders.", model.FolderFollowsPerUserMax))

@@ -13,7 +13,7 @@
 
 Get my follow on one folder
 
-404 when the bearer does not follow this folder, or it is not public. Requires a user access token. Any app may call this; no scope is required.
+404 when the bearer does not follow this folder, or it has gone private. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

@@ -948,7 +948,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 195 个端点",
+    "d": "/v2 · 200 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1411,7 +1411,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出公开收藏夹",
     "s": "端点 · 公开收藏夹",
     "d": "GET /v2/folders",
-    "b": "listPublicFolders /v2/folders get List public folders Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read. 两条通道。带 owner_uid：该账号保持公开的全部收藏夹，缺省按 id 排序。不带 owner_uid：目录广场，只列像一份精选清单的公开收藏夹（不是夹主的默认收藏夹、名称非空、至少 3 部作品），缺省按 followers_desc 排序。sort 可取 id（升序）、followers_desc、updated_desc（收藏夹的文本或条目有变动）、created_desc。contains_work_id 在两条通道上都把结果收窄到收藏了该作品的收藏夹。nsfw 只作用于广场通道：false 或不带时不列 content_rating 为 r18 的收藏夹；夹主通道总是列出夹主公开的全部收藏夹，每个都带 content_rating。私密收藏夹在这里永远不出现，对夹主本人也是如此——那是 /v2/me/folders 的事。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw owner_uid contains_work_id"
+    "b": "listPublicFolders /v2/folders get List public folders Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work, tag to folders carrying that tag, and q to folders whose name, description or a tag contains the text. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private and unlisted folders never appear here, not even for their own owner — /v2/me/folders is that face; an unlisted folder opens only by id. Requires an application key or a user access token with catalog:read. 两条通道。带 owner_uid：该账号保持公开的全部收藏夹，缺省按 id 排序。不带 owner_uid：目录广场，只列像一份精选清单的公开收藏夹（不是夹主的默认收藏夹、名称非空、至少 3 部作品），缺省按 followers_desc 排序。sort 可取 id（升序）、followers_desc、updated_desc（收藏夹的文本或条目有变动）、created_desc。contains_work_id 在两条通道上都把结果收窄到收藏了该作品的收藏夹，tag 收窄到带这个标签的收藏夹，q 收窄到名称、简介或某个标签包含该文本的收藏夹。nsfw 只作用于广场通道：false 或不带时不列 content_rating 为 r18 的收藏夹；夹主通道总是列出夹主公开的全部收藏夹，每个都带 content_rating。私密和仅链接可见的收藏夹在这里永远不出现，对夹主本人也是如此——那是 /v2/me/folders 的事；仅链接可见的收藏夹只能按 id 打开。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw owner_uid contains_work_id tag q"
   },
   {
     "r": "/docs/v2/listFolderHolders",
@@ -1421,11 +1421,18 @@ export const searchIndex: SearchEntry[] = [
     "b": "listFolderHolders /v2/folders/holders get Who holds this work in a folder The accounts that keep one work in a favorite folder, owner_uid-ascending, one page at a time. Folders of every visibility count: this face exists so a service can fan a notification out to the people who follow a work, and a private folder is still a person waiting to hear about it. It answers uids and nothing else — no folder ids, names, visibility or counts — so it cannot be walked into a \"who favourited what\" index. A work nobody holds is an empty list, not a 404. Requires an application key with the folder_holders:read scope on top of catalog:read; a user access token is refused. The scope is granted by an operator, not self-service, because the answer is somebody else's private collection. 把某部作品收进收藏夹的那些账号，按 owner_uid 升序，一页一页给。**每种可见性的夹子都算**：这个面存在的理由是让服务把通知发给关注这部作品的人，私密夹里坐着的也是一个正等着被通知的人。它只回 uid，别的什么都不回——没有夹子 id、名字、可见性或计数——所以它没法被爬成一张「谁收藏了什么」的索引。没人收藏的作品是空列表，不是 404。要**应用密钥**，在 catalog:read 之上还要 folder_holders:read；用户访问令牌一律拒绝。这个 scope 由运营方授予、不能自助勾选，因为它答的是别人的私人收藏。 catalog:read + folder_holders:read work_id cursor limit"
   },
   {
+    "r": "/docs/v2/listFolderTags",
+    "t": "列出广场标签",
+    "s": "端点 · 公开收藏夹",
+    "d": "GET /v2/folders/tags",
+    "b": "listFolderTags /v2/folders/tags get List the directory's tags The tags directory folders carry, most used first, for a tag picker or tag cloud. Counts only folders the directory lists (see listPublicFolders), under the same nsfw rule. nsfw counts r18 folders too. One page of up to limit tags: there is no next_cursor. Requires an application key or a user access token with catalog:read. 广场收藏夹带的标签，按使用次数从多到少，用于标签选择器或标签云。只统计广场会列出的收藏夹（见 listPublicFolders），nsfw 规则与广场相同：带 nsfw 时也统计 r18 收藏夹。只返回一页，最多 limit 个标签，没有 next_cursor。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+  },
+  {
     "r": "/docs/v2/getPublicFolder",
     "t": "读取一个公开收藏夹",
     "s": "端点 · 公开收藏夹",
     "d": "GET /v2/folders/{id}",
-    "b": "getPublicFolder /v2/folders/{id} get Get one public folder 404 when no folder with this id is public, whether it does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read. 这个 id 没有对应的公开收藏夹时返回 404——不管是它不存在，还是夹主把它设成了私密。owner_uid 指出它属于哪个账号。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id"
+    "b": "getPublicFolder /v2/folders/{id} get Get one public folder Answers public and unlisted folders alike: unlisted only keeps a folder out of the listings. 404 when the folder does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read. 公开和仅链接可见的收藏夹都能读到：仅链接可见只是让收藏夹不出现在列表里。收藏夹不存在，或夹主设为私密时回 404。owner_uid 标明它属于哪个账号。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read id"
   },
   {
     "r": "/docs/v2/listPublicFolderItems",
@@ -1663,7 +1670,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "举报公开收藏夹",
     "s": "端点 · 我的",
     "d": "POST /v2/me/folder-reports",
-    "b": "reportFolder /v2/me/folder-reports post Report a public folder Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. 404 when the folder is not public; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required. 把调用者的举报提交到平台的统一审核收件箱：举报对象是收藏夹的名称与简介 (nextmoe, user_folder)，带 work_id 时是某个条目的推荐语 (nextmoe, user_folder_note)。举报时的文本会随举报一起提交。版主通过 /v2/moderation/folders 处置。收藏夹不是公开的时回 404；work_id 指向收藏夹里没有的作品，或该条目没有推荐语时回 422。成功回 204，无响应体。该账号举报过于频繁时回 429；审核收件箱不可达时回 503。需要用户访问令牌。任何应用都能调用，不需要 scope。 Idempotency-Key"
+    "b": "reportFolder /v2/me/folder-reports post Report a public folder Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. Unlisted folders can be reported like public ones. 404 when the folder is private or does not exist; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required. 把调用者的举报提交到平台的统一审核收件箱：举报对象是收藏夹的名称与简介 (nextmoe, user_folder)，带 work_id 时是某个条目的推荐语 (nextmoe, user_folder_note)。举报时的文本会随举报一起提交。版主通过 /v2/moderation/folders 处置。仅链接可见的收藏夹与公开收藏夹一样可以举报。收藏夹为私密或不存在时回 404；work_id 指向收藏夹里没有的作品，或该条目没有推荐语时回 422。成功回 204，无响应体。该账号举报过于频繁时回 429；审核收件箱不可达时回 503。需要用户访问令牌。任何应用都能调用，不需要 scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/listMyFolders",
@@ -1680,11 +1687,25 @@ export const searchIndex: SearchEntry[] = [
     "b": "createMyFolder /v2/me/folders post Create a folder name and description first pass the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway); a public folder's text then goes to the platform's content scan. Requires a user access token with folder:write. name 与 description 先经过平台的词表检查（被拒：在 /name 或 /description 处回 422，不写入任何东西；检查不可用：照常写入）；公开收藏夹的文本随后送平台内容扫描。需要带 folder:write 的用户访问令牌。 folder:write Idempotency-Key"
   },
   {
+    "r": "/docs/v2/copyFolder",
+    "t": "复制收藏夹到我的收藏夹",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/folders/copies",
+    "b": "copyFolder /v2/me/folders/copies post Copy a folder into my folders Creates a private folder of the bearer's own holding every live work of the source in the source's order, with the source owner's notes, tags and cover pick. The description starts with 源自「<source name>」 followed by the source's own description, so the copier decides whether to keep the credit by editing it. 201 with the new folder. 404 when the source is private and not the bearer's; 422 at the folder cap (200). A name sent here first passes the platform's word-list check. Requires a user access token with folder:write. 为调用者新建一个私密收藏夹，按源收藏夹的顺序放入其中所有在库作品，并带上源夹主的推荐语、标签和封面选择。简介以 源自「<源收藏夹名称>」 开头，后接源收藏夹自己的简介，是否保留这条来源由复制者自己编辑决定。成功回 201 和新收藏夹。源收藏夹是私密且不属于调用者时回 404；收藏夹数量达到上限（200）时回 422。这里传入的 name 会先过平台的词表检查。需要带 folder:write 的用户访问令牌。 folder:write Idempotency-Key"
+  },
+  {
     "r": "/docs/v2/listMyFolderHoldings",
     "t": "我的哪些收藏夹收着这些作品",
     "s": "端点 · 我的",
     "d": "GET /v2/me/folders/holdings",
     "b": "listMyFolderHoldings /v2/me/folders/holdings get Which of my folders hold these works Membership for up to 100 works in one request: for each work the bearer keeps in at least one folder, the ids of those folders. A work the bearer holds nowhere is left out rather than answered with an empty array, and an id that names no work is simply held nowhere. Folders of every visibility are searched — the bearer owns them all. work_ids is required; this is a batch read with no pagination. Requires a user access token with folder:read (folder:write also grants reads). 一次问最多 100 部作品的成员关系：对持令牌者至少收进一个夹子的每部作品，给出那些夹子的 id。一个哪儿都没收的作品会被**略去**，而不是回一个空数组；指不到任何作品的 id 同样只是「哪儿都没收」。每种可见性的夹子都在搜索范围内——它们都是持令牌者自己的。work_ids 必填；这是批量读，没有翻页。要带 folder:read 的用户访问令牌（folder:write 同时给读）。 folder:read 或 folder:write work_ids"
+  },
+  {
+    "r": "/docs/v2/listMyFolderProgress",
+    "t": "我在收藏夹里的进度",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/folders/progress",
+    "b": "listMyFolderProgress /v2/me/folders/progress get My progress through folders For each folder: how many of its live works the bearer keeps in another folder of their own (collected), and how many carry each of the bearer's play states, for a \"you have played 12 of 50\" line on someone else's list. Works themselves are not listed; GET /v2/me/works?work_ids= answers per work. Folders the bearer cannot read (private and not theirs, or gone) are in missing. Requires a user access token with folder:read (folder:write also grants reads). 对每个收藏夹给出：其中的在库作品里，调用者在自己的其他收藏夹里收藏了多少部（collected），以及调用者每种游玩状态各有多少部，用于在别人的清单上显示「你已玩其中 12/50」。不逐部列出作品；逐部信息用 GET /v2/me/works?work_ids=。调用者读不到的收藏夹（不属于他的私密收藏夹，或已不存在）放在 missing 里。需要带 folder:read 的用户访问令牌（folder:write 也可读取）。 folder:read 或 folder:write folder_ids"
   },
   {
     "r": "/docs/v2/getMyFolder",
@@ -1782,21 +1803,28 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我收藏的目录",
     "s": "端点 · 我的",
     "d": "GET /v2/me/followed-folders",
-    "b": "listMyFolderFollows /v2/me/followed-folders get List my followed folders The public folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required. 调用者收藏的公开收藏夹，最新收藏的在前，每条都带 GET /v2/folders/{id} 返回的收藏夹本身。夹主之后改为私密的收藏夹会从这个列表（以及 folder_ids= 的结果）中消失，但收藏关系保留，收藏夹重新公开后会回来。列表只对本人可见，公开的只有数量（收藏夹上的 follower_count）。需要用户访问令牌。任何应用都能调用，不需要 scope。 cursor limit view include fields ids refs include_total facets sort nsfw folder_ids"
+    "b": "listMyFolderFollows /v2/me/followed-folders get List my followed folders The public and unlisted folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. new_item_count says how many works each gained since the bearer last opened it (POST /v2/me/followed-folders/{folder_id}/seen). A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public or unlisted again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required. 调用者收藏的公开和仅链接可见的收藏夹，最近收藏的在前，每条都带着 GET /v2/folders/{id} 给出的收藏夹本身。new_item_count 表示调用者上次打开后（POST /v2/me/followed-folders/{folder_id}/seen）新加了多少部作品。夹主后来设为私密的收藏夹会从这个列表（以及 folder_ids= 批量读）中消失，但收藏关系保留，重新设为公开或仅链接可见后会回来。这个列表只有本人可见；公开的只有数量（收藏夹上的 follower_count）。需要用户访问令牌。任何应用都能调用，不需要 scope。 cursor limit view include fields ids refs include_total facets sort nsfw folder_ids"
+  },
+  {
+    "r": "/docs/v2/getMyFolderFollowUpdates",
+    "t": "统计有新作品的已收藏收藏夹",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/followed-folders/updates",
+    "b": "getMyFolderFollowUpdates /v2/me/followed-folders/updates get Count my followed folders with new works The red dot: how many followed folders gained a work since the bearer last marked them seen. Requires a user access token. Any app may call this; no scope is required. 小红点：调用者上次标为已看之后又加入了作品的已收藏收藏夹有多少个。需要用户访问令牌。任何应用都能调用，不需要 scope。"
   },
   {
     "r": "/docs/v2/getMyFolderFollow",
     "t": "读取我对某个收藏夹的收藏",
     "s": "端点 · 我的",
     "d": "GET /v2/me/followed-folders/{folder_id}",
-    "b": "getMyFolderFollow /v2/me/followed-folders/{folder_id} get Get my follow on one folder 404 when the bearer does not follow this folder, or it is not public. Requires a user access token. Any app may call this; no scope is required. 调用者没有收藏这个收藏夹，或它不是公开的时回 404。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id"
+    "b": "getMyFolderFollow /v2/me/followed-folders/{folder_id} get Get my follow on one folder 404 when the bearer does not follow this folder, or it has gone private. Requires a user access token. Any app may call this; no scope is required. 调用者没有收藏这个收藏夹，或它已设为私密时回 404。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id"
   },
   {
     "r": "/docs/v2/putMyFolderFollow",
     "t": "收藏一个收藏夹",
     "s": "端点 · 我的",
     "d": "PUT /v2/me/followed-folders/{folder_id}",
-    "b": "putMyFolderFollow /v2/me/followed-folders/{folder_id} put Follow a folder No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. 404 when the folder is not public; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required. 无请求体。幂等：重复收藏已收藏的收藏夹会返回已存的记录，不写任何东西。收藏夹不是公开的时回 404；收藏自己的收藏夹回 422。最多收藏 1000 个。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id"
+    "b": "putMyFolderFollow /v2/me/followed-folders/{folder_id} put Follow a folder No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. An unlisted folder can be followed by anyone who has its id. 404 when the folder is private or does not exist; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required. 无请求体。幂等：收藏一个已收藏的收藏夹会返回已有记录，不做任何写入。仅链接可见的收藏夹，任何持有 id 的人都能收藏。收藏夹为私密或不存在时回 404；收藏自己的收藏夹回 422。最多收藏 1000 个收藏夹。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id"
   },
   {
     "r": "/docs/v2/deleteMyFolderFollow",
@@ -1804,6 +1832,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/followed-folders/{folder_id}",
     "b": "deleteMyFolderFollow /v2/me/followed-folders/{folder_id} delete Unfollow a folder 204 with no body, also when the bearer was not following, and also for a folder that has since gone private. Requires a user access token. Any app may call this; no scope is required. 成功回 204，无响应体；调用者本来就没收藏，或收藏夹已改为私密时也一样。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id"
+  },
+  {
+    "r": "/docs/v2/markMyFolderFollowSeen",
+    "t": "把已收藏的收藏夹标为已看",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/followed-folders/{folder_id}/seen",
+    "b": "markMyFolderFollowSeen /v2/me/followed-folders/{folder_id}/seen post Mark a followed folder seen Call it when the bearer opens the folder. Its new_item_count returns to 0 and it leaves the updates count until it gains another work. The mark is account-wide, the same on every site. Answers the follow. 404 when the bearer does not follow the folder or it has gone private. Requires a user access token. Any app may call this; no scope is required. 在调用者打开这个收藏夹时调用。之后它的 new_item_count 归零，并退出小红点计数，直到再加入新作品。标记是账号级的，所有站点共用。返回这条收藏关系。调用者没有收藏这个收藏夹，或它已设为私密时回 404。需要用户访问令牌。任何应用都能调用，不需要 scope。 folder_id Idempotency-Key"
   },
   {
     "r": "/docs/v2/listMyBrowsingHistory",

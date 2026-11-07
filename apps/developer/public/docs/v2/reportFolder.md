@@ -13,7 +13,7 @@
 
 Report a public folder
 
-Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. 404 when the folder is not public; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required.
+Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. Unlisted folders can be reported like public ones. 404 when the folder is private or does not exist; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

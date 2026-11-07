@@ -12,20 +12,29 @@ import (
 	catsvc "api/internal/platform/catalog/service"
 )
 
-func folderView(row model.CatalogUserFolder, rating int16, recent []int64) repr.UserFolder {
-	token, _ := repr.ContentRating(rating)
-	recentIDs := make([]string, 0, len(recent))
-	for _, id := range recent {
+func folderView(row model.CatalogUserFolder, extra catsvc.FolderExtra) repr.UserFolder {
+	token, _ := repr.ContentRating(extra.Rating)
+	recentIDs := make([]string, 0, len(extra.RecentWorks))
+	for _, id := range extra.RecentWorks {
 		recentIDs = append(recentIDs, repr.ID(id))
+	}
+	tags := extra.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	var cover *string
+	if extra.CoverWorkID > 0 {
+		id := repr.ID(extra.CoverWorkID)
+		cover = &id
 	}
 	return repr.UserFolder{
 		Object: "folder", ID: repr.ID(row.ID), OwnerUID: repr.ID(row.OwnerUID),
 		Name: row.Name, Description: row.Description,
 		Visibility: folderVisibilityToken(row.Visibility), IsDefault: row.IsDefault,
 		ItemCount: row.ItemCount, FollowerCount: row.FollowerCount, ContentRating: token,
-		RecentWorkIDs: recentIDs,
-		CreatedAt:     row.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:     row.UpdatedAt.UTC().Format(time.RFC3339),
+		Tags: tags, CoverWorkID: cover, RecentWorkIDs: recentIDs,
+		CreatedAt: row.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
@@ -34,17 +43,13 @@ func (c *Catalog) folderViews(ctx context.Context, rows []model.CatalogUserFolde
 	for i, r := range rows {
 		ids[i] = r.ID
 	}
-	ratings, err := c.Folders.FolderContentRatings(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	recent, err := c.Folders.FolderRecentWorks(ctx, ids)
+	extras, err := c.Folders.FolderExtras(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]repr.UserFolder, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, folderView(r, ratings[r.ID], recent[r.ID]))
+		out = append(out, folderView(r, extras[r.ID]))
 	}
 	return out, nil
 }

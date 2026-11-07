@@ -44,19 +44,19 @@ func registerMeFolderFollows(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyFolderFollows", Method: http.MethodGet, Path: "/v2/me/followed-folders",
 		Summary:     "List my followed folders",
-		Description: "The public folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.",
+		Description: "The public and unlisted folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. new_item_count says how many works each gained since the bearer last opened it (POST /v2/me/followed-folders/{folder_id}/seen). A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public or unlisted again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.",
 		Tags:        me, Errors: errs, SkipValidateParams: true,
 	}, listMyFolderFollows(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "getMyFolderFollow", Method: http.MethodGet, Path: "/v2/me/followed-folders/{folder_id}",
 		Summary:     "Get my follow on one folder",
-		Description: "404 when the bearer does not follow this folder, or it is not public. Requires a user access token. Any app may call this; no scope is required.",
+		Description: "404 when the bearer does not follow this folder, or it has gone private. Requires a user access token. Any app may call this; no scope is required.",
 		Tags:        me, Errors: errs, SkipValidateParams: true,
 	}, getMyFolderFollow(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "putMyFolderFollow", Method: http.MethodPut, Path: "/v2/me/followed-folders/{folder_id}",
 		Summary:     "Follow a folder",
-		Description: "No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. 404 when the folder is not public; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required.",
+		Description: "No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. An unlisted folder can be followed by anyone who has its id. 404 when the folder is private or does not exist; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required.",
 		Tags:        me, Errors: writeErrs, SkipValidateParams: true,
 	}, putMyFolderFollow(cat))
 	huma.Register(api, huma.Operation{
@@ -68,7 +68,7 @@ func registerMeFolderFollows(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "reportFolder", Method: http.MethodPost, Path: "/v2/me/folder-reports",
 		Summary:     "Report a public folder",
-		Description: "Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. 404 when the folder is not public; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required.",
+		Description: "Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. Unlisted folders can be reported like public ones. 404 when the folder is private or does not exist; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required.",
 		Tags:        me, Errors: append(writeErrs, http.StatusTooManyRequests), DefaultStatus: http.StatusNoContent, SkipValidateParams: true,
 	}, reportFolder(cat))
 }
@@ -100,7 +100,7 @@ func (c *Catalog) folderFollowViews(ctx context.Context, rows []model.CatalogUse
 	for i, r := range rows {
 		ids[i] = r.FolderID
 	}
-	folders, err := c.Folders.PublicFoldersByID(ctx, ids)
+	folders, err := c.Folders.ReadableFoldersByID(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +112,12 @@ func (c *Catalog) folderFollowViews(ctx context.Context, rows []model.CatalogUse
 	for _, v := range views {
 		byID[v.ID] = v
 	}
+	var fresh map[int64]int
+	if len(rows) > 0 {
+		if fresh, err = c.Folders.FollowNewItems(ctx, rows[0].ActorUID, ids); err != nil {
+			return nil, err
+		}
+	}
 	out := make([]repr.FolderFollow, 0, len(rows))
 	for _, r := range rows {
 		f, ok := byID[repr.ID(r.FolderID)]
@@ -119,7 +125,8 @@ func (c *Catalog) folderFollowViews(ctx context.Context, rows []model.CatalogUse
 			continue
 		}
 		out = append(out, repr.FolderFollow{
-			Object: "folder_follow", FolderID: f.ID, Folder: f,
+			Object: "folder_follow", FolderID: f.ID, Folder: f, NewItemCount: fresh[r.FolderID],
+			SeenAt:    r.SeenAt.UTC().Format(time.RFC3339Nano),
 			CreatedAt: r.CreatedAt.UTC().Format(time.RFC3339),
 		})
 	}

@@ -29,6 +29,8 @@ type FolderCursor struct {
 type PublicFolderQuery struct {
 	OwnerUID       int64
 	ContainsWorkID int64
+	Tag            string
+	Search         string
 	NSFW           bool
 	Sort           FolderSort
 	Cursor         FolderCursor
@@ -42,6 +44,47 @@ type PublicFolderQuery struct {
 func folderHoldsRated(rating int16) string {
 	return fmt.Sprintf(`EXISTS (SELECT 1 FROM catalog_user_folder_item ri JOIN catalog_work rw ON rw.id = ri.work_id
 		WHERE ri.folder_id = catalog_user_folder.id AND rw.deleted_at IS NULL AND rw.content_rating = %d OFFSET 0)`, rating)
+}
+
+type FolderExtra struct {
+	Rating      int16
+	RecentWorks []int64
+	CoverWorkID int64
+	Tags        []string
+}
+
+// Everything a folder view carries beyond its own row, read once per page.
+func (s *UserFolderService) FolderExtras(ctx context.Context, folderIDs []int64) (map[int64]FolderExtra, error) {
+	out := make(map[int64]FolderExtra, len(folderIDs))
+	if len(folderIDs) == 0 {
+		return out, nil
+	}
+	ratings, err := s.FolderContentRatings(ctx, folderIDs)
+	if err != nil {
+		return nil, err
+	}
+	recent, err := s.FolderRecentWorks(ctx, folderIDs)
+	if err != nil {
+		return nil, err
+	}
+	tags, err := s.FolderTags(ctx, folderIDs)
+	if err != nil {
+		return nil, err
+	}
+	var covers []model.CatalogUserFolderItem
+	if err := s.db.WithContext(ctx).Select("folder_id", "work_id").
+		Where("folder_id IN ? AND is_cover", folderIDs).Where(liveWorkCond("catalog_user_folder_item.work_id")).
+		Find(&covers).Error; err != nil {
+		return nil, err
+	}
+	coverOf := make(map[int64]int64, len(covers))
+	for _, c := range covers {
+		coverOf[c.FolderID] = c.WorkID
+	}
+	for _, id := range folderIDs {
+		out[id] = FolderExtra{Rating: ratings[id], RecentWorks: recent[id], CoverWorkID: coverOf[id], Tags: tags[id]}
+	}
+	return out, nil
 }
 
 func (s *UserFolderService) FolderRecentWorks(ctx context.Context, folderIDs []int64) (map[int64][]int64, error) {
@@ -83,6 +126,14 @@ func (s *UserFolderService) publicFolders(ctx context.Context, q PublicFolderQue
 		if !q.NSFW {
 			db = db.Where("NOT " + folderHoldsRated(model.ContentRatingR18))
 		}
+	}
+	if q.Tag != "" {
+		db = db.Where("EXISTS (SELECT 1 FROM catalog_user_folder_tag t WHERE t.folder_id = catalog_user_folder.id AND t.tag = ?)", q.Tag)
+	}
+	if q.Search != "" {
+		like := "%" + escapeLikePattern(q.Search) + "%"
+		db = db.Where(`(catalog_user_folder.name ILIKE ? OR catalog_user_folder.description ILIKE ?
+			OR EXISTS (SELECT 1 FROM catalog_user_folder_tag t WHERE t.folder_id = catalog_user_folder.id AND t.tag ILIKE ?))`, like, like, like)
 	}
 	if q.ContainsWorkID > 0 {
 		db = db.Where(`EXISTS (SELECT 1 FROM catalog_user_folder_item ci JOIN catalog_work cw ON cw.id = ci.work_id

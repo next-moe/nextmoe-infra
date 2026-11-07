@@ -208,6 +208,7 @@ var batchRefusingFaces = map[string]string{
 	"/v2/catalog/redirects":     "feedNoBatch: mirror feed, cursor only",
 	"/v2/folders":               "collect.FolderSpec is NoBatch; owner_uid= is how this face is addressed",
 	"/v2/folders/{id}/items":    "collect.FolderItemSpec is NoBatch, the same spec the owner lane uses",
+	"/v2/folders/tags":          "collect.FolderTagSpec is NoBatch; one page of the directory's tags",
 	"/v2/me/claims":             "collect.ClaimSpec is NoBatch",
 	"/v2/me/folders":            "collect.FolderSpec is NoBatch",
 	"/v2/me/folders/{id}/items": "collect.FolderItemSpec is NoBatch; POST items is this lane's batch",

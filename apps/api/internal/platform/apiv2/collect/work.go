@@ -316,7 +316,7 @@ func RatingChangeSpec() Spec {
 }
 
 var folderFields = []string{"object", "id", "owner_uid", "name", "description", "visibility", "is_default", "item_count",
-	"follower_count", "content_rating", "created_at", "updated_at"}
+	"follower_count", "content_rating", "tags", "cover_work_id", "recent_work_ids", "created_at", "updated_at"}
 
 func FolderSpec() Spec {
 	return Spec{
@@ -343,7 +343,16 @@ func FolderFollowSpec() Spec {
 		Sort:    []string{"followed_desc"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "folder_id", "folder", "created_at"},
+		Fields:  []string{"object", "folder_id", "folder", "new_item_count", "seen_at", "created_at"},
+		NoBatch: true,
+	}
+}
+
+func FolderTagSpec() Spec {
+	return Spec{
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "tag", "folder_count"},
 		NoBatch: true,
 	}
 }

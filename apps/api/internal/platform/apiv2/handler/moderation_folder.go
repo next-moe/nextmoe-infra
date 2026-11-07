@@ -44,7 +44,7 @@ type patchModerationFolderInput struct {
 	Body struct {
 		Name        *string `json:"name,omitempty" maxLength:"100" doc:"New display name. Must not be used as a discriminant. An empty string is accepted here and nowhere else: the abuse a moderator removes is usually the name, and picking a replacement is the owner's to do."`
 		Description *string `json:"description,omitempty" maxLength:"500" doc:"New note; an empty string clears it. Must not be used as a discriminant."`
-		Visibility  *string `json:"visibility,omitempty" enum:"private,public" doc:"private takes the folder off /v2/folders without deleting anything."`
+		Visibility  *string `json:"visibility,omitempty" enum:"private,unlisted,public" doc:"private takes the folder off /v2/folders without deleting anything."`
 	}
 }
 

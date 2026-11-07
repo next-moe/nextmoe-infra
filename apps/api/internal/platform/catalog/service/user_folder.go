@@ -23,6 +23,7 @@ var (
 	ErrFolderDefaultDeletion = stderrors.New("catalog: the default folder cannot be deleted")
 	ErrFolderDefaultOnly     = stderrors.New("catalog: is_default can only be set, not cleared")
 	ErrFolderNothingToUpdate = stderrors.New("catalog: nothing to update")
+	ErrFolderCoverNotMember  = stderrors.New("catalog: the cover work is not in the folder")
 )
 
 type UserFolderService struct{ db *gorm.DB }
@@ -37,6 +38,7 @@ type FolderCreate struct {
 	Description string
 	Visibility  int16
 	IsDefault   bool
+	Tags        []string
 }
 
 type FolderPatch struct {
@@ -44,6 +46,9 @@ type FolderPatch struct {
 	Description *string
 	Visibility  *int16
 	IsDefault   *bool
+	Tags        *[]string
+	// CoverWorkID 0 clears the pick and the folder falls back to its works.
+	CoverWorkID *int64
 }
 
 func (s *UserFolderService) Create(ctx context.Context, in FolderCreate) (*model.CatalogUserFolder, error) {
@@ -54,14 +59,18 @@ func (s *UserFolderService) Create(ctx context.Context, in FolderCreate) (*model
 	if in.Name == "" {
 		return nil, ErrFolderNameRequired
 	}
-	if in.Visibility != model.FolderVisibilityPrivate && in.Visibility != model.FolderVisibilityPublic {
+	if !model.FolderVisibilityValid(in.Visibility) {
 		return nil, ErrFolderBadVisibility
+	}
+	tags, err := NormalizeFolderTags(in.Tags)
+	if err != nil {
+		return nil, err
 	}
 	row := model.CatalogUserFolder{
 		OwnerUID: in.OwnerUID, Name: in.Name, Description: in.Description,
 		Visibility: in.Visibility, IsDefault: in.IsDefault,
 	}
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var n int64
 		if err := tx.Model(&model.CatalogUserFolder{}).
 			Where("owner_uid = ?", in.OwnerUID).Count(&n).Error; err != nil {
@@ -71,6 +80,9 @@ func (s *UserFolderService) Create(ctx context.Context, in FolderCreate) (*model
 			return ErrFolderLimit
 		}
 		if err := tx.Create(&row).Error; err != nil {
+			return err
+		}
+		if err := setFolderTagsTx(tx, row.ID, tags); err != nil {
 			return err
 		}
 		if in.IsDefault {
@@ -88,8 +100,15 @@ func (s *UserFolderService) Patch(ctx context.Context, uid, folderID int64, p Fo
 	if uid <= 0 {
 		return nil, ErrFolderActorRequired
 	}
-	if p.Name == nil && p.Description == nil && p.Visibility == nil && p.IsDefault == nil {
+	if p.Name == nil && p.Description == nil && p.Visibility == nil && p.IsDefault == nil && p.Tags == nil && p.CoverWorkID == nil {
 		return nil, ErrFolderNothingToUpdate
+	}
+	var tags []string
+	if p.Tags != nil {
+		var err error
+		if tags, err = NormalizeFolderTags(*p.Tags); err != nil {
+			return nil, err
+		}
 	}
 	var row model.CatalogUserFolder
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -108,7 +127,7 @@ func (s *UserFolderService) Patch(ctx context.Context, uid, folderID int64, p Fo
 			updates["description"] = *p.Description
 		}
 		if p.Visibility != nil {
-			if *p.Visibility != model.FolderVisibilityPrivate && *p.Visibility != model.FolderVisibilityPublic {
+			if !model.FolderVisibilityValid(*p.Visibility) {
 				return ErrFolderBadVisibility
 			}
 			updates["visibility"] = *p.Visibility
@@ -124,6 +143,16 @@ func (s *UserFolderService) Patch(ctx context.Context, uid, folderID int64, p Fo
 		}
 		if p.IsDefault != nil {
 			if err := demoteOtherDefaults(tx, uid, folderID); err != nil {
+				return err
+			}
+		}
+		if p.Tags != nil {
+			if err := setFolderTagsTx(tx, folderID, tags); err != nil {
+				return err
+			}
+		}
+		if p.CoverWorkID != nil {
+			if err := setFolderCoverTx(tx, folderID, *p.CoverWorkID); err != nil {
 				return err
 			}
 		}
@@ -156,6 +185,9 @@ func deleteFolderRows(tx *gorm.DB, folderID int64) error {
 		return err
 	}
 	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderFollow{}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderTag{}).Error; err != nil {
 		return err
 	}
 	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderImport{}).Error; err != nil {
@@ -305,4 +337,28 @@ func assertFolderableWork(tx *gorm.DB, workID int64) error {
 		return ErrFolderWorkUnavailable
 	}
 	return nil
+}
+
+func setFolderCoverTx(tx *gorm.DB, folderID, workID int64) error {
+	if workID > 0 {
+		var item model.CatalogUserFolderItem
+		if err := folderItem(tx, folderID, workID, &item); err != nil {
+			if stderrors.Is(err, ErrFolderItemNotFound) {
+				return ErrFolderCoverNotMember
+			}
+			return err
+		}
+		if item.IsCover {
+			return nil
+		}
+	}
+	if err := tx.Model(&model.CatalogUserFolderItem{}).Where("folder_id = ? AND is_cover", folderID).
+		UpdateColumn("is_cover", false).Error; err != nil {
+		return err
+	}
+	if workID == 0 {
+		return nil
+	}
+	return tx.Model(&model.CatalogUserFolderItem{}).Where("folder_id = ? AND work_id = ?", folderID, workID).
+		UpdateColumn("is_cover", true).Error
 }

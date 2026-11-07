@@ -13,7 +13,7 @@
 
 Follow a folder
 
-No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. 404 when the folder is not public; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required.
+No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. An unlisted folder can be followed by anyone who has its id. 404 when the folder is private or does not exist; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

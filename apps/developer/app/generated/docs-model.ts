@@ -122796,7 +122796,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/folders",
               "summary": "List public folders",
-              "description": "Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read.",
+              "description": "Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work, tag to folders carrying that tag, and q to folders whose name, description or a tag contains the text. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private and unlisted folders never appear here, not even for their own owner — /v2/me/folders is that face; an unlisted folder opens only by id. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -122889,6 +122889,20 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "Keep only the folders holding this catalog work: on the directory lane, the curated lists a work page shows."
+                },
+                {
+                  "name": "tag",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Keep only the folders carrying this tag, matched exactly as GET /v2/folders/tags spells it. Must not be used as a discriminant."
+                },
+                {
+                  "name": "q",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Keep only the folders whose name, description or a tag contains this text, ignoring case. A plain substring, not a pattern; the sort stays the one asked for. Must not be used as a discriminant."
                 }
               ],
               "responses": [
@@ -122948,6 +122962,13 @@ export const docsModel: DocsModel = {
                                 "sensitive",
                                 "r18"
                               ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "cover_work_id",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
                               "type": "string"
                             },
                             {
@@ -123020,6 +123041,15 @@ export const docsModel: DocsModel = {
                               }
                             },
                             {
+                              "name": "tags",
+                              "required": true,
+                              "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
                               "name": "updated_at",
                               "required": true,
                               "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -123029,9 +123059,10 @@ export const docsModel: DocsModel = {
                             {
                               "name": "visibility",
                               "required": true,
-                              "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                              "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                               "enum": [
                                 "private",
+                                "unlisted",
                                 "public"
                               ],
                               "type": "string"
@@ -126080,11 +126111,1737 @@ export const docsModel: DocsModel = {
               "curl": "curl \"https://api.nextmoe.dev/v2/folders/holders\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
             },
             {
+              "id": "listFolderTags",
+              "method": "get",
+              "path": "/v2/folders/tags",
+              "summary": "List the directory's tags",
+              "description": "The tags directory folders carry, most used first, for a tag picker or tag cloud. Counts only folders the directory lists (see listPublicFolders), under the same nsfw rule. nsfw counts r18 folders too. One page of up to limit tags: there is no next_cursor. Requires an application key or a user access token with catalog:read.",
+              "scope": "catalog:read",
+              "params": [
+                {
+                  "name": "cursor",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Opaque keyset cursor from a prior next_cursor. Must start with cur_."
+                },
+                {
+                  "name": "limit",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped."
+                },
+                {
+                  "name": "view",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "basic (default) or full. Closed vocabulary."
+                },
+                {
+                  "name": "include",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE."
+                },
+                {
+                  "name": "fields",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept."
+                },
+                {
+                  "name": "ids",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated ids, max 100. Batch lane: no pagination."
+                },
+                {
+                  "name": "refs",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true to include total. Only true or false."
+                },
+                {
+                  "name": "facets",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET."
+                },
+                {
+                  "name": "sort",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Closed per-collection sort key."
+                },
+                {
+                  "name": "nsfw",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true includes r18. false or absent hides r18. Only true or false."
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "OK",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "facets",
+                        "doc": "Named facet buckets. Present only when facets= is requested.",
+                        "type": "map",
+                        "itemsOf": {
+                          "nullable": true,
+                          "type": "array",
+                          "itemsOf": {
+                            "type": "object",
+                            "children": [
+                              {
+                                "name": "count",
+                                "required": true,
+                                "doc": "Hits in this bucket after the same filters as items.",
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              {
+                                "name": "display_name",
+                                "required": true,
+                                "doc": "Must not be used as a discriminant.",
+                                "type": "string"
+                              },
+                              {
+                                "name": "value",
+                                "required": true,
+                                "doc": "Token to pass back to the same filter. Must not be used as a discriminant.",
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "name": "items",
+                        "required": true,
+                        "doc": "Members of this page. Empty array, never null.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "folder_count",
+                              "required": true,
+                              "doc": "How many directory folders carry it, under the same nsfw rule as the directory.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "object",
+                              "required": true,
+                              "doc": "Type discriminant. Always folder_tag.",
+                              "enum": [
+                                "folder_tag"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "tag",
+                              "required": true,
+                              "doc": "The tag as owners wrote it. Pass it back as GET /v2/folders?tag=. Must not be used as a discriminant.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "missing",
+                        "doc": "ids requested but not visible. Present only on the ids=/refs= batch lane.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "next_cursor",
+                        "doc": "Opaque keyset cursor. Omitted on the last page.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "required": true,
+                        "doc": "Type discriminant. Always list.",
+                        "enum": [
+                          "list"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "total",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "304",
+                  "description": "Not Modified. The representation is unchanged."
+                },
+                {
+                  "status": "400",
+                  "description": "Bad Request",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "401",
+                  "description": "Unauthorized",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "Forbidden",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Not Found",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "422",
+                  "description": "Unprocessable Entity",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "Too Many Requests",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "500",
+                  "description": "Internal Server Error",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "Service Unavailable",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/folders/tags\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+            },
+            {
               "id": "getPublicFolder",
               "method": "get",
               "path": "/v2/folders/{id}",
               "summary": "Get one public folder",
-              "description": "404 when no folder with this id is public, whether it does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read.",
+              "description": "Answers public and unlisted folders alike: unlisted only keeps a folder out of the listings. 404 when the folder does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -126111,6 +127868,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "cover_work_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
                         "type": "string"
                       },
                       {
@@ -126183,6 +127947,15 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "tags",
+                        "required": true,
+                        "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
                         "name": "updated_at",
                         "required": true,
                         "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -126192,9 +127965,10 @@ export const docsModel: DocsModel = {
                       {
                         "name": "visibility",
                         "required": true,
-                        "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                        "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                         "enum": [
                           "private",
+                          "unlisted",
                           "public"
                         ],
                         "type": "string"
@@ -191238,7 +193012,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/folder-reports",
               "summary": "Report a public folder",
-              "description": "Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. 404 when the folder is not public; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required.",
+              "description": "Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. Unlisted folders can be reported like public ones. 404 when the folder is private or does not exist; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -193167,6 +194941,13 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "cover_work_id",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
+                              "type": "string"
+                            },
+                            {
                               "name": "created_at",
                               "required": true,
                               "doc": "RFC 3339 UTC.",
@@ -193236,6 +195017,15 @@ export const docsModel: DocsModel = {
                               }
                             },
                             {
+                              "name": "tags",
+                              "required": true,
+                              "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
                               "name": "updated_at",
                               "required": true,
                               "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -193245,9 +195035,10 @@ export const docsModel: DocsModel = {
                             {
                               "name": "visibility",
                               "required": true,
-                              "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                              "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                               "enum": [
                                 "private",
+                                "unlisted",
                                 "public"
                               ],
                               "type": "string"
@@ -194864,10 +196655,19 @@ export const docsModel: DocsModel = {
                     "type": "string"
                   },
                   {
+                    "name": "tags",
+                    "doc": "Up to 5 tags of at most 16 characters each, used to find folders by tag. Trimmed, a leading # dropped, duplicates (ignoring case) dropped. Must not be used as a discriminant.",
+                    "type": "array",
+                    "itemsOf": {
+                      "type": "string"
+                    }
+                  },
+                  {
                     "name": "visibility",
-                    "doc": "Defaults to private.",
+                    "doc": "Defaults to private. unlisted opens from its link but stays out of every listing.",
                     "enum": [
                       "private",
+                      "unlisted",
                       "public"
                     ],
                     "type": "string"
@@ -194890,6 +196690,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "cover_work_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
                         "type": "string"
                       },
                       {
@@ -194962,6 +196769,15 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "tags",
+                        "required": true,
+                        "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
                         "name": "updated_at",
                         "required": true,
                         "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -194971,9 +196787,10 @@ export const docsModel: DocsModel = {
                       {
                         "name": "visibility",
                         "required": true,
-                        "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                        "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                         "enum": [
                           "private",
+                          "unlisted",
                           "public"
                         ],
                         "type": "string"
@@ -196692,7 +198509,1882 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl -X POST \"https://api.nextmoe.dev/v2/me/folders\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"description\":\"还没开始的作品\",\"is_default\":false,\"name\":\"想玩\",\"visibility\":\"private\"}'"
+              "curl": "curl -X POST \"https://api.nextmoe.dev/v2/me/folders\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"description\":\"还没开始的作品\",\"is_default\":false,\"name\":\"想玩\",\"tags\":[\"催泪\",\"入坑向\"],\"visibility\":\"private\"}'"
+            },
+            {
+              "id": "copyFolder",
+              "method": "post",
+              "path": "/v2/me/folders/copies",
+              "summary": "Copy a folder into my folders",
+              "description": "Creates a private folder of the bearer's own holding every live work of the source in the source's order, with the source owner's notes, tags and cover pick. The description starts with 源自「<source name>」 followed by the source's own description, so the copier decides whether to keep the credit by editing it. 201 with the new folder. 404 when the source is private and not the bearer's; 422 at the folder cap (200). A name sent here first passes the platform's word-list check. Requires a user access token with folder:write.",
+              "scope": "folder:write",
+              "auth": {
+                "kind": "user_token",
+                "curl": "Authorization: Bearer <ACCESS_TOKEN>",
+                "display": "Authorization: Bearer <用户访问令牌>",
+                "note": "用户授权后的访问令牌,不是 API 密钥"
+              },
+              "params": [
+                {
+                  "name": "Idempotency-Key",
+                  "in": "header",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+                }
+              ],
+              "requestBody": {
+                "type": "object",
+                "children": [
+                  {
+                    "name": "folder_id",
+                    "required": true,
+                    "doc": "The folder to copy: a public or unlisted one, or one of the bearer's own.",
+                    "type": "string"
+                  },
+                  {
+                    "name": "name",
+                    "doc": "Name of the copy. Absent or blank: the source's name. Must not be used as a discriminant.",
+                    "type": "string"
+                  }
+                ]
+              },
+              "responses": [
+                {
+                  "status": "201",
+                  "description": "Created",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "content_rating",
+                        "required": true,
+                        "doc": "The strictest content_rating among the works this folder holds; all_ages when it holds none. Read it the way a work's content_rating is read: a caller that hides r18 hides an r18 folder's cover art and titles, or the folder itself.",
+                        "enum": [
+                          "all_ages",
+                          "sensitive",
+                          "r18"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "cover_work_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "created_at",
+                        "required": true,
+                        "doc": "RFC 3339 UTC.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "description",
+                        "required": true,
+                        "doc": "Owner's own note. Empty string when none. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "follower_count",
+                        "required": true,
+                        "doc": "How many accounts follow this folder through /v2/me/followed-folders. Who they are is not published.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "id",
+                        "required": true,
+                        "doc": "Folder id.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "is_default",
+                        "required": true,
+                        "doc": "At most one folder per user carries this. Setting it on a folder clears it on the previous holder.",
+                        "type": "boolean"
+                      },
+                      {
+                        "name": "item_count",
+                        "required": true,
+                        "doc": "Number of works in this folder.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "name",
+                        "required": true,
+                        "doc": "Display name. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "required": true,
+                        "doc": "Type discriminant. Always folder.",
+                        "enum": [
+                          "folder"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "owner_uid",
+                        "required": true,
+                        "doc": "The account that owns this folder. This is the central sign-in user id shared by every NextMoe site, not one site's own user id.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "recent_work_ids",
+                        "required": true,
+                        "doc": "Up to four of the most recently added works, newest first, deleted works skipped. Empty array, never null. Ids only, so a caller hydrates a whole page of folders in one works request and applies its own content_rating gate there.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "tags",
+                        "required": true,
+                        "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "updated_at",
+                        "required": true,
+                        "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "visibility",
+                        "required": true,
+                        "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
+                        "enum": [
+                          "private",
+                          "unlisted",
+                          "public"
+                        ],
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "400",
+                  "description": "Bad Request",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "401",
+                  "description": "Unauthorized",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "Forbidden",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Not Found",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "409",
+                  "description": "Conflict",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "422",
+                  "description": "Unprocessable Entity",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "Too Many Requests",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "500",
+                  "description": "Internal Server Error",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "Service Unavailable",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl -X POST \"https://api.nextmoe.dev/v2/me/folders/copies\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"folder_id\":\"1\",\"name\":\"我的入坑清单\"}'"
             },
             {
               "id": "listMyFolderHoldings",
@@ -198169,6 +201861,1710 @@ export const docsModel: DocsModel = {
               "curl": "curl \"https://api.nextmoe.dev/v2/me/folders/holdings\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\""
             },
             {
+              "id": "listMyFolderProgress",
+              "method": "get",
+              "path": "/v2/me/folders/progress",
+              "summary": "My progress through folders",
+              "description": "For each folder: how many of its live works the bearer keeps in another folder of their own (collected), and how many carry each of the bearer's play states, for a \"you have played 12 of 50\" line on someone else's list. Works themselves are not listed; GET /v2/me/works?work_ids= answers per work. Folders the bearer cannot read (private and not theirs, or gone) are in missing. Requires a user access token with folder:read (folder:write also grants reads).",
+              "scope": "folder:read 或 folder:write",
+              "auth": {
+                "kind": "user_token",
+                "curl": "Authorization: Bearer <ACCESS_TOKEN>",
+                "display": "Authorization: Bearer <用户访问令牌>",
+                "note": "用户授权后的访问令牌,不是 API 密钥"
+              },
+              "params": [
+                {
+                  "name": "folder_ids",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated folder ids, 1 to 50."
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "OK",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "facets",
+                        "doc": "Named facet buckets. Present only when facets= is requested.",
+                        "type": "map",
+                        "itemsOf": {
+                          "nullable": true,
+                          "type": "array",
+                          "itemsOf": {
+                            "type": "object",
+                            "children": [
+                              {
+                                "name": "count",
+                                "required": true,
+                                "doc": "Hits in this bucket after the same filters as items.",
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              {
+                                "name": "display_name",
+                                "required": true,
+                                "doc": "Must not be used as a discriminant.",
+                                "type": "string"
+                              },
+                              {
+                                "name": "value",
+                                "required": true,
+                                "doc": "Token to pass back to the same filter. Must not be used as a discriminant.",
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "name": "items",
+                        "required": true,
+                        "doc": "Members of this page. Empty array, never null.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "collected",
+                              "required": true,
+                              "doc": "Of those, how many the bearer keeps in at least one other folder of their own.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "doing",
+                              "required": true,
+                              "doc": "Same for doing.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "done",
+                              "required": true,
+                              "doc": "Same for done.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "dropped",
+                              "required": true,
+                              "doc": "Same for dropped.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "folder_id",
+                              "required": true,
+                              "doc": "Folder id.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "item_count",
+                              "required": true,
+                              "doc": "Live works in the folder.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "object",
+                              "required": true,
+                              "doc": "Type discriminant. Always folder_progress.",
+                              "enum": [
+                                "folder_progress"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "on_hold",
+                              "required": true,
+                              "doc": "Same for on_hold.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "wish",
+                              "required": true,
+                              "doc": "Of those, how many carry the bearer's play state wish.",
+                              "format": "int64",
+                              "type": "integer"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "missing",
+                        "doc": "ids requested but not visible. Present only on the ids=/refs= batch lane.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "next_cursor",
+                        "doc": "Opaque keyset cursor. Omitted on the last page.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "required": true,
+                        "doc": "Type discriminant. Always list.",
+                        "enum": [
+                          "list"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "total",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "304",
+                  "description": "Not Modified. The representation is unchanged."
+                },
+                {
+                  "status": "400",
+                  "description": "Bad Request",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "401",
+                  "description": "Unauthorized",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "Forbidden",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Not Found",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "422",
+                  "description": "Unprocessable Entity",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "Too Many Requests",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "500",
+                  "description": "Internal Server Error",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "Service Unavailable",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/me/folders/progress\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\""
+            },
+            {
               "id": "getMyFolder",
               "method": "get",
               "path": "/v2/me/folders/{id}",
@@ -198206,6 +203602,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "cover_work_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
                         "type": "string"
                       },
                       {
@@ -198278,6 +203681,15 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "tags",
+                        "required": true,
+                        "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
                         "name": "updated_at",
                         "required": true,
                         "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -198287,9 +203699,10 @@ export const docsModel: DocsModel = {
                       {
                         "name": "visibility",
                         "required": true,
-                        "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                        "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                         "enum": [
                           "private",
+                          "unlisted",
                           "public"
                         ],
                         "type": "string"
@@ -199850,6 +205263,11 @@ export const docsModel: DocsModel = {
                 "type": "object",
                 "children": [
                   {
+                    "name": "cover_work_id",
+                    "doc": "Pick a work this folder holds as its cover (422 otherwise); an empty string clears the pick. Removing that work from the folder clears it too.",
+                    "type": "string"
+                  },
+                  {
                     "name": "description",
                     "doc": "New note; an empty string clears it. Must not be used as a discriminant.",
                     "type": "string"
@@ -199865,10 +205283,19 @@ export const docsModel: DocsModel = {
                     "type": "string"
                   },
                   {
+                    "name": "tags",
+                    "doc": "Replaces every tag; an empty array clears them. Same rules as on create. Must not be used as a discriminant.",
+                    "type": "array",
+                    "itemsOf": {
+                      "type": "string"
+                    }
+                  },
+                  {
                     "name": "visibility",
                     "doc": "New visibility.",
                     "enum": [
                       "private",
+                      "unlisted",
                       "public"
                     ],
                     "type": "string"
@@ -199891,6 +205318,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "cover_work_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
                         "type": "string"
                       },
                       {
@@ -199963,6 +205397,15 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "tags",
+                        "required": true,
+                        "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
                         "name": "updated_at",
                         "required": true,
                         "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -199972,9 +205415,10 @@ export const docsModel: DocsModel = {
                       {
                         "name": "visibility",
                         "required": true,
-                        "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                        "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                         "enum": [
                           "private",
+                          "unlisted",
                           "public"
                         ],
                         "type": "string"
@@ -201503,7 +206947,7 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl -X PATCH \"https://api.nextmoe.dev/v2/me/folders/1\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"description\":\"全路线通关的作品\",\"is_default\":true,\"name\":\"已通关\",\"visibility\":\"public\"}'"
+              "curl": "curl -X PATCH \"https://api.nextmoe.dev/v2/me/folders/1\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"cover_work_id\":\"1\",\"description\":\"全路线通关的作品\",\"is_default\":true,\"name\":\"已通关\",\"tags\":[\"催泪\"],\"visibility\":\"public\"}'"
             },
             {
               "id": "deleteMyFolder",
@@ -219745,7 +225189,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/followed-folders",
               "summary": "List my followed folders",
-              "description": "The public folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.",
+              "description": "The public and unlisted folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. new_item_count says how many works each gained since the bearer last opened it (POST /v2/me/followed-folders/{folder_id}/seen). A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public or unlisted again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -219911,6 +225355,13 @@ export const docsModel: DocsModel = {
                                   "type": "string"
                                 },
                                 {
+                                  "name": "cover_work_id",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
+                                  "type": "string"
+                                },
+                                {
                                   "name": "created_at",
                                   "required": true,
                                   "doc": "RFC 3339 UTC.",
@@ -219980,6 +225431,15 @@ export const docsModel: DocsModel = {
                                   }
                                 },
                                 {
+                                  "name": "tags",
+                                  "required": true,
+                                  "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
                                   "name": "updated_at",
                                   "required": true,
                                   "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -219989,9 +225449,10 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "visibility",
                                   "required": true,
-                                  "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                                  "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                                   "enum": [
                                     "private",
+                                    "unlisted",
                                     "public"
                                   ],
                                   "type": "string"
@@ -220005,12 +225466,26 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "new_item_count",
+                              "required": true,
+                              "doc": "Works added to the folder since seen_at. Stops at 100: 100 means 100 or more.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
                               "name": "object",
                               "required": true,
                               "doc": "Type discriminant. Always folder_follow.",
                               "enum": [
                                 "folder_follow"
                               ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "seen_at",
+                              "required": true,
+                              "doc": "When the bearer last marked this folder seen (POST /v2/me/followed-folders/{folder_id}/seen); the follow time until then.",
+                              "format": "date-time",
                               "type": "string"
                             }
                           ]
@@ -221584,11 +227059,1388 @@ export const docsModel: DocsModel = {
               "curl": "curl \"https://api.nextmoe.dev/v2/me/followed-folders\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\""
             },
             {
+              "id": "getMyFolderFollowUpdates",
+              "method": "get",
+              "path": "/v2/me/followed-folders/updates",
+              "summary": "Count my followed folders with new works",
+              "description": "The red dot: how many followed folders gained a work since the bearer last marked them seen. Requires a user access token. Any app may call this; no scope is required.",
+              "scope": "",
+              "auth": {
+                "kind": "user_token",
+                "curl": "Authorization: Bearer <ACCESS_TOKEN>",
+                "display": "Authorization: Bearer <用户访问令牌>",
+                "note": "用户授权后的访问令牌,不是 API 密钥"
+              },
+              "params": [],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "OK",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "object",
+                        "required": true,
+                        "doc": "Type discriminant. Always folder_follow_updates.",
+                        "enum": [
+                          "folder_follow_updates"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "updated_count",
+                        "required": true,
+                        "doc": "Followed folders that gained a work since the bearer last marked them seen. Stops at 100: 100 means 100 or more.",
+                        "format": "int64",
+                        "type": "integer"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "304",
+                  "description": "Not Modified. The representation is unchanged."
+                },
+                {
+                  "status": "400",
+                  "description": "Bad Request",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "401",
+                  "description": "Unauthorized",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "Forbidden",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Not Found",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "Too Many Requests",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "500",
+                  "description": "Internal Server Error",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "Service Unavailable",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/me/followed-folders/updates\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\""
+            },
+            {
               "id": "getMyFolderFollow",
               "method": "get",
               "path": "/v2/me/followed-folders/{folder_id}",
               "summary": "Get my follow on one folder",
-              "description": "404 when the bearer does not follow this folder, or it is not public. Requires a user access token. Any app may call this; no scope is required.",
+              "description": "404 when the bearer does not follow this folder, or it has gone private. Requires a user access token. Any app may call this; no scope is required.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -221633,6 +228485,13 @@ export const docsModel: DocsModel = {
                               "sensitive",
                               "r18"
                             ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "cover_work_id",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
                             "type": "string"
                           },
                           {
@@ -221705,6 +228564,15 @@ export const docsModel: DocsModel = {
                             }
                           },
                           {
+                            "name": "tags",
+                            "required": true,
+                            "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                            "type": "array",
+                            "itemsOf": {
+                              "type": "string"
+                            }
+                          },
+                          {
                             "name": "updated_at",
                             "required": true,
                             "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -221714,9 +228582,10 @@ export const docsModel: DocsModel = {
                           {
                             "name": "visibility",
                             "required": true,
-                            "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                            "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                             "enum": [
                               "private",
+                              "unlisted",
                               "public"
                             ],
                             "type": "string"
@@ -221730,12 +228599,26 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "new_item_count",
+                        "required": true,
+                        "doc": "Works added to the folder since seen_at. Stops at 100: 100 means 100 or more.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
                         "name": "object",
                         "required": true,
                         "doc": "Type discriminant. Always folder_follow.",
                         "enum": [
                           "folder_follow"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "seen_at",
+                        "required": true,
+                        "doc": "When the bearer last marked this folder seen (POST /v2/me/followed-folders/{folder_id}/seen); the follow time until then.",
+                        "format": "date-time",
                         "type": "string"
                       }
                     ]
@@ -223273,7 +230156,7 @@ export const docsModel: DocsModel = {
               "method": "put",
               "path": "/v2/me/followed-folders/{folder_id}",
               "summary": "Follow a folder",
-              "description": "No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. 404 when the folder is not public; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required.",
+              "description": "No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. An unlisted folder can be followed by anyone who has its id. 404 when the folder is private or does not exist; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -223318,6 +230201,13 @@ export const docsModel: DocsModel = {
                               "sensitive",
                               "r18"
                             ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "cover_work_id",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
                             "type": "string"
                           },
                           {
@@ -223390,6 +230280,15 @@ export const docsModel: DocsModel = {
                             }
                           },
                           {
+                            "name": "tags",
+                            "required": true,
+                            "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                            "type": "array",
+                            "itemsOf": {
+                              "type": "string"
+                            }
+                          },
+                          {
                             "name": "updated_at",
                             "required": true,
                             "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -223399,9 +230298,10 @@ export const docsModel: DocsModel = {
                           {
                             "name": "visibility",
                             "required": true,
-                            "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                            "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                             "enum": [
                               "private",
+                              "unlisted",
                               "public"
                             ],
                             "type": "string"
@@ -223415,12 +230315,26 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "new_item_count",
+                        "required": true,
+                        "doc": "Works added to the folder since seen_at. Stops at 100: 100 means 100 or more.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
                         "name": "object",
                         "required": true,
                         "doc": "Type discriminant. Always folder_follow.",
                         "enum": [
                           "folder_follow"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "seen_at",
+                        "required": true,
+                        "doc": "When the bearer last marked this folder seen (POST /v2/me/followed-folders/{folder_id}/seen); the follow time until then.",
+                        "format": "date-time",
                         "type": "string"
                       }
                     ]
@@ -226498,6 +233412,1926 @@ export const docsModel: DocsModel = {
                 }
               ],
               "curl": "curl -X DELETE \"https://api.nextmoe.dev/v2/me/followed-folders/1\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\""
+            },
+            {
+              "id": "markMyFolderFollowSeen",
+              "method": "post",
+              "path": "/v2/me/followed-folders/{folder_id}/seen",
+              "summary": "Mark a followed folder seen",
+              "description": "Call it when the bearer opens the folder. Its new_item_count returns to 0 and it leaves the updates count until it gains another work. The mark is account-wide, the same on every site. Answers the follow. 404 when the bearer does not follow the folder or it has gone private. Requires a user access token. Any app may call this; no scope is required.",
+              "scope": "",
+              "auth": {
+                "kind": "user_token",
+                "curl": "Authorization: Bearer <ACCESS_TOKEN>",
+                "display": "Authorization: Bearer <用户访问令牌>",
+                "note": "用户授权后的访问令牌,不是 API 密钥"
+              },
+              "params": [
+                {
+                  "name": "folder_id",
+                  "in": "path",
+                  "required": true,
+                  "type": "string",
+                  "doc": "Folder id."
+                },
+                {
+                  "name": "Idempotency-Key",
+                  "in": "header",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+                }
+              ],
+              "requestBody": {
+                "type": "object",
+                "children": [
+                  {
+                    "name": "at",
+                    "doc": "Mark seen up to this moment, RFC 3339. Absent means now. The mark moves forward only and never past now. A body is optional.",
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ]
+              },
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "OK",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "created_at",
+                        "required": true,
+                        "doc": "When the bearer followed this folder.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "folder",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "content_rating",
+                            "required": true,
+                            "doc": "The strictest content_rating among the works this folder holds; all_ages when it holds none. Read it the way a work's content_rating is read: a caller that hides r18 hides an r18 folder's cover art and titles, or the folder itself.",
+                            "enum": [
+                              "all_ages",
+                              "sensitive",
+                              "r18"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "cover_work_id",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "created_at",
+                            "required": true,
+                            "doc": "RFC 3339 UTC.",
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          {
+                            "name": "description",
+                            "required": true,
+                            "doc": "Owner's own note. Empty string when none. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "follower_count",
+                            "required": true,
+                            "doc": "How many accounts follow this folder through /v2/me/followed-folders. Who they are is not published.",
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "Folder id.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "is_default",
+                            "required": true,
+                            "doc": "At most one folder per user carries this. Setting it on a folder clears it on the previous holder.",
+                            "type": "boolean"
+                          },
+                          {
+                            "name": "item_count",
+                            "required": true,
+                            "doc": "Number of works in this folder.",
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always folder.",
+                            "enum": [
+                              "folder"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "owner_uid",
+                            "required": true,
+                            "doc": "The account that owns this folder. This is the central sign-in user id shared by every NextMoe site, not one site's own user id.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "recent_work_ids",
+                            "required": true,
+                            "doc": "Up to four of the most recently added works, newest first, deleted works skipped. Empty array, never null. Ids only, so a caller hydrates a whole page of folders in one works request and applies its own content_rating gate there.",
+                            "type": "array",
+                            "itemsOf": {
+                              "type": "string"
+                            }
+                          },
+                          {
+                            "name": "tags",
+                            "required": true,
+                            "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                            "type": "array",
+                            "itemsOf": {
+                              "type": "string"
+                            }
+                          },
+                          {
+                            "name": "updated_at",
+                            "required": true,
+                            "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          {
+                            "name": "visibility",
+                            "required": true,
+                            "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
+                            "enum": [
+                              "private",
+                              "unlisted",
+                              "public"
+                            ],
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "folder_id",
+                        "required": true,
+                        "doc": "The followed folder.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "new_item_count",
+                        "required": true,
+                        "doc": "Works added to the folder since seen_at. Stops at 100: 100 means 100 or more.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "object",
+                        "required": true,
+                        "doc": "Type discriminant. Always folder_follow.",
+                        "enum": [
+                          "folder_follow"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "seen_at",
+                        "required": true,
+                        "doc": "When the bearer last marked this folder seen (POST /v2/me/followed-folders/{folder_id}/seen); the follow time until then.",
+                        "format": "date-time",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "400",
+                  "description": "Bad Request",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "401",
+                  "description": "Unauthorized",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "Forbidden",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Not Found",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "409",
+                  "description": "Conflict",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "422",
+                  "description": "Unprocessable Entity",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "Too Many Requests",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "500",
+                  "description": "Internal Server Error",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "Service Unavailable",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_at",
+                        "doc": "When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.",
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "name": "deleted_reason",
+                        "doc": "Why the entity was deleted, when code is ENTITY_DELETED.",
+                        "enum": [
+                          "not_a_work",
+                          "out_of_scope",
+                          "spam_or_test",
+                          "other"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED or ENTITY_DELETED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The matching entry's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog id of the matching entry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl -X POST \"https://api.nextmoe.dev/v2/me/followed-folders/1/seen\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"at\":\"2020-01-01T00:00:00Z\"}'"
             },
             {
               "id": "listMyBrowsingHistory",
@@ -332277,6 +341111,7 @@ export const docsModel: DocsModel = {
                     "doc": "private takes the folder off /v2/folders without deleting anything.",
                     "enum": [
                       "private",
+                      "unlisted",
                       "public"
                     ],
                     "type": "string"
@@ -332299,6 +341134,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "cover_work_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
                         "type": "string"
                       },
                       {
@@ -332371,6 +341213,15 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "tags",
+                        "required": true,
+                        "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
                         "name": "updated_at",
                         "required": true,
                         "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -332380,9 +341231,10 @@ export const docsModel: DocsModel = {
                       {
                         "name": "visibility",
                         "required": true,
-                        "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                        "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                         "enum": [
                           "private",
+                          "unlisted",
                           "public"
                         ],
                         "type": "string"
@@ -367384,6 +376236,13 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "cover_work_id",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover.",
+                              "type": "string"
+                            },
+                            {
                               "name": "created_at",
                               "required": true,
                               "doc": "RFC 3339 UTC.",
@@ -367453,6 +376312,15 @@ export const docsModel: DocsModel = {
                               }
                             },
                             {
+                              "name": "tags",
+                              "required": true,
+                              "doc": "The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
                               "name": "updated_at",
                               "required": true,
                               "doc": "RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.",
@@ -367462,9 +376330,10 @@ export const docsModel: DocsModel = {
                             {
                               "name": "visibility",
                               "required": true,
-                              "doc": "public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.",
+                              "doc": "public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.",
                               "enum": [
                                 "private",
+                                "unlisted",
                                 "public"
                               ],
                               "type": "string"

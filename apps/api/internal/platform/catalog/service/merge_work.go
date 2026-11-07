@@ -165,7 +165,9 @@ func workFacetStmts(p mergePlan) []mergeStmt {
 		    FROM catalog_user_folder_item s
 		    WHERE d.work_id = ? AND s.work_id = ? AND s.folder_id = d.folder_id
 		      AND d.note = '' AND s.note <> ''`, []any{dst, src}, false},
-		{`DELETE FROM catalog_user_folder_item WHERE work_id = ?`, []any{src}, false},
+		{`WITH gone AS (DELETE FROM catalog_user_folder_item WHERE work_id = ? RETURNING folder_id, is_cover)
+		  UPDATE catalog_user_folder_item d SET is_cover = true, updated_at = now()
+		    FROM gone g WHERE g.is_cover AND d.folder_id = g.folder_id AND d.work_id = ?`, []any{src, dst}, false},
 		// Every folder the merge touched holds dst afterwards (a src-only row
 		// was repointed to dst; a duplicate was deleted because dst was already
 		// there), so recounting the dst holders repairs every drifted count.

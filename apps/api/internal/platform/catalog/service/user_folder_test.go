@@ -12,7 +12,7 @@ import (
 
 func newFolderSvc(t *testing.T) *UserFolderService {
 	t.Helper()
-	require.NoError(t, testDB.Exec("TRUNCATE catalog_user_folder_item, catalog_user_folder_follow, catalog_user_folder RESTART IDENTITY").Error)
+	require.NoError(t, testDB.Exec("TRUNCATE catalog_user_folder_item, catalog_user_folder_follow, catalog_user_folder_tag, catalog_user_folder RESTART IDENTITY").Error)
 	return NewUserFolderService(testDB)
 }
 

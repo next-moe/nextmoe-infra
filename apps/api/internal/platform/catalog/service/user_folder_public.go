@@ -13,7 +13,7 @@ import (
 func (s *UserFolderService) GetPublic(ctx context.Context, folderID int64) (*model.CatalogUserFolder, error) {
 	var row model.CatalogUserFolder
 	err := s.db.WithContext(ctx).
-		Where("id = ? AND visibility = ?", folderID, model.FolderVisibilityPublic).
+		Where("id = ?", folderID).Where(readableFolder).
 		Take(&row).Error
 	if stderrors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrFolderNotFound
@@ -110,7 +110,7 @@ func (s *UserFolderService) ModerationPatch(ctx context.Context, folderID int64,
 			updates["description"] = *p.Description
 		}
 		if p.Visibility != nil {
-			if *p.Visibility != model.FolderVisibilityPrivate && *p.Visibility != model.FolderVisibilityPublic {
+			if !model.FolderVisibilityValid(*p.Visibility) {
 				return ErrFolderBadVisibility
 			}
 			updates["visibility"] = *p.Visibility
@@ -180,6 +180,9 @@ func purgeOwnerFoldersTx(tx *gorm.DB, uid int64) (folders, items int64, err erro
 		return 0, 0, err
 	}
 	if err := tx.Where("folder_id IN ?", ids).Delete(&model.CatalogUserFolderFollow{}).Error; err != nil {
+		return 0, 0, err
+	}
+	if err := tx.Where("folder_id IN ?", ids).Delete(&model.CatalogUserFolderTag{}).Error; err != nil {
 		return 0, 0, err
 	}
 	res = tx.Where("owner_uid = ?", uid).Delete(&model.CatalogUserFolder{})

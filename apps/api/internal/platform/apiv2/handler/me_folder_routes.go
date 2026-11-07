@@ -19,10 +19,11 @@ type listFoldersOutput struct {
 }
 type createFolderInput struct {
 	Body struct {
-		Name        string `json:"name" minLength:"1" maxLength:"100" example:"想玩" doc:"Display name. Must not be used as a discriminant."`
-		Description string `json:"description,omitempty" maxLength:"500" example:"还没开始的作品" doc:"Owner's own note. Must not be used as a discriminant."`
-		Visibility  string `json:"visibility,omitempty" enum:"private,public" example:"private" doc:"Defaults to private."`
-		IsDefault   bool   `json:"is_default,omitempty" example:"false" doc:"true makes this the user's default folder and clears the flag on the previous holder."`
+		Name        string   `json:"name" minLength:"1" maxLength:"100" example:"想玩" doc:"Display name. Must not be used as a discriminant."`
+		Description string   `json:"description,omitempty" maxLength:"500" example:"还没开始的作品" doc:"Owner's own note. Must not be used as a discriminant."`
+		Visibility  string   `json:"visibility,omitempty" enum:"private,unlisted,public" example:"private" doc:"Defaults to private. unlisted opens from its link but stays out of every listing."`
+		IsDefault   bool     `json:"is_default,omitempty" example:"false" doc:"true makes this the user's default folder and clears the flag on the previous holder."`
+		Tags        []string `json:"tags,omitempty" maxItems:"5" example:"[\"催泪\",\"入坑向\"]" doc:"Up to 5 tags of at most 16 characters each, used to find folders by tag. Trimmed, a leading # dropped, duplicates (ignoring case) dropped. Must not be used as a discriminant."`
 	}
 }
 type folderOutput struct {
@@ -34,10 +35,12 @@ type getFolderInput struct {
 type patchFolderInput struct {
 	ID   string `path:"id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Folder id."`
 	Body struct {
-		Name        *string `json:"name,omitempty" minLength:"1" maxLength:"100" example:"已通关" doc:"New display name. Must not be used as a discriminant."`
-		Description *string `json:"description,omitempty" maxLength:"500" example:"全路线通关的作品" doc:"New note; an empty string clears it. Must not be used as a discriminant."`
-		Visibility  *string `json:"visibility,omitempty" enum:"private,public" example:"public" doc:"New visibility."`
-		IsDefault   *bool   `json:"is_default,omitempty" example:"true" doc:"Only true is accepted: it moves the default flag to this folder. Sending false is 422 — set the flag on another folder instead."`
+		Name        *string   `json:"name,omitempty" minLength:"1" maxLength:"100" example:"已通关" doc:"New display name. Must not be used as a discriminant."`
+		Description *string   `json:"description,omitempty" maxLength:"500" example:"全路线通关的作品" doc:"New note; an empty string clears it. Must not be used as a discriminant."`
+		Visibility  *string   `json:"visibility,omitempty" enum:"private,unlisted,public" example:"public" doc:"New visibility."`
+		IsDefault   *bool     `json:"is_default,omitempty" example:"true" doc:"Only true is accepted: it moves the default flag to this folder. Sending false is 422 — set the flag on another folder instead."`
+		Tags        *[]string `json:"tags,omitempty" maxItems:"5" example:"[\"催泪\"]" doc:"Replaces every tag; an empty array clears them. Same rules as on create. Must not be used as a discriminant."`
+		CoverWorkID *string   `json:"cover_work_id,omitempty" maxLength:"20" pattern:"^[0-9]*$" example:"1" doc:"Pick a work this folder holds as its cover (422 otherwise); an empty string clears the pick. Removing that work from the folder clears it too."`
 	}
 }
 type listFolderItemsInput struct {
@@ -170,7 +173,7 @@ func createMyFolder(cat *Catalog) func(context.Context, *createFolderInput) (*fo
 		if in == nil {
 			in = &createFolderInput{}
 		}
-		rec, err := cat.CreateFolder(ctx, in.Body.Name, in.Body.Description, in.Body.Visibility, in.Body.IsDefault)
+		rec, err := cat.CreateFolder(ctx, in.Body.Name, in.Body.Description, in.Body.Visibility, in.Body.IsDefault, in.Body.Tags)
 		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}
@@ -204,7 +207,9 @@ func patchMyFolder(cat *Catalog) func(context.Context, *patchFolderInput) (*fold
 		if !ok {
 			return nil, catalogErr(ctx, problemInvalidID(in.ID))
 		}
-		rec, err := cat.PatchFolder(ctx, id, in.Body.Name, in.Body.Description, in.Body.Visibility, in.Body.IsDefault)
+		b := in.Body
+		rec, err := cat.PatchFolder(ctx, id, folderWrite{Name: b.Name, Description: b.Description, Visibility: b.Visibility,
+			IsDefault: b.IsDefault, Tags: b.Tags, CoverWorkID: b.CoverWorkID})
 		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}

@@ -98,3 +98,25 @@ func (c *Catalog) ListPublicFolderItems(ctx context.Context, folderID int64, q c
 	}
 	return finishList(items, next, total, q, nil), nil
 }
+
+func (c *Catalog) ListFolderTags(ctx context.Context, q collect.Query) (repr.List[repr.FolderTagCount], error) {
+	if c == nil || c.Folders == nil {
+		return repr.List[repr.FolderTagCount]{}, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound.")
+	}
+	if q.Cursor != "" {
+		return repr.List[repr.FolderTagCount]{}, collectInvalidCursor()
+	}
+	limit := q.Limit
+	if limit <= 0 {
+		limit = collect.DefaultLimit
+	}
+	rows, err := c.Folders.DirectoryTags(ctx, q.NSFW, limit)
+	if err != nil {
+		return repr.List[repr.FolderTagCount]{}, err
+	}
+	items := make([]repr.FolderTagCount, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, repr.FolderTagCount{Object: "folder_tag", Tag: r.Tag, FolderCount: r.Count})
+	}
+	return finishList(items, nil, int64(len(items)), q, nil), nil
+}

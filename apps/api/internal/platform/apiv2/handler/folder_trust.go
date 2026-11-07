@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"api/internal/platform/apiv2/problem"
@@ -56,24 +57,28 @@ func (c *Catalog) checkFolderText(ctx context.Context, uid int64, fields ...fold
 	return nil
 }
 
-func folderTrustText(row model.CatalogUserFolder) string {
-	if row.Description == "" {
-		return "名称: " + row.Name
+func folderTrustText(row model.CatalogUserFolder, tags []string) string {
+	text := "名称: " + row.Name
+	if row.Description != "" {
+		text += "\n简介: " + row.Description
 	}
-	return "名称: " + row.Name + "\n简介: " + row.Description
+	if len(tags) > 0 {
+		text += "\n标签: " + strings.Join(tags, "、")
+	}
+	return text
 }
 
 func folderNoteSubject(folderID, workID int64) string {
 	return strconv.FormatInt(folderID, 10) + ":" + strconv.FormatInt(workID, 10)
 }
 
-func (c *Catalog) scanFolder(row model.CatalogUserFolder) {
-	if c.FolderTrust == nil || row.Visibility != model.FolderVisibilityPublic {
+func (c *Catalog) scanFolder(row model.CatalogUserFolder, tags []string) {
+	if c.FolderTrust == nil || !model.FolderReadable(row.Visibility) {
 		return
 	}
 	c.scanFolderTexts(row.OwnerUID, []trustclient.ScanRequest{{
 		Site: RatingTrustSite, SubjectKind: FolderTrustSubjectKind,
-		SubjectID: strconv.FormatInt(row.ID, 10), Text: folderTrustText(row),
+		SubjectID: strconv.FormatInt(row.ID, 10), Text: folderTrustText(row, tags),
 	}})
 }
 
@@ -126,7 +131,11 @@ func (c *Catalog) ReportFolder(ctx context.Context, folderID int64, reason, note
 		Site: RatingTrustSite, SubjectKind: FolderTrustSubjectKind, SubjectID: strconv.FormatInt(folder.ID, 10),
 		ReasonKey: reason, AuthorID: &folder.OwnerUID, ReporterID: uid,
 	}
-	snapshot := folderTrustText(*folder)
+	tags, terr := c.Folders.FolderTags(ctx, []int64{folder.ID})
+	if terr != nil {
+		return terr
+	}
+	snapshot := folderTrustText(*folder, tags[folder.ID])
 	if workID > 0 {
 		item, ierr := c.Folders.PublicItem(ctx, folderID, workID)
 		if ierr == catsvc.ErrFolderItemNotFound {

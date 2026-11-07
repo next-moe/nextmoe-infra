@@ -13,7 +13,7 @@
 
 List my followed folders
 
-The public folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.
+The public and unlisted folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. new_item_count says how many works each gained since the bearer last opened it (POST /v2/me/followed-folders/{folder_id}/seen). A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public or unlisted again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

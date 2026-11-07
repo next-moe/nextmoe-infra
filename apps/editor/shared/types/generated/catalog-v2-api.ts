@@ -1161,7 +1161,7 @@ export interface paths {
         };
         /**
          * List public folders
-         * @description Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read.
+         * @description Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work, tag to folders carrying that tag, and q to folders whose name, description or a tag contains the text. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private and unlisted folders never appear here, not even for their own owner — /v2/me/folders is that face; an unlisted folder opens only by id. Requires an application key or a user access token with catalog:read.
          */
         get: operations["listPublicFolders"];
         put?: never;
@@ -1192,6 +1192,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/folders/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the directory's tags
+         * @description The tags directory folders carry, most used first, for a tag picker or tag cloud. Counts only folders the directory lists (see listPublicFolders), under the same nsfw rule. nsfw counts r18 folders too. One page of up to limit tags: there is no next_cursor. Requires an application key or a user access token with catalog:read.
+         */
+        get: operations["listFolderTags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/folders/{id}": {
         parameters: {
             query?: never;
@@ -1201,7 +1221,7 @@ export interface paths {
         };
         /**
          * Get one public folder
-         * @description 404 when no folder with this id is public, whether it does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read.
+         * @description Answers public and unlisted folders alike: unlisted only keeps a folder out of the listings. 404 when the folder does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read.
          */
         get: operations["getPublicFolder"];
         put?: never;
@@ -1675,7 +1695,7 @@ export interface paths {
         put?: never;
         /**
          * Report a public folder
-         * @description Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. 404 when the folder is not public; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required.
+         * @description Files the bearer's report with the platform's moderation inbox: the folder's name and description as subject (nextmoe, user_folder), or with work_id one item's note as (nextmoe, user_folder_note). The text as it stands now travels with the report. A moderator acts through /v2/moderation/folders. Unlisted folders can be reported like public ones. 404 when the folder is private or does not exist; 422 when work_id names a work the folder does not hold or that carries no note. 204 with no body. 429 when this account has filed too many reports; 503 when the moderation inbox cannot be reached. Requires a user access token. Any app may call this; no scope is required.
          */
         post: operations["reportFolder"];
         delete?: never;
@@ -1708,6 +1728,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/folders/copies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy a folder into my folders
+         * @description Creates a private folder of the bearer's own holding every live work of the source in the source's order, with the source owner's notes, tags and cover pick. The description starts with 源自「<source name>」 followed by the source's own description, so the copier decides whether to keep the credit by editing it. 201 with the new folder. 404 when the source is private and not the bearer's; 422 at the folder cap (200). A name sent here first passes the platform's word-list check. Requires a user access token with folder:write.
+         */
+        post: operations["copyFolder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/folders/holdings": {
         parameters: {
             query?: never;
@@ -1720,6 +1760,26 @@ export interface paths {
          * @description Membership for up to 100 works in one request: for each work the bearer keeps in at least one folder, the ids of those folders. A work the bearer holds nowhere is left out rather than answered with an empty array, and an id that names no work is simply held nowhere. Folders of every visibility are searched — the bearer owns them all. work_ids is required; this is a batch read with no pagination. Requires a user access token with folder:read (folder:write also grants reads).
          */
         get: operations["listMyFolderHoldings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/folders/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My progress through folders
+         * @description For each folder: how many of its live works the bearer keeps in another folder of their own (collected), and how many carry each of the bearer's play states, for a "you have played 12 of 50" line on someone else's list. Works themselves are not listed; GET /v2/me/works?work_ids= answers per work. Folders the bearer cannot read (private and not theirs, or gone) are in missing. Requires a user access token with folder:read (folder:write also grants reads).
+         */
+        get: operations["listMyFolderProgress"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1869,9 +1929,29 @@ export interface paths {
         };
         /**
          * List my followed folders
-         * @description The public folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.
+         * @description The public and unlisted folders the bearer follows, newest follow first, each with the folder as GET /v2/folders/{id} answers it. new_item_count says how many works each gained since the bearer last opened it (POST /v2/me/followed-folders/{folder_id}/seen). A followed folder its owner has since made private drops out of this list (and out of folder_ids=) but the follow is kept, so it comes back if the folder is made public or unlisted again. The list is private to its owner; only the count is public (follower_count on the folder). Requires a user access token. Any app may call this; no scope is required.
          */
         get: operations["listMyFolderFollows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/followed-folders/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count my followed folders with new works
+         * @description The red dot: how many followed folders gained a work since the bearer last marked them seen. Requires a user access token. Any app may call this; no scope is required.
+         */
+        get: operations["getMyFolderFollowUpdates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1889,12 +1969,12 @@ export interface paths {
         };
         /**
          * Get my follow on one folder
-         * @description 404 when the bearer does not follow this folder, or it is not public. Requires a user access token. Any app may call this; no scope is required.
+         * @description 404 when the bearer does not follow this folder, or it has gone private. Requires a user access token. Any app may call this; no scope is required.
          */
         get: operations["getMyFolderFollow"];
         /**
          * Follow a folder
-         * @description No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. 404 when the folder is not public; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required.
+         * @description No request body. Idempotent: following an already-followed folder answers the stored row and writes nothing. An unlisted folder can be followed by anyone who has its id. 404 when the folder is private or does not exist; 422 for the bearer's own folder. At most 1000 followed folders. Requires a user access token. Any app may call this; no scope is required.
          */
         put: operations["putMyFolderFollow"];
         post?: never;
@@ -1903,6 +1983,26 @@ export interface paths {
          * @description 204 with no body, also when the bearer was not following, and also for a folder that has since gone private. Requires a user access token. Any app may call this; no scope is required.
          */
         delete: operations["deleteMyFolderFollow"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/followed-folders/{folder_id}/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a followed folder seen
+         * @description Call it when the bearer opens the folder. Its new_item_count returns to 0 and it leaves the updates count until it gains another work. The mark is account-wide, the same on every site. Answers the follow. 404 when the bearer does not follow the folder or it has gone private. Requires a user access token. Any app may call this; no scope is required.
+         */
+        post: operations["markMyFolderFollowSeen"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3992,6 +4092,23 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        CopyFolderInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CopyFolderInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description The folder to copy: a public or unlisted one, or one of the bearer's own. */
+            folder_id: string;
+            /**
+             * @description Name of the copy. Absent or blank: the source's name. Must not be used as a discriminant.
+             * @example 我的入坑清单
+             */
+            name?: string;
+        } & {
+            [key: string]: unknown;
+        };
         Cover: {
             /** @description Upstream cover class from the pinning ladder: main, dig, pkgfront, pkgback and friends. Open vocabulary. Empty if unrecorded. Must not be used as a discriminant. */
             cover_kind: string;
@@ -4239,11 +4356,19 @@ export interface components {
              */
             name: string;
             /**
-             * @description Defaults to private.
+             * @description Up to 5 tags of at most 16 characters each, used to find folders by tag. Trimmed, a leading # dropped, duplicates (ignoring case) dropped. Must not be used as a discriminant.
+             * @example [
+             *       "催泪",
+             *       "入坑向"
+             *     ]
+             */
+            tags?: string[];
+            /**
+             * @description Defaults to private. unlisted opens from its link but stays out of every listing.
              * @example private
              * @enum {string}
              */
-            visibility?: "private" | "public";
+            visibility?: "private" | "unlisted" | "public";
         } & {
             [key: string]: unknown;
         };
@@ -5249,10 +5374,55 @@ export interface components {
             /** @description The followed folder. */
             folder_id: string;
             /**
+             * Format: int64
+             * @description Works added to the folder since seen_at. Stops at 100: 100 means 100 or more.
+             */
+            new_item_count: number;
+            /**
              * @description Type discriminant. Always folder_follow.
              * @enum {string}
              */
             object: "folder_follow";
+            /**
+             * Format: date-time
+             * @description When the bearer last marked this folder seen (POST /v2/me/followed-folders/{folder_id}/seen); the follow time until then.
+             */
+            seen_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        FolderFollowSeenInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/FolderFollowSeenInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description Mark seen up to this moment, RFC 3339. Absent means now. The mark moves forward only and never past now. A body is optional.
+             */
+            at?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        FolderFollowUpdates: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/FolderFollowUpdates.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Type discriminant. Always folder_follow_updates.
+             * @enum {string}
+             */
+            object: "folder_follow_updates";
+            /**
+             * Format: int64
+             * @description Followed folders that gained a work since the bearer last marked them seen. Stops at 100: 100 means 100 or more.
+             */
+            updated_count: number;
         } & {
             [key: string]: unknown;
         };
@@ -5298,6 +5468,52 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        FolderProgress: {
+            /**
+             * Format: int64
+             * @description Of those, how many the bearer keeps in at least one other folder of their own.
+             */
+            collected: number;
+            /**
+             * Format: int64
+             * @description Same for doing.
+             */
+            doing: number;
+            /**
+             * Format: int64
+             * @description Same for done.
+             */
+            done: number;
+            /**
+             * Format: int64
+             * @description Same for dropped.
+             */
+            dropped: number;
+            /** @description Folder id. */
+            folder_id: string;
+            /**
+             * Format: int64
+             * @description Live works in the folder.
+             */
+            item_count: number;
+            /**
+             * @description Type discriminant. Always folder_progress.
+             * @enum {string}
+             */
+            object: "folder_progress";
+            /**
+             * Format: int64
+             * @description Same for on_hold.
+             */
+            on_hold: number;
+            /**
+             * Format: int64
+             * @description Of those, how many carry the bearer's play state wish.
+             */
+            wish: number;
+        } & {
+            [key: string]: unknown;
+        };
         FolderPurgeReceipt: {
             /**
              * Format: uri
@@ -5322,6 +5538,22 @@ export interface components {
             object: "folder_purge";
             /** @description The account whose folders were removed. */
             owner_uid: string;
+        } & {
+            [key: string]: unknown;
+        };
+        FolderTagCount: {
+            /**
+             * Format: int64
+             * @description How many directory folders carry it, under the same nsfw rule as the directory.
+             */
+            folder_count: number;
+            /**
+             * @description Type discriminant. Always folder_tag.
+             * @enum {string}
+             */
+            object: "folder_tag";
+            /** @description The tag as owners wrote it. Pass it back as GET /v2/folders?tag=. Must not be used as a discriminant. */
+            tag: string;
         } & {
             [key: string]: unknown;
         };
@@ -6033,6 +6265,76 @@ export interface components {
             };
             /** @description Members of this page. Empty array, never null. */
             items: components["schemas"]["FolderItemBatchItem"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListFolderProgress: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListFolderProgress.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["FolderProgress"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListFolderTagCount: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListFolderTagCount.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["FolderTagCount"][];
             /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
             missing?: string[];
             /** @description Opaque keyset cursor. Omitted on the last page. */
@@ -8433,6 +8735,11 @@ export interface components {
              */
             readonly $schema?: string;
             /**
+             * @description Pick a work this folder holds as its cover (422 otherwise); an empty string clears the pick. Removing that work from the folder clears it too.
+             * @example 1
+             */
+            cover_work_id?: string;
+            /**
              * @description New note; an empty string clears it. Must not be used as a discriminant.
              * @example 全路线通关的作品
              */
@@ -8448,11 +8755,18 @@ export interface components {
              */
             name?: string;
             /**
+             * @description Replaces every tag; an empty array clears them. Same rules as on create. Must not be used as a discriminant.
+             * @example [
+             *       "催泪"
+             *     ]
+             */
+            tags?: string[];
+            /**
              * @description New visibility.
              * @example public
              * @enum {string}
              */
-            visibility?: "private" | "public";
+            visibility?: "private" | "unlisted" | "public";
         } & {
             [key: string]: unknown;
         };
@@ -8505,7 +8819,7 @@ export interface components {
              * @description private takes the folder off /v2/folders without deleting anything.
              * @enum {string}
              */
-            visibility?: "private" | "public";
+            visibility?: "private" | "unlisted" | "public";
         } & {
             [key: string]: unknown;
         };
@@ -10723,6 +11037,8 @@ export interface components {
              * @enum {string}
              */
             content_rating: "all_ages" | "sensitive" | "r18";
+            /** @description The work the owner picked as this folder's cover. null when none is picked; a caller then builds the cover from recent_work_ids. Apply the same content_rating gate as for any work cover. */
+            cover_work_id: string | null;
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
@@ -10755,16 +11071,18 @@ export interface components {
             owner_uid: string;
             /** @description Up to four of the most recently added works, newest first, deleted works skipped. Empty array, never null. Ids only, so a caller hydrates a whole page of folders in one works request and applies its own content_rating gate there. */
             recent_work_ids: string[];
+            /** @description The owner's tags, in the owner's order, at most 16 characters each. Empty array, never null. GET /v2/folders?tag= filters the directory by one. Must not be used as a discriminant. */
+            tags: string[];
             /**
              * Format: date-time
              * @description RFC 3339 UTC. Moves when the folder's text, visibility or items change (an item added, removed, reordered or re-noted); a new follower does not move it.
              */
             updated_at: string;
             /**
-             * @description public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders.
+             * @description public folders are readable by anyone through /v2/folders and listed there; unlisted ones are readable by anyone who has the id (a shared link) but appear in no listing, neither the directory nor the owner's profile lane; private ones are visible only to their owner, through /v2/me/folders.
              * @enum {string}
              */
-            visibility: "private" | "public";
+            visibility: "private" | "unlisted" | "public";
         } & {
             [key: string]: unknown;
         };
@@ -18220,6 +18538,10 @@ export interface operations {
                 owner_uid?: string;
                 /** @description Keep only the folders holding this catalog work: on the directory lane, the curated lists a work page shows. */
                 contains_work_id?: string;
+                /** @description Keep only the folders carrying this tag, matched exactly as GET /v2/folders/tags spells it. Must not be used as a discriminant. */
+                tag?: string;
+                /** @description Keep only the folders whose name, description or a tag contains this text, ignoring case. A plain substring, not a pattern; the sort stays the one asked for. Must not be used as a discriminant. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -18369,6 +18691,128 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listFolderTags: {
+        parameters: {
+            query?: {
+                /** @description Opaque keyset cursor from a prior next_cursor. Must start with cur_. */
+                cursor?: string;
+                /** @description Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. */
+                limit?: string;
+                /** @description basic (default) or full. Closed vocabulary. */
+                view?: string;
+                /** @description Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. */
+                include?: string;
+                /** @description Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. */
+                fields?: string;
+                /** @description Comma-separated ids, max 100. Batch lane: no pagination. */
+                ids?: string;
+                /** @description Comma-separated source:external_id, max 100. Batch lane: no pagination. */
+                refs?: string;
+                /** @description true to include total. Only true or false. */
+                include_total?: string;
+                /** @description Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. */
+                facets?: string;
+                /** @description Closed per-collection sort key. */
+                sort?: string;
+                /** @description true includes r18. false or absent hides r18. Only true or false. */
+                nsfw?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListFolderTagCount"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22043,6 +22487,114 @@ export interface operations {
             };
         };
     };
+    copyFolder: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopyFolderInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserFolder"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listMyFolderHoldings: {
         parameters: {
             query?: {
@@ -22091,6 +22643,108 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyFolderProgress: {
+        parameters: {
+            query?: {
+                /** @description Comma-separated folder ids, 1 to 50. */
+                folder_ids?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListFolderProgress"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23601,6 +24255,96 @@ export interface operations {
             };
         };
     };
+    getMyFolderFollowUpdates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderFollowUpdates"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getMyFolderFollow: {
         parameters: {
             query?: never;
@@ -23846,6 +24590,117 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    markMyFolderFollowSeen: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Folder id. */
+                folder_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FolderFollowSeenInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderFollow"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
