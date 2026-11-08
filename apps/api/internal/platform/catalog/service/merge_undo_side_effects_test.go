@@ -91,7 +91,7 @@ func TestUndoMergeRestoresCollidingUserDataAndReopensProposals(t *testing.T) {
 	assert.Equal(t, map[int64]int64{srcOld.ID: e.src, dstNew.ID: e.dst, srcNew.ID: e.src, dstOld.ID: e.dst}, live,
 		"the feed re-emits every rating on the work it is back on")
 
-	items, err := folders.ListItems(ctx, both, f.ID, time.Time{}, 0, 50)
+	items, err := folders.ListItems(ctx, both, f.ID, FolderItemPage{Limit: 50})
 	require.NoError(t, err)
 	assert.Len(t, items, 2, "the folder holds both editions again")
 	var playtimes, workStates int64
@@ -149,7 +149,7 @@ func TestRestoreResurfacesUserRowsForMirrorsPastThem(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, svc.Restore(ctx, id, 7, "it exists"))
 
-	items, err := folders.ListItems(ctx, uid, f.ID, cursor, 0, 50)
+	items, err := folders.ListItems(ctx, uid, f.ID, FolderItemPage{After: true, Since: cursor, SinceWorkID: 0, Limit: 50})
 	require.NoError(t, err)
 	assert.Len(t, items, 1, "a folder mirror past the item gets it back")
 	plays, err := playtime.ListMine(ctx, uid, cursor, 0, 50)

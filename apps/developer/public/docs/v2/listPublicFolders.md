@@ -1,4 +1,4 @@
-# List a user's public folders · Public API v2
+# List public folders · Public API v2
 
 > NextMoe·未萌 开放 API —— ACGN 数据，以此为准。同一部作品在六个源各有一个页面，NextMoe 把它们对齐成一条记录，逐字段给出裁定后的标准答案，并附上答案取自哪个源。
 
@@ -11,9 +11,9 @@
 
 ## GET /v2/folders
 
-List a user's public folders
+List public folders
 
-The public favorite folders of one account, id-ascending. owner_uid is required: there is no platform-wide folder directory. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read.
+Two lanes. With owner_uid: that account's public folders, every one it keeps public, default sort id. Without owner_uid: the folder directory, the public folders that read as a curated list — not the owner's default folder, a non-blank name, and at least 3 works — default sort followers_desc. sort: id (ascending), followers_desc, updated_desc (the folder's text or items changed), created_desc. contains_work_id narrows either lane to folders holding that work, tag to folders carrying that tag, and q to folders whose name, description or a tag contains the text. nsfw applies to the directory lane only: false or absent leaves out every folder whose content_rating is r18; the owner lane always lists everything the owner published, each folder carrying its content_rating. Private and unlisted folders never appear here, not even for their own owner — /v2/me/folders is that face; an unlisted folder opens only by id. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -32,7 +32,10 @@ The public favorite folders of one account, id-ascending. owner_uid is required:
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `owner_uid` | query | 否 | string | Required. The account whose public folders to list — the central sign-in user id, the same one a folder reports as owner_uid. |
+| `owner_uid` | query | 否 | string | The account whose public folders to list — the central sign-in user id, the same one a folder reports as owner_uid. Absent: the folder directory instead. |
+| `contains_work_id` | query | 否 | string | Keep only the folders holding this catalog work: on the directory lane, the curated lists a work page shows. |
+| `tag` | query | 否 | string | Keep only the folders carrying this tag, matched exactly as GET /v2/folders/tags spells it. Must not be used as a discriminant. |
+| `q` | query | 否 | string | Keep only the folders whose name, description or a tag contains this text, ignoring case. A plain substring, not a pattern; the sort stays the one asked for. Must not be used as a discriminant. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/folders" \

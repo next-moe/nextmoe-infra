@@ -41,7 +41,7 @@ var userCollisionTables = map[int16][]userCollisionTable{
 	model.EntityTypeWork: {
 		{table: "catalog_user_work_rating", entityCol: "work_id", naturalKey: []string{"actor_uid"}, clock: "changed_at", survivorDeleted: true,
 			derived: ratingsummary.Columns},
-		{table: "catalog_user_folder_item", entityCol: "work_id", naturalKey: []string{"folder_id"}, clock: "updated_at",
+		{table: "catalog_user_folder_item", entityCol: "work_id", naturalKey: []string{"folder_id"}, clock: "updated_at", overwrites: true,
 			parent: "EXISTS (SELECT 1 FROM catalog_user_folder f WHERE f.id = r.folder_id)"},
 		{table: "catalog_user_playtime", entityCol: "work_id", naturalKey: []string{"actor_uid", "client_id"}, clock: "updated_at", overwrites: true},
 		{table: "catalog_user_work_state", entityCol: "work_id", naturalKey: []string{"actor_uid"}, clock: "updated_at", overwrites: true},

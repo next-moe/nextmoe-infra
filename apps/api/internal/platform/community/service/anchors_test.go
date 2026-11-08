@@ -70,8 +70,11 @@ func TestAnchorLevels(t *testing.T) {
 		_, err := es.SetAnchorLevel(ctx, "letmoe", user, model.AnchorKindCatalogWork, "w2", level)
 		wantErr[*InvalidError](t, err, "level")
 	}
-	_, err = es.SetAnchorLevel(ctx, "letmoe", user, 5, "w2", model.NotificationLevelWatching)
-	wantErr[*InvalidError](t, err, "kind 5")
+	_, err = es.SetAnchorLevel(ctx, "letmoe", user, 6, "w2", model.NotificationLevelWatching)
+	wantErr[*InvalidError](t, err, "kind 6")
+	if _, err = es.SetAnchorLevel(ctx, "letmoe", user, model.AnchorKindCatalogFolder, "f1", model.NotificationLevelWatching); err != nil {
+		t.Fatalf("a catalog folder wall is subscribable: %v", err)
+	}
 	_, err = es.SetAnchorLevel(ctx, "letmoe", user, model.AnchorKindCatalogWork, "", model.NotificationLevelWatching)
 	wantErr[*InvalidError](t, err, "empty anchor id")
 	_, err = es.SetAnchorLevel(ctx, "letmoe", 0, model.AnchorKindCatalogWork, "w2", model.NotificationLevelWatching)

@@ -10,33 +10,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// The public lane never widens for the owner: a folder is on it while its
-// owner keeps visibility=public and never otherwise, so the same folder id
-// answers the same bytes to everyone and /v2/me/folders stays the one face
-// that knows about private folders.
-func (s *UserFolderService) ListPublic(ctx context.Context, ownerUID, sinceID int64, limit int) ([]model.CatalogUserFolder, error) {
-	q := s.db.WithContext(ctx).
-		Where("owner_uid = ? AND visibility = ?", ownerUID, model.FolderVisibilityPublic)
-	if sinceID > 0 {
-		q = q.Where("id > ?", sinceID)
-	}
-	var rows []model.CatalogUserFolder
-	err := q.Order("id ASC").Limit(limit).Find(&rows).Error
-	return rows, err
-}
-
-func (s *UserFolderService) CountPublic(ctx context.Context, ownerUID int64) (int64, error) {
-	var n int64
-	err := s.db.WithContext(ctx).Model(&model.CatalogUserFolder{}).
-		Where("owner_uid = ? AND visibility = ?", ownerUID, model.FolderVisibilityPublic).
-		Count(&n).Error
-	return n, err
-}
-
 func (s *UserFolderService) GetPublic(ctx context.Context, folderID int64) (*model.CatalogUserFolder, error) {
 	var row model.CatalogUserFolder
 	err := s.db.WithContext(ctx).
-		Where("id = ? AND visibility = ?", folderID, model.FolderVisibilityPublic).
+		Where("id = ?", folderID).Where(readableFolder).
 		Take(&row).Error
 	if stderrors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrFolderNotFound
@@ -49,21 +26,11 @@ func (s *UserFolderService) GetPublic(ctx context.Context, folderID int64) (*mod
 
 // Ordered and paginated exactly like the owner's lane, so a client that walks
 // a folder it can also own reads one shape.
-func (s *UserFolderService) ListPublicItems(ctx context.Context, folderID int64, since time.Time, sinceWorkID int64, limit int) ([]model.CatalogUserFolderItem, error) {
+func (s *UserFolderService) ListPublicItems(ctx context.Context, folderID int64, p FolderItemPage) ([]model.CatalogUserFolderItem, error) {
 	if _, err := s.GetPublic(ctx, folderID); err != nil {
 		return nil, err
 	}
-	q := s.db.WithContext(ctx).Where("folder_id = ?", folderID).Where(liveWorkCond("catalog_user_folder_item.work_id"))
-	if !since.IsZero() {
-		if sinceWorkID > 0 {
-			q = q.Where("updated_at > ? OR (updated_at = ? AND work_id > ?)", since, since, sinceWorkID)
-		} else {
-			q = q.Where("updated_at > ?", since)
-		}
-	}
-	var rows []model.CatalogUserFolderItem
-	err := q.Order("updated_at ASC, work_id ASC").Limit(limit).Find(&rows).Error
-	return rows, err
+	return folderItemsPage(s.db.WithContext(ctx), folderID, p)
 }
 
 func (s *UserFolderService) CountPublicItems(ctx context.Context, folderID int64) (int64, error) {
@@ -143,7 +110,7 @@ func (s *UserFolderService) ModerationPatch(ctx context.Context, folderID int64,
 			updates["description"] = *p.Description
 		}
 		if p.Visibility != nil {
-			if *p.Visibility != model.FolderVisibilityPrivate && *p.Visibility != model.FolderVisibilityPublic {
+			if !model.FolderVisibilityValid(*p.Visibility) {
 				return ErrFolderBadVisibility
 			}
 			updates["visibility"] = *p.Visibility
@@ -210,6 +177,12 @@ func purgeOwnerFoldersTx(tx *gorm.DB, uid int64) (folders, items int64, err erro
 	}
 	items += res.RowsAffected
 	if err := tx.Where("folder_id IN ?", ids).Delete(&model.CatalogUserFolderImport{}).Error; err != nil {
+		return 0, 0, err
+	}
+	if err := tx.Where("folder_id IN ?", ids).Delete(&model.CatalogUserFolderFollow{}).Error; err != nil {
+		return 0, 0, err
+	}
+	if err := tx.Where("folder_id IN ?", ids).Delete(&model.CatalogUserFolderTag{}).Error; err != nil {
 		return 0, 0, err
 	}
 	res = tx.Where("owner_uid = ?", uid).Delete(&model.CatalogUserFolder{})

@@ -14,6 +14,7 @@ const (
 	AnchorKindSiteResource  int16 = 2
 	AnchorKindCatalogWork   int16 = 3
 	AnchorKindCatalogPerson int16 = 4
+	AnchorKindCatalogFolder int16 = 5
 )
 
 // SiteLocalAnchorKinds carry a tenant-local id: two sites can mint the same one,

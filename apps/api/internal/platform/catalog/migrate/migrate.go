@@ -114,6 +114,21 @@ func Run(db *gorm.DB) error {
 		&model.CatalogUserFolder{},       // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
 		&model.CatalogUserFolderItem{},   // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
 		&model.CatalogUserFolderImport{}, // source-collection provenance for the favorites import (since retired); made that backfill re-runnable
+		// Folder lists (2026-11-07): catalog_user_folder gains follower_count and
+		// catalog_user_folder_item gains position and note, all NOT NULL with a
+		// default so the populated tables take them without a rewrite;
+		// backfillFolderItemPositions then gives every existing item its place.
+		// catalog_user_folder_follow is new and empty.
+		// Second wave, same release: catalog_user_folder_item gains is_cover
+		// (NOT NULL DEFAULT false, at most one per folder through a partial
+		// unique index), catalog_user_folder_follow gains seen_at, and
+		// catalog_user_folder_tag is new and empty. Unlisted visibility (2) is a
+		// new value of the existing column; no row holds it yet.
+		// catalog_user_folder.copied_from_folder_id is new and nullable; copies
+		// made before it stay null, since their source was only ever named in
+		// the description text.
+		&model.CatalogUserFolderFollow{},
+		&model.CatalogUserFolderTag{},
 		&model.CatalogUserEntityFollow{}, // per-user follows of catalog entities; companies only, see the CHECK
 		&model.CatalogUserTagBlock{},     // per-user tag blocks that clients pass as exclude_tag_id / exclude_tag_tree (2026-10); new, no backfill
 		&model.CatalogUserPrivacy{},      // per-account privacy switches (2026-10-13); created empty on purpose: no row means public, so every existing account's play states and playtimes become readable on /v2/work-records — a product decision taken knowing the forum had told its users play records were private
@@ -953,7 +968,7 @@ func rawSQL(db *gorm.DB) error {
 	if err := db.Exec(`DROP INDEX IF EXISTS uq_catalog_work_engine`).Error; err != nil {
 		return fmt.Errorf("drop uq_catalog_work_engine: %w", err)
 	}
-	return nil
+	return backfillFolderItemPositions(db)
 }
 
 // constraintExists reports whether a named constraint exists on a table.

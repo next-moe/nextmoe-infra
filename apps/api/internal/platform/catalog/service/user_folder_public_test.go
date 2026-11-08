@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	"api/internal/platform/catalog/model"
 
@@ -21,12 +20,12 @@ func TestPublicLaneShowsOnlyPublicFolders(t *testing.T) {
 	_, err = svc.Create(ctx, FolderCreate{OwnerUID: 2, Name: "someone else", Visibility: 1})
 	require.NoError(t, err)
 
-	rows, err := svc.ListPublic(ctx, 1, 0, 50)
+	rows, err := svc.ListPublicFolders(ctx, PublicFolderQuery{OwnerUID: 1, Limit: 50})
 	require.NoError(t, err)
 	require.Len(t, rows, 1, "uid 1 has one public folder and one private one")
 	require.Equal(t, pub.ID, rows[0].ID)
 
-	n, err := svc.CountPublic(ctx, 1)
+	n, err := svc.CountPublicFolders(ctx, PublicFolderQuery{OwnerUID: 1})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
 
@@ -48,7 +47,7 @@ func TestPublicItemsRefuseAPrivateFolder(t *testing.T) {
 	_, err = svc.PutItem(ctx, 1, priv.ID, w.ID)
 	require.NoError(t, err)
 
-	_, err = svc.ListPublicItems(ctx, priv.ID, time.Time{}, 0, 50)
+	_, err = svc.ListPublicItems(ctx, priv.ID, FolderItemPage{Limit: 50})
 	require.ErrorIs(t, err, ErrFolderNotFound)
 	_, err = svc.CountPublicItems(ctx, priv.ID)
 	require.ErrorIs(t, err, ErrFolderNotFound)
@@ -59,7 +58,7 @@ func TestPublicItemsRefuseAPrivateFolder(t *testing.T) {
 
 	// Positive control: the same folder answers once its owner publishes it,
 	// so the refusal above is the visibility gate and not an empty fixture.
-	items, err := svc.ListPublicItems(ctx, priv.ID, time.Time{}, 0, 50)
+	items, err := svc.ListPublicItems(ctx, priv.ID, FolderItemPage{Limit: 50})
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 }

@@ -394,10 +394,11 @@ func setupPublicCatalog(
 	v2TokenVerifier := tokenVerifier.RequiringIssuer(cfg.OIDC.Issuer)
 
 	var ratingTrust v2handler.RatingTrust
+	var folderTrust v2handler.FolderTrust
 	if tc := trustclient.New(trustclient.Config{
 		BaseURL: cfg.TrustClient.BaseURL, ClientID: cfg.TrustClient.ClientID, ClientSecret: cfg.TrustClient.ClientSecret,
 	}); tc != nil {
-		ratingTrust = tc
+		ratingTrust, folderTrust = tc, tc
 		slog.Info("third-party rating short reviews: trust check and scan enabled", "base_url", cfg.TrustClient.BaseURL)
 	} else {
 		slog.Info("third-party rating short reviews: trust check and scan disabled (KUN_TRUST_CLIENT_* unset)")
@@ -451,6 +452,7 @@ func setupPublicCatalog(
 			Store:             storeSvc,
 			Prices:            priceSvc,
 			RatingTrust:       ratingTrust,
+			FolderTrust:       folderTrust,
 			Discussions: discussion.New(catalogDB.DB(),
 				discussion.ProposalKind(), discussion.MergeRequestKind(), discussion.DeletionRequestKind(), discussion.SplitRequestKind()),
 			DiscussionTrust: ratingTrust,

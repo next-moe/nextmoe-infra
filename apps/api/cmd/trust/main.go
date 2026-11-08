@@ -63,7 +63,6 @@ func main() {
 		}
 	})
 
-	reportSvc := service.NewReportService(trustDB.DB(), weigher, service.WithReportPolicy(policySvc))
 	reviewSvc := service.NewReviewService(trustDB.DB())
 	registrySvc := service.NewRegistryService(trustDB.DB())
 	dispositionSvc := service.NewDispositionService(trustDB.DB())
@@ -73,6 +72,8 @@ func main() {
 	for _, id := range cfg.TrustForwarderClientIDs {
 		forwarders[id] = true
 	}
+	reportSvc := service.NewReportService(trustDB.DB(), weigher,
+		service.WithReportPolicy(policySvc), service.WithReportForwarders(forwarders))
 	forwardSvc := service.NewForwardService(trustDB.DB(), forwarders)
 	scanSvc := service.NewScanService(trustDB.DB(), forwarders)
 	slog.Info("trust forward face", "allowed_forwarders", len(forwarders))

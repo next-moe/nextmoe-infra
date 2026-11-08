@@ -198,6 +198,39 @@ func TestSecondTenant_LegacyIndexDroppedOnUpgrade(t *testing.T) {
 	}
 }
 
+func TestCatalogFolderAnchorJoinsTheGlobalUnique(t *testing.T) {
+	cleanTables(t)
+	if err := testDB.Exec(`DROP INDEX IF EXISTS uq_community_thread_anchor_comments_global`).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Exec(`
+		CREATE UNIQUE INDEX uq_community_thread_anchor_comments_global
+		    ON community_thread(anchor_kind, anchor_id)
+		    WHERE kind = 1 AND status <> 3 AND anchor_kind IN (3, 4)`).Error; err != nil {
+		t.Fatalf("recreate the pre-folder predicate: %v", err)
+	}
+	for i := range 2 {
+		if err := Run(testDB); err != nil {
+			t.Fatalf("migrate run %d: %v", i, err)
+		}
+	}
+	if def := indexDef(t, "uq_community_thread_anchor_comments_global"); !strings.Contains(def, "ARRAY[3, 4, 5]") {
+		t.Fatalf("the global unique must cover catalog_folder after an upgrade:\n  %s", def)
+	}
+	comments := func(site string) error {
+		return testDB.Create(&model.CommunityThread{
+			Site: site, Kind: model.ThreadKindComments, AnchorKind: model.AnchorKindCatalogFolder, AnchorID: "42",
+			ContentRating: model.ContentRatingAll, Status: model.ThreadStatusOpen, CreatedBy: 1,
+		}).Error
+	}
+	if err := comments("letmoe"); err != nil {
+		t.Fatalf("letmoe catalog_folder 42: %v", err)
+	}
+	if err := comments("kungal"); !isDuplicate(err) {
+		t.Fatalf("a folder wall is shared cross-site — a second site's thread must violate the global unique, got: %v", err)
+	}
+}
+
 // --- invariant 13: tombstone drops out of the comments unique (rebuild) ----
 
 func TestInvariant4_TombstoneRebuild(t *testing.T) {
@@ -381,7 +414,7 @@ func TestIndexColumnOrder(t *testing.T) {
 		}
 	}
 	global := indexDef(t, "uq_community_thread_anchor_comments_global")
-	for _, frag := range []string{"(anchor_kind, anchor_id)", "kind = 1", "status <> 3", "anchor_kind = ANY (ARRAY[3, 4])"} {
+	for _, frag := range []string{"(anchor_kind, anchor_id)", "kind = 1", "status <> 3", "anchor_kind = ANY (ARRAY[3, 4, 5])"} {
 		if !strings.Contains(global, frag) {
 			t.Errorf("global partial unique missing %q in\n  %s", frag, global)
 		}
@@ -415,7 +448,7 @@ func TestSecondTenant_CommentsAnchorIndexSplit(t *testing.T) {
 	if strings.Contains(global, "(site,") {
 		t.Errorf("global index must NOT lead with site (catalog anchors are network-global):\n  %s", global)
 	}
-	for _, frag := range []string{"(anchor_kind, anchor_id)", "WHERE", "kind = 1", "status <> 3", "anchor_kind = ANY (ARRAY[3, 4])"} {
+	for _, frag := range []string{"(anchor_kind, anchor_id)", "WHERE", "kind = 1", "status <> 3", "anchor_kind = ANY (ARRAY[3, 4, 5])"} {
 		if !strings.Contains(global, frag) {
 			t.Errorf("global index indexdef missing %q in\n  %s", frag, global)
 		}
