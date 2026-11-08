@@ -766,6 +766,9 @@ services:
       KUN_CHAT_IMAGE_CLIENT_ID: ${KUN_CHAT_IMAGE_CLIENT_ID:-}
       KUN_CHAT_IMAGE_CLIENT_SECRET: ${KUN_CHAT_IMAGE_CLIENT_SECRET:-}
       KUN_CHAT_IMAGE_CLIENT_BASE_URL: http://image:9278
+      # An application key (nmk_live_) for reading the official packs of
+      # /v2/sticker. Empty = sticker messages answer 503.
+      KUN_CHAT_STICKER_API_KEY: ${KUN_CHAT_STICKER_API_KEY:-}
       KUN_TRUST_CLIENT_ID: ${KUN_CHAT_TRUST_CLIENT_ID:-}
       KUN_TRUST_CLIENT_SECRET: ${KUN_CHAT_TRUST_CLIENT_SECRET:-}
       KUN_TRUST_CALLBACK_SECRET: ${KUN_CHAT_TRUST_CALLBACK_SECRET:-}

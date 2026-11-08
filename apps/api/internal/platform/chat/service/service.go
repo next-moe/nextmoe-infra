@@ -60,6 +60,10 @@ type Images interface {
 	Ping(ctx context.Context, hashes []string) (updated int64, notFound int, err error)
 }
 
+type Stickers interface {
+	IsOfficial(ctx context.Context, hash string) (bool, error)
+}
+
 var (
 	ErrImageQuota    = errors.New("chat: the chat image quota is exhausted")
 	ErrImageRejected = errors.New("chat: the image was rejected")
@@ -83,6 +87,7 @@ type Service struct {
 	users     Users
 	rel       Relationships
 	images    Images
+	stickers  Stickers
 	imageBase string
 	pub       Publisher
 	counter   Counter
@@ -93,6 +98,7 @@ type Options struct {
 	Users         Users
 	Relationships Relationships
 	Images        Images
+	Stickers      Stickers
 	Publisher     Publisher
 	Counter       Counter
 	Now           func() time.Time
@@ -100,7 +106,7 @@ type Options struct {
 }
 
 func New(db *gorm.DB, o Options) *Service {
-	s := &Service{db: db, users: o.Users, rel: o.Relationships, images: o.Images, pub: o.Publisher, counter: o.Counter, now: o.Now,
+	s := &Service{db: db, users: o.Users, rel: o.Relationships, images: o.Images, stickers: o.Stickers, pub: o.Publisher, counter: o.Counter, now: o.Now,
 		imageBase: o.ImageBaseURL}
 	if s.now == nil {
 		s.now = time.Now
@@ -109,12 +115,13 @@ func New(db *gorm.DB, o Options) *Service {
 }
 
 var (
-	ErrNotFound       = errors.New("chat: not found")
-	ErrBlocked        = errors.New("chat: one of the two users has blocked the other")
-	ErrRequestLimit   = errors.New("chat: the recipient has not accepted yet")
-	ErrEditWindow     = errors.New("chat: the edit window has closed")
-	ErrNotPermitted   = errors.New("chat: not permitted")
-	ErrImagesDisabled = errors.New("chat: image messages are not available")
+	ErrNotFound         = errors.New("chat: not found")
+	ErrBlocked          = errors.New("chat: one of the two users has blocked the other")
+	ErrRequestLimit     = errors.New("chat: the recipient has not accepted yet")
+	ErrEditWindow       = errors.New("chat: the edit window has closed")
+	ErrNotPermitted     = errors.New("chat: not permitted")
+	ErrImagesDisabled   = errors.New("chat: image messages are not available")
+	ErrStickersDisabled = errors.New("chat: sticker messages are not available")
 )
 
 type NotAcceptingError struct{ Reason string }

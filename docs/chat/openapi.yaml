@@ -704,14 +704,16 @@ components:
         thumbhash:
           type: string
         type:
-          description: photo for now; sticker and file follow
+          description: "sticker: an image from an official sticker pack, shown without a bubble; a sticker message has no text, entities, album or context card and cannot be edited"
           enum:
             - photo
+            - sticker
           type: string
         url:
-          description: where the image is served; never build it from image_hash
+          description: where the image is served (a sticker's is its 320px variant); never build it from image_hash
           type: string
         width:
+          description: of the original image; a sticker's url is a smaller variant with the same aspect ratio
           format: int64
           type: integer
       required:
@@ -734,14 +736,16 @@ components:
         thumbhash:
           type: string
         type:
-          description: photo for now; sticker and file follow
+          description: "sticker: an image from an official sticker pack, shown without a bubble; a sticker message has no text, entities, album or context card and cannot be edited"
           enum:
             - photo
+            - sticker
           type: string
         url:
-          description: where the image is served; never build it from image_hash
+          description: where the image is served (a sticker's is its 320px variant); never build it from image_hash
           type: string
         width:
+          description: of the original image; a sticker's url is a smaller variant with the same aspect ratio
           format: int64
           type: integer
       required:
@@ -755,12 +759,13 @@ components:
       additionalProperties: false
       properties:
         image_hash:
-          description: an image already uploaded to the image service
+          description: "photo: an image uploaded with POST /v2/chat/images; sticker: image.hash of a sticker in a published official pack of /v2/sticker"
           pattern: ^[0-9a-f]{64}$
           type: string
         type:
           enum:
             - photo
+            - sticker
           type: string
       required:
         - type
@@ -1327,6 +1332,10 @@ components:
             $ref: "#/components/schemas/Entity"
           type: array
         media_type:
+          enum:
+            - photo
+            - sticker
+            - null
           type:
             - string
             - "null"
@@ -1701,7 +1710,7 @@ components:
 info:
   description: "Direct messages and groups shared by every NextMoe site and app. First-party clients only: a user access token with chat:read (reads) or chat:write (everything; also grants reads)."
   title: NextMoe Chat API
-  version: 1.1.0
+  version: 1.2.0
 openapi: 3.1.0
 paths:
   /v2/chat/conversations:
