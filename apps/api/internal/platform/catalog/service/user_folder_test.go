@@ -12,7 +12,7 @@ import (
 
 func newFolderSvc(t *testing.T) *UserFolderService {
 	t.Helper()
-	require.NoError(t, testDB.Exec("TRUNCATE catalog_user_folder_item, catalog_user_folder RESTART IDENTITY").Error)
+	require.NoError(t, testDB.Exec("TRUNCATE catalog_user_folder_item, catalog_user_folder_follow, catalog_user_folder_tag, catalog_user_folder RESTART IDENTITY").Error)
 	return NewUserFolderService(testDB)
 }
 
@@ -107,17 +107,17 @@ func TestFolderItems(t *testing.T) {
 
 	_, err = svc.PutItem(ctx, 1, f.ID, w2.ID)
 	require.NoError(t, err)
-	rows, err := svc.ListItems(ctx, 1, f.ID, time.Time{}, 0, 10)
+	rows, err := svc.ListItems(ctx, 1, f.ID, FolderItemPage{Limit: 10})
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 	require.LessOrEqual(t, rows[0].UpdatedAt.UnixNano(), rows[1].UpdatedAt.UnixNano())
 
-	tail, err := svc.ListItems(ctx, 1, f.ID, rows[0].UpdatedAt, rows[0].WorkID, 10)
+	tail, err := svc.ListItems(ctx, 1, f.ID, FolderItemPage{After: true, Since: rows[0].UpdatedAt, SinceWorkID: rows[0].WorkID, Limit: 10})
 	require.NoError(t, err)
 	require.Len(t, tail, 1)
 	require.Equal(t, rows[1].WorkID, tail[0].WorkID)
 
-	_, err = svc.ListItems(ctx, 2, f.ID, time.Time{}, 0, 10)
+	_, err = svc.ListItems(ctx, 2, f.ID, FolderItemPage{Limit: 10})
 	require.ErrorIs(t, err, ErrFolderNotFound)
 
 	require.NoError(t, svc.DeleteItem(ctx, 1, f.ID, w1.ID))
@@ -169,12 +169,12 @@ func TestFolderMergeRehang(t *testing.T) {
 	both, err = svc.Get(ctx, 1, both.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, both.ItemCount, "the duplicate membership must be dropped and recounted")
-	rows, err := svc.ListItems(ctx, 1, both.ID, time.Time{}, 0, 10)
+	rows, err := svc.ListItems(ctx, 1, both.ID, FolderItemPage{Limit: 10})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, dst.ID, rows[0].WorkID)
 
-	rows, err = svc.ListItems(ctx, 2, only.ID, time.Time{}, 0, 10)
+	rows, err = svc.ListItems(ctx, 2, only.ID, FolderItemPage{Limit: 10})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, dst.ID, rows[0].WorkID, "the source-only membership must follow the survivor")

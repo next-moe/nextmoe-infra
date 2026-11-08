@@ -29,7 +29,7 @@ Rewrite or blank the name and description of any user's folder, or force it priv
 | --- | --- | --- | --- |
 | `description` | 否 | string | New note; an empty string clears it. Must not be used as a discriminant. |
 | `name` | 否 | string | New display name. Must not be used as a discriminant. An empty string is accepted here and nowhere else: the abuse a moderator removes is usually the name, and picking a replacement is the owner's to do. |
-| `visibility` | 否 | string | private takes the folder off /v2/folders without deleting anything. 取值：private \| public |
+| `visibility` | 否 | string | private takes the folder off /v2/folders without deleting anything. 取值：private \| unlisted \| public |
 
 ```bash
 curl -X PATCH "https://api.nextmoe.dev/v2/moderation/folders/1" \

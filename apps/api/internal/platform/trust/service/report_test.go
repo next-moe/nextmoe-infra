@@ -187,6 +187,26 @@ func TestTenantFailLoud(t *testing.T) {
 	}
 }
 
+func TestReportWireSiteIsForwarderOnly(t *testing.T) {
+	cleanTables(t)
+	registerKind(t, "nextmoe", "user_folder", nil, nil)
+	svc := NewReportService(testDB, newWeigher(), WithReportForwarders(map[string]bool{"catalog-fwd": true}))
+	params := ReportParams{
+		CallerClientID: "stranger", WireSite: "nextmoe",
+		SubjectKind: "user_folder", SubjectID: "42", ReasonKey: "spam", ReporterID: 1,
+	}
+	if _, err := svc.Submit(context.Background(), params); !errors.Is(err, ErrForwarderNotAllowed) {
+		t.Fatalf("a client off the allowlist must not name a site: %v", err)
+	}
+	params.CallerClientID = "catalog-fwd"
+	if _, err := svc.Submit(context.Background(), params); err != nil {
+		t.Fatalf("an allowlisted forwarder files under the wire site: %v", err)
+	}
+	if n := countReports(t, "nextmoe", "user_folder", "42"); n != 1 {
+		t.Fatalf("the report must land on the wire site, got %d rows", n)
+	}
+}
+
 func TestRateLimit(t *testing.T) {
 	cleanTables(t)
 	registerKind(t, tSite, tKind, nil, nil)

@@ -1,13 +1,13 @@
 package dto
 
 type AnchorRef struct {
-	AnchorKind int16  `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorKind int16  `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
 	AnchorID   string `json:"anchor_id"`
 }
 
 type AnchorNotificationRequest struct {
 	UserID     int64  `json:"user_id"`
-	AnchorKind int16  `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorKind int16  `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
 	AnchorID   string `json:"anchor_id"`
 	Level      int16  `json:"level" doc:"0=muted 1=normal 3=watching 4=watching first post; 2 (tracking) is thread-only"`
 }
@@ -19,7 +19,7 @@ type AnchorStatesRequest struct {
 
 type AnchorSubscriptionView struct {
 	UserID            int64  `json:"user_id"`
-	AnchorKind        int16  `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorKind        int16  `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
 	AnchorID          string `json:"anchor_id"`
 	BoardID           *int64 `json:"board_id,omitempty" doc:"the board this subscription names (its anchor_id as a number)"`
 	NotificationLevel int16  `json:"notification_level" doc:"0=muted 1=normal 3=watching 4=watching first post; 2 (tracking) is thread-only"`

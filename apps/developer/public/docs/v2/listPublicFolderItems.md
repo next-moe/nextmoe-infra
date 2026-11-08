@@ -13,7 +13,7 @@
 
 List a public folder's items
 
-Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read.
+The same shape and the same two sorts /v2/me/folders/{id}/items answers: updated (default) for incremental sync, position for the owner's display order. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

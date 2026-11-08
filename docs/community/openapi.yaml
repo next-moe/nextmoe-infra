@@ -365,7 +365,7 @@ components:
         anchor_id:
           type: string
         anchor_kind:
-          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder
           format: int32
           type: integer
         level:
@@ -551,7 +551,7 @@ components:
         anchor_id:
           type: string
         anchor_kind:
-          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder
           format: int32
           type: integer
       required:
@@ -611,7 +611,7 @@ components:
         anchor_id:
           type: string
         anchor_kind:
-          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder
           format: int32
           type: integer
         board_id:
@@ -875,7 +875,7 @@ components:
         anchor_id:
           type: string
         anchor_kind:
-          description: 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          description: 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder
           format: int32
           type: integer
         author_id:
@@ -942,7 +942,7 @@ components:
         anchor_id:
           type: string
         anchor_kind:
-          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder
           format: int32
           type: integer
         content_rating:
@@ -2683,7 +2683,7 @@ components:
         anchor_id:
           type: string
         anchor_kind:
-          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder
           format: int32
           type: integer
         board_id:
@@ -3848,13 +3848,13 @@ paths:
             description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
             format: int32
             type: integer
-        - description: anchor kind filter (0-4); -1 = every anchor kind
+        - description: anchor kind filter (0-5); -1 = every anchor kind
           explode: false
           in: query
           name: anchor_kind
           schema:
             default: -1
-            description: anchor kind filter (0-4); -1 = every anchor kind
+            description: anchor kind filter (0-5); -1 = every anchor kind
             format: int32
             type: integer
       responses:
@@ -3886,13 +3886,13 @@ paths:
             description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
             format: int32
             type: integer
-        - description: anchor kind filter (0-4); -1 = every anchor kind
+        - description: anchor kind filter (0-5); -1 = every anchor kind
           explode: false
           in: query
           name: anchor_kind
           schema:
             default: -1
-            description: anchor kind filter (0-4); -1 = every anchor kind
+            description: anchor kind filter (0-5); -1 = every anchor kind
             format: int32
             type: integer
         - description: how many authors (default 50, max 100)
@@ -3937,13 +3937,13 @@ paths:
             description: post id to read after (descending; 0 = newest first)
             format: int64
             type: integer
-        - description: optional anchor-kind filter (0-4); -1 = all kinds
+        - description: optional anchor-kind filter (0-5); -1 = all kinds
           explode: false
           in: query
           name: anchor_kind
           schema:
             default: -1
-            description: optional anchor-kind filter (0-4); -1 = all kinds
+            description: optional anchor-kind filter (0-5); -1 = all kinds
             format: int32
             type: integer
         - description: page size (default 20, max 100)
@@ -4217,12 +4217,12 @@ paths:
     get:
       operationId: getComments
       parameters:
-        - description: 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+        - description: 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder
           explode: false
           in: query
           name: anchor_kind
           schema:
-            description: 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+            description: 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder
             format: int32
             type: integer
         - explode: false
@@ -4522,13 +4522,13 @@ paths:
             description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
             format: int32
             type: integer
-        - description: anchor kind filter (0-4); -1 = every anchor kind
+        - description: anchor kind filter (0-5); -1 = every anchor kind
           explode: false
           in: query
           name: anchor_kind
           schema:
             default: -1
-            description: anchor kind filter (0-4); -1 = every anchor kind
+            description: anchor kind filter (0-5); -1 = every anchor kind
             format: int32
             type: integer
         - description: "optional: narrow to a single anchor (requires anchor_kind)"
@@ -5706,13 +5706,13 @@ paths:
           schema:
             format: int64
             type: integer
-        - description: optional anchor-kind filter (0-4); -1 = all kinds
+        - description: optional anchor-kind filter (0-5); -1 = all kinds
           explode: false
           in: query
           name: anchor_kind
           schema:
             default: -1
-            description: optional anchor-kind filter (0-4); -1 = all kinds
+            description: optional anchor-kind filter (0-5); -1 = all kinds
             format: int32
             type: integer
         - description: opaque cursor from the previous page

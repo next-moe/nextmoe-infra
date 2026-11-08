@@ -315,12 +315,44 @@ func RatingChangeSpec() Spec {
 	}
 }
 
+var folderFields = []string{"object", "id", "owner_uid", "name", "description", "visibility", "is_default", "item_count",
+	"follower_count", "content_rating", "tags", "cover_work_id", "copied_from_folder_id", "recent_work_ids", "created_at", "updated_at"}
+
 func FolderSpec() Spec {
 	return Spec{
 		Sort:    []string{"id"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "id", "owner_uid", "name", "description", "visibility", "is_default", "item_count", "created_at", "updated_at"},
+		Fields:  folderFields,
+		NoBatch: true,
+	}
+}
+
+func PublicFolderSpec() Spec {
+	return Spec{
+		Sort:    []string{"id", "followers_desc", "updated_desc", "created_desc"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  folderFields,
+		NoBatch: true,
+	}
+}
+
+func FolderFollowSpec() Spec {
+	return Spec{
+		Sort:    []string{"followed_desc"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "folder_id", "folder", "new_item_count", "seen_at", "created_at"},
+		NoBatch: true,
+	}
+}
+
+func FolderTagSpec() Spec {
+	return Spec{
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "tag", "folder_count"},
 		NoBatch: true,
 	}
 }
@@ -336,10 +368,10 @@ func FolderHolderSpec() Spec {
 
 func FolderItemSpec() Spec {
 	return Spec{
-		Sort:    []string{"updated"},
+		Sort:    []string{"updated", "position"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "folder_id", "work_id", "created_at", "updated_at"},
+		Fields:  []string{"object", "folder_id", "work_id", "position", "note", "created_at", "updated_at"},
 		NoBatch: true,
 	}
 }

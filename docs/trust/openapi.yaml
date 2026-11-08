@@ -445,6 +445,9 @@ components:
           description: the reporting user's global id (P0 requires login)
           format: int64
           type: integer
+        site:
+          description: optional tenant site (allowlist-gated relay path, as on scan); omitted = derived from the client binding
+          type: string
         snapshot:
           description: reporter-carried content snapshot at report time
           type: string

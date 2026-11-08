@@ -14,7 +14,7 @@ import (
 )
 
 type commentsPageInput struct {
-	AnchorKind int16  `query:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorKind int16  `query:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
 	AnchorID   string `query:"anchor_id"`
 	After      int32  `query:"after" doc:"post_number to read after (0 = from the top)"`
 	Limit      int    `query:"limit" doc:"page size (max 100, default 50)"`
@@ -115,9 +115,9 @@ func checkEntityAnchor(anchorKind int16, anchorID string) *houseError {
 		return apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "anchor_id is required")
 	}
 	switch anchorKind {
-	case model.AnchorKindSiteGame, model.AnchorKindSiteResource, model.AnchorKindCatalogWork, model.AnchorKindCatalogPerson:
+	case model.AnchorKindSiteGame, model.AnchorKindSiteResource, model.AnchorKindCatalogWork, model.AnchorKindCatalogPerson, model.AnchorKindCatalogFolder:
 		return nil
 	}
 	return apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed,
-		"anchor_kind must be 1..4 — a board hosts topics only")
+		"anchor_kind must be 1..5 — a board hosts topics only")
 }

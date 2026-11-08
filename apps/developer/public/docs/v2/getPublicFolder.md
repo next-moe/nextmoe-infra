@@ -13,7 +13,7 @@
 
 Get one public folder
 
-404 when no folder with this id is public, whether it does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read.
+Answers public and unlisted folders alike: unlisted only keeps a folder out of the listings. 404 when the folder does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

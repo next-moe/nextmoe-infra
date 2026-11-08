@@ -32,16 +32,15 @@ func TestPublicFoldersRefuseATokenWithoutCatalogRead(t *testing.T) {
 	require.Equal(t, problem.CodeScopeRequired, p.Code)
 }
 
-// owner_uid is the face's address, so its absence is a refusal rather than a
-// platform-wide listing of everybody's public folders.
-func TestPublicFolderListDemandsAnOwner(t *testing.T) {
+func TestPublicFolderListWithoutAnOwnerIsTheDirectory(t *testing.T) {
 	app := testAppDualCredential(t, UserIdentity{
 		UID: 42, ClientID: "manager", Scopes: []string{devapi.ScopeCatalogRead},
 	})
 	status, p := authGET(t, app, "/v2/folders", catalogUserToken)
+	require.NotEqual(t, 400, status, "an absent owner_uid selects the directory lane: %+v", p)
+	status, p = authGET(t, app, "/v2/folders?owner_uid=abc", catalogUserToken)
 	require.Equal(t, 400, status)
 	require.Equal(t, problem.CodeInvalidParameter, p.Code)
-	require.NotEmpty(t, p.Errors)
 	require.Equal(t, "owner_uid", p.Errors[0].Parameter)
 }
 

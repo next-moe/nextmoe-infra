@@ -132,12 +132,17 @@ type submitReportOutput struct {
 }
 
 func (s *Server) submitReport(ctx context.Context, in *submitReportInput) (*submitReportOutput, error) {
-	site, he := siteBinding(ctx)
-	if he != nil {
-		return nil, he
+	site := ""
+	if in.Body.Site == "" {
+		bound, he := siteBinding(ctx)
+		if he != nil {
+			return nil, he
+		}
+		site = bound
 	}
 	res, err := s.reports.Submit(ctx, service.ReportParams{
-		Site: site, SubjectKind: in.Body.SubjectKind, SubjectID: in.Body.SubjectID,
+		CallerClientID: callerClientID(ctx), Site: site, WireSite: in.Body.Site,
+		SubjectKind: in.Body.SubjectKind, SubjectID: in.Body.SubjectID,
 		ReasonKey: in.Body.ReasonKey, Note: in.Body.Note, Snapshot: in.Body.Snapshot,
 		SubjectURL: in.Body.SubjectURL, AuthorID: in.Body.AuthorID,
 		ReporterID: in.Body.ReporterID,
@@ -267,6 +272,9 @@ func (s *Server) listReportReasons(ctx context.Context, _ *struct{}) (*listRepor
 
 func mapIntakeErr(op string, err error) *houseError {
 	switch {
+	case stderrors.Is(err, service.ErrForwarderNotAllowed):
+		return apiErrMsg(http.StatusForbidden, errors.ErrForbidden,
+			"client is not an allowed trust forwarder")
 	case stderrors.Is(err, service.ErrSubjectKindNotRegistered):
 		return apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed,
 			"subject_kind is not registered for this site")

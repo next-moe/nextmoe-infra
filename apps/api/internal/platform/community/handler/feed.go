@@ -11,7 +11,7 @@ import (
 
 type sitePostsInput struct {
 	Kind        int16  `query:"kind" default:"-1" doc:"thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind"`
-	AnchorKind  int16  `query:"anchor_kind" default:"-1" doc:"anchor kind filter (0-4); -1 = every anchor kind"`
+	AnchorKind  int16  `query:"anchor_kind" default:"-1" doc:"anchor kind filter (0-5); -1 = every anchor kind"`
 	AnchorID    string `query:"anchor_id" doc:"optional: narrow to a single anchor (requires anchor_kind)"`
 	RepliesOnly bool   `query:"replies_only" doc:"skip opening posts (post_number = 1), leaving only replies"`
 	Cursor      string `query:"cursor" doc:"opaque cursor from the previous page"`

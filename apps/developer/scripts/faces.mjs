@@ -119,7 +119,8 @@ export const FACES = [
       '/v2/me/ratings 是评分：全网一人一作一份，在哪个站写的都是同一份。读写只要用户令牌、不需要 scope，任何应用都能写（同游玩时长）；第三方应用送来的短评由中央做内容检查，被拒绝是 422 VALIDATION_FAILED。/v2/me/work-records/{work_id} 一次事务写游玩状态、本应用的时长和评分，PUT 替换整条记录，缺省或为 null 的部分即删除（唯一例外：第三方应用不带评分时保留原评分）。',
       '/v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。',
       '/v2/me/works 带 work_ids 时一次答最多 100 部作品的收藏夹归属、游玩时长和游玩状态，作品详情页一次调用即可；不带 work_ids 时按作品 id 升序分页走完持有人记过的全部作品（进了自己的收藏夹、有游玩时长或有游玩状态的都算）。答案里有收藏夹，所以同样要 folder:read（folder:write 也算）；封面投票要 catalog:edit，不在其中，走 /v2/me/cover-votes。',
-      '/v2/folders 是别人的公开收藏夹，只要 catalog:read —— folder:read 是「读我自己的」，与能不能看别人无关。私密收藏夹在这里一律 404（对夹主本人也是），要读自己的私密夹走 /v2/me/folders。',
+      '/v2/folders 是别人的公开收藏夹，只要 catalog:read —— folder:read 是「读我自己的」，与能不能看别人无关。私密收藏夹在这里一律 404（对夹主本人也是），要读自己的私密夹走 /v2/me/folders。带 owner_uid 是那个人的全部公开收藏夹；不带 owner_uid 是目录广场：只列非默认、有名字、至少 3 部作品的公开收藏夹，缺省按收藏数倒序（sort=followers_desc|updated_desc|created_desc|id），contains_work_id= 给作品页的「收录此作品的目录」。广场上 nsfw=false 或不带时不列含 r18 作品的目录；每个收藏夹都带 content_rating（所含作品里最严的分级）和 follower_count。收藏夹条目带 position（夹主排的顺序，sort=position 按它列）和 note（夹主写的推荐语）。',
+      '/v2/me/followed-folders 是「我收藏的目录」，/v2/me/folder-reports 举报公开收藏夹（整个夹的名称简介，或带 work_id 举报某条推荐语）：都只要用户令牌、不需要 scope。收藏列表只对本人可见，公开的只有收藏夹上的 follower_count；不能收藏自己的收藏夹。目录的评论区在社区服务，anchor_kind=5（catalog_folder），anchor_id 为收藏夹 id，跨站共用一串。',
       '/v2/ratings 是公开评分，只要 catalog:read：按 work_id / user_id 列表、按 id 读单条；/v2/ratings/changes 是给自己保留评分副本的站点用的镜像信道，删除以 gone: true 出现。作品的 nextmoe 评分（/v2/catalog/works/{id}/ratings）由这些评分算出：以全网均值为先验、权重 10 的贝叶斯均值，1 人起发布。',
       '/v2/work-records?user_id= 是别人的游玩记录，个人主页的游戏库读它：列出该账号有游玩状态的作品，每条带时长与评分，按状态的更新时间倒序；facets=state 给出五个状态各有几部（与列表同一组筛选，state= 也算在内，标签页的数字取自不带 state= 的请求），content_limit=sfw 时列表、total 与计数一起排除 nsfw 作品。只要 catalog:read。本人看自己的走 /v2/me/work-records，参数相同、不看隐私开关、只要用户令牌。游玩记录默认公开；本人经 PATCH /v2/me/privacy 设为 private 后，除本人的用户令牌外一律 403 PLAY_RECORDS_PRIVATE，评分仍在 /v2/ratings 公开。/v2/me/privacy 读写都只要用户令牌、不需要 scope。',
       '错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。',
@@ -270,7 +271,7 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 187,
+  v2: 200,
   store: 4,
   moyu: 6,
   sticker: 9,

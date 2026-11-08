@@ -95,6 +95,8 @@ var personGatedMePrefixes = []string{
 	"/v2/me/calendar",
 	"/v2/me/blocked-tags",
 	"/v2/me/followed-companies",
+	"/v2/me/followed-folders",
+	"/v2/me/folder-reports",
 	"/v2/me/news",
 	"/v2/me/news-images",
 	"/v2/me/playtimes",

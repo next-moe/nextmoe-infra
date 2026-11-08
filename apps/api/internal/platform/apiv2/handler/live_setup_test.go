@@ -1231,6 +1231,7 @@ func liveSubstitute(path string, fx liveFix) string {
 	path = strings.ReplaceAll(path, "{object}", "work")
 	path = strings.ReplaceAll(path, "{work_id}", idstr(fx.Work))
 	path = strings.ReplaceAll(path, "{company_id}", idstr(fx.Company))
+	path = strings.ReplaceAll(path, "{folder_id}", idstr(fx.FolderPublic))
 	path = strings.ReplaceAll(path, "{tag_id}", idstr(fx.Tag))
 	path = strings.ReplaceAll(path, "{cover_id}", idstr(fx.Cover))
 	path = strings.ReplaceAll(path, "{product_id}", "RJ01000000")

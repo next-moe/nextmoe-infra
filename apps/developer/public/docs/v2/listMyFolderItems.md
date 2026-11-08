@@ -13,7 +13,7 @@
 
 List a folder's items
 
-Keyset-paginated by updated_at; the final next_cursor can be stored and replayed later as an incremental-sync watermark (deletions are not replayed). Requires a user access token with folder:read (folder:write also grants reads).
+sort=updated (default) is keyset-paginated by updated_at; the final next_cursor can be stored and replayed later as an incremental-sync watermark (deletions are not replayed). sort=position is the owner's display order: new works are appended at the end and PATCH moves them. A cursor belongs to the sort it was issued for. Requires a user access token with folder:read (folder:write also grants reads).
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

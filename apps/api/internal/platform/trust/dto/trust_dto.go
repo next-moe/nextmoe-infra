@@ -8,6 +8,7 @@ type Page[T any] struct {
 }
 
 type ReportRequest struct {
+	Site        string  `json:"site,omitempty" doc:"optional tenant site (allowlist-gated relay path, as on scan); omitted = derived from the client binding"`
 	SubjectKind string  `json:"subject_kind" doc:"registered subject kind for this site (e.g. forum_topic)"`
 	SubjectID   string  `json:"subject_id" doc:"the subject's stable id in the product"`
 	ReasonKey   string  `json:"reason_key" doc:"a global or per-site reason key (abuse/spam/…)"`

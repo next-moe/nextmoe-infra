@@ -63,7 +63,7 @@ func (s *Server) anchorStates(ctx context.Context, in *anchorStatesInput) (*anch
 
 type listAnchorSubscriptionsInput struct {
 	ID         int64  `path:"id"`
-	AnchorKind int16  `query:"anchor_kind" default:"-1" doc:"optional anchor-kind filter (0-4); -1 = all kinds"`
+	AnchorKind int16  `query:"anchor_kind" default:"-1" doc:"optional anchor-kind filter (0-5); -1 = all kinds"`
 	Cursor     string `query:"cursor" doc:"opaque cursor from the previous page"`
 	Limit      int    `query:"limit" doc:"page size (max 100, default 50)"`
 }

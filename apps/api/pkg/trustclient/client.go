@@ -112,6 +112,29 @@ func (c *Client) Check(ctx context.Context, req CheckRequest) (decision string, 
 	return env.Data.Decision, env.Data.Matched, nil
 }
 
+type ReportRequest struct {
+	Site        string  `json:"site,omitempty"`
+	SubjectKind string  `json:"subject_kind"`
+	SubjectID   string  `json:"subject_id"`
+	ReasonKey   string  `json:"reason_key"`
+	Note        *string `json:"note,omitempty"`
+	Snapshot    *string `json:"snapshot,omitempty"`
+	AuthorID    *int64  `json:"author_id,omitempty"`
+	ReporterID  int64   `json:"reporter_id"`
+}
+
+type reportData struct {
+	ReportID int64 `json:"report_id"`
+}
+
+func (c *Client) Report(ctx context.Context, req ReportRequest) (reportID int64, err error) {
+	var env envelope[reportData]
+	if err := c.post(ctx, "/api/v1/trust/reports", req, &env); err != nil {
+		return 0, err
+	}
+	return env.Data.ReportID, nil
+}
+
 type resolveRequest struct {
 	ReviewItemID int64   `json:"review_item_id"`
 	Outcome      string  `json:"outcome"`

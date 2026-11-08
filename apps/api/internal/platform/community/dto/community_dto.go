@@ -51,13 +51,13 @@ type PostView struct {
 }
 
 type CommentsResolveRequest struct {
-	AnchorKind    int16  `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorKind    int16  `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
 	AnchorID      string `json:"anchor_id"`
 	ContentRating int16  `json:"content_rating" doc:"0=all 1=r15 2=r18 (inherited from the anchor)"`
 }
 
 type CommentRequest struct {
-	AnchorKind     int16   `json:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorKind     int16   `json:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
 	AnchorID       string  `json:"anchor_id"`
 	ContentRating  int16   `json:"content_rating" doc:"0=all 1=r15 2=r18 (inherited from the anchor); applied only when this comment is the one that creates the thread"`
 	AuthorID       int64   `json:"author_id"`
@@ -165,7 +165,7 @@ type ThreadResponse struct {
 type PostThreadContext struct {
 	ThreadID   int64   `json:"thread_id"`
 	Title      *string `json:"title,omitempty" doc:"thread title (NULL for a comments thread)"`
-	AnchorKind int16   `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorKind int16   `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
 	AnchorID   string  `json:"anchor_id"`
 	BoardID    *int64  `json:"board_id,omitempty" doc:"the board a topic lives on (its anchor_id as a number)"`
 }

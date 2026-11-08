@@ -7,6 +7,7 @@ import (
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
+	"api/internal/platform/catalog/model"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/gofiber/fiber/v3"
@@ -58,6 +59,14 @@ func TestIfMatchIsRequiredWhereTheServerDemandsIt(t *testing.T) {
 // declared it, and one of them is the op whose whole contract is per-item
 // partial failure. Asserted over every request-body array so the fourth one is
 // caught the day it is added, not the day a client sends 5000 items.
+//
+// Arrays that are a field of one object rather than a batch of items carry
+// their own, smaller bound instead; they are named here with it.
+var requestArraysThatAreNotBatches = map[string]int{
+	"CreateFolderInputBody.tags": model.FolderTagsMax,
+	"PatchFolderInputBody.tags":  model.FolderTagsMax,
+}
+
 func TestEveryRequestBodyArrayDeclaresTheBatchBound(t *testing.T) {
 	doc := w3Doc(t)
 	require.NotNil(t, doc.Components)
@@ -71,6 +80,10 @@ func TestEveryRequestBodyArrayDeclaresTheBatchBound(t *testing.T) {
 				continue
 			}
 			require.NotNilf(t, p.MaxItems, "%s.%s is an unbounded request array", name, prop)
+			if bound, ok := requestArraysThatAreNotBatches[name+"."+prop]; ok {
+				require.EqualValuesf(t, bound, *p.MaxItems, "%s.%s", name, prop)
+				continue
+			}
 			require.EqualValuesf(t, collect.MaxBatchItems, *p.MaxItems,
 				"%s.%s must carry the shared batch bound", name, prop)
 			checked++
@@ -168,6 +181,6 @@ func TestHumaOwnsThe500AndThe422NotCollectionErrors(t *testing.T) {
 	}
 	require.Equal(t, total, with500, "huma puts 500 on every operation; collectionErrors cannot take it off")
 	require.Less(t, with422, total, "422 is not universal, so the count below is a real discriminant")
-	require.Equal(t, total-7, with422,
-		"only the seven operations with no input parameters lack 422: getCatalogStats, getMyEditQuota, getMyPrivacy, listCatalogTagCategories, listMyCoverVotes, listNewsSources, listProblemReasons")
+	require.Equal(t, total-8, with422,
+		"only the eight operations with no input parameters lack 422: getCatalogStats, getMyEditQuota, getMyFolderFollowUpdates, getMyPrivacy, listCatalogTagCategories, listMyCoverVotes, listNewsSources, listProblemReasons")
 }

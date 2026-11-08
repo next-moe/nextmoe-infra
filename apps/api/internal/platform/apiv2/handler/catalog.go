@@ -51,6 +51,7 @@ type Catalog struct {
 	Store             *storesvc.Service
 	Prices            *price.Service
 	RatingTrust       RatingTrust
+	FolderTrust       FolderTrust
 	Discussions       *discussion.Service
 	DiscussionTrust   RatingTrust
 	WalkthroughDrafts *walkthroughdraft.Service

@@ -158,7 +158,7 @@ func TestDeletionHidesAndRestoreReturnsTheWorkAndItsUserData(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, forWork, want)
 
-		items, err := folders.ListItems(ctx, uid, f.ID, time.Time{}, 0, 50)
+		items, err := folders.ListItems(ctx, uid, f.ID, FolderItemPage{Limit: 50})
 		require.NoError(t, err)
 		assert.Len(t, items, 1+want)
 		folder, err := folders.Get(ctx, uid, f.ID)

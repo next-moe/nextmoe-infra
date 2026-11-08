@@ -7,6 +7,7 @@ package migrate
 
 import (
 	"fmt"
+	"strings"
 
 	"api/internal/platform/accountpurge"
 	"api/internal/platform/community/model"
@@ -99,6 +100,22 @@ func rawSQL(db *gorm.DB) error {
 	if err := db.Exec(`DROP INDEX IF EXISTS uq_community_thread_anchor_comments`).Error; err != nil {
 		return fmt.Errorf("drop legacy comments anchor unique: %w", err)
 	}
+	// 2026-11-07 (folder lists): anchor_kind 5=catalog_folder joins the
+	// network-global comments unique. CREATE INDEX IF NOT EXISTS never redefines
+	// an existing index, so the (3, 4) predicate is dropped here while it is
+	// still the live one and the loop below recreates it as (3, 4, 5); once the
+	// new predicate is in place this is a no-op. No kind-5 thread exists before
+	// this runs, so the rebuilt unique cannot fail on existing rows.
+	var globalDef string
+	if err := db.Raw(`SELECT indexdef FROM pg_indexes WHERE indexname = 'uq_community_thread_anchor_comments_global'`).
+		Scan(&globalDef).Error; err != nil {
+		return fmt.Errorf("read comments global unique: %w", err)
+	}
+	if globalDef != "" && !strings.Contains(globalDef, "ARRAY[3, 4, 5]") {
+		if err := db.Exec(`DROP INDEX IF EXISTS uq_community_thread_anchor_comments_global`).Error; err != nil {
+			return fmt.Errorf("drop comments global unique for kind 5: %w", err)
+		}
+	}
 	// Wave 07: retire the blanket newcomer hold. AutoMigrate never LOWERS an
 	// existing column default, so dropping the model's `default:2` tag alone would
 	// leave the DDL default at 2 and every fresh trust row would silently keep
@@ -159,14 +176,14 @@ func rawSQL(db *gorm.DB) error {
 			    WHERE kind = 1 AND status <> 3 AND anchor_kind IN (1, 2)`},
 		// Invariant 4 (catalog anchors): at most ONE live comments thread per
 		// catalog anchor NETWORK-WIDE. Catalog anchors (anchor_kind 3=catalog_work,
-		// 4=catalog_person) carry a network-global id and share one cross-site
+		// 4=catalog_person, 5=catalog_folder) carry a network-global id and share one cross-site
 		// conversation by design (invariant 1), so the unique deliberately omits
 		// site. topic/feedback (kind 0/2) and board (anchor_kind 0) stay
 		// unconstrained.
 		{"uq_community_thread_anchor_comments_global", `
 			CREATE UNIQUE INDEX IF NOT EXISTS uq_community_thread_anchor_comments_global
 			    ON community_thread(anchor_kind, anchor_id)
-			    WHERE kind = 1 AND status <> 3 AND anchor_kind IN (3, 4)`},
+			    WHERE kind = 1 AND status <> 3 AND anchor_kind IN (3, 4, 5)`},
 		// Invariant 7 (tenant-first): the in-site thread list, ordered by
 		// recency. site leads; last_posted_at DESC serves the newest-first read.
 		{"idx_community_thread_site_list", `

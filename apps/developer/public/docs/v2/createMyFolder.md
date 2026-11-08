@@ -13,7 +13,7 @@
 
 Create a folder
 
-Requires a user access token with folder:write.
+name and description first pass the platform's word-list check (refused: 422 at /name or /description, nothing written; check unavailable: written anyway); a public folder's text then goes to the platform's content scan. Requires a user access token with folder:write.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -30,13 +30,15 @@ Requires a user access token with folder:write.
 | `description` | 否 | string | Owner's own note. Must not be used as a discriminant. |
 | `is_default` | 否 | boolean | true makes this the user's default folder and clears the flag on the previous holder. |
 | `name` | 是 | string | Display name. Must not be used as a discriminant. |
-| `visibility` | 否 | string | Defaults to private. 取值：private \| public |
+| `tags` | 否 | string[] | Up to 5 tags of at most 16 characters each, used to find folders by tag. Trimmed, a leading # dropped, duplicates (ignoring case) dropped. Must not be used as a discriminant. |
+| `tags[]` | 否 | string |  |
+| `visibility` | 否 | string | Defaults to private. unlisted opens from its link but stays out of every listing. 取值：private \| unlisted \| public |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"description":"还没开始的作品","is_default":false,"name":"想玩","visibility":"private"}'
+  -d '{"description":"还没开始的作品","is_default":false,"name":"想玩","tags":["催泪","入坑向"],"visibility":"private"}'
 ```
 
 ---

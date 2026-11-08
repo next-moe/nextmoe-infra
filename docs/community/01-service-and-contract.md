@@ -211,8 +211,13 @@ A comments thread is **born with its first comment**, in the transaction that
 writes that comment — the same rule topics and feedback already follow. The body
 therefore carries the anchor (`anchor_kind` + `anchor_id`) and the
 `content_rating` to stamp on a thread that may not exist yet, not a thread id;
-`anchor_kind` must be 1..4, since a board hosts topics rather than a comment
-wall. A concurrent first comment loses the insert and appends to the winner's
+`anchor_kind` must be 1..5, since a board hosts topics rather than a comment
+wall. Kind 5 (`catalog_folder`, since 2026-11-07) is a catalog folder's wall,
+`anchor_id` = the folder id. Like the other catalog anchors it is network-wide:
+one thread shared by every site, under the same global unique as 3 and 4.
+Community does not check the folder. A site opens the wall only on a folder that
+`GET /v2/folders/{id}` answers, and stops rendering it once that answer is 404
+(the owner made it private or deleted it); the thread is left in place. A concurrent first comment loses the insert and appends to the winner's
 thread instead (`ON CONFLICT DO NOTHING`, then re-read inside the same
 transaction), so an anchor never ends up with two conversations. Everything past
 the thread is the ordinary reply path — trust level, sandbox quota, content
@@ -884,7 +889,7 @@ it in:
 The following feed leaves these out on purpose, each with the condition that
 brings it in:
 
-- **Posts on network-wide anchors** (catalog_work, catalog_person). Their
+- **Posts on network-wide anchors** (catalog_work, catalog_person, catalog_folder). Their
   threads are shared across sites, so no one site's presentation fits. Trigger:
   a site opens comment walls on catalog anchors.
 - **Fan-out on write** (a precomputed timeline per reader). The feed reads each

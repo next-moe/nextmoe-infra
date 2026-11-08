@@ -14,7 +14,7 @@ import (
 type authorPostsInput struct {
 	ID         int64 `path:"id"`
 	After      int64 `query:"after" doc:"post id to read after (descending; 0 = newest first)"`
-	AnchorKind int16 `query:"anchor_kind" default:"-1" doc:"optional anchor-kind filter (0-4); -1 = all kinds"`
+	AnchorKind int16 `query:"anchor_kind" default:"-1" doc:"optional anchor-kind filter (0-5); -1 = all kinds"`
 	Limit      int   `query:"limit" doc:"page size (default 20, max 100)"`
 	ViewerID   int64 `query:"viewer_id" doc:"fill viewer_reacted for this user; 0 = no viewer"`
 }
@@ -44,7 +44,7 @@ func (s *Server) listAuthorPosts(ctx context.Context, in *authorPostsInput) (*au
 type authorStatsInput struct {
 	IDs        string `query:"ids" doc:"comma-separated author ids (max 100)"`
 	Kind       int16  `query:"kind" default:"-1" doc:"thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind"`
-	AnchorKind int16  `query:"anchor_kind" default:"-1" doc:"anchor kind filter (0-4); -1 = every anchor kind"`
+	AnchorKind int16  `query:"anchor_kind" default:"-1" doc:"anchor kind filter (0-5); -1 = every anchor kind"`
 }
 type authorStatsOutput struct {
 	Body Envelope[dto.AuthorStatsResponse]
@@ -72,7 +72,7 @@ func (s *Server) authorStats(ctx context.Context, in *authorStatsInput) (*author
 
 type topAuthorsInput struct {
 	Kind       int16 `query:"kind" default:"-1" doc:"thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind"`
-	AnchorKind int16 `query:"anchor_kind" default:"-1" doc:"anchor kind filter (0-4); -1 = every anchor kind"`
+	AnchorKind int16 `query:"anchor_kind" default:"-1" doc:"anchor kind filter (0-5); -1 = every anchor kind"`
 	Limit      int   `query:"limit" doc:"how many authors (default 50, max 100)"`
 }
 
