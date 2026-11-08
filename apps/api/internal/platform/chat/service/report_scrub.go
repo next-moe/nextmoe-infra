@@ -22,7 +22,7 @@ func scrubReportSnapshots(tx *gorm.DB, uid int64) error {
 		}
 		for i := range snap.Messages {
 			if snap.Messages[i].SenderID == uid {
-				snap.Messages[i].Text, snap.Messages[i].Entities, snap.Messages[i].MediaHash = "", nil, ""
+				snap.Messages[i].Text, snap.Messages[i].Entities, snap.Messages[i].MediaHash, snap.Messages[i].MediaType = "", nil, "", ""
 			}
 		}
 		if err := tx.Model(&model.ChatReport{}).Where("id = ?", r.ID).Update("snapshot", jsonOf(snap)).Error; err != nil {

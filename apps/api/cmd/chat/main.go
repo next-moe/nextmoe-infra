@@ -85,6 +85,11 @@ func main() {
 	} else {
 		slog.Info("chat: image messages disabled (KUN_CHAT_IMAGE_CLIENT_* unset)")
 	}
+	if key := cfg.ChatService.StickerAPIKey; key != "" {
+		opts.Stickers = source.NewOfficialStickers(cfg.ChatService.StickerAPIURL, key)
+	} else {
+		slog.Info("chat: sticker messages disabled (KUN_CHAT_STICKER_API_KEY unset)")
+	}
 	if pub := realtime.NewCentrifugo(cfg.ChatService.CentrifugoAPIURL, cfg.ChatService.CentrifugoAPIKey); pub != nil {
 		opts.Publisher = pub
 		go pub.Run(ctx)

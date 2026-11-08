@@ -189,7 +189,7 @@ func (s *Service) messageView(m model.ChatMessage, viewer int64, reactions []dto
 		v.Reactions = []dto.ReactionCount{}
 	}
 	if v.Media != nil {
-		v.Media.URL = s.imageURL(v.Media.ImageHash)
+		v.Media.URL = s.mediaURL(*v.Media)
 	}
 	if q := decodeJSON[storedQuote](m.ReplyQuote); q != nil {
 		v.ReplyQuote = &dto.Quote{Text: q.Text, Entities: dto.EntitiesOut(q.Entities), Offset: q.Offset}

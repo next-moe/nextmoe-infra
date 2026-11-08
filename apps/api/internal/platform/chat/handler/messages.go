@@ -8,8 +8,8 @@ import (
 )
 
 type MediaInput struct {
-	Type      string `json:"type" enum:"photo"`
-	ImageHash string `json:"image_hash" pattern:"^[0-9a-f]{64}$" doc:"an image already uploaded to the image service"`
+	Type      string `json:"type" enum:"photo,sticker"`
+	ImageHash string `json:"image_hash" pattern:"^[0-9a-f]{64}$" doc:"photo: an image uploaded with POST /v2/chat/images; sticker: image.hash of a sticker in a published official pack of /v2/sticker"`
 }
 
 type QuoteInput struct {

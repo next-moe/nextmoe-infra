@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -19,6 +20,11 @@ import (
 )
 
 const messagesPerMinute = 30
+
+const (
+	MediaPhoto   = "photo"
+	MediaSticker = "sticker"
+)
 
 type MediaInput struct {
 	Type      string
@@ -105,14 +111,27 @@ func (s *Service) buildMedia(ctx context.Context, in *MediaInput) (*dto.Media, e
 	if in == nil {
 		return nil, nil
 	}
-	if in.Type != "photo" {
-		return nil, &InvalidError{Field: "media.type", Reason: "only photo is supported"}
+	if in.Type != MediaPhoto && in.Type != MediaSticker {
+		return nil, &InvalidError{Field: "media.type", Reason: "must be photo or sticker"}
 	}
 	if !imageHashPattern.MatchString(in.ImageHash) {
 		return nil, &InvalidError{Field: "media.image_hash", Reason: "must be a 64-character lowercase hex hash"}
 	}
 	if s.images == nil {
 		return nil, ErrImagesDisabled
+	}
+	if in.Type == MediaSticker {
+		if s.stickers == nil {
+			return nil, ErrStickersDisabled
+		}
+		official, err := s.stickers.IsOfficial(ctx, in.ImageHash)
+		if err != nil {
+			slog.Warn("chat: official sticker set unavailable", "err", err)
+			return nil, ErrStickersDisabled
+		}
+		if !official {
+			return nil, &InvalidError{Field: "media.image_hash", Reason: "not a sticker of an official pack"}
+		}
 	}
 	metas, err := s.images.Meta(ctx, []string{in.ImageHash})
 	if err != nil {
@@ -122,7 +141,19 @@ func (s *Service) buildMedia(ctx context.Context, in *MediaInput) (*dto.Media, e
 	if !ok {
 		return nil, &InvalidError{Field: "media.image_hash", Reason: "no such image"}
 	}
-	return &dto.Media{Type: "photo", ImageHash: in.ImageHash, Width: meta.Width, Height: meta.Height, Thumbhash: meta.Thumbhash}, nil
+	return &dto.Media{Type: in.Type, ImageHash: in.ImageHash, Width: meta.Width, Height: meta.Height, Thumbhash: meta.Thumbhash}, nil
+}
+
+func checkSticker(text string, in SendInput) error {
+	switch {
+	case text != "":
+		return &InvalidError{Field: "text", Reason: "a sticker message carries no text"}
+	case in.MediaGroupID != nil:
+		return &InvalidError{Field: "media_group_id", Reason: "a sticker cannot join an album"}
+	case in.Context != nil:
+		return &InvalidError{Field: "context", Reason: "a sticker message carries no context card"}
+	}
+	return nil
 }
 
 func checkMentions(entities []content.Entity, members []model.ChatMember) error {
@@ -172,6 +203,11 @@ func (s *Service) Send(ctx context.Context, a Actor, conversationID int64, in Se
 	}
 	if text == "" && media == nil {
 		return nil, &InvalidError{Field: "text", Reason: "a message needs text or media"}
+	}
+	if media != nil && media.Type == MediaSticker {
+		if err := checkSticker(text, in); err != nil {
+			return nil, err
+		}
 	}
 	card, err := s.buildContext(a, in.Context)
 	if err != nil {
@@ -308,7 +344,7 @@ func (s *Service) admitSend(ctx context.Context, tx *gorm.DB, conv *model.ChatCo
 		return nil, err
 	}
 	if peer.AcceptedAt == nil {
-		if media != nil || card != nil || content.HasLink(entities) {
+		if (media != nil && media.Type != MediaSticker) || card != nil || content.HasLink(entities) {
 			return nil, ErrRequestLimit
 		}
 		var sent int64
@@ -418,6 +454,9 @@ func (s *Service) Edit(ctx context.Context, a Actor, messageID int64, text strin
 		now := s.now()
 		if now.Sub(msg.CreatedAt) > editWindow {
 			return ErrEditWindow
+		}
+		if m := decodeJSON[dto.Media](msg.Media); m != nil && m.Type == MediaSticker {
+			return &InvalidError{Field: "text", Reason: "a sticker message cannot be edited"}
 		}
 		if text == "" && len(msg.Media) == 0 {
 			return &InvalidError{Field: "text", Reason: "a message needs text or media"}

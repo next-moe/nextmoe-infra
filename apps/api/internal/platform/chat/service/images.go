@@ -29,14 +29,22 @@ func (s *Service) UploadImage(ctx context.Context, a Actor, filename string, r i
 	if err != nil {
 		return nil, err
 	}
-	return &ImageResult{Media: dto.Media{Type: "photo", ImageHash: img.Hash, Width: img.Width, Height: img.Height,
+	return &ImageResult{Media: dto.Media{Type: MediaPhoto, ImageHash: img.Hash, Width: img.Width, Height: img.Height,
 		Thumbhash: img.Thumbhash, URL: s.imageURL(img.Hash)}}, nil
 }
 
 func (s *Service) imageURL(hash string) string { return imageclient.MainURL(s.imageBase, hash, "webp") }
 
+func (s *Service) mediaURL(m dto.Media) string {
+	if m.Type == MediaSticker {
+		return imageclient.VariantURL(s.imageBase, m.ImageHash, "320", "webp")
+	}
+	return s.imageURL(m.ImageHash)
+}
+
 // Reference pings are scoped to the image client that uploaded, so only
-// chat's own client can keep chat's photos out of the image GC.
+// chat's own client can keep chat's photos out of the image GC. Stickers belong
+// to the sticker site's client, which keeps them alive itself.
 func (s *Service) PingImages(ctx context.Context) (int64, int, error) {
 	if s.images == nil {
 		return 0, 0, nil
@@ -44,7 +52,7 @@ func (s *Service) PingImages(ctx context.Context) (int64, int, error) {
 	var hashes []string
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT DISTINCT media->>'image_hash' FROM chat_message
-		 WHERE media IS NOT NULL AND deleted_at IS NULL AND media->>'image_hash' IS NOT NULL`).
+		 WHERE media->>'type' = ? AND deleted_at IS NULL AND media->>'image_hash' IS NOT NULL`, MediaPhoto).
 		Scan(&hashes).Error; err != nil {
 		return 0, 0, err
 	}

@@ -129,8 +129,10 @@ back to requests.
 
 While a request is pending:
 
-- the requester may send at most 3 plain-text messages with no links, no media
-  and no context card (`403 CHAT_REQUEST_LIMIT`), and an edit may not add a link;
+- the requester may send at most 3 messages, each plain text with no links or
+  an official sticker; no photo and no context card (`403 CHAT_REQUEST_LIMIT`),
+  and an edit may not add a link. A sticker is allowed because it comes from a
+  curated set and carries nothing the sender wrote or uploaded;
 - neither side can pin (`403 CHAT_REQUEST_LIMIT`);
 - the requester sees `peer_read_seq = 0` and receives no `read_outbox`, and
   neither side sees typing;
@@ -170,6 +172,24 @@ reaching the other side.
   `message`) and pings their references daily: image-service reference pings
   are scoped to the uploading client, so a photo uploaded through a site's own
   image client would not be kept alive by chat.
+- Stickers (since 1.2.0): send `media {type: "sticker", image_hash}` with the
+  `image.hash` of a sticker in a published official pack of `/v2/sticker`
+  (`official=true`); any other hash is `400 VALIDATION_FAILED` on
+  `media.image_hash`. Nothing is uploaded. The message comes back as
+  `media {type: "sticker", image_hash, width, height, thumbhash, url}`: the same
+  shape as a photo, with `url` always set and pointing at the 320px variant;
+  width and height are the original's, so use them for the aspect ratio. Show
+  it without a bubble. A sticker message carries no text, entities,
+  `media_group_id` or context card (each is `400`), and cannot be edited
+  (`400`). It may reply and be replied to; a reply to it has
+  `reply_to.media_type: "sticker"` and empty text. There is no pack id or emoji
+  on the message: packs change, the hash does not. Chat reads the official
+  set through the gateway (`KUN_CHAT_STICKER_API_KEY`, an application key;
+  without it a sticker send is `503 SERVICE_UNAVAILABLE`) and holds it for up to
+  30 minutes, so a newly published sticker can take up to 5 minutes to be
+  accepted. Chat does not ping sticker references: the sticker site's own
+  client keeps them alive, so a sticker whose pack is withdrawn can stop
+  loading in old messages.
 - `context {kind, id, title, url}`: a card for the page a conversation is about.
   The URL must be https on one of the calling client's hosts; `site` is set by
   the server.
@@ -344,3 +364,11 @@ it only prints the plan. The production import ran on 2026-09-27: 2,684 pairs,
 11,763 messages (517 of them tombstones), 419 photos re-hosted, 164 stickers,
 1 external image; 4 photos were already gone from the image service and were
 dropped.
+
+The import predates the sticker type and stored those 164 stickers as photos.
+`import-chat -stickers` (with `KUN_CHAT_STICKER_API_KEY`; dry run without
+`-apply`) turns an imported photo into a sticker when its hash is in an
+official pack and it stands alone: no text, no album, no card. On 2026-11-08
+that matched 122 of them; the other 42 shared a message with text or an album,
+which a sticker message cannot carry, so they stay photos. It writes no
+updates: clients see the change the next time they load the history.

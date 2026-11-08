@@ -196,6 +196,8 @@ type ChatServiceConfig struct {
 	CentrifugoAPIURL    string
 	CentrifugoAPIKey    string
 	RealtimeTokenSecret string
+	StickerAPIURL       string
+	StickerAPIKey       string
 }
 
 type CatalogServiceConfig struct {
@@ -648,6 +650,8 @@ func Load() (*Config, error) {
 		CentrifugoAPIURL:    getEnv("KUN_CHAT_CENTRIFUGO_API_URL", ""),
 		CentrifugoAPIKey:    getEnv("KUN_CHAT_CENTRIFUGO_API_KEY", ""),
 		RealtimeTokenSecret: getEnv("KUN_CHAT_REALTIME_TOKEN_SECRET", ""),
+		StickerAPIURL:       getEnv("KUN_CHAT_STICKER_API_URL", "https://api.nextmoe.dev"),
+		StickerAPIKey:       getEnv("KUN_CHAT_STICKER_API_KEY", ""),
 	}
 
 	trustPort, _ := strconv.Atoi(getEnv("KUN_TRUST_PORT", "9283"))

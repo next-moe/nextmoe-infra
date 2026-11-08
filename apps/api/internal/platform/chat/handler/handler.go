@@ -74,7 +74,7 @@ func Setup(app *fiber.App, opt Options) huma.API {
 	})
 	app.Use("/v2/chat", problem.RequestIDMiddleware, authenticate(opt))
 
-	cfg := huma.DefaultConfig("NextMoe Chat API", "1.1.0")
+	cfg := huma.DefaultConfig("NextMoe Chat API", "1.2.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -220,6 +220,8 @@ func fail(ctx context.Context, op string, err error) error {
 		return stamp(ctx, problem.New(problem.CodeChatNotPermitted, "", "", ""))
 	case errors.Is(err, service.ErrImagesDisabled):
 		return stamp(ctx, problem.New(problem.CodeServiceUnavailable, "", "", "image messages are not available."))
+	case errors.Is(err, service.ErrStickersDisabled):
+		return stamp(ctx, problem.New(problem.CodeServiceUnavailable, "", "", "sticker messages are not available."))
 	case errors.Is(err, service.ErrImageQuota):
 		return stamp(ctx, problem.New(problem.CodeQuotaExceeded, "", "", "the chat image quota is exhausted."))
 	case errors.Is(err, service.ErrImageRejected):
