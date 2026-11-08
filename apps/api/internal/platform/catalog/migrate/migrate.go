@@ -124,6 +124,9 @@ func Run(db *gorm.DB) error {
 		// unique index), catalog_user_folder_follow gains seen_at, and
 		// catalog_user_folder_tag is new and empty. Unlisted visibility (2) is a
 		// new value of the existing column; no row holds it yet.
+		// catalog_user_folder.copied_from_folder_id is new and nullable; copies
+		// made before it stay null, since their source was only ever named in
+		// the description text.
 		&model.CatalogUserFolderFollow{},
 		&model.CatalogUserFolderTag{},
 		&model.CatalogUserEntityFollow{}, // per-user follows of catalog entities; companies only, see the CHECK

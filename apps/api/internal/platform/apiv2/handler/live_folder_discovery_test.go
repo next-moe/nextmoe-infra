@@ -18,6 +18,7 @@ type liveFolderView struct {
 	ItemCount   int      `json:"item_count"`
 	Tags        []string `json:"tags"`
 	CoverWorkID *string  `json:"cover_work_id"`
+	CopiedFrom  *string  `json:"copied_from_folder_id"`
 }
 
 func TestLiveFolderTagsCoverAndUnlisted(t *testing.T) {
@@ -39,6 +40,7 @@ func TestLiveFolderTagsCoverAndUnlisted(t *testing.T) {
 	require.Equal(t, "unlisted", f.Visibility)
 	require.Equal(t, []string{"催泪", "入坑向"}, f.Tags)
 	require.Nil(t, f.CoverWorkID)
+	require.Nil(t, f.CopiedFrom)
 	for _, w := range []int64{a, b, c} {
 		status, _, raw = liveDo(t, env, http.MethodPut, "/v2/me/folders/"+f.ID+"/items/"+idstr(w), liveUserToken, "")
 		require.Equal(t, 200, status, string(raw))
@@ -120,6 +122,7 @@ func TestLiveFolderCopyProgressAndUpdates(t *testing.T) {
 	require.Equal(t, "源自「Copy Source」", cp.Description)
 	require.Equal(t, "private", cp.Visibility)
 	require.Equal(t, 3, cp.ItemCount)
+	require.Equal(t, idstr(src), *cp.CopiedFrom)
 
 	status, _, raw = liveDo(t, env, http.MethodGet, "/v2/me/folders/progress?folder_ids="+idstr(src)+","+cp.ID+",99887766", liveUserToken, "")
 	require.Equal(t, 200, status, string(raw))

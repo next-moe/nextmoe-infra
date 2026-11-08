@@ -44,7 +44,7 @@ func (s *UserFolderService) Copy(ctx context.Context, uid, sourceID int64, name 
 		}
 		row = model.CatalogUserFolder{
 			OwnerUID: uid, Name: name, Description: copiedDescription(src),
-			Visibility: model.FolderVisibilityPrivate,
+			Visibility: model.FolderVisibilityPrivate, CopiedFromID: &src.ID,
 		}
 		if err := tx.Create(&row).Error; err != nil {
 			return err

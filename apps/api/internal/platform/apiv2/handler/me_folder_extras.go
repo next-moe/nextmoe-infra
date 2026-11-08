@@ -47,7 +47,7 @@ func registerMeFolderExtras(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "copyFolder", Method: http.MethodPost, Path: "/v2/me/folders/copies",
 		Summary:     "Copy a folder into my folders",
-		Description: "Creates a private folder of the bearer's own holding every live work of the source in the source's order, with the source owner's notes, tags and cover pick. The description starts with 源自「<source name>」 followed by the source's own description, so the copier decides whether to keep the credit by editing it. 201 with the new folder. 404 when the source is private and not the bearer's; 422 at the folder cap (" + strconv.Itoa(model.FoldersPerUserMax) + "). A name sent here first passes the platform's word-list check. Requires a user access token with folder:write.",
+		Description: "Creates a private folder of the bearer's own holding every live work of the source in the source's order, with the source owner's notes, tags and cover pick. The description starts with 源自「<source name>」 followed by the source's own description, so the copier decides whether to keep the credit by editing it; copied_from_folder_id carries the source's id whatever the description becomes. Copying the same source again makes another copy. 201 with the new folder. 404 when the source is private and not the bearer's; 422 at the folder cap (" + strconv.Itoa(model.FoldersPerUserMax) + "). A name sent here first passes the platform's word-list check. Requires a user access token with folder:write.",
 		Tags:        me, Errors: writeErrs, DefaultStatus: http.StatusCreated, SkipValidateParams: true,
 	}, copyFolder(cat))
 	huma.Register(api, huma.Operation{

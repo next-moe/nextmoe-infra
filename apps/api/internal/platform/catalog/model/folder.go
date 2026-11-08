@@ -41,6 +41,7 @@ type CatalogUserFolder struct {
 	IsDefault     bool      `gorm:"not null;default:false" json:"is_default"`
 	ItemCount     int       `gorm:"not null;default:0" json:"item_count"`
 	FollowerCount int       `gorm:"not null;default:0" json:"follower_count"`
+	CopiedFromID  *int64    `gorm:"column:copied_from_folder_id" json:"copied_from_folder_id"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }

@@ -122965,6 +122965,13 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "copied_from_folder_id",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
+                              "type": "string"
+                            },
+                            {
                               "name": "cover_work_id",
                               "required": true,
                               "nullable": true,
@@ -127868,6 +127875,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "copied_from_folder_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
                         "type": "string"
                       },
                       {
@@ -194941,6 +194955,13 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "copied_from_folder_id",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
+                              "type": "string"
+                            },
+                            {
                               "name": "cover_work_id",
                               "required": true,
                               "nullable": true,
@@ -196690,6 +196711,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "copied_from_folder_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
                         "type": "string"
                       },
                       {
@@ -198516,7 +198544,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/folders/copies",
               "summary": "Copy a folder into my folders",
-              "description": "Creates a private folder of the bearer's own holding every live work of the source in the source's order, with the source owner's notes, tags and cover pick. The description starts with 源自「<source name>」 followed by the source's own description, so the copier decides whether to keep the credit by editing it. 201 with the new folder. 404 when the source is private and not the bearer's; 422 at the folder cap (200). A name sent here first passes the platform's word-list check. Requires a user access token with folder:write.",
+              "description": "Creates a private folder of the bearer's own holding every live work of the source in the source's order, with the source owner's notes, tags and cover pick. The description starts with 源自「<source name>」 followed by the source's own description, so the copier decides whether to keep the credit by editing it; copied_from_folder_id carries the source's id whatever the description becomes. Copying the same source again makes another copy. 201 with the new folder. 404 when the source is private and not the bearer's; 422 at the folder cap (200). A name sent here first passes the platform's word-list check. Requires a user access token with folder:write.",
               "scope": "folder:write",
               "auth": {
                 "kind": "user_token",
@@ -198565,6 +198593,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "copied_from_folder_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
                         "type": "string"
                       },
                       {
@@ -203605,6 +203640,13 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "copied_from_folder_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
+                        "type": "string"
+                      },
+                      {
                         "name": "cover_work_id",
                         "required": true,
                         "nullable": true,
@@ -205318,6 +205360,13 @@ export const docsModel: DocsModel = {
                           "sensitive",
                           "r18"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "copied_from_folder_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
                         "type": "string"
                       },
                       {
@@ -225355,6 +225404,13 @@ export const docsModel: DocsModel = {
                                   "type": "string"
                                 },
                                 {
+                                  "name": "copied_from_folder_id",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
+                                  "type": "string"
+                                },
+                                {
                                   "name": "cover_work_id",
                                   "required": true,
                                   "nullable": true,
@@ -228488,6 +228544,13 @@ export const docsModel: DocsModel = {
                             "type": "string"
                           },
                           {
+                            "name": "copied_from_folder_id",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
+                            "type": "string"
+                          },
+                          {
                             "name": "cover_work_id",
                             "required": true,
                             "nullable": true,
@@ -230201,6 +230264,13 @@ export const docsModel: DocsModel = {
                               "sensitive",
                               "r18"
                             ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "copied_from_folder_id",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
                             "type": "string"
                           },
                           {
@@ -233481,6 +233551,13 @@ export const docsModel: DocsModel = {
                               "sensitive",
                               "r18"
                             ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "copied_from_folder_id",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
                             "type": "string"
                           },
                           {
@@ -341137,6 +341214,13 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "copied_from_folder_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
+                        "type": "string"
+                      },
+                      {
                         "name": "cover_work_id",
                         "required": true,
                         "nullable": true,
@@ -376233,6 +376317,13 @@ export const docsModel: DocsModel = {
                                 "sensitive",
                                 "r18"
                               ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "copied_from_folder_id",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The folder this one was copied from through POST /v2/me/folders/copies; null for a folder made any other way. Set once and never changed, and kept after the source is deleted or made private, so reading it may answer 404: show the link only when GET /v2/folders/{id} answers it. The bearer's own copies of a folder are the folders on /v2/me/folders carrying its id here.",
                               "type": "string"
                             },
                             {

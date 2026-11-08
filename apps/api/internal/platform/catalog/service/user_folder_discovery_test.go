@@ -185,6 +185,7 @@ func TestFolderCopy(t *testing.T) {
 	require.Equal(t, "源自「十佳」\n\n我的十佳", cp.Description)
 	require.Equal(t, model.FolderVisibilityPrivate, cp.Visibility)
 	require.False(t, cp.IsDefault)
+	require.Equal(t, src.ID, *cp.CopiedFromID)
 	require.Equal(t, 3, cp.ItemCount, "the deleted work is not copied")
 	require.Equal(t, []int64{w[3], w[0], w[1]}, folderOrder(t, svc, 2, cp.ID), "the source's order is kept")
 	item, err := svc.Item(ctx, 2, cp.ID, w[3])

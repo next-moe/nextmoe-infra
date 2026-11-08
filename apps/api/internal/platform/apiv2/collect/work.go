@@ -316,7 +316,7 @@ func RatingChangeSpec() Spec {
 }
 
 var folderFields = []string{"object", "id", "owner_uid", "name", "description", "visibility", "is_default", "item_count",
-	"follower_count", "content_rating", "tags", "cover_work_id", "recent_work_ids", "created_at", "updated_at"}
+	"follower_count", "content_rating", "tags", "cover_work_id", "copied_from_folder_id", "recent_work_ids", "created_at", "updated_at"}
 
 func FolderSpec() Spec {
 	return Spec{

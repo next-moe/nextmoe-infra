@@ -27,12 +27,17 @@ func folderView(row model.CatalogUserFolder, extra catsvc.FolderExtra) repr.User
 		id := repr.ID(extra.CoverWorkID)
 		cover = &id
 	}
+	var copiedFrom *string
+	if row.CopiedFromID != nil {
+		id := repr.ID(*row.CopiedFromID)
+		copiedFrom = &id
+	}
 	return repr.UserFolder{
 		Object: "folder", ID: repr.ID(row.ID), OwnerUID: repr.ID(row.OwnerUID),
 		Name: row.Name, Description: row.Description,
 		Visibility: folderVisibilityToken(row.Visibility), IsDefault: row.IsDefault,
 		ItemCount: row.ItemCount, FollowerCount: row.FollowerCount, ContentRating: token,
-		Tags: tags, CoverWorkID: cover, RecentWorkIDs: recentIDs,
+		Tags: tags, CoverWorkID: cover, CopiedFromFolderID: copiedFrom, RecentWorkIDs: recentIDs,
 		CreatedAt: row.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339),
 	}
