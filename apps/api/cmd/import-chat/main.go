@@ -18,6 +18,7 @@ import (
 
 	"api/internal/infrastructure/database"
 	"api/internal/platform/chat/service"
+	"api/internal/platform/chat/source"
 	"api/pkg/config"
 	"api/pkg/imageclient"
 	"api/pkg/logger"
@@ -35,6 +36,7 @@ func main() {
 		mainDSN   = flag.String("main-dsn", "", "explicit kun_galgame_infra DSN (tests)")
 		kungalDSN = flag.String("kungal-dsn", "", "explicit kungal DSN (tests)")
 		moyuDSN   = flag.String("moyu-dsn", "", "explicit moyu DSN (tests)")
+		stickers  = flag.Bool("stickers", false, "instead of importing, turn imported lone stickers stored as photos into sticker messages")
 	)
 	flag.Parse()
 	want := strings.Split(*sources, ",")
@@ -69,6 +71,22 @@ func main() {
 	mainDB := open(*mainDSN, dbCfg, dbCfg.DBName)
 
 	ctx := context.Background()
+	if *stickers {
+		key := cfg.ChatService.StickerAPIKey
+		if key == "" {
+			fatal("stickers", errors.New("KUN_CHAT_STICKER_API_KEY must be set to read the official packs"))
+		}
+		official, err := source.NewOfficialStickers(cfg.ChatService.StickerAPIURL, key).Hashes(ctx)
+		if err != nil {
+			fatal("stickers", err)
+		}
+		n, err := reclassifyStickers(ctx, chat, official, *apply)
+		if err != nil {
+			fatal("stickers", err)
+		}
+		slog.Info("import-chat stickers done", "reclassified", n, "applied", *apply)
+		return
+	}
 	d := deps{Chat: chat, Main: mainDB, Apply: *apply}
 	if slices.Contains(want, "kungal") {
 		d.Kungal = open(*kungalDSN, dbCfg, *kungalDB)

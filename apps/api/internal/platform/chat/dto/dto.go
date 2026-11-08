@@ -57,13 +57,13 @@ func EntitiesIn(es []Entity) []content.Entity {
 }
 
 type Media struct {
-	Type      string `json:"type" enum:"photo" doc:"photo for now; sticker and file follow"`
+	Type      string `json:"type" enum:"photo,sticker" doc:"sticker: an image from an official sticker pack, shown without a bubble; a sticker message has no text, entities, album or context card and cannot be edited"`
 	ImageHash string `json:"image_hash" doc:"the image service hash"`
-	Width     int    `json:"width"`
+	Width     int    `json:"width" doc:"of the original image; a sticker's url is a smaller variant with the same aspect ratio"`
 	Height    int    `json:"height"`
 	Thumbhash string `json:"thumbhash,omitempty"`
 	// Stored message rows hold Media too; url is derived when a message is read and is never stored.
-	URL string `json:"url,omitempty" required:"true" doc:"where the image is served; never build it from image_hash"`
+	URL string `json:"url,omitempty" required:"true" doc:"where the image is served (a sticker's is its 320px variant); never build it from image_hash"`
 }
 
 type ReplyPreview struct {
@@ -71,7 +71,7 @@ type ReplyPreview struct {
 	SenderID  string   `json:"sender_id"`
 	Text      string   `json:"text" doc:"cut to 120 UTF-16 code units"`
 	Entities  []Entity `json:"entities" doc:"only the entities that fall entirely inside text"`
-	MediaType *string  `json:"media_type"`
+	MediaType *string  `json:"media_type" enum:"photo,sticker"`
 	Deleted   bool     `json:"deleted" doc:"the replied message is gone for the caller: deleted for everyone, or hidden or cleared by the caller; text is empty"`
 }
 

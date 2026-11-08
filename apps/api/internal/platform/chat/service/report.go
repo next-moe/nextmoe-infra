@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"api/internal/platform/chat/content"
+	"api/internal/platform/chat/dto"
 	"api/internal/platform/chat/model"
 	"api/pkg/trustclient"
 
@@ -30,6 +31,7 @@ type snapshotMessage struct {
 	Text      string           `json:"text"`
 	Entities  []content.Entity `json:"entities,omitempty"`
 	MediaHash string           `json:"media_hash,omitempty"`
+	MediaType string           `json:"media_type,omitempty"`
 	CreatedAt time.Time        `json:"created_at"`
 	Reported  bool             `json:"reported,omitempty"`
 }
@@ -77,10 +79,8 @@ func (s *Service) Report(ctx context.Context, a Actor, messageID int64, reason s
 	for i := len(context_) - 1; i >= 0; i-- {
 		m := context_[i]
 		sm := snapshotMessage{Seq: m.Seq, SenderID: m.SenderID, Text: m.Text, Entities: decodeEntities(m.Entities), CreatedAt: m.CreatedAt, Reported: m.ID == target.ID}
-		if media := decodeJSON[struct {
-			ImageHash string `json:"image_hash"`
-		}](m.Media); media != nil {
-			sm.MediaHash = media.ImageHash
+		if media := decodeJSON[dto.Media](m.Media); media != nil {
+			sm.MediaHash, sm.MediaType = media.ImageHash, media.Type
 		}
 		snap = append(snap, sm)
 	}
@@ -176,7 +176,11 @@ func reportNote(r model.ChatReport) string {
 			}
 			text := m.Text
 			if m.MediaHash != "" {
-				text = "[image " + m.MediaHash + "] " + text
+				label := "image"
+				if m.MediaType == MediaSticker {
+					label = MediaSticker
+				}
+				text = "[" + label + " " + m.MediaHash + "] " + text
 			}
 			fmt.Fprintf(&b, "%s #%d u%d %s: %s\n", mark, m.Seq, m.SenderID, m.CreatedAt.UTC().Format(time.RFC3339), text)
 		}
