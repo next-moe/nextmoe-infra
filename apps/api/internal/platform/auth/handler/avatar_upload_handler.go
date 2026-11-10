@@ -1,6 +1,7 @@
 package handler
 
 import (
+	stderrors "errors"
 	"log/slog"
 
 	"api/internal/platform/auth/model"
@@ -54,8 +55,7 @@ func (h *AvatarUploadHandler) UploadClientLogo(c fiber.Ctx) error {
 
 	result, err := h.imgClient.Upload(c.Context(), src, fh.Filename, "avatar")
 	if err != nil {
-		slog.Error("upload client logo failed", "err", err)
-		return response.InternalError(c, errors.ErrOperationFailed)
+		return uploadFailure(c, err, "upload client logo failed")
 	}
 	return response.Success(c, result)
 }
@@ -85,8 +85,7 @@ func (h *AvatarUploadHandler) uploadFor(c fiber.Ctx, uuid string) error {
 
 	result, err := h.imgClient.Upload(c.Context(), src, fh.Filename, "avatar")
 	if err != nil {
-		slog.Error("upload avatar failed", "uuid", uuid, "err", err)
-		return response.InternalError(c, errors.ErrOperationFailed)
+		return uploadFailure(c, err, "upload avatar failed", "uuid", uuid)
 	}
 
 	if err := h.db.WithContext(c.Context()).
@@ -98,4 +97,34 @@ func (h *AvatarUploadHandler) uploadFor(c fiber.Ctx, uuid string) error {
 	}
 
 	return response.Success(c, result)
+}
+
+func uploadFailure(c fiber.Ctx, err error, msg string, attrs ...any) error {
+	status, code := uploadErrorStatus(err)
+	if status >= fiber.StatusInternalServerError {
+		slog.Error(msg, append(attrs, "err", err)...)
+	} else {
+		slog.Warn(msg, append(attrs, "err", err)...)
+	}
+	message := errors.GetMessage(code)
+	if code == errors.ErrImageMIMEDenied {
+		message = "不支持该图片格式，请使用 JPG、PNG 或 WebP"
+	}
+	return response.Error(c, status, code, message)
+}
+
+func uploadErrorStatus(err error) (int, int) {
+	switch {
+	case stderrors.Is(err, imageclient.ErrMIMEDenied):
+		return fiber.StatusBadRequest, errors.ErrImageMIMEDenied
+	case stderrors.Is(err, imageclient.ErrDecodeFailed):
+		return fiber.StatusBadRequest, errors.ErrImageDecodeFailed
+	case stderrors.Is(err, imageclient.ErrModerationRejected):
+		return fiber.StatusBadRequest, errors.ErrModerationRejected
+	case stderrors.Is(err, imageclient.ErrFileTooLarge):
+		return fiber.StatusRequestEntityTooLarge, errors.ErrImageFileTooLarge
+	case stderrors.Is(err, imageclient.ErrQuotaExceeded):
+		return fiber.StatusTooManyRequests, errors.ErrImageQuotaExceeded
+	}
+	return fiber.StatusInternalServerError, errors.ErrOperationFailed
 }
