@@ -19,6 +19,9 @@ NC='\033[0m'
 # needs B2/S3 (often unconfigured in local dev) and must never stop the rest.
 pids=()
 core_pids=()
+tail_pids=()
+LOG_DIR=./logs
+mkdir -p "$LOG_DIR"
 
 cleanup() {
     # Clear traps first to avoid re-entry if kill propagates a signal.
@@ -26,19 +29,15 @@ cleanup() {
     for pid in "${pids[@]}"; do
         kill "$pid" 2>/dev/null
     done
-    wait 2>/dev/null
+    wait "${pids[@]}" 2>/dev/null
+    kill "${tail_pids[@]}" 2>/dev/null
 }
 # Only INT/TERM — not EXIT. An EXIT trap combined with killing children
 # would race with air's process-group handling and could kill air itself.
 trap cleanup SIGINT SIGTERM
 
 label() {
-    local color=$1 name=$2
-    while IFS= read -r line; do
-        # Use %b for colors, %s for all dynamic content — prevents printf
-        # from interpreting stray % in log lines (e.g. "100%", "%s").
-        printf '%b%s %b|%b %s\n' "$color" "$name" "$GRAY" "$NC" "$line"
-    done
+    awk -v p="$1$2 $GRAY|$NC " '{ print p $0; fflush() }'
 }
 
 start() {
@@ -48,9 +47,15 @@ start() {
             "$color" "$name" "$GRAY" "$NC" "$bin" >&2
         return 1
     fi
-    # Process substitution (not pipe) so $! captures the binary's PID,
-    # not the label subshell's. This lets us kill and wait on the right thing.
-    "$bin" > >(label "$color" "$name") 2>&1 &
+    # Binaries write to a file, never to the terminal pipe: 2026-11-14 the
+    # display chain (label -> pnpm --stream) fell behind, the pipe filled, and
+    # every logging goroutine in catalog blocked — /healthz took 11.9s. A
+    # lagging tail now only delays what is shown.
+    local log="$LOG_DIR/${name// /}.log"
+    : >"$log"
+    tail -n +1 -F "$log" 2>/dev/null > >(label "$color" "$name") &
+    tail_pids+=("$!")
+    "$bin" >>"$log" 2>&1 &
     local pid=$!
     pids+=("$pid")
     [[ $core == core ]] && core_pids+=("$pid")
@@ -65,6 +70,7 @@ printf '%bchat%b       :9285\n'    "$BRIGHT_BLUE" "$NC"
 printf '%bartifact%b   :9279\n'    "$YELLOW"  "$NC"
 printf '%btrust%b      :9283\n'    "$MAGENTA" "$NC"
 printf '%bimage%b      :9278\n'    "$CYAN"    "$NC"
+printf '%blogs → apps/api/logs/<service>.log%b\n' "$GRAY" "$NC"
 printf '\n'
 
 start "$BLUE"    "oauth     " ./tmp/oauth      core || { cleanup; exit 1; }
