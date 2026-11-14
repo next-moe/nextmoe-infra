@@ -16,10 +16,12 @@ import (
 func main() {
 	apply := flag.Bool("apply", false, "upload and write (default: report only)")
 	dsn := flag.String("dsn", "", "catalog DSN — REQUIRED")
-	dir := flag.String("dir", "", "directory of <work_id>__<origin_hash>.<ext> products — REQUIRED")
+	dir := flag.String("dir", "", "directory of <work_id>__<origin_hash>.<ext> products (REQUIRED unless -drop)")
 	limit := flag.Int("limit", 0, "max works to import (0 = all)")
 	imageBaseURL := flag.String("image-base-url", "", "image_service base override (e.g. http://127.0.0.1:9278)")
 	uploadGap := flag.Duration("upload-gap", 0, "min delay between uploads (0 = none)")
+	replace := flag.Bool("replace", false, "replace a work's existing ai_redraw cover instead of skipping it")
+	drop := flag.String("drop", "", "file of work ids whose ai_redraw covers are deleted without a replacement")
 	flag.Parse()
 
 	_ = godotenv.Load("apps/api/.env")
@@ -33,7 +35,7 @@ func main() {
 
 	stats, err := aicovers.Run(context.Background(), cfg, aicovers.Opts{
 		DSN: *dsn, Dir: *dir, Apply: *apply, Limit: *limit,
-		ImageBaseURL: *imageBaseURL, UploadGap: *uploadGap,
+		ImageBaseURL: *imageBaseURL, UploadGap: *uploadGap, Replace: *replace, DropFile: *drop,
 	})
 	if stats != nil {
 		slog.Info("import-ai-covers summary", "apply", *apply, "result", stats.String())
