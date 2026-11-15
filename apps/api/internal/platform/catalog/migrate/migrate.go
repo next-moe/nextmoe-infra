@@ -141,6 +141,11 @@ func Run(db *gorm.DB) error {
 		// followed-companies list was promised private to its owner, so every
 		// existing account stays private until it opts in on /v2/me/privacy.
 		&model.CatalogUserWorkView{},
+		// 2026-11-15: the feed items catalog pushes to community as tenant
+		// catalog (play states, playtime days, public folders and their works,
+		// company follows). New and empty: writes fill it from this release on,
+		// and current play states enter only through backfill-activity-states.
+		&model.CatalogActivityItem{},
 		&model.CatalogSeries{},             // work series entity (step 94, dlsite lane first)
 		&model.CatalogSeriesMember{},       // series membership (step 94)
 		&model.CatalogSeriesIntro{},        // multilingual series intros (refs/plans/10 W0 ruling 3)
@@ -727,6 +732,11 @@ func rawSQL(db *gorm.DB) error {
 			    ON catalog_work_tag(name, source_id, work_id)`},
 		// Keyset lanes for the public works list (sort=updated) and the
 		// changes feed ((updated_at, id) ascending resume cursor).
+		// The pusher's queue: rows whose revision is ahead of what community
+		// last acknowledged, oldest first.
+		{"idx_catalog_activity_item_pending", `
+			CREATE INDEX IF NOT EXISTS idx_catalog_activity_item_pending
+			    ON catalog_activity_item(revision) WHERE pushed_revision < revision`},
 		{"idx_catalog_work_updated_id", `
 			CREATE INDEX IF NOT EXISTS idx_catalog_work_updated_id
 			    ON catalog_work(updated_at, id)`},

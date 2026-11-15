@@ -628,6 +628,8 @@ An item's fields: title — the thread's title, else the presentation's; url —
 
 **Follows in the feed** (since 1.3.0). A follow made through `PUT /users/{id}/following/{target_id}` is an item of its follower: key `community:follow:<follower>:<followee>`, under the site the follow was made on, verb `follow`, `object_kind` `user`, `object_label` `用户`, `object_ref` `user:<followee>`, sfw, `occurred_at` the moment of the follow, no `url` and no `title` — community knows no user names, so the reading site names and links the followee. It never notifies; the followee still gets kind 8. Unfollowing, either side blocking the other, and purging either account tombstone it; following again restores it, under the site of the new follow. Only follows made from 1.3.0 on have items: earlier and imported follows were never projected, so nobody's feed fills with years of follows at once.
 
+**Catalog's items.** The catalog writes its users' play states, playtime days, public folders and their works, and company follows under its own tenant, `site=catalog`. Every one carries `object_ref` and no `url`, since a work has a page on every site; the keys, verbs and privacy rules are in the catalog contract (§4.8.2). Filter them with `sites=` like any other site's.
+
 **Kind 9 gives way to kind 10.** A topic whose projected activity will notify — its site's topic rule notifies and shapes it, it was written after the switch, and it is under 24 hours old when its event is dispatched — no longer raises kind 9; the activity notifies followers as kind 10 (new key, author not hidden). Any other topic raises kind 9 as before, so a topic approved from the review queue a day late is still announced.
 
 ### Notifications

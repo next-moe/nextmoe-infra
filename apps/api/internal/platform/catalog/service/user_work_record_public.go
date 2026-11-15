@@ -6,6 +6,7 @@ import (
 
 	"api/internal/platform/catalog/model"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -99,11 +100,24 @@ func (s *UserWorkRecordService) SetPrivacy(ctx context.Context, uid int64, c Pri
 	if len(changed) == 0 {
 		return s.Privacy(ctx, uid)
 	}
-	err := s.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "actor_uid"}},
-		DoUpdates: clause.Assignments(set),
-		Where:     clause.Where{Exprs: []clause.Expression{clause.Or(changed...)}},
-	}).Create(&row).Error
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "actor_uid"}},
+			DoUpdates: clause.Assignments(set),
+			Where:     clause.Where{Exprs: []clause.Expression{clause.Or(changed...)}},
+		}).Create(&row).Error; err != nil {
+			return err
+		}
+		if c.PlayRecordsPrivate != nil && *c.PlayRecordsPrivate {
+			if err := retractPlayRecordFeedTx(tx, uid); err != nil {
+				return err
+			}
+		}
+		if c.FollowedCompaniesPublic != nil && !*c.FollowedCompaniesPublic {
+			return retractCompanyFollowsFeedTx(tx, uid)
+		}
+		return nil
+	})
 	if err != nil {
 		return AccountPrivacy{}, err
 	}

@@ -69,15 +69,21 @@ func (s *UserEntityFollowService) FollowCompany(ctx context.Context, uid, compan
 			ActorUID: uid, EntityType: model.EntityTypeLabel, EntityID: companyID,
 			ClientID: clientID, Site: site,
 		}
-		if err := tx.Clauses(clause.OnConflict{
+		res := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{Name: "actor_uid"},
 				{Name: "entity_type"},
 				{Name: "entity_id"},
 			},
 			DoNothing: true,
-		}).Create(&row).Error; err != nil {
-			return err
+		}).Create(&row)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected > 0 {
+			if err := feedCompanyFollowTx(tx, uid, companyID); err != nil {
+				return err
+			}
 		}
 		var stored model.CatalogUserEntityFollow
 		if err := tx.Where("actor_uid = ? AND entity_type = ? AND entity_id = ?",
@@ -97,9 +103,14 @@ func (s *UserEntityFollowService) UnfollowCompany(ctx context.Context, uid, comp
 	if uid <= 0 {
 		return ErrFollowActorRequired
 	}
-	return s.db.WithContext(ctx).
-		Where("actor_uid = ? AND entity_type = ? AND entity_id = ?", uid, model.EntityTypeLabel, companyID).
-		Delete(&model.CatalogUserEntityFollow{}).Error
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Where("actor_uid = ? AND entity_type = ? AND entity_id = ?", uid, model.EntityTypeLabel, companyID).
+			Delete(&model.CatalogUserEntityFollow{})
+		if res.Error != nil || res.RowsAffected == 0 {
+			return res.Error
+		}
+		return retractCompanyFollowFeedTx(tx, uid, companyID)
+	})
 }
 
 func (s *UserEntityFollowService) ListMineFor(ctx context.Context, uid int64, companyIDs []int64) ([]EntityFollowRecord, error) {

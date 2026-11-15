@@ -106,6 +106,11 @@ func setWorkStateTx(tx *gorm.DB, uid, workID int64, state int16, completion *int
 	if err != nil {
 		return row, err
 	}
+	if len(before) == 0 || before[0].State != state {
+		if err := feedWorkStateTx(tx, uid, workID, state); err != nil {
+			return row, err
+		}
+	}
 	if len(before) == 0 || before[0].State != state || !sameCompletion(before[0].Completion, completion) {
 		err = touchRating(tx, uid, workID)
 	}
@@ -120,6 +125,9 @@ func deleteWorkStateTx(tx *gorm.DB, uid, workID int64) error {
 	res := tx.Where("actor_uid = ? AND work_id = ?", uid, workID).Delete(&model.CatalogUserWorkState{})
 	if res.Error != nil || res.RowsAffected == 0 {
 		return res.Error
+	}
+	if err := retractWorkStateFeedTx(tx, uid, workID); err != nil {
+		return err
 	}
 	return touchRating(tx, uid, workID)
 }

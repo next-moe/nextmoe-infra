@@ -176,6 +176,9 @@ func purgeOwnerFoldersTx(tx *gorm.DB, uid int64) (folders, items int64, err erro
 		return 0, 0, res.Error
 	}
 	items += res.RowsAffected
+	if err := retractFeedItemsTx(tx, "folder_id IN ?", ids); err != nil {
+		return 0, 0, err
+	}
 	if err := tx.Where("folder_id IN ?", ids).Delete(&model.CatalogUserFolderImport{}).Error; err != nil {
 		return 0, 0, err
 	}

@@ -63,11 +63,15 @@ func (s *UserPlaytimeService) Report(ctx context.Context, r PlaytimeReport) (*Pl
 }
 
 func reportPlaytimeTx(tx *gorm.DB, r PlaytimeReport) (model.CatalogUserPlaytime, error) {
+	before, err := playtimeTotalTx(tx, r.ActorUID, r.WorkID)
+	if err != nil {
+		return model.CatalogUserPlaytime{}, err
+	}
 	row := model.CatalogUserPlaytime{
 		ActorUID: r.ActorUID, WorkID: r.WorkID, ClientID: r.ClientID,
 		Minutes: r.Minutes, LastPlayedAt: r.LastPlayedAt,
 	}
-	err := tx.Clauses(clause.OnConflict{
+	err = tx.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "actor_uid"}, {Name: "work_id"}, {Name: "client_id"}},
 		DoUpdates: clause.Assignments(map[string]any{
 			"minutes":        r.Minutes,
@@ -75,7 +79,28 @@ func reportPlaytimeTx(tx *gorm.DB, r PlaytimeReport) (model.CatalogUserPlaytime,
 			"updated_at":     time.Now(),
 		}),
 	}).Create(&row).Error
-	return row, err
+	if err != nil {
+		return row, err
+	}
+	after, err := playtimeTotalTx(tx, r.ActorUID, r.WorkID)
+	if err != nil {
+		return row, err
+	}
+	return row, feedPlaytimeTx(tx, r.ActorUID, r.WorkID, before, after)
+}
+
+// The day items go only when no client's report is left: a client deleting
+// its own report does not undo what another reported.
+func deletePlaytimeTx(tx *gorm.DB, uid, workID int64, clientID string) error {
+	if err := tx.Where("actor_uid = ? AND work_id = ? AND client_id = ?", uid, workID, clientID).
+		Delete(&model.CatalogUserPlaytime{}).Error; err != nil {
+		return err
+	}
+	total, err := playtimeTotalTx(tx, uid, workID)
+	if err != nil || total > 0 {
+		return err
+	}
+	return retractPlaytimeFeedTx(tx, uid, workID)
 }
 
 func (s *UserPlaytimeService) ListMine(ctx context.Context, uid int64, since time.Time, sinceWorkID int64, limit int) ([]PlaytimeRecord, error) {
@@ -134,9 +159,9 @@ func (s *UserPlaytimeService) DeleteMine(ctx context.Context, uid, workID int64,
 	if workID <= 0 {
 		return ErrPlaytimeWorkUnavailable
 	}
-	return s.db.WithContext(ctx).
-		Where("actor_uid = ? AND work_id = ? AND client_id = ?", uid, workID, clientID).
-		Delete(&model.CatalogUserPlaytime{}).Error
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return deletePlaytimeTx(tx, uid, workID, clientID)
+	})
 }
 
 func (s *UserPlaytimeService) GetMine(ctx context.Context, uid, workID int64) (*UserWorkPlaytime, error) {
