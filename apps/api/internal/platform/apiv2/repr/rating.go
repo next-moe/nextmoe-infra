@@ -53,7 +53,7 @@ type WorkRecord struct {
 	_         struct{}       `json:"-" additionalProperties:"true"`
 	Object    string         `json:"object" enum:"work_record" doc:"Type discriminant. Always work_record."`
 	WorkID    string         `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id."`
-	WorkState *UserWorkState `json:"work_state" doc:"The account's play state, as GET /v2/me/work-states answers it to its owner. null when none is set; never null on /v2/work-records, which lists only works that have one."`
+	WorkState *UserWorkState `json:"work_state" doc:"The account's play state, as GET /v2/me/work-states answers it to its owner. null when none is set; never null on /v2/work-records under the default record=state, which lists only works that have one."`
 	Playtime  *UserPlaytime  `json:"playtime" doc:"The account's playtime, as GET /v2/me/playtimes answers it to its owner: the most minutes any app reported. null when none is recorded."`
 	Rating    *UserRating    `json:"rating" doc:"The account's rating, as GET /v2/me/ratings answers it to its owner. null when none."`
 }

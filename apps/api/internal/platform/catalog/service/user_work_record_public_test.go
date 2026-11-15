@@ -14,9 +14,9 @@ func TestPrivacyDefaultsPublicAndStampsOnlyARealChange(t *testing.T) {
 
 	p, err := svc.Privacy(ctx, 41)
 	require.NoError(t, err)
-	require.Equal(t, PlayRecordsPrivacy{}, p, "no row means public, never changed")
+	require.Equal(t, AccountPrivacy{}, p, "no row means public, never changed")
 
-	set, err := svc.SetPrivacy(ctx, 41, true)
+	set, err := svc.SetPrivacy(ctx, 41, PrivacyChange{PlayRecordsPrivate: ptrBool(true)})
 	require.NoError(t, err)
 	require.True(t, set.Private)
 	require.NotNil(t, set.UpdatedAt)
@@ -25,11 +25,11 @@ func TestPrivacyDefaultsPublicAndStampsOnlyARealChange(t *testing.T) {
 	before, err := svc.Privacy(ctx, 41)
 	require.NoError(t, err)
 
-	again, err := svc.SetPrivacy(ctx, 41, true)
+	again, err := svc.SetPrivacy(ctx, 41, PrivacyChange{PlayRecordsPrivate: ptrBool(true)})
 	require.NoError(t, err)
 	require.Equal(t, before, again, "writing the value it already has changes nothing")
 
-	flipped, err := svc.SetPrivacy(ctx, 41, false)
+	flipped, err := svc.SetPrivacy(ctx, 41, PrivacyChange{PlayRecordsPrivate: ptrBool(false)})
 	require.NoError(t, err)
 	require.False(t, flipped.Private)
 	require.True(t, flipped.UpdatedAt.After(*before.UpdatedAt))
@@ -38,3 +38,5 @@ func TestPrivacyDefaultsPublicAndStampsOnlyARealChange(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, other.Private)
 }
+
+func ptrBool(v bool) *bool { return &v }

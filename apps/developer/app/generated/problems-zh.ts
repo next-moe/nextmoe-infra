@@ -140,6 +140,10 @@ export const problemsZh: Record<string, { title: string; description: string }> 
     "title": "游玩记录未公开",
     "description": "该账号把游玩状态与时长设为私密，只有账号本人用自己的用户令牌才能读到。它的评分仍在 /v2/ratings 公开。"
   },
+  "FOLLOWED_COMPANIES_PRIVATE": {
+    "title": "关注厂商未公开",
+    "description": "该账号的关注厂商未公开，这是缺省设置。只有账号本人用自己的用户令牌才能读到；本人可在 PATCH /v2/me/privacy 把它设为公开。厂商的 follower_count 仍然公开。"
+  },
   "USER_IDENTITY_REQUIRED": {
     "title": "需要用户身份",
     "description": "这个操作需要用户令牌，却用了应用密钥。"

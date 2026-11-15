@@ -25,6 +25,11 @@ type List[T any] struct {
 	Facets        *map[string][]FacetValue `json:"facets,omitempty" doc:"Named facet buckets. Present only when facets= is requested."`
 }
 
+type ListWorkRecord struct {
+	List[WorkRecord]
+	PlaytimeTotalMinutes *int64 `json:"playtime_total_minutes,omitempty" minimum:"0" doc:"Present when include_playtime_total=true: the sum of playtime.minutes over every work the filters list, not only this page. Same visibility gate as items."`
+}
+
 type ListWork struct {
 	List[Work]
 	SearchMode *string `json:"search_mode,omitempty" enum:"lexical,hybrid" doc:"Present only when search_mode= is requested: the mode that actually ranked items. hybrid degrades to lexical when the semantic side is unavailable."`

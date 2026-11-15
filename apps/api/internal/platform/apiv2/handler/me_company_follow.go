@@ -52,6 +52,26 @@ func (c *Catalog) ListCompanyFollows(ctx context.Context, q collect.Query, compa
 		}
 		return finishList(items, nil, int64(len(items)), collect.Query{Batch: true, IncludeTotal: q.IncludeTotal}, missing), nil
 	}
+	return c.listCompanyFollowsOf(ctx, uid, q)
+}
+
+func (c *Catalog) ListPublicCompanyFollows(ctx context.Context, uid int64, q collect.Query) (repr.List[repr.CompanyFollow], error) {
+	if c == nil || c.CompanyFollows == nil || c.WorkRecords == nil {
+		return repr.List[repr.CompanyFollow]{}, problem.New(problem.CodeServiceUnavailable, "", "", "company follows are not bound.")
+	}
+	if userIDFrom(ctx) != uid {
+		privacy, err := c.WorkRecords.Privacy(ctx, uid)
+		if err != nil {
+			return repr.List[repr.CompanyFollow]{}, err
+		}
+		if !privacy.FollowedCompaniesPublic {
+			return repr.List[repr.CompanyFollow]{}, problem.New(problem.CodeFollowedCompaniesPrivate, "", "", "this account keeps the companies it follows private.")
+		}
+	}
+	return c.listCompanyFollowsOf(ctx, uid, q)
+}
+
+func (c *Catalog) listCompanyFollowsOf(ctx context.Context, uid int64, q collect.Query) (repr.List[repr.CompanyFollow], error) {
 	var before int64
 	if q.Cursor != "" {
 		id, ok := repr.ParseID(q.Cursor)
