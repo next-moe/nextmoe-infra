@@ -1176,6 +1176,9 @@ func liveAuthPath(path string) string {
 	if path == "/v2/catalog/claim-events" {
 		return liveAppKeyEvent
 	}
+	if path == "/v2/followed-companies" {
+		return liveAdminBothToken
+	}
 	if path == folderHoldersPath {
 		return liveAppKeyHolder
 	}

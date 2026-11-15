@@ -222,6 +222,7 @@ var batchRefusingFaces = map[string]string{
 	"/v2/ratings":               "collect.RatingSpec is NoBatch; work_id= and user_id= address this face",
 	"/v2/ratings/changes":       "collect.RatingChangeSpec is NoBatch: mirror feed, cursor only",
 	"/v2/work-records":          "collect.WorkRecordSpec is NoBatch; user_id= addresses this face",
+	"/v2/followed-companies":    "collect.CompanyFollowSpec is NoBatch; user_id= addresses this face",
 	"/v2/me/work-records":       "collect.WorkRecordSpec is NoBatch; the bearer addresses this face",
 	"/v2/me/history":            "collect.BrowsingHistorySpec is NoBatch; the bearer addresses this face",
 	"/v2/me/calendar":           "feedNoBatch: the calendar is a window, not a set of ids",
