@@ -164,6 +164,8 @@ export default defineNuxtConfig({
     public: {
       nextmoeApiBase:
         process.env.NUXT_NEXTMOE_API_BASE || 'https://api.nextmoe.dev',
+      editorBase:
+        process.env.NUXT_PUBLIC_EDITOR_BASE || 'https://editor.nextmoe.com',
 
       oauthAuthorizeBase:
         process.env.NUXT_PUBLIC_OAUTH_AUTHORIZE_BASE ||

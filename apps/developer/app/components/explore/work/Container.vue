@@ -20,6 +20,7 @@ useSeoMeta({
 })
 
 const { read, failureMessage } = useCatalogRead()
+const editorBase = useRuntimeConfig().public.editorBase
 
 const load = async () => {
   loading.value = true
@@ -142,12 +143,25 @@ const tabs = computed(() => {
           {{ work?.display_name ?? `作品 #${workId}` }}
         </span>
       </nav>
-      <KunSwitch
-        :model-value="nsfw"
-        size="sm"
-        label="显示 R18 内容"
-        @update:model-value="setNsfw"
-      />
+      <div class="flex items-center gap-3">
+        <KunSwitch
+          :model-value="nsfw"
+          size="sm"
+          label="显示 R18 内容"
+          @update:model-value="setNsfw"
+        />
+        <KunButton
+          v-if="work"
+          :href="`${editorBase}/works/${work.id}/edit`"
+          target="_blank"
+          size="sm"
+          variant="flat"
+          color="primary"
+        >
+          <KunIcon name="lucide:pencil" class="size-4" />
+          在编辑台编辑
+        </KunButton>
+      </div>
     </div>
 
     <div v-if="loading" class="space-y-6">
