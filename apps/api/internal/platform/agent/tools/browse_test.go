@@ -164,3 +164,42 @@ func TestBrowseCharactersByTraits(t *testing.T) {
 		t.Fatalf("a step names its traits: %v", out.Meta)
 	}
 }
+
+func TestBrowseToolsTakeNumericIDs(t *testing.T) {
+	for _, tc := range []struct {
+		tool              func(*CatalogClient) Tool
+		args, param, want string
+	}{
+		{func(c *CatalogClient) Tool { return &BrowseWorks{Client: c} }, `{"tag_ids":[84],"exclude_tag_ids":[9,"10"],"sort":"classic"}`, "tag_id", "84"},
+		{func(c *CatalogClient) Tool { return &BrowseWorks{Client: c} }, `{"tag_ids":[84],"exclude_tag_ids":[9,"10"],"sort":"classic"}`, "exclude_tag_id", "9,10"},
+		{func(c *CatalogClient) Tool { return &BrowseCharacters{Client: c} }, `{"trait_ids":[534,"1"]}`, "trait_id", "534,1"},
+	} {
+		c, seen := fakeBrowseCatalog(t)
+		out, err := tc.tool(c).Run(context.Background(), json.RawMessage(tc.args))
+		if err != nil || strings.Contains(out.Text, "error") || len(out.Cards) != 1 {
+			t.Fatalf("%s: %v %s", tc.args, err, out.Text)
+		}
+		if got := (*seen)[0].Query().Get(tc.param); got != tc.want {
+			t.Fatalf("%s: %s = %q, want %q", tc.args, tc.param, got, tc.want)
+		}
+	}
+}
+
+func TestBrowseToolsTellWrongTypesFromMissingArgs(t *testing.T) {
+	c, _ := fakeBrowseCatalog(t)
+	works, chars := &BrowseWorks{Client: c}, &BrowseCharacters{Client: c}
+	for _, tc := range []struct {
+		tool       Tool
+		args, want string
+	}{
+		{works, `{"tag_ids":[{"id":84}],"sort":"classic"}`, "must be arrays"},
+		{works, `{"tag_ids":[],"sort":"classic"}`, "required"},
+		{chars, `{"trait_ids":"534"}`, "must be an array"},
+		{chars, `{}`, "required"},
+	} {
+		out, _ := tc.tool.Run(context.Background(), json.RawMessage(tc.args))
+		if !strings.Contains(out.Text, tc.want) {
+			t.Fatalf("%s %s: %s", tc.tool.Spec().Name, tc.args, out.Text)
+		}
+	}
+}

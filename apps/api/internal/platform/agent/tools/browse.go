@@ -239,7 +239,30 @@ func (c *CatalogClient) namesOf(ctx context.Context, path, ids string) []string 
 	return names
 }
 
-func idList(ids []string) string {
+type idArgs []string
+
+func (a *idArgs) UnmarshalJSON(b []byte) error {
+	var raw []json.RawMessage
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	ids := make(idArgs, 0, len(raw))
+	for _, r := range raw {
+		var id string
+		if err := json.Unmarshal(r, &id); err != nil {
+			var n json.Number
+			if err := json.Unmarshal(r, &n); err != nil {
+				return err
+			}
+			id = n.String()
+		}
+		ids = append(ids, id)
+	}
+	*a = ids
+	return nil
+}
+
+func idList(ids idArgs) string {
 	var out []string
 	for _, id := range ids {
 		if id = strings.TrimSpace(id); id != "" {
@@ -251,12 +274,15 @@ func idList(ids []string) string {
 
 func (t *BrowseWorks) Run(ctx context.Context, args json.RawMessage) (Output, error) {
 	var in struct {
-		TagIDs        []string `json:"tag_ids"`
-		Sort          string   `json:"sort"`
-		ExcludeTagIDs []string `json:"exclude_tag_ids"`
-		ReleasedAfter string   `json:"released_after"`
+		TagIDs        idArgs `json:"tag_ids"`
+		Sort          string `json:"sort"`
+		ExcludeTagIDs idArgs `json:"exclude_tag_ids"`
+		ReleasedAfter string `json:"released_after"`
 	}
-	if err := json.Unmarshal(args, &in); err != nil || idList(in.TagIDs) == "" || workSorts[in.Sort] == "" {
+	if err := json.Unmarshal(args, &in); err != nil {
+		return Output{Text: `{"error":"tag_ids and exclude_tag_ids must be arrays of tag ids, sort a string"}`}, nil
+	}
+	if idList(in.TagIDs) == "" || workSorts[in.Sort] == "" {
 		return Output{Text: `{"error":"tag_ids and sort (popular, classic or newest) are required"}`}, nil
 	}
 	q := url.Values{"tag_id": {idList(in.TagIDs)}, "sort": {workSorts[in.Sort]}, "limit": {"8"}, "include_total": {"true"},
@@ -308,12 +334,15 @@ func (t *BrowseCharacters) Spec() llm.Tool {
 
 func (t *BrowseCharacters) Run(ctx context.Context, args json.RawMessage) (Output, error) {
 	var in struct {
-		TraitIDs []string `json:"trait_ids"`
-		Match    string   `json:"match"`
-		Gender   string   `json:"gender"`
-		Sort     string   `json:"sort"`
+		TraitIDs idArgs `json:"trait_ids"`
+		Match    string `json:"match"`
+		Gender   string `json:"gender"`
+		Sort     string `json:"sort"`
 	}
-	if err := json.Unmarshal(args, &in); err != nil || idList(in.TraitIDs) == "" {
+	if err := json.Unmarshal(args, &in); err != nil {
+		return Output{Text: `{"error":"trait_ids must be an array of trait ids; match, gender and sort strings"}`}, nil
+	}
+	if idList(in.TraitIDs) == "" {
 		return Output{Text: `{"error":"trait_ids is required"}`}, nil
 	}
 	sort := "popularity"
