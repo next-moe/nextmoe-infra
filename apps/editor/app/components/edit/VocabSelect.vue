@@ -28,7 +28,13 @@ const props = withDefaults(
 
 const emit = defineEmits<{ 'update:modelValue': [value: unknown] }>()
 
-const { byName } = useVocabularies()
+const { byName, load } = useVocabularies()
+
+watch(
+  () => props.vocab.vocabulary,
+  (name) => load([name]),
+  { immediate: true }
+)
 
 const options = computed(() => {
   const vocab = byName.value[props.vocab.vocabulary]
