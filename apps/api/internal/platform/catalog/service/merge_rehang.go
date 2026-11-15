@@ -101,6 +101,7 @@ var mergeRefs = []mergeRef{
 }
 
 var mergeRefExclusions = map[string]string{
+	"catalog_activity_item.work_id":              "a feed item already pushed to community names the work the user acted on; a reader resolving its object_ref follows the merge redirect",
 	"catalog_claim_event.work_id":                "append-only claim history, addressed to the id that was claimed",
 	"catalog_revision.entity_id":                 "append-only history; the merge writes its own revision rows on both sides",
 	"edit_proposal.entity_id":                    "editing history, addressed to the id that was actually edited; ExecuteMerge declines the open ones",

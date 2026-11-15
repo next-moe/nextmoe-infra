@@ -549,6 +549,28 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **`GET /v2/followed-companies?user_id=`**(应用密钥或带 `catalog:read` 的用户令牌，与 `/v2/work-records` 同闸):形状、分页同 `/v2/me/followed-companies`。新开关 `followed_companies: public|private` 在 `/v2/me/privacy`,列 `catalog_user_privacy.followed_companies_public`(NOT NULL DEFAULT false)——**缺省 private,存量账号也是**:此前的契约写明关注列表只对本人可见，用户是在这个承诺下关注的，默认公开等于追溯公开。未公开时除本人的用户令牌外一律 `403 FOLLOWED_COMPANIES_PRIVATE`。`follower_count` 不受影响。
 - **迁移**:`go run ./cmd/migrate catalog`(`migrate-catalog` 任务)给 `catalog_user_privacy` 加一列，纯增量。
 
+### 4.8.2 游戏动态推送到 community(2026-11-15)
+
+用户在 catalog 里的游玩与收藏动作进 community 的关注动态流，读法与站点自己的动态相同。catalog 以独立租户 `site=catalog` 写入(一个 `community_site = 'catalog'` 的 OAuth 客户端)，每条都带 `object_ref`、不带 `url`:同一部作品在各站都有页面，由读的站点按 `object_ref` 拼本站链接、补名称;`title` 只是写入时的快照。全部 `notify=false`,`content_limit` 跟作品自己的分级(全年龄为 sfw，其余 nsfw)。
+
+| 动作 | key | verb / object_kind | object_ref | 说明 |
+|---|---|---|---|---|
+| 设定游玩状态 | `ws:<uid>:<work>:<state>` | `mark` / `work_wish·work_doing·work_done·work_on_hold·work_dropped` | `work:<id>` | 状态变了才写;doing→done 两条都留，再设回旧状态会把旧条目恢复到今天;只改 completion 不算。删除状态撤回这部作品的全部 ws |
+| 上报游玩时长 | `pt:<uid>:<work>:<北京日期 yyyymmdd>` | `play` / `work` | `work:<id>` | 每部作品每天一条，总时长(各应用上报的最大值)增加才写;excerpt「当日 +X · 累计 Y」，当日从当天第一次增长前的总量算起。该作品的上报全部删除后撤回它的 pt |
+| 新建公开收藏夹 | `fd:<folder>` | `publish` / `folder` | `folder:<id>` | 收藏夹第一次公开时写一次(新建即公开，或私密改公开);之后私密再公开不再补发 |
+| 往公开收藏夹加作品 | `fi:<folder>:<work>` | `favorite` / `work` | `work:<id>` | excerpt 为收藏夹名;移出撤回 |
+| 关注会社 | `cf:<uid>:<company>` | `follow` / `company` | `company:<id>` | 只在 `followed_companies` 公开时写;取关撤回 |
+
+**隐私。** `play_records` 改 private 撤回该用户全部 ws/pt，私密期间不写;`followed_companies` 改回 private 撤回全部 cf。切回公开不补发历史，只记之后的新动作(公开前已关注的会社不补)。收藏夹改为非公开(仅链接可见或私密)或被删除(本人、版主、注销)撤回它的 fd 与全部 fi;非公开收藏夹不产生事件。community 的全局「隐藏动态」照常在读端生效。作品合并、删除不改已推送的条目:读端按 `object_ref` 解析时会拿到 410/404。
+
+**写入。** 每个写入路径在同一事务里改 `catalog_activity_item`(一 key 一行：应推送的当前内容、`revision`、`pushed_revision`)，不是事件日志:同一 key 连改多次只推最后一次。推送器在 catalog 进程里，每批 100 条、至多每秒 4 批，按 `revision` 从旧到新;community 的回执(包括 `invalid`)都算送达，`invalid` 记日志不重试;HTTP 失败整批不确认，30 秒后重试。已确认的撤回条目 30 天后清理。开关 `KUN_CATALOG_ACTIVITY_PUSH`(缺省 false)只管推送：关着时表照样写，打开后积压按原 `occurred_at` 推出。
+
+**回填。** 状态表只保留最新一次变更，没有历史，所以只能把**当前状态**按它的 `updated_at` 回填一次:`backfill-activity-states -dsn <catalog DSN>`(缺省只计数)，加 `-apply` 才写入台账，之后由推送器按同样的限速推出;跳过私密账号和已有条目的 key,可重复执行。时长不回填。
+
+**上线步骤。** ① 部署(迁移自动执行);② 建一个第一方 OAuth 客户端并 `UPDATE oauth_clients SET community_site = 'catalog' WHERE id = '<client_id>'`;③ 在 Dokploy 设 `KUN_CATALOG_COMMUNITY_CLIENT_ID`/`_SECRET` 与 `KUN_CATALOG_ACTIVITY_PUSH=true` 后重新部署;④ 低峰期执行回填。
+
+- **迁移**:`go run ./cmd/migrate catalog`(`migrate-catalog` 任务)新建空表 `catalog_activity_item` 与部分索引 `idx_catalog_activity_item_pending`，纯增量。
+
 ## 4.9 收藏夹目录(排序 · 推荐语 · 收藏 · 广场 · 举报;2026-11-07,spec 2.86.0)
 
 用户要的「galgame 目录」做在收藏夹上，而不是另起一套：公开收藏夹就是目录，下面几项都挂在 `catalog_user_folder` / `catalog_user_folder_item` 上，合并、撤销合并、作品删除、注销账号原本就覆盖这两张表。条目只认 catalog 自己的作品 id，不碰任何来源 id，也不预设媒介。
