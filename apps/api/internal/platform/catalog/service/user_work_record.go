@@ -84,8 +84,7 @@ func (s *UserWorkRecordService) Put(ctx context.Context, uid, workID int64, clie
 			}); err != nil {
 				return err
 			}
-		} else if err := tx.Where("actor_uid = ? AND work_id = ? AND client_id = ?", uid, workID, clientID).
-			Delete(&model.CatalogUserPlaytime{}).Error; err != nil {
+		} else if err := deletePlaytimeTx(tx, uid, workID, clientID); err != nil {
 			return err
 		}
 		switch {

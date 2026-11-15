@@ -580,6 +580,14 @@ services:
       # secret. Empty => no check or scan; the write still goes through.
       KUN_TRUST_CLIENT_ID: "ac2b8856594baed9c9ee6792eec082e3"
       KUN_TRUST_CLIENT_SECRET: ${KUN_TRUST_CLIENT_SECRET:-}
+      # Play states, playtime days, public folders and company follows go to
+      # community as tenant catalog (catalog_activity_item, then the pusher).
+      # Writes always fill the table; the push runs only with the switch on
+      # and a client whose community_site is catalog.
+      KUN_CATALOG_ACTIVITY_PUSH: ${KUN_CATALOG_ACTIVITY_PUSH:-false}
+      KUN_COMMUNITY_CLIENT_BASE_URL: http://community:9282
+      KUN_CATALOG_COMMUNITY_CLIENT_ID: ${KUN_CATALOG_COMMUNITY_CLIENT_ID:-}
+      KUN_CATALOG_COMMUNITY_CLIENT_SECRET: ${KUN_CATALOG_COMMUNITY_CLIENT_SECRET:-}
     # S2S read/admin face stays internal — product backends (wiki/forum/moyu)
     # reach it at http://catalog:9281 over dokploy-network. The ONLY public path
     # is the open-API /v1/catalog projection routed by the labels block below.

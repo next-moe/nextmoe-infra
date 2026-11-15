@@ -85,6 +85,9 @@ func (s *UserFolderService) Create(ctx context.Context, in FolderCreate) (*model
 		if err := setFolderTagsTx(tx, row.ID, tags); err != nil {
 			return err
 		}
+		if err := feedFolderTx(tx, row); err != nil {
+			return err
+		}
 		if in.IsDefault {
 			return demoteOtherDefaults(tx, in.OwnerUID, row.ID)
 		}
@@ -156,7 +159,16 @@ func (s *UserFolderService) Patch(ctx context.Context, uid, folderID int64, p Fo
 				return err
 			}
 		}
-		return tx.Take(&row, "id = ?", folderID).Error
+		if err := tx.Take(&row, "id = ?", folderID).Error; err != nil {
+			return err
+		}
+		if p.Visibility == nil {
+			return nil
+		}
+		if row.Visibility != model.FolderVisibilityPublic {
+			return retractFolderFeedTx(tx, folderID)
+		}
+		return feedFolderTx(tx, row)
 	})
 	if err != nil {
 		return nil, err
@@ -181,6 +193,9 @@ func (s *UserFolderService) Delete(ctx context.Context, uid, folderID int64) err
 }
 
 func deleteFolderRows(tx *gorm.DB, folderID int64) error {
+	if err := retractFolderFeedTx(tx, folderID); err != nil {
+		return err
+	}
 	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderItem{}).Error; err != nil {
 		return err
 	}
@@ -277,6 +292,9 @@ func (s *UserFolderService) PutItem(ctx context.Context, uid, folderID, workID i
 		}
 		if res.RowsAffected > 0 {
 			out = row
+			if err := feedFolderItemTx(tx, folder, workID); err != nil {
+				return err
+			}
 			return tx.Model(&model.CatalogUserFolder{}).Where("id = ?", folderID).
 				Updates(map[string]any{"item_count": gorm.Expr("item_count + 1"), "updated_at": time.Now()}).Error
 		}
@@ -304,6 +322,9 @@ func (s *UserFolderService) DeleteItem(ctx context.Context, uid, folderID, workI
 			return res.Error
 		}
 		if res.RowsAffected > 0 {
+			if err := retractFolderItemFeedTx(tx, folderID, workID); err != nil {
+				return err
+			}
 			return tx.Model(&model.CatalogUserFolder{}).Where("id = ?", folderID).
 				Updates(map[string]any{"item_count": gorm.Expr("GREATEST(item_count - 1, 0)"), "updated_at": time.Now()}).Error
 		}

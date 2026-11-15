@@ -33,6 +33,7 @@ type Config struct {
 	ImageClient             ImageClientConfig
 	CatalogClient           CatalogClientConfig
 	TrustClient             TrustClientConfig
+	CatalogActivityPush     CatalogActivityPushConfig
 	TrustCallbackSecret     string
 	TrustForwarderClientIDs []string
 	DevPortalClientIDs      []string
@@ -247,6 +248,13 @@ type CatalogClientConfig struct {
 }
 
 type TrustClientConfig struct {
+	BaseURL      string
+	ClientID     string
+	ClientSecret string
+}
+
+type CatalogActivityPushConfig struct {
+	Enabled      bool
 	BaseURL      string
 	ClientID     string
 	ClientSecret string
@@ -558,6 +566,13 @@ func Load() (*Config, error) {
 		BaseURL:      getEnv("KUN_TRUST_CLIENT_BASE_URL", "http://trust:9283"),
 		ClientID:     getEnv("KUN_TRUST_CLIENT_ID", ""),
 		ClientSecret: getEnv("KUN_TRUST_CLIENT_SECRET", ""),
+	}
+	activityPush, _ := strconv.ParseBool(getEnv("KUN_CATALOG_ACTIVITY_PUSH", "false"))
+	cfg.CatalogActivityPush = CatalogActivityPushConfig{
+		Enabled:      activityPush,
+		BaseURL:      getEnv("KUN_COMMUNITY_CLIENT_BASE_URL", "http://community:9282"),
+		ClientID:     getEnv("KUN_CATALOG_COMMUNITY_CLIENT_ID", ""),
+		ClientSecret: getEnv("KUN_CATALOG_COMMUNITY_CLIENT_SECRET", ""),
 	}
 	cfg.TrustCallbackSecret = getEnv("KUN_TRUST_CALLBACK_SECRET", "")
 	cfg.TrustForwarderClientIDs = splitCSV(getEnv("KUN_TRUST_FORWARDER_CLIENT_IDS", ""))

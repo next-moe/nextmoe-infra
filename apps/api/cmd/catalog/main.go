@@ -40,6 +40,7 @@ import (
 	"api/internal/platform/store/price"
 	storeService "api/internal/platform/store/service"
 	"api/internal/platform/store/shortener"
+	"api/pkg/communityclient"
 	"api/pkg/config"
 	"api/pkg/health"
 	"api/pkg/imageclient"
@@ -492,6 +493,19 @@ func setupPublicCatalog(
 		return c.Send(appSettingsSpec)
 	})
 
+	pushCtx, stopPush := context.WithCancel(context.Background())
+	ap := cfg.CatalogActivityPush
+	cc := communityclient.New(communityclient.Config{BaseURL: ap.BaseURL, ClientID: ap.ClientID, ClientSecret: ap.ClientSecret})
+	switch {
+	case ap.Enabled && cc != nil:
+		go service.NewActivityPusher(catalogDB.DB(), cc).Run(pushCtx)
+		slog.Info("catalog activity push to community enabled", "base_url", ap.BaseURL)
+	case ap.Enabled:
+		slog.Warn("catalog activity push wanted but KUN_CATALOG_COMMUNITY_CLIENT_* unset; items wait in catalog_activity_item")
+	default:
+		slog.Info("catalog activity push disabled (KUN_CATALOG_ACTIVITY_PUSH); items wait in catalog_activity_item")
+	}
+
 	flushDone := make(chan struct{})
 	go func() {
 		t := time.NewTicker(60 * time.Second)
@@ -508,6 +522,7 @@ func setupPublicCatalog(
 		}
 	}()
 	application.Fiber.Hooks().OnPreShutdown(func() error {
+		stopPush()
 		priceSvc.Stop()
 		close(flushDone)
 		if err := usageRec.Flush(context.Background()); err != nil {

@@ -60,7 +60,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 	got, err := PurgeAccount(ctx, testDB, gone)
 	require.NoError(t, err)
 	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, Ratings: 1, CoverVotes: 1, EntityFollows: 1, TagBlocks: 1, Privacy: 1,
-		DiscussionPosts: 1, DiscussionWatches: 1, BrowsingHistory: 1}, got)
+		DiscussionPosts: 1, DiscussionWatches: 1, BrowsingHistory: 1, ActivityItems: 2}, got)
 	var left []discussion.Post
 	require.NoError(t, testDB.Where("anchor_kind = 'probe'").Order("author_uid").Find(&left).Error)
 	require.Len(t, left, 2, "the erased account's post stays as a deleted placeholder")
