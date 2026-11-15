@@ -159,6 +159,19 @@ const identities = computed(() =>
             管理外链 →
           </button>
         </div>
+
+        <div class="border-default-200 bg-content1 rounded-xl border p-4">
+          <p class="text-default-500 text-xs">
+            发售日期属于发行：作品显示的日期取自它的发行。没有发行时显示「未定」，新建一个发行并填上日期即可。
+          </p>
+          <button
+            type="button"
+            class="text-default-500 hover:text-foreground mt-3 text-xs"
+            @click="nav.go('releases')"
+          >
+            编辑发行与发售日期 →
+          </button>
+        </div>
       </aside>
     </div>
   </WorkspacePage>
