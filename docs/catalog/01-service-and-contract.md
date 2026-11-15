@@ -529,7 +529,7 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 各站个人主页要展示「想玩 / 在玩 / 玩过 / 搁置 / 抛弃」的游戏库。此前别人的游玩状态只能从他写过的评分上看到(`work_state` 随评分公开),没评分的状态与全部时长都只有本人可读。
 
 - **`GET /v2/work-records?user_id=`**(应用密钥或带 `catalog:read` 的用户令牌,与 `/v2/ratings` 同闸):该账号**有游玩状态**的作品,每项是 `work_record`——与 `/v2/me/work-records/{work_id}` 答给本人的同一形状:`work_state`(此面恒非 null)、`playtime`(各应用上报的最大分钟数,无则 null)、`rating`(无则 null)。只有时长或只有评分的作品不列出:库的定义是「标了状态的作品」,标签页按状态分。
-- **排序与分页**:按 `work_state.updated_at` 倒序、同时刻按 `work_id` 倒序,`cur_` 游标;`sort` 只有 `updated_desc`(缺省)。走 `(actor_uid, updated_at)` 索引。
+- **排序与分页**:按 `work_state.updated_at` 倒序、同时刻按 `work_id` 倒序,`cur_` 游标;`sort` 只有 `updated_desc`(缺省;2.87.0 起见 4.8.1)。走 `(actor_uid, updated_at)` 索引。
 - **筛选**:`state=`(逗号分隔,五值封闭词表)、`content_limit=sfw|nsfw`(与 `/v2/catalog/works` 同一条显示轴,同一个 `displayLimitWhere`)。不是 live 的作品(stub / merged / quarantine)一律不列出,所以 `sfw` 与 `nsfw` 两次的计数之和等于不筛的计数。
 - **计数**:`facets=state` 在同样的筛选之后给五个状态各自的数,**`state=` 也算在内**(与全平台的分面同一口径,检索通道同样如此),五个桶按词表顺序恒出现(0 也出);标签页的数字取自不带 `state=` 的那次请求(「全部」页,或单独一次 `facets=state&limit=1`);`include_total=true` 给总数。两者共用一条 `GROUP BY state` 查询。隐藏 nsfw 的读者带 `content_limit=sfw`,列表、总数与分面一起变,站点不必自己补算。
 - **隐私开关**:表 `catalog_user_privacy (actor_uid PK, play_records_private bool, updated_at)`,**没有行即公开**——游玩记录默认公开,存量账号也一样(2026-10-13 产品裁定,知情于论坛曾在时长页写过「逐条游玩记录是私密的」;那句话需要论坛同步改掉)。设为 private 后,`/v2/work-records?user_id=` 对除本人以外一律 `403 PLAY_RECORDS_PRIVATE`(本人用自己的用户令牌仍可读,但那要 `catalog:read`,而三站与 App 的用户令牌都没有这个 scope,所以本人走下面的 `/v2/me/work-records`);不用 404,因为主页要能区分「没公开」和「什么都没标」。时长与状态共用这一个开关。
@@ -538,6 +538,16 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **`GET /v2/me/privacy`**:只要用户令牌,不要 scope;从未改过的账号答 `{"play_records":"public","updated_at":null}`。**`PATCH /v2/me/privacy`**:只改请求体给出的开关(`play_records`: `public|private`),空体不改任何东西;值没变不推 `updated_at`。读写都是任何应用的用户令牌即可(第三方也行,不要 scope),与 2.49.0 起第三方可写评分同一口径。
 - **生命周期**:注销账号连同这一行删除(`PurgeAccount`)。无用户合并。
 - **迁移**:`go run ./cmd/migrate catalog`(生产即部署自带的 `migrate-catalog` 任务)新建空表,纯增量,不回填。
+
+### 4.8.1 游戏库排序、无状态记录与公开关注厂商(2026-11-14,spec 2.87.0)
+
+论坛个人主页把「游玩时长」并进游戏库，并让访客看到「关注 → 厂商」。两条 work-records 面(`/v2/work-records`、`/v2/me/work-records`)同步加三项，缺省行为不变:
+
+- **`record=state|playtime|any`**:`state`(缺省)同上，只列有游玩状态的作品;`playtime` 列所有有时长的作品(有没有状态都算);`any` 列有状态、时长或评分任意一项的。后两种下没有状态的条目 `work_state` 为 null,`state=` 多一个 `none` 筛它们,`facets=state` 多一个 `none` 桶(`record=state` 仍是五个桶)。隐私仍只看 `play_records`:它管的本来就是状态与时长。
+- **`sort=`**:`updated_desc`(缺省)| `updated_asc` | `playtime_desc|asc`(`playtime.minutes`,即各应用上报的最大值)| `rating_desc|asc`(`rating.overall`)。没有该值的作品两个方向都排最后，同值按 `work_id` 沿排序方向。没有状态的条目按时长与评分中较新的 `updated_at` 参与 `updated` 排序。游标里带 sort 名，只对签发它的 sort 有效，换 sort 是 `400 INVALID_CURSOR`;`updated_desc` 仍发旧的 `时间|id` 游标，旧游标照常可用。单人记录量小(本地副本最多约 300 条状态),每页现算聚合排序。
+- **`include_playtime_total=true`**:响应体多 `playtime_total_minutes`,筛选后全部作品(不只本页)的 `playtime.minutes` 之和，与列表显示的数字对得上。
+- **`GET /v2/followed-companies?user_id=`**(应用密钥或带 `catalog:read` 的用户令牌，与 `/v2/work-records` 同闸):形状、分页同 `/v2/me/followed-companies`。新开关 `followed_companies: public|private` 在 `/v2/me/privacy`,列 `catalog_user_privacy.followed_companies_public`(NOT NULL DEFAULT false)——**缺省 private,存量账号也是**:此前的契约写明关注列表只对本人可见，用户是在这个承诺下关注的，默认公开等于追溯公开。未公开时除本人的用户令牌外一律 `403 FOLLOWED_COMPANIES_PRIVATE`。`follower_count` 不受影响。
+- **迁移**:`go run ./cmd/migrate catalog`(`migrate-catalog` 任务)给 `catalog_user_privacy` 加一列，纯增量。
 
 ## 4.9 收藏夹目录(排序 · 推荐语 · 收藏 · 广场 · 举报;2026-11-07,spec 2.86.0)
 

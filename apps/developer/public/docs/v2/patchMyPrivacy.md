@@ -27,13 +27,14 @@ Sets the switches the body names and leaves the others as they are; an empty bod
 | --- | --- | --- | --- |
 | `browsing_history` | 否 | string | off erases every app's browsing history and stops recording it; on starts recording again. A third-party app may only send off. Absent leaves it as it is. 取值：on \| off |
 | `browsing_history_sharing` | 否 | string | shared lets an app holding history:read read every app's history. A third-party app may only send per_app. Absent leaves it as it is. 取值：per_app \| shared |
+| `followed_companies` | 否 | string | Who may read the account's followed companies on /v2/followed-companies. Absent leaves it as it is. 取值：public \| private |
 | `play_records` | 否 | string | Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is. 取值：public \| private |
 
 ```bash
 curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"browsing_history":"off","browsing_history_sharing":"per_app","play_records":"private"}'
+  -d '{"browsing_history":"off","browsing_history_sharing":"per_app","followed_companies":"public","play_records":"private"}'
 ```
 
 ---

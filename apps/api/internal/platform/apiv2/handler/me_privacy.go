@@ -17,6 +17,7 @@ type patchPrivacyInput struct {
 		PlayRecords            *string `json:"play_records,omitempty" enum:"public,private" example:"private" doc:"Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is."`
 		BrowsingHistory        *string `json:"browsing_history,omitempty" enum:"on,off" example:"off" doc:"off erases every app's browsing history and stops recording it; on starts recording again. A third-party app may only send off. Absent leaves it as it is."`
 		BrowsingHistorySharing *string `json:"browsing_history_sharing,omitempty" enum:"per_app,shared" example:"per_app" doc:"shared lets an app holding history:read read every app's history. A third-party app may only send per_app. Absent leaves it as it is."`
+		FollowedCompanies      *string `json:"followed_companies,omitempty" enum:"public,private" example:"public" doc:"Who may read the account's followed companies on /v2/followed-companies. Absent leaves it as it is."`
 	}
 }
 
@@ -30,7 +31,7 @@ func registerMePrivacy(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "getMyPrivacy", Method: http.MethodGet, Path: "/v2/me/privacy",
 		Summary:     "My privacy switches",
-		Description: "play_records says who may read the bearer's play states and playtimes on /v2/work-records; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers public, on and per_app with a null updated_at. Requires a user access token. Any app may call this; no scope is required.",
+		Description: "play_records says who may read the bearer's play states and playtimes on /v2/work-records; followed_companies who may read the companies they follow on /v2/followed-companies; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers play_records public, followed_companies private, browsing_history on and browsing_history_sharing per_app, with a null updated_at. Requires a user access token. Any app may call this; no scope is required.",
 		Tags:        me, Errors: errs, SkipValidateParams: true,
 	}, getMyPrivacy(cat))
 	huma.Register(api, huma.Operation{
@@ -53,7 +54,10 @@ func getMyPrivacy(cat *Catalog) func(context.Context, *struct{}) (*privacyOutput
 
 func patchMyPrivacy(cat *Catalog) func(context.Context, *patchPrivacyInput) (*privacyOutput, error) {
 	return func(ctx context.Context, in *patchPrivacyInput) (*privacyOutput, error) {
-		out, err := cat.PatchMyPrivacy(ctx, in.Body.PlayRecords, in.Body.BrowsingHistory, in.Body.BrowsingHistorySharing)
+		out, err := cat.PatchMyPrivacy(ctx, privacyPatch{
+			PlayRecords: in.Body.PlayRecords, FollowedCompanies: in.Body.FollowedCompanies,
+			BrowsingHistory: in.Body.BrowsingHistory, Sharing: in.Body.BrowsingHistorySharing,
+		})
 		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}
@@ -61,10 +65,13 @@ func patchMyPrivacy(cat *Catalog) func(context.Context, *patchPrivacyInput) (*pr
 	}
 }
 
-func privacyRepr(p catsvc.PlayRecordsPrivacy, h catsvc.BrowsingHistorySettings) repr.UserPrivacy {
-	out := repr.UserPrivacy{Object: "privacy", PlayRecords: "public", BrowsingHistory: "on", BrowsingHistorySharing: "per_app"}
+func privacyRepr(p catsvc.AccountPrivacy, h catsvc.BrowsingHistorySettings) repr.UserPrivacy {
+	out := repr.UserPrivacy{Object: "privacy", PlayRecords: "public", FollowedCompanies: "private", BrowsingHistory: "on", BrowsingHistorySharing: "per_app"}
 	if p.Private {
 		out.PlayRecords = "private"
+	}
+	if p.FollowedCompaniesPublic {
+		out.FollowedCompanies = "public"
 	}
 	if h.Off {
 		out.BrowsingHistory = "off"
@@ -102,7 +109,11 @@ func (c *Catalog) privacyOf(ctx context.Context, uid int64) (repr.UserPrivacy, e
 	return privacyRepr(p, h), nil
 }
 
-func (c *Catalog) PatchMyPrivacy(ctx context.Context, playRecords, browsingHistory, sharing *string) (repr.UserPrivacy, error) {
+type privacyPatch struct {
+	PlayRecords, FollowedCompanies, BrowsingHistory, Sharing *string
+}
+
+func (c *Catalog) PatchMyPrivacy(ctx context.Context, in privacyPatch) (repr.UserPrivacy, error) {
 	if c == nil || c.WorkRecords == nil || c.BrowsingHistory == nil {
 		return repr.UserPrivacy{}, problem.New(problem.CodeServiceUnavailable, "", "", "privacy is not bound.")
 	}
@@ -111,12 +122,12 @@ func (c *Catalog) PatchMyPrivacy(ctx context.Context, playRecords, browsingHisto
 		return repr.UserPrivacy{}, err
 	}
 	var off, shared *bool
-	if browsingHistory != nil {
-		v := *browsingHistory == "off"
+	if in.BrowsingHistory != nil {
+		v := *in.BrowsingHistory == "off"
 		off = &v
 	}
-	if sharing != nil {
-		v := *sharing == "shared"
+	if in.Sharing != nil {
+		v := *in.Sharing == "shared"
 		shared = &v
 	}
 	if thirdPartyFrom(ctx) && ((off != nil && !*off) || (shared != nil && *shared)) {
@@ -128,10 +139,17 @@ func (c *Catalog) PatchMyPrivacy(ctx context.Context, playRecords, browsingHisto
 			return repr.UserPrivacy{}, p
 		}
 	}
-	if playRecords != nil {
-		if _, err := c.WorkRecords.SetPrivacy(ctx, uid, *playRecords == "private"); err != nil {
-			return repr.UserPrivacy{}, err
-		}
+	var change catsvc.PrivacyChange
+	if in.PlayRecords != nil {
+		v := *in.PlayRecords == "private"
+		change.PlayRecordsPrivate = &v
+	}
+	if in.FollowedCompanies != nil {
+		v := *in.FollowedCompanies == "public"
+		change.FollowedCompaniesPublic = &v
+	}
+	if _, err := c.WorkRecords.SetPrivacy(ctx, uid, change); err != nil {
+		return repr.UserPrivacy{}, err
 	}
 	if _, err := c.BrowsingHistory.SetSettings(ctx, uid, off, shared); err != nil {
 		return repr.UserPrivacy{}, err

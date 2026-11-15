@@ -6,87 +6,215 @@ import (
 
 	"api/internal/platform/catalog/model"
 
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
+const (
+	WorkRecordSetState    = "state"
+	WorkRecordSetPlaytime = "playtime"
+	WorkRecordSetAny      = "any"
+)
+
 type PublicWorkRecordFilter struct {
+	Record        string
 	States        []int16
+	NoState       bool
 	DisplayLimits []string
 }
 
-type PlayRecordsPrivacy struct {
-	Private   bool
-	UpdatedAt *time.Time
+const (
+	WorkRecordSortUpdated  = "updated"
+	WorkRecordSortPlaytime = "playtime"
+	WorkRecordSortRating   = "rating"
+)
+
+type WorkRecordSort struct {
+	Key  string
+	Desc bool
 }
 
-func (s *UserWorkRecordService) Privacy(ctx context.Context, uid int64) (PlayRecordsPrivacy, error) {
+// WorkRecordKey is a row's position under one sort: At for updated, Value for
+// playtime and rating, Null when the record has no such value.
+type WorkRecordKey struct {
+	Null   bool
+	At     time.Time
+	Value  int64
+	WorkID int64
+}
+
+type PublicWorkRecord struct {
+	WorkRecord
+	Key WorkRecordKey
+}
+
+type WorkRecordCounts struct {
+	ByState         map[int16]int64
+	NoState         int64
+	PlaytimeMinutes int64
+}
+
+type AccountPrivacy struct {
+	Private                 bool
+	FollowedCompaniesPublic bool
+	UpdatedAt               *time.Time
+}
+
+type PrivacyChange struct {
+	PlayRecordsPrivate      *bool
+	FollowedCompaniesPublic *bool
+}
+
+func (s *UserWorkRecordService) Privacy(ctx context.Context, uid int64) (AccountPrivacy, error) {
 	if uid <= 0 {
-		return PlayRecordsPrivacy{}, ErrWorkRecordActorRequired
+		return AccountPrivacy{}, ErrWorkRecordActorRequired
 	}
 	var rows []model.CatalogUserPrivacy
 	if err := s.db.WithContext(ctx).Where("actor_uid = ?", uid).Limit(1).Find(&rows).Error; err != nil {
-		return PlayRecordsPrivacy{}, err
+		return AccountPrivacy{}, err
 	}
 	if len(rows) == 0 {
-		return PlayRecordsPrivacy{}, nil
+		return AccountPrivacy{}, nil
 	}
 	at := rows[0].UpdatedAt
-	return PlayRecordsPrivacy{Private: rows[0].PlayRecordsPrivate, UpdatedAt: &at}, nil
+	return AccountPrivacy{Private: rows[0].PlayRecordsPrivate, FollowedCompaniesPublic: rows[0].FollowedCompaniesPublic, UpdatedAt: &at}, nil
 }
 
-func (s *UserWorkRecordService) SetPrivacy(ctx context.Context, uid int64, private bool) (PlayRecordsPrivacy, error) {
+func (s *UserWorkRecordService) SetPrivacy(ctx context.Context, uid int64, c PrivacyChange) (AccountPrivacy, error) {
 	if uid <= 0 {
-		return PlayRecordsPrivacy{}, ErrWorkRecordActorRequired
+		return AccountPrivacy{}, ErrWorkRecordActorRequired
 	}
-	row := model.CatalogUserPrivacy{ActorUID: uid, PlayRecordsPrivate: private}
+	row := model.CatalogUserPrivacy{ActorUID: uid}
+	set := map[string]any{"updated_at": time.Now()}
+	var changed []clause.Expression
+	if c.PlayRecordsPrivate != nil {
+		row.PlayRecordsPrivate = *c.PlayRecordsPrivate
+		set["play_records_private"] = *c.PlayRecordsPrivate
+		changed = append(changed, clause.Expr{SQL: "catalog_user_privacy.play_records_private IS DISTINCT FROM excluded.play_records_private"})
+	}
+	if c.FollowedCompaniesPublic != nil {
+		row.FollowedCompaniesPublic = *c.FollowedCompaniesPublic
+		set["followed_companies_public"] = *c.FollowedCompaniesPublic
+		changed = append(changed, clause.Expr{SQL: "catalog_user_privacy.followed_companies_public IS DISTINCT FROM excluded.followed_companies_public"})
+	}
+	if len(changed) == 0 {
+		return s.Privacy(ctx, uid)
+	}
 	err := s.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "actor_uid"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"play_records_private": private,
-			"updated_at":           time.Now(),
-		}),
-		Where: clause.Where{Exprs: []clause.Expression{clause.Expr{
-			SQL: "catalog_user_privacy.play_records_private IS DISTINCT FROM excluded.play_records_private",
-		}}},
+		Columns:   []clause.Column{{Name: "actor_uid"}},
+		DoUpdates: clause.Assignments(set),
+		Where:     clause.Where{Exprs: []clause.Expression{clause.Or(changed...)}},
 	}).Create(&row).Error
 	if err != nil {
-		return PlayRecordsPrivacy{}, err
+		return AccountPrivacy{}, err
 	}
 	return s.Privacy(ctx, uid)
 }
 
-func (s *UserWorkRecordService) publicStates(ctx context.Context, uid int64, f PublicWorkRecordFilter) *gorm.DB {
-	q := s.db.WithContext(ctx).Table("catalog_user_work_state AS s").
-		Joins("JOIN catalog_work w ON w.id = s.work_id AND w.status = ?", model.WorkStatusLive).
-		Where("s.actor_uid = ?", uid)
-	if len(f.States) > 0 {
-		q = q.Where("s.state IN ?", f.States)
-	}
-	if pred, args := displayLimitWhere(f.DisplayLimits); pred != "" {
-		q = q.Where(pred, args...)
-	}
-	return q
+type workRecordRow struct {
+	WorkID     int64
+	State      *int16
+	Completion *int16
+	StCreated  *time.Time
+	StUpdated  *time.Time
+	Minutes    *int64
+	Overall    *int64
+	UpdatedAt  time.Time
 }
 
-func (s *UserWorkRecordService) ListPublic(ctx context.Context, uid int64, f PublicWorkRecordFilter, before time.Time, beforeWorkID int64, limit int) ([]WorkRecord, error) {
+func (s *UserWorkRecordService) recordSet(uid int64, f PublicWorkRecordFilter) (string, []any) {
+	stateKeys := "SELECT work_id FROM catalog_user_work_state WHERE actor_uid = ?"
+	playtimeKeys := "SELECT work_id FROM catalog_user_playtime WHERE actor_uid = ?"
+	ratingKeys := "SELECT work_id FROM catalog_user_work_rating WHERE actor_uid = ?"
+	var keys string
+	var args []any
+	switch f.Record {
+	case WorkRecordSetPlaytime:
+		keys, args = playtimeKeys, []any{uid}
+	case WorkRecordSetAny:
+		keys, args = stateKeys+" UNION "+playtimeKeys+" UNION "+ratingKeys, []any{uid, uid, uid}
+	default:
+		keys, args = stateKeys, []any{uid}
+	}
+	sql := `WITH k AS (SELECT DISTINCT work_id FROM (` + keys + `) u),
+rec AS (
+	SELECT k.work_id, st.state, st.completion, st.created_at AS st_created, st.updated_at AS st_updated,
+		pt.minutes, rt.overall,
+		COALESCE(st.updated_at, GREATEST(pt.updated_at, rt.updated_at)) AS updated_at
+	FROM k
+	JOIN catalog_work w ON w.id = k.work_id AND w.status = ?
+	LEFT JOIN catalog_user_work_state st ON st.actor_uid = ? AND st.work_id = k.work_id
+	LEFT JOIN (SELECT work_id, max(minutes)::bigint AS minutes, max(updated_at) AS updated_at
+		FROM catalog_user_playtime WHERE actor_uid = ? GROUP BY work_id) pt ON pt.work_id = k.work_id
+	LEFT JOIN catalog_user_work_rating rt ON rt.actor_uid = ? AND rt.work_id = k.work_id
+	WHERE true`
+	args = append(args, model.WorkStatusLive, uid, uid, uid)
+	switch {
+	case len(f.States) > 0 && f.NoState:
+		sql += " AND (st.state IN ? OR st.state IS NULL)"
+		args = append(args, f.States)
+	case len(f.States) > 0:
+		sql += " AND st.state IN ?"
+		args = append(args, f.States)
+	case f.NoState:
+		sql += " AND st.state IS NULL"
+	}
+	if pred, pargs := displayLimitWhere(f.DisplayLimits); pred != "" {
+		sql += " AND " + pred
+		args = append(args, pargs...)
+	}
+	return sql + "\n)\n", args
+}
+
+func workRecordSortColumn(key string) string {
+	switch key {
+	case WorkRecordSortPlaytime:
+		return "minutes"
+	case WorkRecordSortRating:
+		return "overall"
+	default:
+		return "updated_at"
+	}
+}
+
+// Rows without the sort value come last in both directions; work_id breaks
+// ties in the sort's own direction.
+func workRecordPage(sort WorkRecordSort, after *WorkRecordKey) (string, []any) {
+	col := workRecordSortColumn(sort.Key)
+	cmp, dir := ">", "ASC"
+	if sort.Desc {
+		cmp, dir = "<", "DESC"
+	}
+	order := " ORDER BY (" + col + " IS NULL) ASC, " + col + " " + dir + ", work_id " + dir
+	if after == nil {
+		return order, nil
+	}
+	if after.Null {
+		return " WHERE " + col + " IS NULL AND work_id " + cmp + " ?" + order, []any{after.WorkID}
+	}
+	var v any = after.Value
+	if sort.Key == WorkRecordSortUpdated {
+		v = after.At
+	}
+	return " WHERE ((" + col + ", work_id) " + cmp + " (?, ?) OR " + col + " IS NULL)" + order, []any{v, after.WorkID}
+}
+
+func (s *UserWorkRecordService) ListPublic(ctx context.Context, uid int64, f PublicWorkRecordFilter, sort WorkRecordSort, after *WorkRecordKey, limit int) ([]PublicWorkRecord, error) {
 	if uid <= 0 {
 		return nil, ErrWorkRecordActorRequired
 	}
-	q := s.publicStates(ctx, uid, f)
-	if !before.IsZero() {
-		q = q.Where("(s.updated_at, s.work_id) < (?, ?)", before, beforeWorkID)
-	}
-	var states []model.CatalogUserWorkState
-	if err := q.Select("s.*").Order("s.updated_at DESC, s.work_id DESC").Limit(limit).Find(&states).Error; err != nil {
+	with, args := s.recordSet(uid, f)
+	page, pargs := workRecordPage(sort, after)
+	var rows []workRecordRow
+	if err := s.db.WithContext(ctx).Raw(with+"SELECT * FROM rec"+page+" LIMIT ?", append(append(args, pargs...), limit)...).
+		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	if len(states) == 0 {
+	if len(rows) == 0 {
 		return nil, nil
 	}
-	ids := make([]int64, len(states))
-	for i, st := range states {
-		ids[i] = st.WorkID
+	ids := make([]int64, len(rows))
+	for i, r := range rows {
+		ids[i] = r.WorkID
 	}
 	playtimes, err := NewUserPlaytimeService(s.db).ListMineFor(ctx, uid, ids)
 	if err != nil {
@@ -104,35 +232,65 @@ func (s *UserWorkRecordService) ListPublic(ctx context.Context, uid int64, f Pub
 	for i := range ratings {
 		rating[ratings[i].WorkID] = &ratings[i]
 	}
-	out := make([]WorkRecord, 0, len(states))
-	for _, st := range states {
-		out = append(out, WorkRecord{
-			WorkID: st.WorkID,
-			WorkState: &WorkStateRecord{
-				WorkID: st.WorkID, State: st.State, Completion: st.Completion,
-				CreatedAt: st.CreatedAt, UpdatedAt: st.UpdatedAt,
-			},
-			Playtime: playtime[st.WorkID],
-			Rating:   rating[st.WorkID],
-		})
+	out := make([]PublicWorkRecord, 0, len(rows))
+	for _, r := range rows {
+		rec := PublicWorkRecord{
+			WorkRecord: WorkRecord{WorkID: r.WorkID, Playtime: playtime[r.WorkID], Rating: rating[r.WorkID]},
+			Key:        workRecordKey(sort.Key, r),
+		}
+		if r.State != nil {
+			rec.WorkState = &WorkStateRecord{
+				WorkID: r.WorkID, State: *r.State, Completion: r.Completion,
+				CreatedAt: *r.StCreated, UpdatedAt: *r.StUpdated,
+			}
+		}
+		out = append(out, rec)
 	}
 	return out, nil
 }
 
-func (s *UserWorkRecordService) CountPublicByState(ctx context.Context, uid int64, f PublicWorkRecordFilter) (map[int16]int64, error) {
+func workRecordKey(sort string, r workRecordRow) WorkRecordKey {
+	k := WorkRecordKey{WorkID: r.WorkID}
+	var v *int64
+	switch sort {
+	case WorkRecordSortPlaytime:
+		v = r.Minutes
+	case WorkRecordSortRating:
+		v = r.Overall
+	default:
+		k.At = r.UpdatedAt
+		return k
+	}
+	if v == nil {
+		k.Null = true
+	} else {
+		k.Value = *v
+	}
+	return k
+}
+
+func (s *UserWorkRecordService) CountPublic(ctx context.Context, uid int64, f PublicWorkRecordFilter) (WorkRecordCounts, error) {
+	out := WorkRecordCounts{ByState: map[int16]int64{}}
 	if uid <= 0 {
-		return nil, ErrWorkRecordActorRequired
+		return out, ErrWorkRecordActorRequired
 	}
+	with, args := s.recordSet(uid, f)
 	var rows []struct {
-		State int16
-		N     int64
+		State   *int16
+		N       int64
+		Minutes int64
 	}
-	if err := s.publicStates(ctx, uid, f).Select("s.state, count(*) AS n").Group("s.state").Scan(&rows).Error; err != nil {
-		return nil, err
+	if err := s.db.WithContext(ctx).Raw(with+"SELECT state, count(*) AS n, COALESCE(sum(minutes), 0)::bigint AS minutes FROM rec GROUP BY state", args...).
+		Scan(&rows).Error; err != nil {
+		return out, err
 	}
-	out := make(map[int16]int64, len(rows))
 	for _, r := range rows {
-		out[r.State] = r.N
+		if r.State == nil {
+			out.NoState = r.N
+		} else {
+			out.ByState[*r.State] = r.N
+		}
+		out.PlaytimeMinutes += r.Minutes
 	}
 	return out, nil
 }

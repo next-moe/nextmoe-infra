@@ -67,6 +67,7 @@ const (
 	CodeEntityMerged                 = "ENTITY_MERGED"
 	CodeEntityDeleted                = "ENTITY_DELETED"
 	CodePlayRecordsPrivate           = "PLAY_RECORDS_PRIVATE"
+	CodeFollowedCompaniesPrivate     = "FOLLOWED_COMPANIES_PRIVATE"
 	CodeUserIdentityRequired         = "USER_IDENTITY_REQUIRED"
 	CodeBrowsingHistoryNotShared     = "BROWSING_HISTORY_NOT_SHARED"
 	CodeSiteNotBound                 = "SITE_NOT_BOUND"
@@ -149,6 +150,7 @@ var Codes = []Def{
 	{CodeEntityMerged, DomainCatalog, http.StatusNotFound, "Entity merged", "The entity was merged into another. object and current_id are present, and Link rel=canonical is sent."},
 	{CodeEntityDeleted, DomainCatalog, http.StatusGone, "Entity deleted", "The entity was deleted through a reviewed deletion request. object, deleted_reason and deleted_at are present. A reviewer may restore it under the same id, so treat it as hidden, not as never having existed."},
 	{CodePlayRecordsPrivate, DomainCatalog, http.StatusForbidden, "Play records private", "The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings."},
+	{CodeFollowedCompaniesPrivate, DomainCatalog, http.StatusForbidden, "Followed companies private", "The account keeps the companies it follows private, which is the default. Only the account itself may read them, through its own user token; it can make them public on PATCH /v2/me/privacy. A company's follower_count stays public."},
 	{CodeUserIdentityRequired, DomainMe, http.StatusForbidden, "User identity required", "An application key was used for an operation that needs a user token."},
 	{CodeBrowsingHistoryNotShared, DomainMe, http.StatusForbidden, "Browsing history not shared", "scope=all asked for every app's browsing history, and the account keeps it per app. Only the account can change that, with browsing_history_sharing on PATCH /v2/me/privacy from a first-party app; this app still reads what it recorded itself with scope=app."},
 	{CodeSiteNotBound, DomainMe, http.StatusForbidden, "Site not bound", "The client behind the token is not bound to a catalog site."},
