@@ -136,7 +136,13 @@ func FollowersAmong(db *gorm.DB, followeeID int64, userIDs []int64) ([]int64, er
 	return ids, err
 }
 
-func DeleteUserFollows(db *gorm.DB, uid int64) error {
-	return db.Where("follower_id = ? OR followee_id = ?", uid, uid).
-		Delete(&model.CommunityUserFollow{}).Error
+func DeleteUserFollows(db *gorm.DB, uid int64) ([][2]int64, error) {
+	var rows []struct{ FollowerID, FolloweeID int64 }
+	err := db.Raw(`DELETE FROM community_user_follow WHERE follower_id = ? OR followee_id = ?
+		RETURNING follower_id, followee_id`, uid, uid).Scan(&rows).Error
+	edges := make([][2]int64, len(rows))
+	for i, r := range rows {
+		edges[i] = [2]int64{r.FollowerID, r.FolloweeID}
+	}
+	return edges, err
 }

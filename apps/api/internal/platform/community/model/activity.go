@@ -15,6 +15,7 @@ type CommunityActivity struct {
 	URL            string     `gorm:"not null;column:url" json:"url"`
 	CoverImageHash *string    `gorm:"column:cover_image_hash" json:"cover_image_hash"`
 	WorkID         *int64     `gorm:"column:work_id" json:"work_id"`
+	ObjectRef      *string    `gorm:"column:object_ref" json:"object_ref"`
 	ContentLimit   int16      `gorm:"not null;column:content_limit" json:"content_limit"`
 	Notify         bool       `gorm:"not null;column:notify" json:"notify"`
 	OccurredAt     time.Time  `gorm:"not null;column:occurred_at" json:"occurred_at"`

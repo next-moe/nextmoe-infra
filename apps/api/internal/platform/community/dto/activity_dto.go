@@ -7,14 +7,15 @@ type ActivityWriteItem struct {
 	ActorID        int64      `json:"actor_id" doc:"the author's NextMoe uid"`
 	Revision       int64      `json:"revision" doc:"unix microseconds at which the site read the state it is sending; a write whose revision is not greater than the stored one is ignored (stale)"`
 	Removed        bool       `json:"removed,omitempty" doc:"true sends a tombstone: the content was hidden, deleted, made non-public or its author purged. A tombstone needs only key, actor_id and revision"`
-	Verb           string     `json:"verb,omitempty" doc:"publish | reply | comment | rate | like | edit"`
+	Verb           string     `json:"verb,omitempty" doc:"publish | reply | comment | rate | like | edit | favorite | follow | mark | play"`
 	ObjectKind     string     `json:"object_kind,omitempty" doc:"the site's own type name, 1-32 of a-z 0-9 _; community does not interpret it"`
 	ObjectLabel    string     `json:"object_label,omitempty" doc:"display name of the type for any site to render, at most 16 characters, e.g. Galgame 资源"`
-	Title          string     `json:"title,omitempty" doc:"at most 200 characters; the site truncates"`
+	Title          string     `json:"title,omitempty" doc:"at most 200 characters; the site truncates. Required unless object_ref is set, where it is a snapshot the reader may replace with the object's current name"`
 	Excerpt        string     `json:"excerpt,omitempty" doc:"plain text, at most 300 characters"`
-	URL            string     `json:"url,omitempty" doc:"absolute https URL on one of the calling client's registered redirect hosts"`
+	URL            string     `json:"url,omitempty" doc:"absolute https URL on one of the calling client's registered redirect hosts. Required unless object_ref is set; without it the reader links the object on its own site"`
 	CoverImageHash string     `json:"cover_image_hash,omitempty" doc:"image service hash (64 lowercase hex)"`
 	WorkID         *int64     `json:"work_id,omitempty" doc:"the catalog work this activity is about"`
+	ObjectRef      string     `json:"object_ref,omitempty" doc:"what the activity is about as <kind>:<id>, kind one of work company folder user topic, e.g. user:42; a tombstone clears it"`
 	ContentLimit   string     `json:"content_limit,omitempty" doc:"sfw | nsfw, the site's judgement of this item; missing = nsfw"`
 	Notify         bool       `json:"notify,omitempty" doc:"notify the author's followers (kind 10); only with verb publish. Sent only when the key is new, the item is live and occurred_at is within 24 hours"`
 	OccurredAt     *time.Time `json:"occurred_at,omitempty" doc:"when the content was made (not when it is pushed); required unless removed"`
@@ -46,11 +47,12 @@ type SiteActivityView struct {
 	URL            string     `json:"url"`
 	CoverImageHash *string    `json:"cover_image_hash"`
 	WorkID         *int64     `json:"work_id"`
+	ObjectRef      *string    `json:"object_ref" doc:"<kind>:<id>, kind one of work company folder user topic; null when the item names none"`
 	ContentLimit   string     `json:"content_limit" enum:"sfw,nsfw"`
 	Notify         bool       `json:"notify"`
 	OccurredAt     time.Time  `json:"occurred_at"`
 	Revision       int64      `json:"revision"`
-	Removed        bool       `json:"removed" doc:"a tombstone; its title, excerpt, url, cover_image_hash and work_id are cleared"`
+	Removed        bool       `json:"removed" doc:"a tombstone; its title, excerpt, url, cover_image_hash, work_id and object_ref are cleared"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	RemovedAt      *time.Time `json:"removed_at"`
@@ -74,6 +76,7 @@ type ActivityItemView struct {
 	URL            string    `json:"url"`
 	CoverImageHash *string   `json:"cover_image_hash"`
 	WorkID         *int64    `json:"work_id"`
+	ObjectRef      *string   `json:"object_ref" doc:"<kind>:<id>, kind one of work company folder user topic; null when the item names none. With it, url may be empty and title may be a stale snapshot: link and name the object on the reading site"`
 	ContentLimit   string    `json:"content_limit" enum:"sfw,nsfw"`
 	OccurredAt     time.Time `json:"occurred_at"`
 }

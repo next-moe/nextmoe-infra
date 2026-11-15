@@ -99,15 +99,20 @@ const (
 var FollowNotifyNames = []string{"all", "feed"}
 
 const (
-	ActivityVerbPublish int16 = 0
-	ActivityVerbReply   int16 = 1
-	ActivityVerbComment int16 = 2
-	ActivityVerbRate    int16 = 3
-	ActivityVerbLike    int16 = 4
-	ActivityVerbEdit    int16 = 5
+	ActivityVerbPublish  int16 = 0
+	ActivityVerbReply    int16 = 1
+	ActivityVerbComment  int16 = 2
+	ActivityVerbRate     int16 = 3
+	ActivityVerbLike     int16 = 4
+	ActivityVerbEdit     int16 = 5
+	ActivityVerbFavorite int16 = 6
+	ActivityVerbFollow   int16 = 7
+	ActivityVerbMark     int16 = 8
+	ActivityVerbPlay     int16 = 9
 )
 
-var ActivityVerbNames = []string{"publish", "reply", "comment", "rate", "like", "edit"}
+// Stored as the index into this list: a new verb is appended, never inserted.
+var ActivityVerbNames = []string{"publish", "reply", "comment", "rate", "like", "edit", "favorite", "follow", "mark", "play"}
 
 func ActivityVerbByName(name string) (int16, bool) {
 	i := slices.Index(ActivityVerbNames, name)
