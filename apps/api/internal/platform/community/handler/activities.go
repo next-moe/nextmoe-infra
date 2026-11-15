@@ -62,7 +62,7 @@ func (s *Server) writeActivities(ctx context.Context, in *writeActivitiesInput) 
 		items[i] = service.ActivityInput{
 			Key: it.Key, ActorID: it.ActorID, Verb: it.Verb, ObjectKind: it.ObjectKind,
 			ObjectLabel: it.ObjectLabel, Title: it.Title, Excerpt: it.Excerpt, URL: it.URL,
-			CoverImageHash: it.CoverImageHash, WorkID: it.WorkID, ContentLimit: it.ContentLimit,
+			CoverImageHash: it.CoverImageHash, WorkID: it.WorkID, ObjectRef: it.ObjectRef, ContentLimit: it.ContentLimit,
 			Notify: it.Notify, OccurredAt: it.OccurredAt, Revision: it.Revision, Removed: it.Removed,
 		}
 	}
@@ -123,7 +123,7 @@ func (s *Server) listSiteActivities(ctx context.Context, in *listSiteActivitiesI
 		views[i] = dto.SiteActivityView{
 			ID: a.ID, Key: a.Key, ActorID: a.ActorID, Verb: verbName(a.Verb), ObjectKind: a.ObjectKind,
 			ObjectLabel: a.ObjectLabel, Title: a.Title, Excerpt: a.Excerpt, URL: a.URL,
-			CoverImageHash: a.CoverImageHash, WorkID: a.WorkID, ContentLimit: contentLimitName(a.ContentLimit),
+			CoverImageHash: a.CoverImageHash, WorkID: a.WorkID, ObjectRef: a.ObjectRef, ContentLimit: contentLimitName(a.ContentLimit),
 			Notify: a.Notify, OccurredAt: a.OccurredAt, Revision: a.Revision, Removed: a.RemovedAt != nil,
 			CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt, RemovedAt: a.RemovedAt,
 		}
@@ -141,7 +141,7 @@ type activityFeedInput struct {
 	Limit        int    `query:"limit" doc:"page size (max 50, default 20)"`
 	ContentLimit string `query:"content_limit" default:"all" enum:"all,sfw" doc:"sfw = only SFW items, filtered here so a page is never thinned by the caller"`
 	Sites        string `query:"sites" doc:"comma-separated sites to keep, e.g. kungal; empty = every site"`
-	Verbs        string `query:"verbs" doc:"comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all"`
+	Verbs        string `query:"verbs" doc:"comma-separated verbs to keep (publish,reply,comment,rate,like,edit,favorite,follow,mark,play); empty = all"`
 }
 type activityGroupsOutput struct {
 	Body Envelope[dto.ActivityGroupListResponse]
@@ -154,7 +154,7 @@ type userActivitiesInput struct {
 	Limit        int    `query:"limit" doc:"page size (max 50, default 20)"`
 	ContentLimit string `query:"content_limit" default:"all" enum:"all,sfw" doc:"sfw = only SFW items, filtered here so a page is never thinned by the caller"`
 	Sites        string `query:"sites" doc:"comma-separated sites to keep, e.g. kungal; empty = every site"`
-	Verbs        string `query:"verbs" doc:"comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all"`
+	Verbs        string `query:"verbs" doc:"comma-separated verbs to keep (publish,reply,comment,rate,like,edit,favorite,follow,mark,play); empty = all"`
 }
 
 func (s *Server) listFollowingActivities(ctx context.Context, in *activityFeedInput) (*activityGroupsOutput, error) {
@@ -346,7 +346,7 @@ func toActivityItemViews(rows []repository.ActivityItemRow) []dto.ActivityItemVi
 		out[i] = dto.ActivityItemView{
 			ID: r.ID, Site: r.Site, Key: r.Key, ActorID: r.ActorID, Verb: verbName(r.Verb),
 			ObjectKind: r.ObjectKind, ObjectLabel: r.ObjectLabel, Title: r.Title, Excerpt: r.Excerpt,
-			URL: r.URL, CoverImageHash: r.CoverImageHash, WorkID: r.WorkID,
+			URL: r.URL, CoverImageHash: r.CoverImageHash, WorkID: r.WorkID, ObjectRef: r.ObjectRef,
 			ContentLimit: contentLimitName(r.ContentLimit), OccurredAt: r.OccurredAt,
 		}
 	}

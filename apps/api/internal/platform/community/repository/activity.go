@@ -20,6 +20,7 @@ type ActivityWrite struct {
 	URL            string
 	CoverImageHash *string
 	WorkID         *int64
+	ObjectRef      *string
 	ContentLimit   int16
 	Notify         bool
 	OccurredAt     time.Time
@@ -84,7 +85,7 @@ func UpsertActivityTx(tx *gorm.DB, site string, w ActivityWrite, notifyEligible 
 			    notified_at, removed_at, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, '', '', '', '', NULL, NULL, ?, false, ?, ?, NULL, now(), now(), now())
 			ON CONFLICT (site, key) DO UPDATE SET
-			    title = '', excerpt = '', url = '', cover_image_hash = NULL, work_id = NULL,
+			    title = '', excerpt = '', url = '', cover_image_hash = NULL, work_id = NULL, object_ref = NULL,
 			    revision = EXCLUDED.revision, removed_at = COALESCE(a.removed_at, now()), updated_at = now()
 			  WHERE a.revision < EXCLUDED.revision`+activityReturning,
 			site, w.Key, w.ActorID, w.Verb, w.ObjectKind, model.ContentLimitNSFW, w.OccurredAt, w.Revision,
@@ -93,21 +94,22 @@ func UpsertActivityTx(tx *gorm.DB, site string, w ActivityWrite, notifyEligible 
 		err = tx.Raw(`
 			INSERT INTO community_activity AS a (
 			    site, key, actor_id, verb, object_kind, object_label, title, excerpt, url,
-			    cover_image_hash, work_id, content_limit, notify, occurred_at, revision,
+			    cover_image_hash, work_id, object_ref, content_limit, notify, occurred_at, revision,
 			    notified_at, removed_at, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			    CASE WHEN ? AND ?::timestamptz >= now() - interval '24 hours' THEN now() END,
 			    NULL, now(), now())
 			ON CONFLICT (site, key) DO UPDATE SET
 			    actor_id = EXCLUDED.actor_id, verb = EXCLUDED.verb, object_kind = EXCLUDED.object_kind,
 			    object_label = EXCLUDED.object_label, title = EXCLUDED.title, excerpt = EXCLUDED.excerpt,
 			    url = EXCLUDED.url, cover_image_hash = EXCLUDED.cover_image_hash, work_id = EXCLUDED.work_id,
+			    object_ref = EXCLUDED.object_ref,
 			    content_limit = EXCLUDED.content_limit, notify = EXCLUDED.notify,
 			    occurred_at = EXCLUDED.occurred_at, revision = EXCLUDED.revision,
 			    removed_at = NULL, updated_at = now()
 			  WHERE a.revision < EXCLUDED.revision`+activityReturning,
 			site, w.Key, w.ActorID, w.Verb, w.ObjectKind, w.ObjectLabel, w.Title, w.Excerpt, w.URL,
-			w.CoverImageHash, w.WorkID, w.ContentLimit, w.Notify, w.OccurredAt, w.Revision,
+			w.CoverImageHash, w.WorkID, w.ObjectRef, w.ContentLimit, w.Notify, w.OccurredAt, w.Revision,
 			notifyEligible, w.OccurredAt,
 		).Scan(&rows).Error
 	}

@@ -67,6 +67,9 @@ func (s *FollowService) Follow(ctx context.Context, site string, followerID, fol
 		}); err != nil {
 			return err
 		}
+		if err := writeFollowActivityTx(tx, site, followerID, followeeID); err != nil {
+			return err
+		}
 		inserted = true
 		return nil
 	})
@@ -80,7 +83,15 @@ func (s *FollowService) Unfollow(ctx context.Context, followerID, followeeID int
 	if err := validateFollowIDs(followerID, followeeID); err != nil {
 		return false, err
 	}
-	return repository.DeleteFollow(s.db.WithContext(ctx), followerID, followeeID)
+	var deleted bool
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var err error
+		if deleted, err = repository.DeleteFollow(tx, followerID, followeeID); err != nil {
+			return err
+		}
+		return retractFollowActivitiesTx(tx, [][2]int64{{followerID, followeeID}})
+	})
+	return deleted, err
 }
 
 func (s *FollowService) SetNotifyLevel(ctx context.Context, followerID, followeeID int64, level int16) error {

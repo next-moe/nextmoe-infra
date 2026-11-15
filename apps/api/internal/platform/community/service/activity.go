@@ -40,6 +40,7 @@ var (
 	activityKeyPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]+$`)
 	objectKindPattern  = regexp.MustCompile(`^[a-z0-9_]+$`)
 	imageHashPattern   = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	objectRefPattern   = regexp.MustCompile(`^(work|company|folder|user|topic):[1-9][0-9]{0,18}$`)
 )
 
 const (
@@ -66,6 +67,7 @@ type ActivityInput struct {
 	URL            string
 	CoverImageHash string
 	WorkID         *int64
+	ObjectRef      string
 	ContentLimit   string
 	Notify         bool
 	OccurredAt     *time.Time
@@ -249,14 +251,30 @@ func validateActivity(in ActivityInput, urlHosts []string, now time.Time) (repos
 	if reason := checkText("object_label", in.ObjectLabel, 1, activityLabelMax, false); reason != "" {
 		return w, reason
 	}
-	if reason := checkText("title", in.Title, 1, activityTitleMax, false); reason != "" {
+	if in.ObjectRef != "" {
+		if !objectRefPattern.MatchString(in.ObjectRef) {
+			return w, "object_ref must be <kind>:<id>, kind one of work company folder user topic"
+		}
+		ref := in.ObjectRef
+		w.ObjectRef = &ref
+	}
+	titleMin := 1
+	if w.ObjectRef != nil {
+		titleMin = 0
+	}
+	if reason := checkText("title", in.Title, titleMin, activityTitleMax, false); reason != "" {
 		return w, reason
 	}
 	if reason := checkText("excerpt", in.Excerpt, 0, activityExcerptMax, true); reason != "" {
 		return w, reason
 	}
-	if reason := checkActivityURL(in.URL, urlHosts); reason != "" {
-		return w, reason
+	switch {
+	case in.URL == "" && w.ObjectRef == nil:
+		return w, "url is required unless object_ref is set"
+	case in.URL != "":
+		if reason := checkActivityURL(in.URL, urlHosts); reason != "" {
+			return w, reason
+		}
 	}
 	w.ObjectLabel, w.Title, w.Excerpt, w.URL = in.ObjectLabel, in.Title, in.Excerpt, in.URL
 

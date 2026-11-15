@@ -276,3 +276,26 @@ func TestActivityFacesRequireSiteBinding(t *testing.T) {
 		_ = r.Body.Close()
 	}
 }
+
+func TestActivityObjectRefThroughRouter(t *testing.T) {
+	cleanTables(t)
+	app := activityRouter(true)
+	at := time.Date(2026, 11, 14, 4, 0, 0, 0, time.UTC)
+	body := fmt.Sprintf(`{"items":[{"key":"topic_favorite:7:9","actor_id":7,"revision":%d,"verb":"favorite",
+		"object_kind":"topic","object_label":"话题","object_ref":"topic:9","content_limit":"sfw","occurred_at":%q}]}`,
+		time.Now().UnixMicro(), at.Format(time.RFC3339Nano))
+	out := decodeData[dto.ActivityWriteResponse](t, doFollowReq(t, app, http.MethodPost, "/api/v1/community/activities", body))
+	if len(out.Results) != 1 || out.Results[0].Outcome != service.ActivityCreated {
+		t.Fatalf("an item with object_ref and no url or title: %+v", out.Results)
+	}
+
+	listed := decodeData[dto.SiteActivityListResponse](t, doFollowReq(t, app, http.MethodGet, "/api/v1/community/activities", ""))
+	if len(listed.Activities) != 1 || listed.Activities[0].ObjectRef == nil || *listed.Activities[0].ObjectRef != "topic:9" {
+		t.Fatalf("the reconcile listing returns object_ref: %+v", listed.Activities)
+	}
+	own := decodeData[dto.ActivityGroupListResponse](t, doFollowReq(t, app, http.MethodGet, "/api/v1/community/users/7/activities?verbs=favorite,follow,mark,play", ""))
+	if len(own.Groups) != 1 || own.Groups[0].Verb != "favorite" || len(own.Groups[0].Items) != 1 ||
+		own.Groups[0].Items[0].ObjectRef == nil || *own.Groups[0].Items[0].ObjectRef != "topic:9" {
+		t.Fatalf("the feed returns the new verb and object_ref: %+v", own.Groups)
+	}
+}

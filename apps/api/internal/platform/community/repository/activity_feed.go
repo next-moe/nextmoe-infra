@@ -133,12 +133,13 @@ type ActivityItemRow struct {
 	URL            string    `gorm:"column:url"`
 	CoverImageHash *string   `gorm:"column:cover_image_hash"`
 	WorkID         *int64    `gorm:"column:work_id"`
+	ObjectRef      *string   `gorm:"column:object_ref"`
 	ContentLimit   int16     `gorm:"column:content_limit"`
 	OccurredAt     time.Time `gorm:"column:occurred_at"`
 }
 
 const activityItemColumns = `a.id, a.site, a.key, a.actor_id, a.verb, a.object_kind, a.object_label,
-	a.title, a.excerpt, a.url, a.cover_image_hash, a.work_id, a.content_limit, a.occurred_at`
+	a.title, a.excerpt, a.url, a.cover_image_hash, a.work_id, a.object_ref, a.content_limit, a.occurred_at`
 
 func sfwItemFilter(sfw bool) string {
 	if sfw {
