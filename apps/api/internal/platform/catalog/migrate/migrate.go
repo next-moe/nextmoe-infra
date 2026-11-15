@@ -137,6 +137,9 @@ func Run(db *gorm.DB) error {
 		// nothing is backfilled. The same wave adds browsing_history_off and
 		// browsing_history_shared to catalog_user_privacy as NOT NULL DEFAULT
 		// false, so every existing account records history and keeps it per app.
+		// followed_companies_public (2026-11-14) is NOT NULL DEFAULT false: the
+		// followed-companies list was promised private to its owner, so every
+		// existing account stays private until it opts in on /v2/me/privacy.
 		&model.CatalogUserWorkView{},
 		&model.CatalogSeries{},             // work series entity (step 94, dlsite lane first)
 		&model.CatalogSeriesMember{},       // series membership (step 94)

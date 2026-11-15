@@ -112,7 +112,7 @@ func TestBrowsingHistoryOffErasesAndStopsRecording(t *testing.T) {
 func TestBrowsingHistorySettingsKeepPlayRecordsAndEachOther(t *testing.T) {
 	svc := newBrowsingHistorySvc(t)
 	ctx := context.Background()
-	_, err := NewUserWorkRecordService(testDB).SetPrivacy(ctx, 7, true)
+	_, err := NewUserWorkRecordService(testDB).SetPrivacy(ctx, 7, PrivacyChange{PlayRecordsPrivate: ptrBool(true)})
 	require.NoError(t, err)
 
 	shared := true

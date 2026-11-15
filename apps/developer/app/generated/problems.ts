@@ -281,6 +281,15 @@ export const problems = [
     "type": "https://developer.nextmoe.dev/problems/catalog/play-records-private"
   },
   {
+    "code": "FOLLOWED_COMPANIES_PRIVATE",
+    "domain": "catalog",
+    "kebab": "followed-companies-private",
+    "status": 403,
+    "title": "Followed companies private",
+    "description": "The account keeps the companies it follows private, which is the default. Only the account itself may read them, through its own user token; it can make them public on PATCH /v2/me/privacy. A company's follower_count stays public.",
+    "type": "https://developer.nextmoe.dev/problems/catalog/followed-companies-private"
+  },
+  {
     "code": "USER_IDENTITY_REQUIRED",
     "domain": "me",
     "kebab": "user-identity-required",

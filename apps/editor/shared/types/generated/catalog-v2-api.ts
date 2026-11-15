@@ -1252,6 +1252,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/followed-companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List an account's followed companies
+         * @description The companies one account follows, newest follow first, in the shape /v2/me/followed-companies answers its owner. Items carry ids only and are hydrated with /v2/catalog/companies?ids=. The list is private by default: an account that has not set followed_companies=public on PATCH /v2/me/privacy is 403 FOLLOWED_COMPANIES_PRIVATE, except to its own user token. include_total counts the items. Requires an application key or a user access token with catalog:read.
+         */
+        get: operations["listCompanyFollows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/blocked-tags": {
         parameters: {
             query?: never;
@@ -2273,7 +2293,7 @@ export interface paths {
         };
         /**
          * My privacy switches
-         * @description play_records says who may read the bearer's play states and playtimes on /v2/work-records; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers public, on and per_app with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
+         * @description play_records says who may read the bearer's play states and playtimes on /v2/work-records; followed_companies who may read the companies they follow on /v2/followed-companies; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers play_records public, followed_companies private, browsing_history on and browsing_history_sharing per_app, with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
          */
         get: operations["getMyPrivacy"];
         put?: never;
@@ -2521,7 +2541,7 @@ export interface paths {
         };
         /**
          * List my play records
-         * @description The bearer's own play records: the works they have a play state on, each with its playtime and rating, with the filters and facets of /v2/work-records. The privacy switch does not apply: this is the owner's view of their own profile. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the works per state after the same filters as the items, state= included, as every v2 facet does: all five states are present, 0 when empty. Ask for it on a request without state= to fill a row of tabs. include_total counts the items. Requires a user access token. Any app may call this; no scope is required.
+         * @description The bearer's own play records: the works they have a play state on, each with its playtime and rating, with the filters and facets of /v2/work-records. The privacy switch does not apply: this is the owner's view of their own profile. record= picks the works listed: state (the default) lists only works with a play state, so a work with only a playtime or only a rating is left out; playtime lists every work with a playtime; any lists every work with a play state, a playtime or a rating. Under playtime and any a work without a play state has a null work_state. Works that are no longer live in the catalog are left out. sort=updated_desc, the default, is newest first by the play state's updated_at, or for a work with no play state the newer of its playtime's and its rating's updated_at; updated_asc is the reverse. playtime_desc and playtime_asc order by playtime.minutes, rating_desc and rating_asc by rating.overall; works with no such value come last in both directions, and work_id breaks ties in the sort's direction. A cursor belongs to the sort that issued it; another sort's cursor is 400 INVALID_CURSOR. facets=state counts the works per state after the same filters as the items, state= included, as every v2 facet does: all five states are present, 0 when empty, and under record=playtime or record=any a sixth bucket none counts the works with no play state. Ask for it on a request without state= to fill a row of tabs. include_total counts the items; include_playtime_total=true adds playtime_total_minutes. Requires a user access token. Any app may call this; no scope is required.
          */
         get: operations["listMyWorkRecords"];
         put?: never;
@@ -3393,7 +3413,7 @@ export interface paths {
         };
         /**
          * List an account's play records
-         * @description The works one account has a play state on — wish, doing, done, on_hold or dropped — each with its playtime and rating, the shape /v2/me/work-records/{work_id} answers its owner. This is the face a profile page's game library reads. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the works per state after the same filters as the items, state= included, as every v2 facet does: all five states are present, 0 when empty. Ask for it on a request without state= to fill a row of tabs. include_total counts the items. An account that keeps its play records private (PATCH /v2/me/privacy) is 403 PLAY_RECORDS_PRIVATE, except to its own user token; the account reads its own list, private or not, on /v2/me/work-records, which needs no scope. Play records are public by default. Requires an application key or a user access token with catalog:read.
+         * @description The works one account has a play state on — wish, doing, done, on_hold or dropped — each with its playtime and rating, the shape /v2/me/work-records/{work_id} answers its owner. This is the face a profile page's game library reads. record= picks the works listed: state (the default) lists only works with a play state, so a work with only a playtime or only a rating is left out; playtime lists every work with a playtime; any lists every work with a play state, a playtime or a rating. Under playtime and any a work without a play state has a null work_state. Works that are no longer live in the catalog are left out. sort=updated_desc, the default, is newest first by the play state's updated_at, or for a work with no play state the newer of its playtime's and its rating's updated_at; updated_asc is the reverse. playtime_desc and playtime_asc order by playtime.minutes, rating_desc and rating_asc by rating.overall; works with no such value come last in both directions, and work_id breaks ties in the sort's direction. A cursor belongs to the sort that issued it; another sort's cursor is 400 INVALID_CURSOR. facets=state counts the works per state after the same filters as the items, state= included, as every v2 facet does: all five states are present, 0 when empty, and under record=playtime or record=any a sixth bucket none counts the works with no play state. Ask for it on a request without state= to fill a row of tabs. include_total counts the items; include_playtime_total=true adds playtime_total_minutes. An account that keeps its play records private (PATCH /v2/me/privacy) is 403 PLAY_RECORDS_PRIVATE, except to its own user token; the account reads its own list, private or not, on /v2/me/work-records, which needs no scope. Play records are public by default. Requires an application key or a user access token with catalog:read.
          */
         get: operations["listWorkRecords"];
         put?: never;
@@ -7900,6 +7920,11 @@ export interface components {
             object: "list";
             /**
              * Format: int64
+             * @description Present when include_playtime_total=true: the sum of playtime.minutes over every work the filters list, not only this page. Same visibility gate as items.
+             */
+            playtime_total_minutes?: number;
+            /**
+             * Format: int64
              * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
              */
             total?: number;
@@ -8884,6 +8909,12 @@ export interface components {
              * @enum {string}
              */
             browsing_history_sharing?: "per_app" | "shared";
+            /**
+             * @description Who may read the account's followed companies on /v2/followed-companies. Absent leaves it as it is.
+             * @example public
+             * @enum {string}
+             */
+            followed_companies?: "public" | "private";
             /**
              * @description Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is.
              * @example private
@@ -11164,6 +11195,11 @@ export interface components {
              */
             browsing_history_sharing: "per_app" | "shared";
             /**
+             * @description Who may read the companies the account follows on /v2/followed-companies. private, the default, refuses everyone but the account itself with 403 FOLLOWED_COMPANIES_PRIVATE; public lets any application read the list. A company's follower_count counts every follower either way.
+             * @enum {string}
+             */
+            followed_companies: "public" | "private";
+            /**
              * @description Type discriminant. Always privacy.
              * @enum {string}
              */
@@ -11986,7 +12022,7 @@ export interface components {
             rating: components["schemas"]["UserRating"] | null;
             /** @description Catalog work id. */
             work_id: string;
-            /** @description The account's play state, as GET /v2/me/work-states answers it to its owner. null when none is set; never null on /v2/work-records, which lists only works that have one. */
+            /** @description The account's play state, as GET /v2/me/work-states answers it to its owner. null when none is set; never null on /v2/work-records under the default record=state, which lists only works that have one. */
             work_state: components["schemas"]["UserWorkState"] | null;
         } & {
             [key: string]: unknown;
@@ -19042,6 +19078,121 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCompanyFollows: {
+        parameters: {
+            query: {
+                /** @description Opaque keyset cursor from a prior next_cursor. Must start with cur_. */
+                cursor?: string;
+                /** @description Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. */
+                limit?: string;
+                /** @description basic (default) or full. Closed vocabulary. */
+                view?: string;
+                /** @description Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. */
+                include?: string;
+                /** @description Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. */
+                fields?: string;
+                /** @description Comma-separated ids, max 100. Batch lane: no pagination. */
+                ids?: string;
+                /** @description Comma-separated source:external_id, max 100. Batch lane: no pagination. */
+                refs?: string;
+                /** @description true to include total. Only true or false. */
+                include_total?: string;
+                /** @description Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. */
+                facets?: string;
+                /** @description Closed per-collection sort key. */
+                sort?: string;
+                /** @description true includes r18. false or absent hides r18. Only true or false. */
+                nsfw?: string;
+                /** @description The account whose followed companies to list — the central sign-in user id, the same one a rating reports as user_id. */
+                user_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListCompanyFollow"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -28990,8 +29141,12 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Comma-separated closed vocabulary: wish, doing, done, on_hold, dropped. Absent lists every state. */
+                /** @description Which works make up the list. state, the default, lists the works with a play state; playtime the works with a playtime, play state or not; any the works with a play state, a playtime or a rating. */
+                record?: string;
+                /** @description Comma-separated closed vocabulary: wish, doing, done, on_hold, dropped, and none for a work with no play state, which only record=playtime and record=any list. Absent lists every state. */
                 state?: string;
+                /** @description true adds playtime_total_minutes: the sum of every listed work's playtime.minutes after the same filters as the items. */
+                include_playtime_total?: string;
                 /** @description Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. total and the state facet count after it, so a reader who hides nsfw works gets counts that match what it shows. */
                 content_limit?: string;
             };
@@ -34214,8 +34369,12 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Comma-separated closed vocabulary: wish, doing, done, on_hold, dropped. Absent lists every state. */
+                /** @description Which works make up the list. state, the default, lists the works with a play state; playtime the works with a playtime, play state or not; any the works with a play state, a playtime or a rating. */
+                record?: string;
+                /** @description Comma-separated closed vocabulary: wish, doing, done, on_hold, dropped, and none for a work with no play state, which only record=playtime and record=any list. Absent lists every state. */
                 state?: string;
+                /** @description true adds playtime_total_minutes: the sum of every listed work's playtime.minutes after the same filters as the items. */
+                include_playtime_total?: string;
                 /** @description Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. total and the state facet count after it, so a reader who hides nsfw works gets counts that match what it shows. */
                 content_limit?: string;
                 /** @description The account whose play records to list — the central sign-in user id, the same one a rating reports as user_id. */

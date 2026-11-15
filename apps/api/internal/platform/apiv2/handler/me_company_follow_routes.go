@@ -14,6 +14,10 @@ type listCompanyFollowsInput struct {
 	CollectionInput
 	CompanyIDs string `query:"company_ids" maxLength:"4096" doc:"Comma-separated company ids, max 100. Batch read, no pagination."`
 }
+type listPublicCompanyFollowsInput struct {
+	CollectionInput
+	UserID string `query:"user_id" required:"true" minLength:"1" maxLength:"20" example:"2" doc:"The account whose followed companies to list — the central sign-in user id, the same one a rating reports as user_id."`
+}
 type listCompanyFollowsOutput struct {
 	Body repr.List[repr.CompanyFollow]
 }
@@ -68,6 +72,12 @@ func registerMeCompanyFollows(api huma.API, cat *Catalog) {
 		Tags:        me, Errors: errs, DefaultStatus: http.StatusNoContent, SkipValidateParams: true,
 	}, deleteMyCompanyFollow(cat))
 	huma.Register(api, huma.Operation{
+		OperationID: "listCompanyFollows", Method: http.MethodGet, Path: "/v2/followed-companies",
+		Summary:     "List an account's followed companies",
+		Description: "The companies one account follows, newest follow first, in the shape /v2/me/followed-companies answers its owner. Items carry ids only and are hydrated with /v2/catalog/companies?ids=. The list is private by default: an account that has not set followed_companies=public on PATCH /v2/me/privacy is 403 FOLLOWED_COMPANIES_PRIVATE, except to its own user token. include_total counts the items. Requires an application key or a user access token with catalog:read.",
+		Tags:        []string{"catalog"}, Errors: collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable), SkipValidateParams: true,
+	}, listPublicCompanyFollows(cat))
+	huma.Register(api, huma.Operation{
 		OperationID: "listMyCalendar", Method: http.MethodGet, Path: "/v2/me/calendar",
 		Summary:     "My release calendar",
 		Description: "The bearer's release calendar: the works of the companies they follow, with the same windows, parameters and meta as /v2/catalog/calendar. Absent olang means all languages and absent exclude_company_kind excludes nothing, because the population is already the bearer's choice; the public calendar's defaults (Japanese, commercial only) would hide a followed doujin circle or a Chinese company. A user who follows no company gets an empty window. Requires a user access token. Any app may call this; no scope is required. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
@@ -85,6 +95,24 @@ func listMyCompanyFollows(cat *Catalog) func(context.Context, *listCompanyFollow
 			return nil, err
 		}
 		page, lerr := cat.ListCompanyFollows(ctx, q, splitWorkIDs(in.CompanyIDs))
+		if lerr != nil {
+			return nil, catalogErr(ctx, lerr)
+		}
+		return &listCompanyFollowsOutput{Body: page}, nil
+	}
+}
+
+func listPublicCompanyFollows(cat *Catalog) func(context.Context, *listPublicCompanyFollowsInput) (*listCompanyFollowsOutput, error) {
+	return func(ctx context.Context, in *listPublicCompanyFollowsInput) (*listCompanyFollowsOutput, error) {
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.CompanyFollowSpec())
+		if err != nil {
+			return nil, err
+		}
+		uid, err := requiredIDParam("user_id", in.UserID)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		page, lerr := cat.ListPublicCompanyFollows(ctx, uid, q)
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}

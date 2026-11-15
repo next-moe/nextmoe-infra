@@ -273,7 +273,7 @@ func UserWorkSpec() Spec {
 
 func WorkRecordSpec() Spec {
 	return Spec{
-		Sort:    []string{"updated_desc"},
+		Sort:    []string{"updated_desc", "updated_asc", "playtime_desc", "playtime_asc", "rating_desc", "rating_asc"},
 		Include: []string{},
 		FullSet: []string{},
 		Fields:  []string{"object", "work_id", "work_state", "playtime", "rating"},

@@ -352,7 +352,7 @@ func v2Security(path string) (schemes []string, scope string, anonymous bool) {
 		return []string{securityAppKey}, devapi.ScopeCatalogRead, false
 	case path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/"),
 		path == "/v2/ratings" || strings.HasPrefix(path, "/v2/ratings/"),
-		path == "/v2/work-records":
+		path == "/v2/work-records", path == "/v2/followed-companies":
 		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead, false
 	case strings.HasPrefix(path, "/v2/store/prices"):
 		return nil, "", false

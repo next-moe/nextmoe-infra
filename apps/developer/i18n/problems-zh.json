@@ -101,6 +101,8 @@
 
     "Play records private": "游玩记录未公开",
     "The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings.": "该账号把游玩状态与时长设为私密，只有账号本人用自己的用户令牌才能读到。它的评分仍在 /v2/ratings 公开。",
+    "Followed companies private": "关注厂商未公开",
+    "The account keeps the companies it follows private, which is the default. Only the account itself may read them, through its own user token; it can make them public on PATCH /v2/me/privacy. A company's follower_count stays public.": "该账号的关注厂商未公开，这是缺省设置。只有账号本人用自己的用户令牌才能读到；本人可在 PATCH /v2/me/privacy 把它设为公开。厂商的 follower_count 仍然公开。",
 
     "User identity required": "需要用户身份",
     "An application key was used for an operation that needs a user token.": "这个操作需要用户令牌，却用了应用密钥。",

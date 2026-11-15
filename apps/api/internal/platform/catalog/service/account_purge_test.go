@@ -48,7 +48,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		_, err = NewUserRatingService(testDB).Set(ctx, uid, workID, "kungal", "kungal",
 			RatingInput{Overall: 8, Recommend: model.RecommendYes, ShortSummary: "purge me"})
 		require.NoError(t, err)
-		_, err = NewUserWorkRecordService(testDB).SetPrivacy(ctx, uid, true)
+		_, err = NewUserWorkRecordService(testDB).SetPrivacy(ctx, uid, PrivacyChange{PlayRecordsPrivate: ptrBool(true)})
 		require.NoError(t, err)
 		require.NoError(t, NewBrowsingHistoryService(testDB).Record(ctx, uid, "kungal", workID))
 		_, err = discussion.New(testDB, discussion.Kind{Name: "probe"}).Create(ctx, discussion.CreateInput{
