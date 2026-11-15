@@ -44,6 +44,9 @@ func (s *FollowService) Block(ctx context.Context, site string, blockerID, block
 		if _, err := repository.DeleteFollow(tx, blockedID, blockerID); err != nil {
 			return err
 		}
+		if err := retractFollowActivitiesTx(tx, [][2]int64{{blockerID, blockedID}, {blockedID, blockerID}}); err != nil {
+			return err
+		}
 		created = true
 		return nil
 	})

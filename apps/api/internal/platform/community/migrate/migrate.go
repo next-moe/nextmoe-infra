@@ -56,7 +56,10 @@ func Run(db *gorm.DB) error {
 		&model.CommunityUserFollow{},
 		// 2026-09-26: the following feed (plan 13). New tables with no rows;
 		// sites fill community_activity through POST /activities, and the
-		// group and seen tables follow from it.
+		// group and seen tables follow from it. 2026-11-15 adds a nullable
+		// object_ref (NULL on every existing row): an item that names what it is
+		// about as <kind>:<id> may leave url empty, so a tenant that belongs to
+		// no single site (catalog) can write items each reader links itself.
 		&model.CommunityActivity{},
 		&model.CommunityActivityGroup{},
 		&model.CommunityFeedSeen{},

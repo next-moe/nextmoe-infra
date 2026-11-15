@@ -547,7 +547,7 @@ func TestColumnAudit(t *testing.T) {
 		"community_user_block": {"id", "blocker_id", "blocked_id", "origin_site", "created_at"},
 		"community_activity": {
 			"id", "site", "key", "actor_id", "verb", "object_kind", "object_label", "title",
-			"excerpt", "url", "cover_image_hash", "work_id", "content_limit", "notify",
+			"excerpt", "url", "cover_image_hash", "work_id", "object_ref", "content_limit", "notify",
 			"occurred_at", "bucket_date", "revision", "notified_at", "removed_at",
 			"created_at", "updated_at",
 		},

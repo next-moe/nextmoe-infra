@@ -6,6 +6,8 @@ import (
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
+
+	"gorm.io/gorm"
 )
 
 // Every tenant's author_id is the NextMoe uid (checked on prod 2026-09-25:
@@ -16,12 +18,19 @@ import (
 // delivering site. community_trust, the feed's seen mark and the activity
 // setting have no site and are dropped once; flags the account filed stay, as
 // moderation records.
-// Follow edges naming the account are deleted in both directions, and first:
+// Follow edges naming the account are deleted in both directions, with their
+// feed items, and first:
 // while they stand, the dispatcher keeps delivering kinds 9 and 10 to the
 // account between one site's purge and the next. A site's author purge leaves
 // them alone because a follow is account-level.
 func (s *PostService) PurgeAccount(ctx context.Context, uid int64) error {
-	if err := repository.DeleteUserFollows(s.db.WithContext(ctx), uid); err != nil {
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		edges, err := repository.DeleteUserFollows(tx, uid)
+		if err != nil {
+			return err
+		}
+		return retractFollowActivitiesTx(tx, edges)
+	}); err != nil {
 		return err
 	}
 	if err := repository.DeleteUserBlocks(s.db.WithContext(ctx), uid); err != nil {

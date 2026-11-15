@@ -99,6 +99,11 @@ components:
           type: string
         object_label:
           type: string
+        object_ref:
+          description: "<kind>:<id>, kind one of work company folder user topic; null when the item names none. With it, url may be empty and title may be a stale snapshot: link and name the object on the reading site"
+          type:
+            - string
+            - "null"
         occurred_at:
           format: date-time
           type: string
@@ -128,6 +133,7 @@ components:
         - url
         - cover_image_hash
         - work_id
+        - object_ref
         - content_limit
         - occurred_at
       type: object
@@ -270,6 +276,9 @@ components:
         object_label:
           description: display name of the type for any site to render, at most 16 characters, e.g. Galgame 资源
           type: string
+        object_ref:
+          description: what the activity is about as <kind>:<id>, kind one of work company folder user topic, e.g. user:42; a tombstone clears it
+          type: string
         occurred_at:
           description: when the content was made (not when it is pushed); required unless removed
           format: date-time
@@ -282,13 +291,13 @@ components:
           format: int64
           type: integer
         title:
-          description: at most 200 characters; the site truncates
+          description: at most 200 characters; the site truncates. Required unless object_ref is set, where it is a snapshot the reader may replace with the object's current name
           type: string
         url:
-          description: absolute https URL on one of the calling client's registered redirect hosts
+          description: absolute https URL on one of the calling client's registered redirect hosts. Required unless object_ref is set; without it the reader links the object on its own site
           type: string
         verb:
-          description: publish | reply | comment | rate | like | edit
+          description: publish | reply | comment | rate | like | edit | favorite | follow | mark | play
           type: string
         work_id:
           description: the catalog work this activity is about
@@ -3117,11 +3126,16 @@ components:
           type: string
         object_label:
           type: string
+        object_ref:
+          description: <kind>:<id>, kind one of work company folder user topic; null when the item names none
+          type:
+            - string
+            - "null"
         occurred_at:
           format: date-time
           type: string
         removed:
-          description: a tombstone; its title, excerpt, url, cover_image_hash and work_id are cleared
+          description: a tombstone; its title, excerpt, url, cover_image_hash, work_id and object_ref are cleared
           type: boolean
         removed_at:
           format: date-time
@@ -3157,6 +3171,7 @@ components:
         - url
         - cover_image_hash
         - work_id
+        - object_ref
         - content_limit
         - notify
         - occurred_at
@@ -3598,7 +3613,7 @@ components:
       type: object
 info:
   title: KUN Community Service
-  version: 1.2.0
+  version: 1.3.0
 openapi: 3.1.0
 paths:
   /api/v1/community/activities:
@@ -5614,12 +5629,12 @@ paths:
           schema:
             description: comma-separated sites to keep, e.g. kungal; empty = every site
             type: string
-        - description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all
+        - description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit,favorite,follow,mark,play); empty = all
           explode: false
           in: query
           name: verbs
           schema:
-            description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all
+            description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit,favorite,follow,mark,play); empty = all
             type: string
       responses:
         "200":
@@ -5983,12 +5998,12 @@ paths:
           schema:
             description: comma-separated sites to keep, e.g. kungal; empty = every site
             type: string
-        - description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all
+        - description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit,favorite,follow,mark,play); empty = all
           explode: false
           in: query
           name: verbs
           schema:
-            description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all
+            description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit,favorite,follow,mark,play); empty = all
             type: string
       responses:
         "200":
