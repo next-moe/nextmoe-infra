@@ -39,7 +39,7 @@ const (
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("chat")
 	if err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)

@@ -32,7 +32,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("image")
 	if err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)

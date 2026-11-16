@@ -28,7 +28,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("artifact")
 	if err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)

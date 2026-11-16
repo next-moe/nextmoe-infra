@@ -24,8 +24,10 @@
 刷新失败沿用上一份;启动时连续失败则只带 1+2 两层运行并打 `settings: initial load failed` 的
 ERROR 日志。数据库里的一行若类型不符、越界或枚举外,会被忽略并退回 2/1 层,日志有 WARN。
 
-**边界**:配置中心只收运行期可调项(开关、阈值、TTL、配额)。密钥、host/port/dsn/bucket、S3
-path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线永远留在环境变量里。
+**边界**:本篇 18.0–18.8 的键只收运行期可调项(开关、阈值、TTL、配额),30 秒内热生效。环境变量
+与密钥(S3 keys、client secret、bucket、aff 模板……)走同一个控制台的另一层——启动时读取的加密
+存储,见 [18.9](#189-环境变量与密钥启动期存储)。只有**启动接线**(数据库连接与主密钥)和**拓扑**
+(各服务的 host/port、`KUN_ENV`)永远留在 compose / Dokploy。
 
 ## 18.1 现有键(127 个,2026-10-21)
 
@@ -204,7 +206,7 @@ env 行已拔。此后删掉某行 DB 值,回落的是**代码默认**(不再有
 4. 测试里用 `settings.Override(t, keys.X, v)` 注入,cleanup 自动还原。
 5. 不需要迁移、不需要改控制台:注册表即界面。
 
-不进配置中心的:密钥与接线(见 18.0 边界)、一次性 cmd 工具专用的 `KUN_*`(它们仍直接读 env)。
+不进运行期键的:环境变量与密钥(走 18.9)、一次性 cmd 工具专用的 `KUN_*`(它们仍直接读 env)。
 
 ## 18.6 后台任务的开关与时刻
 
@@ -235,3 +237,96 @@ env 行已拔。此后删掉某行 DB 值,回落的是**代码默认**(不再有
 与 18.7 的读面同值)加上为这个 App 声明的 `app.<app>.*` 键。App 的产品参数放进配置中心是所有者
 2026-10-20 的决定;站点网页自己的产品开关仍留在站点。`app` 域的键不标 `Public`,所以不会出现在
 18.7 给站点的读面里。契约与客户端行为见 [docs/app-settings/README.md](../app-settings/README.md)。
+
+## 18.9 环境变量与密钥(启动期存储)
+
+控制台 `/settings/env`。与运行期键不同,这一层是**进程启动时读一次**的:改了要重启对应服务。
+
+### 18.9.1 一个变量的值从哪来
+
+每个服务的 `config.LoadService("<服务名>")` 对每个变量按三层取值,前者压后者:
+
+| 层 | 载体 | 说明 |
+|---|---|---|
+| 1. 环境变量 | compose `environment:` / Dokploy 面板 | 应急覆盖;非空即生效 |
+| 2. 配置中心 | 主库 `config_secrets`,AES-256-GCM,主密钥 `KUN_CONFIG_KEK` | 作用域为某个服务的行压过「全部服务」的行 |
+| 3. 代码默认 | `pkg/config/config.go` | |
+
+注意顺序和运行期键**相反**:这里环境变量优先,所以 Dokploy 里残留的旧值会挡住配置中心——控制台会把它
+标成「面板值覆盖了配置中心」。服务名(=compose 服务名)决定读哪些作用域;`cmd/migrate` 是 `migrate`,
+其余一次性 cmd 工具是 `tools`。
+
+变量分三类,由名字决定:
+
+- **启动接线**:`KUN_PG_*`、`*_PG_*`、`KUN_CONFIG_KEK`——读配置中心之前就要用,只能在 compose / Dokploy。
+- **拓扑**:`*_HOST`、`*_PORT`、`KUN_ENV`——随部署在 compose 里评审,控制台只读。
+- **其余都可存储**。名字含 `SECRET` / `PASSWORD` / `TOKEN` / `KEK` / `_KEY` / `_KEYS` 的是**密钥**:
+  控制台与上报只出现指纹(以主密钥为键的 HMAC 前 12 位)和末尾 4 位,审计只记指纹;其余变量明文显示。
+  分类按名字、默认从严,新加的变量不用登记。
+
+### 18.9.2 每个服务都会上报自己读到了什么
+
+服务启动时把它解析到的**每一个**变量(值或指纹、来源)写进 `config_boot_snapshots`,连同「容器里有、
+但没有代码读取」的变量(多半是消费者删了或名字拼错)。控制台据此列出全部变量——包括一直用代码默认值、
+在别处根本看不到的那些——并标出四种问题:
+
+| 标记 | 含义 | 怎么办 |
+|---|---|---|
+| 面板值可删除 | 环境变量与存储值一致 | 从 Dokploy 删掉,重部署 |
+| 面板值覆盖了配置中心 | 两者不一致,环境变量生效 | 确认哪个对,删面板值或改存储值 |
+| 待重启生效 | 存储值在该服务启动后改过 | 重启该服务 |
+| 服务缺少主密钥 | 该服务启动时没有 `KUN_CONFIG_KEK` | 补上主密钥 |
+
+服务路径(`internal/` 与各服务的 `cmd/`)不许直接 `os.Getenv`,`TestServicesReadEnvironmentThroughConfig`
+会拦;要读新变量用 `config.Env`(或在 `config.go` 里加字段),否则它不会出现在控制台。
+
+### 18.9.3 Dokploy 里最终只剩
+
+| 变量 | 为什么 |
+|---|---|
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` | 连上主库才能读配置中心;postgres 容器也读它 |
+| `KUN_CONFIG_KEK` | 打开配置中心的钥匙(infra 与 agent 两个项目都要) |
+| `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | minio 容器自己读 |
+| `KUN_CHAT_CENTRIFUGO_API_KEY` / `KUN_CHAT_REALTIME_TOKEN_SECRET` | centrifugo 容器以自己的变量名读,导入工具会跳过它们 |
+| `NUXT_OAUTH_CLIENT_SECRET`(及 `NUXT_PUBLIC_OAUTH_CLIENT_ID`) | admin 是 Nuxt,不读配置中心 |
+
+`KUN_LLM_KEK`、`KUN_OIDC_KEY_ENC_KEY` 本身也是主密钥,但用 `KUN_CONFIG_KEK` 封存后安全性不变(拿到库
+没有主密钥打不开;两者都拿到则一切都已失守),所以也进配置中心。
+
+**安全边界**:每个持有 `KUN_CONFIG_KEK` 的服务都能打开每一行;这与它们今天共用同一个 Postgres 超级用户
+是同一个边界。异地备份(R2)里只有密文;`refresh-dev-db` 的脱敏会清空这三张表,开发机拿不到生产密钥。
+本地开发默认不设 `KUN_CONFIG_KEK`,存储层关闭,只用环境变量与默认值。
+
+### 18.9.4 从 Dokploy 迁过来(一次性)
+
+顺序同 18.4:**先存入、核对一致,再从面板删**。反过来会有一段服务拿到空密钥的窗口。
+
+1. 生成主密钥 `openssl rand -base64 32`,在 infra 与 agent 两个 Dokploy 项目里都加上
+   `KUN_CONFIG_KEK`,重部署(`migrate` 会建出三张表;此时一切仍来自面板,行为不变)。
+2. 在主机上把正在运行的容器原样导入。工具从 `docker inspect` 读每个容器的环境:所有 Go 容器取值都相同的
+   变量存成「全部服务」,其余按容器各存一行——不会把某个服务原本为空的值填上。先 dry-run 看计划,
+   再加 `-apply`:
+
+   ```bash
+   PROJ=kun-visual-novel-infra-vqvqbc
+   dump_env "${PROJ}-oauth-1"          # catalog-cutover-runbook §6.0 的配方
+   NONSECRET=KUN_IMAGE_S3_ENDPOINT,KUN_IMAGE_S3_REGION,KUN_IMAGE_S3_BUCKET,KUN_IMAGE_S3_FORCE_PATH_STYLE,\
+   KUN_IMAGE_CLIENT_ID,KUN_GALGAME_IMAGE_CLIENT_ID,KUN_CATALOG_CLIENT_ID,KUN_CATALOG_IMAGE_CLIENT_ID,\
+   KUN_CATALOG_COMMUNITY_CLIENT_ID,KUN_CHAT_IMAGE_CLIENT_ID,KUN_NEWS_IMAGE_CLIENT_ID,KUN_TRUST_CLIENT_ID,\
+   KUN_OIDC_SIGN_ASYMMETRIC,KUN_CATALOG_ACTIVITY_PUSH,KUN_DEV_PORTAL_CLIENT_IDS,KUN_YMGAL_CLIENT_ID,\
+   KUN_FEDERATION_GOOGLE_CLIENT_ID,KUN_FEDERATION_GITHUB_CLIENT_ID,KUN_FEDERATION_HIKARINAGI_CLIENT_ID,\
+   KUN_STORE_DLSITE_AFF_URL_TMPL_MANIAX,KUN_STORE_DLSITE_AFF_URL_TMPL_PRO,KUN_STORE_PRICE_DLSITE_BASE,\
+   KUN_AI_UPSTREAM_BASE_URL,KUN_AI_UPSTREAM_MODEL,KUN_TELEMETRY_S3_ENDPOINT,KUN_TELEMETRY_S3_BUCKET
+   sudo docker inspect $(sudo docker ps -q --filter label=com.docker.compose.project=$PROJ) \
+     | sudo docker run -i --rm --network dokploy-network --env-file /tmp/x.env \
+         ghcr.io/next-moe/infra-tools:latest config-secrets import -keys "$NONSECRET"
+   # 核对计划后同一条命令加 -apply;agent 项目单独导入并加 -global=false
+   sudo shred -u /tmp/x.env
+   ```
+
+3. 重部署,让服务带着存储值重新启动。控制台 `/settings/env` 筛「有问题」:迁过来的每个变量都应是
+   「面板值可删除」,不应出现「面板值覆盖了配置中心」。
+4. 从 Dokploy 删掉这些变量(18.9.3 那张表之外的全部),重部署。控制台里它们的来源变成「配置中心」、
+   没有问题标记。
+5. 之后的清理 PR 再把 compose 里对应的 `${VAR:-}` 行删掉;在那之前它们只是插值成空串。
+

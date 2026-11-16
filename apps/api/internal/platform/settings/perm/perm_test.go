@@ -8,8 +8,9 @@ import (
 )
 
 var goldenGrants = map[authz.Permission][]string{
-	perm.View:  {"admin", "ren"},
-	perm.Write: {"ren"},
+	perm.View:     {"admin", "ren"},
+	perm.Write:    {"ren"},
+	perm.EnvWrite: {"ren"},
 }
 
 var allRoles = []string{"user", "creator", "moderator", "admin", "ren"}

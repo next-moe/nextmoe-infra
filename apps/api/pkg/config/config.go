@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +10,7 @@ import (
 )
 
 type Config struct {
+	Service                 string
 	Server                  ServerConfig
 	Database                DatabaseConfig
 	GalgameDatabase         DatabaseConfig
@@ -152,6 +152,7 @@ type TelemetryWorkerConfig struct {
 type AIUpstreamConfig struct {
 	BaseURL string
 	Token   string
+	Model   string
 }
 
 const DefaultAIUpstreamModel = "@cf/zai-org/glm-5.2"
@@ -162,22 +163,24 @@ type LLMGatewayConfig struct {
 }
 
 func LLMBaseURL() string {
-	if os.Getenv("KUN_LLM_GATEWAY_KEY") != "" {
-		return getEnv("KUN_LLM_GATEWAY_URL", "http://127.0.0.1:9284/v1")
+	gateway := getEnv("KUN_LLM_GATEWAY_URL", "http://127.0.0.1:9284/v1")
+	if getEnv("KUN_LLM_GATEWAY_KEY", "") != "" {
+		return gateway
 	}
-	return os.Getenv("KUN_AI_UPSTREAM_BASE_URL")
+	return getEnv("KUN_AI_UPSTREAM_BASE_URL", "")
 }
 
 func LLMToken() string {
-	if k := os.Getenv("KUN_LLM_GATEWAY_KEY"); k != "" {
+	if k := getEnv("KUN_LLM_GATEWAY_KEY", ""); k != "" {
 		return k
 	}
-	return os.Getenv("KUN_AI_UPSTREAM_TOKEN")
+	return getEnv("KUN_AI_UPSTREAM_TOKEN", "")
 }
 
 type AIOmniConfig struct {
 	BaseURL string
 	Token   string
+	Model   string
 }
 
 type TrustServiceConfig struct {
@@ -352,9 +355,22 @@ type OIDCConfig struct {
 }
 
 func Load() (*Config, error) {
+	return LoadService(ScopeTools)
+}
+
+// LoadService loads the configuration of one service. The service name picks
+// which config-store rows apply: its own, then the ones for every service.
+func LoadService(service string) (*Config, error) {
 	_ = godotenv.Load()
 
-	cfg := &Config{}
+	mu.Lock()
+	catalog = map[string]Var{}
+	mu.Unlock()
+	if err := loadStore(service); err != nil {
+		return nil, err
+	}
+
+	cfg := &Config{Service: service}
 
 	serverPort, _ := strconv.Atoi(getEnv("KUN_FIBER_SERVER_PORT", "9277"))
 	cfg.Server = ServerConfig{
@@ -366,15 +382,7 @@ func Load() (*Config, error) {
 		CORSOrigin:  getEnv("KUN_FRONTEND_CORS_ORIGIN", "http://127.0.0.1:9420,http://127.0.0.1:9421"),
 	}
 
-	cfg.Database = DatabaseConfig{
-		Host:     getEnv("KUN_PG_HOST", "localhost"),
-		Port:     getEnv("KUN_PG_PORT", "5432"),
-		User:     getEnv("KUN_PG_USER", "postgres"),
-		Password: getEnv("KUN_PG_PASSWORD", ""),
-		DBName:   getEnv("KUN_PG_DATABASE", "kun_galgame_infra"),
-		SSLMode:  getEnv("KUN_PG_SSLMODE", "disable"),
-		Timezone: getEnv("KUN_PG_TIMEZONE", "Asia/Shanghai"),
-	}
+	cfg.Database = mainDatabase()
 
 	cfg.GalgameDatabase = DatabaseConfig{
 		Host:     getEnv("KUN_GALGAME_PG_HOST", cfg.Database.Host),
@@ -724,6 +732,7 @@ func Load() (*Config, error) {
 	cfg.AIUpstream = AIUpstreamConfig{
 		BaseURL: getEnv("KUN_AI_UPSTREAM_BASE_URL", ""),
 		Token:   getEnv("KUN_AI_UPSTREAM_TOKEN", ""),
+		Model:   getEnv("KUN_AI_UPSTREAM_MODEL", ""),
 	}
 
 	cfg.LLMGateway = LLMGatewayConfig{URL: LLMBaseURL(), Key: LLMToken()}
@@ -731,6 +740,7 @@ func Load() (*Config, error) {
 	cfg.AIOmni = AIOmniConfig{
 		BaseURL: getEnv("KUN_AI_OMNI_BASE_URL", "https://api.openai.com"),
 		Token:   getEnv("KUN_AI_OMNI_TOKEN", ""),
+		Model:   getEnv("KUN_AI_OMNI_MODEL", ""),
 	}
 
 	cfg.AIClient = AIClientConfig{
@@ -767,6 +777,18 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+func mainDatabase() DatabaseConfig {
+	return DatabaseConfig{
+		Host:     getEnv("KUN_PG_HOST", "localhost"),
+		Port:     getEnv("KUN_PG_PORT", "5432"),
+		User:     getEnv("KUN_PG_USER", "postgres"),
+		Password: getEnv("KUN_PG_PASSWORD", ""),
+		DBName:   getEnv("KUN_PG_DATABASE", "kun_galgame_infra"),
+		SSLMode:  getEnv("KUN_PG_SSLMODE", "disable"),
+		Timezone: getEnv("KUN_PG_TIMEZONE", "Asia/Shanghai"),
+	}
+}
+
 func (c *Config) validate() error {
 	if c.Database.Password == "" {
 		return fmt.Errorf("KUN_PG_PASSWORD is required")
@@ -777,10 +799,16 @@ func (c *Config) validate() error {
 	return nil
 }
 
+// DSN leaves an empty password out: "password= dbname=x" parses as the
+// password "dbname=x", and the connection then has no database at all.
 func (c *DatabaseConfig) DSN() string {
+	password := ""
+	if c.Password != "" {
+		password = " password=" + c.Password
+	}
 	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
-		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode, c.Timezone,
+		"host=%s port=%s user=%s%s dbname=%s sslmode=%s TimeZone=%s",
+		c.Host, c.Port, c.User, password, c.DBName, c.SSLMode, c.Timezone,
 	)
 }
 
@@ -845,19 +873,14 @@ func JobPoolConfig() PoolConfig {
 }
 
 func getEnvInt64(key string, defaultValue int64) int64 {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-			return n
-		}
+	if n, err := strconv.ParseInt(lookup(key, strconv.FormatInt(defaultValue, 10)), 10, 64); err == nil {
+		return n
 	}
 	return defaultValue
 }
 
 func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
+	return lookup(key, defaultValue)
 }
 
 func splitCSV(s string) []string {

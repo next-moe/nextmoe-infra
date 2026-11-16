@@ -29,7 +29,7 @@ import (
 const outboxInterval = 60 * time.Second
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("community")
 	if err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)

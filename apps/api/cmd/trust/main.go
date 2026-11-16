@@ -26,7 +26,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("trust")
 	if err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)
