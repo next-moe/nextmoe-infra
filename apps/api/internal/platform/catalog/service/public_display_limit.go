@@ -27,6 +27,26 @@ const DisplayLimitNSFWSQL = `(w.cover_art_all_explicit
 	OR (` + claimedSQL + ` AND w.display_nsfw)
 	OR (NOT ` + claimedSQL + ` AND coalesce(w.title_nsfw, w.content_rating = ?)))`
 
+type EntityWorksGate struct {
+	NSFW          bool
+	DisplayLimits []string
+	WithTotal     bool
+}
+
+func (g EntityWorksGate) where() (string, []any) {
+	var sql string
+	var args []any
+	if !g.NSFW {
+		sql += " AND w.content_rating <> ?"
+		args = append(args, model.ContentRatingR18)
+	}
+	if pred, pargs := displayLimitWhere(g.DisplayLimits); pred != "" {
+		sql += " AND " + pred
+		args = append(args, pargs...)
+	}
+	return sql, args
+}
+
 func displayLimitWhere(limits []string) (string, []any) {
 	if len(limits) == 0 {
 		return "", nil

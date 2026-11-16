@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"sort"
+	"strconv"
 	"strings"
 
 	"api/internal/platform/catalog/editspec"
@@ -964,8 +965,9 @@ type SiblingNameRow struct {
 
 // nameWorkScope is shared by NameWorks' total and its page: a total of 40 that
 // pages out 38 is a defect on its own.
-var nameWorkScope = `FROM catalog_credit c WHERE c.credit_name_id = ? AND ` +
-	editspec.NotSuppressedCreditSQL("c") + ` AND ` + editspec.LiveWorkSQL("c.work_id")
+var nameWorkScope = `FROM catalog_credit c JOIN catalog_work w ON w.id = c.work_id
+	WHERE c.credit_name_id = ? AND w.deleted_at IS NULL AND w.status = ` + strconv.Itoa(int(model.WorkStatusLive)) +
+	` AND ` + editspec.NotSuppressedCreditSQL("c")
 
 type NameWorkRoleRow struct {
 	WorkID      int64   `gorm:"column:work_id"`
@@ -990,7 +992,7 @@ type NameWorksResult struct {
 	Total    int64
 }
 
-func (s *ReadService) NameWorks(ctx context.Context, nameID int64, limit, offset int) (*NameWorksResult, error) {
+func (s *ReadService) NameWorks(ctx context.Context, nameID int64, gate EntityWorksGate, limit, offset int) (*NameWorksResult, error) {
 	db := s.db.WithContext(ctx)
 
 	var head NameHeadRow
@@ -1018,13 +1020,16 @@ func (s *ReadService) NameWorks(ctx context.Context, nameID int64, limit, offset
 		}
 	}
 
-	if err := db.Raw(`SELECT count(DISTINCT c.work_id) `+nameWorkScope,
-		nameID).Scan(&res.Total).Error; err != nil {
-		return nil, err
+	gateSQL, gateArgs := gate.where()
+	if gate.WithTotal {
+		if err := db.Raw(`SELECT count(DISTINCT c.work_id) `+nameWorkScope+gateSQL,
+			append([]any{nameID}, gateArgs...)...).Scan(&res.Total).Error; err != nil {
+			return nil, err
+		}
 	}
 	var workIDs []int64
-	if err := db.Raw(`SELECT DISTINCT c.work_id `+nameWorkScope+`
-		ORDER BY c.work_id LIMIT ? OFFSET ?`, nameID, limit, offset).Scan(&workIDs).Error; err != nil {
+	if err := db.Raw(`SELECT DISTINCT c.work_id `+nameWorkScope+gateSQL+`
+		ORDER BY c.work_id LIMIT ? OFFSET ?`, append(append([]any{nameID}, gateArgs...), limit, offset)...).Scan(&workIDs).Error; err != nil {
 		return nil, err
 	}
 	if len(workIDs) == 0 {
@@ -1100,7 +1105,7 @@ type CharacterWorksResult struct {
 	Total int64
 }
 
-func (s *ReadService) CharacterWorks(ctx context.Context, characterID int64, limit, offset int) (*CharacterWorksResult, error) {
+func (s *ReadService) CharacterWorks(ctx context.Context, characterID int64, gate EntityWorksGate, limit, offset int) (*CharacterWorksResult, error) {
 	db := s.db.WithContext(ctx)
 
 	var head CharacterHeadRow
@@ -1113,13 +1118,17 @@ func (s *ReadService) CharacterWorks(ctx context.Context, characterID int64, lim
 	}
 	res := &CharacterWorksResult{Head: &head}
 
-	if err := db.Raw(`SELECT count(*) FROM (`+unionWorks+`) u`,
-		characterID, characterID).Scan(&res.Total).Error; err != nil {
-		return nil, err
+	gateSQL, gateArgs := gate.where()
+	gated := `FROM (` + unionWorks + `) u JOIN catalog_work w ON w.id = u.work_id WHERE true` + gateSQL
+	if gate.WithTotal {
+		if err := db.Raw(`SELECT count(*) `+gated,
+			append([]any{characterID, characterID}, gateArgs...)...).Scan(&res.Total).Error; err != nil {
+			return nil, err
+		}
 	}
 	var workIDs []int64
-	if err := db.Raw(`SELECT work_id FROM (`+unionWorks+`) u ORDER BY work_id LIMIT ? OFFSET ?`,
-		characterID, characterID, limit, offset).Scan(&workIDs).Error; err != nil {
+	if err := db.Raw(`SELECT u.work_id `+gated+` ORDER BY u.work_id LIMIT ? OFFSET ?`,
+		append(append([]any{characterID, characterID}, gateArgs...), limit, offset)...).Scan(&workIDs).Error; err != nil {
 		return nil, err
 	}
 	if len(workIDs) == 0 {

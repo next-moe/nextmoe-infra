@@ -329,7 +329,7 @@ func TestPublicLookupTypedNSFWParity(t *testing.T) {
 	if len(sfw.Character.Traits) != 1 || sfw.Character.Traits[0].Name != "Long Hair" {
 		t.Fatalf("nsfw=false traits = %+v (want the safe one only)", sfw.Character.Traits)
 	}
-	direct, found, err := svc.Character(ctx, ch.ID, false, false, 0, 0, 0)
+	direct, found, err := svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: false}, 0, 0, 0)
 	if err != nil || !found {
 		t.Fatalf("direct character: found=%v err=%v", found, err)
 	}
@@ -538,7 +538,7 @@ func TestPublicSiblingNameCarriesDisplayName(t *testing.T) {
 		t.Fatalf("set sibling lang: %v", err)
 	}
 
-	got, found, err := svc.Name(ctx, main.ID, false, false, 50, 0)
+	got, found, err := svc.Name(ctx, main.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("name: found=%v err=%v", found, err)
 	}
@@ -584,7 +584,7 @@ func TestPublicNameHiddenLinkAndR18Drop(t *testing.T) {
 	createCredit(t, sfw.ID, nPublic.ID, role, nil)
 	createCredit(t, r18.ID, nPublic.ID, role, nil)
 
-	got, found, err := svc.Name(ctx, nPublic.ID, true, false, 50, 0)
+	got, found, err := svc.Name(ctx, nPublic.ID, true, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("person: found=%v err=%v", found, err)
 	}
@@ -607,7 +607,7 @@ func TestPublicNameHiddenLinkAndR18Drop(t *testing.T) {
 		t.Fatalf("public link must expose the fuzzy birth date: %v/%v/%v", got.BirthY, got.BirthM, got.BirthD)
 	}
 
-	h, found, err := svc.Name(ctx, nHidden.ID, false, false, 50, 0)
+	h, found, err := svc.Name(ctx, nHidden.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("hidden person: found=%v err=%v", found, err)
 	}
@@ -795,7 +795,7 @@ func TestPublicCharacterTraits(t *testing.T) {
 	link(tSexual, 0)
 	link(tSpoiler, 2)
 
-	rec, found, err := svc.Character(ctx, ch.ID, false, false, 0, 50, 0)
+	rec, found, err := svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: false}, 0, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("character: found=%v err=%v", found, err)
 	}
@@ -807,21 +807,21 @@ func TestPublicCharacterTraits(t *testing.T) {
 		t.Fatalf("zh names = %+v / %+v (want 长发 / 毛发)",
 			rec.Traits[0].Localized, rec.Traits[0].GroupLocalized)
 	}
-	recNSFW, _, _ := svc.Character(ctx, ch.ID, false, true, 0, 50, 0)
+	recNSFW, _, _ := svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: true}, 0, 50, 0)
 	for _, tr := range recNSFW.Traits {
 		if tr.Name == "Sexual Trait" && (len(tr.Localized) != 0 || len(tr.GroupLocalized) != 0) {
 			t.Fatalf("unrendered trait leaked zh fields: %+v", tr)
 		}
 	}
-	rec, _, _ = svc.Character(ctx, ch.ID, false, true, 0, 50, 0)
+	rec, _, _ = svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: true}, 0, 50, 0)
 	if len(rec.Traits) != 2 {
 		t.Fatalf("nsfw traits = %+v (want 2: sexual joins)", rec.Traits)
 	}
-	rec, _, _ = svc.Character(ctx, ch.ID, false, true, 2, 50, 0)
+	rec, _, _ = svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: true}, 2, 50, 0)
 	if len(rec.Traits) != 3 {
 		t.Fatalf("nsfw+spoilers traits = %+v (want 3)", rec.Traits)
 	}
-	rec, _, _ = svc.Character(ctx, ch.ID, false, false, 2, 50, 0)
+	rec, _, _ = svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: false}, 2, 50, 0)
 	if len(rec.Traits) != 2 {
 		t.Fatalf("spoilers-only traits = %+v (want 2: sexual still dropped)", rec.Traits)
 	}
@@ -849,7 +849,7 @@ func TestPublicCharacterIntrosImage(t *testing.T) {
 		markCharacterIntroSafety(t, row.Intro, model.IntroSFWOriginal, "")
 	}
 
-	rec, found, err := svc.Character(ctx, c.ID, false, false, 0, 50, 0)
+	rec, found, err := svc.Character(ctx, c.ID, false, EntityWorksGate{NSFW: false}, 0, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("character: found=%v err=%v", found, err)
 	}
@@ -888,7 +888,7 @@ func TestPublicNameIntros(t *testing.T) {
 		t.Fatalf("person fixture: %v", err)
 	}
 
-	rec, found, err := svc.Name(ctx, n.ID, false, false, 50, 0)
+	rec, found, err := svc.Name(ctx, n.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("name: found=%v err=%v", found, err)
 	}
@@ -918,7 +918,7 @@ func TestPublicNameIntrosSurviveANonNumericBangumiRef(t *testing.T) {
 	}
 	addExternalRef(t, model.EntityTypeCreditName, n.ID, int16(3), "p999001", model.LinkKindExact)
 
-	rec, found, err := svc.Name(t.Context(), n.ID, false, false, 50, 0)
+	rec, found, err := svc.Name(t.Context(), n.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("name: found=%v err=%v", found, err)
 	}
@@ -965,7 +965,7 @@ func TestPublicNamePersonIntros(t *testing.T) {
 		t.Fatalf("person fixture: %v", err)
 	}
 
-	got, found, err := svc.Name(ctx, visible.ID, false, false, 50, 0)
+	got, found, err := svc.Name(ctx, visible.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("visible name: found=%v err=%v", found, err)
 	}
@@ -982,7 +982,7 @@ func TestPublicNamePersonIntros(t *testing.T) {
 		t.Fatalf("machine row must surface flagged: %+v", got.Intros[1])
 	}
 
-	h, found, err := svc.Name(ctx, hidden.ID, false, false, 50, 0)
+	h, found, err := svc.Name(ctx, hidden.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("hidden name: found=%v err=%v", found, err)
 	}
@@ -999,7 +999,7 @@ func TestPublicNamePersonIntros(t *testing.T) {
 		VALUES (999103, 'c', 1, '', '', '孤児レベルの紹介。', 0, 0, 'x', now())`).Error; err != nil {
 		t.Fatalf("orphan person fixture: %v", err)
 	}
-	o, found, err := svc.Name(ctx, orphan.ID, false, false, 50, 0)
+	o, found, err := svc.Name(ctx, orphan.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("orphan name: found=%v err=%v", found, err)
 	}
@@ -1028,7 +1028,7 @@ func TestPublicNameAliases(t *testing.T) {
 		t.Fatalf("create search hint: %v", err)
 	}
 
-	rec, found, err := svc.Name(ctx, head.ID, false, false, 50, 0)
+	rec, found, err := svc.Name(ctx, head.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("name: found=%v err=%v", found, err)
 	}
@@ -1043,7 +1043,7 @@ func TestPublicNameAliases(t *testing.T) {
 			t.Fatal("a sibling's alias must never be attributed to this name")
 		}
 	}
-	sib, found, err := svc.Name(ctx, sibling.ID, false, false, 50, 0)
+	sib, found, err := svc.Name(ctx, sibling.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("sibling: found=%v err=%v", found, err)
 	}
@@ -1052,7 +1052,7 @@ func TestPublicNameAliases(t *testing.T) {
 	}
 
 	bare := createCreditName(t, nil, "無別名")
-	rec, _, err = svc.Name(ctx, bare.ID, false, false, 50, 0)
+	rec, _, err = svc.Name(ctx, bare.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil {
 		t.Fatalf("bare name: %v", err)
 	}
@@ -1220,7 +1220,7 @@ func TestPublicCharacterLocalizedNames(t *testing.T) {
 		t.Fatalf("create search hint: %v", err)
 	}
 
-	rec, found, err := svc.Character(ctx, ch.ID, false, false, 0, 50, 0)
+	rec, found, err := svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: false}, 0, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("character: found=%v err=%v", found, err)
 	}
@@ -1245,7 +1245,7 @@ func TestPublicCharacterLocalizedNames(t *testing.T) {
 	}
 
 	bare := createCharacter(t, "無別名")
-	rec, _, err = svc.Character(ctx, bare.ID, false, false, 0, 50, 0)
+	rec, _, err = svc.Character(ctx, bare.ID, false, EntityWorksGate{NSFW: false}, 0, 50, 0)
 	if err != nil {
 		t.Fatalf("bare character: %v", err)
 	}
@@ -1277,7 +1277,7 @@ func TestPublicCharacterLocalizedMachineFill(t *testing.T) {
 	mkAlias(filled.ID, "白河ことり", "ja", model.AliasKindSpellingVariant, model.AliasProvenanceSource)
 	mkAlias(filled.ID, "白河小鸟", "zh-Hans", model.AliasKindTranslation, model.AliasProvenanceMachine)
 
-	rec, found, err := svc.Character(ctx, filled.ID, false, false, 0, 50, 0)
+	rec, found, err := svc.Character(ctx, filled.ID, false, EntityWorksGate{NSFW: false}, 0, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("character: found=%v err=%v", found, err)
 	}
@@ -1296,7 +1296,7 @@ func TestPublicCharacterLocalizedMachineFill(t *testing.T) {
 	mkAlias(sourced.ID, "神岸明", "zh-Hans", model.AliasKindTranslation, model.AliasProvenanceSource)
 	mkAlias(sourced.ID, "神岸朱里", "zh-Hans", model.AliasKindTranslation, model.AliasProvenanceMachine)
 
-	rec, found, err = svc.Character(ctx, sourced.ID, false, false, 0, 50, 0)
+	rec, found, err = svc.Character(ctx, sourced.ID, false, EntityWorksGate{NSFW: false}, 0, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("sourced character: found=%v err=%v", found, err)
 	}
@@ -1330,7 +1330,7 @@ func TestPublicCharacterWorksCarryKindAndSpoiler(t *testing.T) {
 	cn := createCreditName(t, nil, "声優")
 	createCredit(t, creditOnly.ID, cn.ID, roleByKey(t, "voice-actor"), &ch.ID)
 
-	got, ok, err := pub.Character(ctx, ch.ID, true, true, 0, 50, 0)
+	got, ok, err := pub.Character(ctx, ch.ID, true, EntityWorksGate{NSFW: true}, 0, 50, 0)
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Len(t, got.Works, 2)

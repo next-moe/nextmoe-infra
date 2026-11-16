@@ -3911,6 +3911,8 @@ Works this character appears in, with roster_role, spoiler, and voice credits. O
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see. |
+| `include_total` | query | 否 | string | true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/characters/1/appearances"
@@ -4084,6 +4086,8 @@ Works this name is credited on. Offset cursor. Anonymous calls are allowed and l
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see. |
+| `include_total` | query | 否 | string | true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/credit-names/1/credits"

@@ -747,3 +747,14 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
 
 **迁移**:`go run ./cmd/migrate catalog` 创建空表 `catalog_rating_model`(部署的 `migrate-catalog` 任务自动执行);随后一次 `reindex-catalog` 拟合首个模型并填充索引字段。
 
+
+## 12. 名义署名与角色登场的作品数(2026-11-16,spec 2.88.0)
+
+`GET /v2/catalog/credit-names/{id}/credits` 与 `GET /v2/catalog/characters/{id}/appearances` 新增两个查询参数:
+
+- **`content_limit=sfw|nsfw`**(逗号分隔,与 `/v2/catalog/works` 同一展示轴):在 SQL 里过滤,条目、offset 游标与总数一起变。隐藏 nsfw 的读者带 `nsfw=true&content_limit=sfw`,每页都是满页,站点不必再逐页丢弃作品。
+- **`include_total=true`**:列表带 `total`——在本次请求的 `nsfw` 与 `content_limit` 下,所有页合起来列出的**不同作品数**。合并、删除、隔离的作品与全部署名被压制的作品不计入,与条目同一口径。不带时不跑计数查询。
+
+`nsfw=false`(或缺省)的 r18 过滤也挪进了 SQL:过去 r18 作品在分页之后才被剔除,页面会短、offset 也把它们算在内;现在页与 offset 只覆盖可见作品。旧游标仍能解析,但跨版本续页可能错位一页内的几条。
+
+成本:计数走 `idx_catalog_credit_credit_name_id` / `idx_catalog_work_character_character_id` 加 `catalog_work` 主键回表。2026-11-16 本地副本上最多产的名义(4,608 行署名)约 7ms,登场最多的角色约 1.5ms,不需要计数表或缓存。

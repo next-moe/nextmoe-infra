@@ -154,7 +154,7 @@ func TestEntityFacesCarryImageMeta(t *testing.T) {
 		charImage: {Width: 256, Height: 256, Thumbhash: "ci", Sexual: sexualPtr(1)},
 	}))
 
-	gotName, found, err := svc.Name(ctx, name.ID, false, false, 50, 0)
+	gotName, found, err := svc.Name(ctx, name.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("name face: found=%v err=%v", found, err)
 	}
@@ -190,7 +190,7 @@ func TestEntityFacesCarryImageMeta(t *testing.T) {
 		t.Fatalf("graph seed logo_meta = %+v", graph.Nodes)
 	}
 
-	gotChar, found, err := svc.Character(ctx, ch.ID, false, false, 2, 50, 0)
+	gotChar, found, err := svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: false}, 2, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("character face: found=%v err=%v", found, err)
 	}
@@ -224,7 +224,7 @@ func TestEntityFacesServeWithoutTheImageService(t *testing.T) {
 
 	svc := newPublicSvcCDN()
 
-	gotName, found, err := svc.Name(ctx, name.ID, false, false, 50, 0)
+	gotName, found, err := svc.Name(ctx, name.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("name face: found=%v err=%v", found, err)
 	}

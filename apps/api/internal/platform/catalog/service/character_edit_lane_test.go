@@ -43,7 +43,7 @@ func TestReadFacesExcludeSuppressedCharacterAliases(t *testing.T) {
 	before, err := read.CharacterByID(ctx, ch.ID, model.SpoilerSevere)
 	require.NoError(t, err)
 	require.Len(t, before.Aliases, 2)
-	pubBefore, ok, err := public.Character(ctx, ch.ID, false, true, model.SpoilerSevere, 10, 0)
+	pubBefore, ok, err := public.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: true}, model.SpoilerSevere, 10, 0)
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Len(t, pubBefore.Aliases, 2)
@@ -55,7 +55,7 @@ func TestReadFacesExcludeSuppressedCharacterAliases(t *testing.T) {
 	require.Len(t, after.Aliases, 1)
 	assert.Equal(t, "しゅじんこう", after.Aliases[0].Name)
 
-	pubAfter, ok, err := public.Character(ctx, ch.ID, false, true, model.SpoilerSevere, 10, 0)
+	pubAfter, ok, err := public.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: true}, model.SpoilerSevere, 10, 0)
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Len(t, pubAfter.Aliases, 1)
@@ -172,7 +172,7 @@ func TestHumanIntroWinsTheLangFold(t *testing.T) {
 	require.Len(t, detail.Intros, 1)
 	assert.Equal(t, "人手のキャラ紹介", detail.Intros[0].Intro)
 
-	pub, ok, err := public.Character(ctx, ch.ID, false, true, model.SpoilerSevere, 10, 0)
+	pub, ok, err := public.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: true}, model.SpoilerSevere, 10, 0)
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Len(t, pub.Intros, 1)
@@ -216,7 +216,7 @@ func TestCuratedMachineTranslationDoesNotBeatAnUpstreamOriginal(t *testing.T) {
 	require.Len(t, detail.Intros, 1)
 	assert.Equal(t, "上流の原文", detail.Intros[0].Intro)
 
-	pub, ok, err := public.Character(ctx, ch.ID, false, true, model.SpoilerSevere, 10, 0)
+	pub, ok, err := public.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: true}, model.SpoilerSevere, 10, 0)
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Len(t, pub.Intros, 1)
@@ -261,7 +261,7 @@ func TestCuratedMachineTranslationDoesNotBeatAnUpstreamMachineTranslation(t *tes
 	require.Len(t, detail.Intros, 1)
 	assert.Equal(t, "上流の機械翻訳", detail.Intros[0].Intro)
 
-	pub, ok, err := public.Character(ctx, ch.ID, false, true, model.SpoilerSevere, 10, 0)
+	pub, ok, err := public.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: true}, model.SpoilerSevere, 10, 0)
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Len(t, pub.Intros, 1)
