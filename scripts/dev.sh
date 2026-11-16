@@ -6,24 +6,20 @@
 #      infra session actually needs, from ONE prebuilt GHCR image
 #      (infra-migrate, invoked once per target DB). Brought up once, then LEFT
 #      RUNNING.
-#   2. HOT-RELOAD STACK — `air` rebuilds the six frequently-edited Go services
-#      (oauth / catalog / community / image / artifact / trust) from source on
-#      every save, plus the Nuxt frontends (account / admin / developer /
-#      editor) via their own dev servers.
+#   2. HOT-RELOAD STACK — `air` rebuilds the Go services (oauth / catalog /
+#      community / chat / image / artifact / trust / ai / agent / telemetry +
+#      telemetry-worker) from source on every save, plus the Nuxt frontends
+#      (account / admin / developer / editor) via their own dev servers.
 #
-# The base and the hot stack never collide: the six hot services carry the
+# The base and the hot stack never collide: the hot services' images carry the
 # `full` compose profile, so the default `up` below deliberately does NOT start
-# them — their host ports (9277-9279, 9281-9283) stay free for air.
-#
-# ai is `full`-profile for a different reason: nothing a bare `pnpm dev` runs
-# dials :9284 (trust's AI creds are empty), so starting it cost every
-# contributor an image pull and an idle container → `pnpm dev:full`.
+# them — their host ports (9277-9279, 9281-9287) stay free for air.
 #
 # Ctrl-C stops ONLY the hot stack; the base keeps running (that's the point —
 # "localhost has a platform"). Tear the base down with `pnpm dev:down`.
 #
-#   --full   bring the WHOLE platform up from images (incl. the six hot
-#            services + ai), do NOT run air/frontends — for
+#   --full   bring the WHOLE platform up from images (incl. the hot
+#            services), do NOT run air/frontends — for
 #            developing a PRODUCT repo (letmoe / forum / …), not infra.
 #            `pnpm dev:full`.
 set -euo pipefail
@@ -113,8 +109,12 @@ echo "▶ migrations from the working tree…"
   go run ./cmd/migrate catalog
   go run ./cmd/migrate community
   go run ./cmd/migrate trust
-  go run ./cmd/migrate news)
+  go run ./cmd/migrate news
+  go run ./cmd/migrate chat
+  go run ./cmd/migrate ai
+  go run ./cmd/migrate agent
+  go run ./cmd/migrate telemetry)
 
-echo "▶ hot-reload stack: air (oauth/catalog/community/image/artifact/trust) + frontends."
+echo "▶ hot-reload stack: air (oauth/catalog/community/chat/image/artifact/trust/ai/agent/telemetry) + frontends."
 echo "  Ctrl-C stops these; the base above stays up (pnpm dev:down to stop it)."
 exec pnpm -F "./apps/**" --parallel --stream run dev

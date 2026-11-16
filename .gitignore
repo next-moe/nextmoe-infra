@@ -44,6 +44,7 @@ Thumbs.db
 # build
 apps/api/build
 apps/api/tmp
+apps/api/.data
 apps/api/kun-api
 apps/api/kun-blog-solid-fiber
 # A bare `go build` inside apps/api/cmd/<tool> writes an extensionless binary

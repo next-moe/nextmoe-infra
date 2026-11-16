@@ -50,8 +50,9 @@ English, and short. When in doubt, delete it — a wrong comment costs more than
 `pnpm dev` starts **everything an infra session needs**: it brings up the
 platform base from `docker-compose.dev.yml` (redis / minio / opensearch / mailpit / centrifugo +
 the migrations, all from the single `infra-migrate` image — one binary, one
-target per invocation) and then runs `air` for the seven frequently-edited Go services
-(**oauth / catalog / community / chat / image / artifact / trust**, hot-reloaded from
+target per invocation) and then runs `air` for every Go service
+(**oauth / catalog / community / chat / image / trust**, plus the optional
+**artifact / ai / agent / telemetry / telemetry-worker**, hot-reloaded from
 source) plus the Nuxt frontends. catalog (:9281) hosts the catalog faces and the
 `/v1/galgame` **410 tombstone only** (`galgameapp.MountRetiredPublic`); the
 standalone galgame service (:9280) and every live galgame face are retired,
@@ -64,16 +65,14 @@ first-party faces are `/api/v1/admin/catalog` and `/api/v1/admin/news`. Ctrl-C s
 stays up. Before assuming a base service isn't running, check — a past mistake
 was starting a second copy of one that was already up.
 
-- **ai is `full`-profile**, not part of a bare `pnpm dev`: nothing the default
-  stack runs dials :9284 (trust's AI creds are empty), so starting it cost an
-  image pull and an idle container. Need it (product-repo work, or editing it)?
-  `pnpm dev:full`, or `docker compose -f docker-compose.dev.yml --profile full
-  up -d ai`. community (:9282) is **not** in that group — it is hot-reloaded
-  from source like the other six, and a bare `up` migrates `kun_community` for
-  it.
-- **agent (:9287, the AI assistant) is `full`-profile too**; from source it is
-  `go run ./cmd/migrate agent && go run ./cmd/agent`. Prod runs it as its own
-  Dokploy project (`docker-compose.agent.yml`); site contract: `docs/agent/`.
+- **Optional services never stop the stack.** artifact (only with
+  `KUN_ARTIFACT_S3_*`), ai :9284, agent :9287, telemetry :9286 and
+  telemetry-worker run under `pnpm dev`, but one that exits is logged and left
+  down. ai and agent exit at startup when `kun_ai` holds provider keys sealed
+  with a `KUN_LLM_KEK` the box lacks — set the same KEK in `apps/api/.env`.
+  Logs: `apps/api/logs/<service>.log`. agent (the AI assistant) runs in prod
+  as its own Dokploy project (`docker-compose.agent.yml`); site contract:
+  `docs/agent/`.
 - **LLM provider keys live in the gateway, not in env.** Providers, models,
   routes, scenes and internal access keys are in `kun_ai`, managed by ren at
   admin `/ai/llm`; services and CLIs reach models through the ai service's
