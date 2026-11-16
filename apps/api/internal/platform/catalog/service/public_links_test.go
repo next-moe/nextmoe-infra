@@ -134,7 +134,7 @@ func TestCreditNameLinksPreferTheNameOwnAnchors(t *testing.T) {
 	addExternalRef(t, model.EntityTypeCreditName, n.ID, srcErogamescape, "6275", model.LinkKindExact)
 	addExternalRef(t, model.EntityTypeCreditName, n.ID, int16(4), "78444", model.LinkKindExact)
 
-	rec, found, err := svc.Name(ctx, n.ID, false, false, 50, 0)
+	rec, found, err := svc.Name(ctx, n.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, []dto.PublicLink{
@@ -148,7 +148,7 @@ func TestCreditNameLinksPreferTheNameOwnAnchors(t *testing.T) {
 	require.NoError(t, testDB.Create(bare).Error)
 	addExternalRef(t, model.EntityTypeCreditName, bare.ID, srcVNDB, "430", model.LinkKindExact)
 	addExternalRef(t, model.EntityTypeCreditName, bare.ID, srcVNDB, "77777", model.LinkKindExact)
-	rec, found, err = svc.Name(ctx, bare.ID, false, false, 50, 0)
+	rec, found, err = svc.Name(ctx, bare.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, []dto.PublicLink{
@@ -160,7 +160,7 @@ func TestCreditNameLinksPreferTheNameOwnAnchors(t *testing.T) {
 	require.NoError(t, testDB.Create(hidden).Error)
 	addExternalRef(t, model.EntityTypeCreditName, hidden.ID, srcVNDB, "259", model.LinkKindExact)
 	addExternalRef(t, model.EntityTypeCreditName, hidden.ID, srcErogamescape, "35605", model.LinkKindExact)
-	rec, found, err = svc.Name(ctx, hidden.ID, false, false, 50, 0)
+	rec, found, err = svc.Name(ctx, hidden.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, []dto.PublicLink{
@@ -183,7 +183,7 @@ func TestCharacterLinksOnDetailAndListLanes(t *testing.T) {
 		{Source: "erogamescape", URL: "https://erogamescape.dyndns.org/~ap2/ero/toukei_kaiseki/character.php?character=10251", Identity: true, PageID: "10251"},
 	}
 
-	rec, found, err := svc.Character(ctx, ch.ID, false, false, 0, 0, 0)
+	rec, found, err := svc.Character(ctx, ch.ID, false, EntityWorksGate{NSFW: false}, 0, 0, 0)
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, want, rec.Links)

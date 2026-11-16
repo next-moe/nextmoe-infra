@@ -3010,3 +3010,14 @@ Folders become curated lists that other people can find, follow, comment on and 
   - *Migration.* `go run ./cmd/migrate catalog` adds `is_cover` (NOT NULL DEFAULT false) and `seen_at` (NOT NULL DEFAULT now(); the follow table ships in this release, so no row predates it). It also creates `uq_catalog_user_folder_item_cover` and the empty `catalog_user_folder_tag`. Unlisted is a new value of an existing column.
 
 Spec 2.86.0, additive. The `folder` object gains `follower_count`, `content_rating`, `recent_work_ids`, `tags`, `cover_work_id` and `copied_from_folder_id`, and `visibility` gains `unlisted`; `folder_item` gains `position` and `note`, `folder_follow` gains `new_item_count` and `seen_at`. `GET /v2/me/folders/{id}/items/{work_id}`, `GET /v2/folders/tags`, `POST /v2/me/folders/copies`, `GET /v2/me/folders/progress`, `GET /v2/me/followed-folders/updates` and `POST /v2/me/followed-folders/{folder_id}/seen` are new, and `owner_uid` on `GET /v2/folders` becomes optional.
+
+## Work counts on credit-name credits and character appearances (spec 2.88.0, 2026-11-16)
+
+kungal's staff and character pages could only show "50+": neither list carried a total. `ReadService.NameWorks` and `CharacterWorks` already ran a `count(DISTINCT work_id)` on every call, and the public layer dropped it. Both now take an `EntityWorksGate` (`NSFW`, `DisplayLimits`, `WithTotal`). The gate is applied in SQL to the count and to the page alike, and the count runs only when `WithTotal` is set. The credit-name detail GET and the lookup lane no longer pay for a count they never returned.
+
+- `GET /v2/catalog/credit-names/{id}/credits` and `GET /v2/catalog/characters/{id}/appearances` take `content_limit=` (the display axis, `displayLimitWhere`) and `include_total=true`. `total` is the number of distinct live works every page lists together under the request's `nsfw` and `content_limit`.
+- The r18 gate (`nsfw=false`) moved from `briefFromRow`, which ran after the page was cut, into the same SQL. Pages were short and offsets counted hidden works; both now cover only visible works. `briefFromRow` still checks, which is now redundant on these two lanes.
+- `nameWorkScope` joins `catalog_work w` instead of the `LiveWorkSQL` EXISTS, because `DisplayLimitNSFWSQL` reads `w.*`. The character union is wrapped and joined the same way.
+- Cost, local copy 2026-11-16: the most prolific credit name (4,608 credit rows) counts in ≈7ms warm under `content_limit=sfw`, the same as the ungated count it replaces. The busiest character (61 works) takes ≈1.5ms. No counter table.
+
+Spec 2.88.0, additive: two optional query parameters on two routes; `total` was already part of the shared list envelope.

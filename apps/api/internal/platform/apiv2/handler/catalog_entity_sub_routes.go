@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	"api/internal/platform/apiv2/collect"
+	"api/internal/platform/apiv2/parse"
 	"api/internal/platform/apiv2/repr"
+	catsvc "api/internal/platform/catalog/service"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -24,6 +26,33 @@ type listPersonNamesOutput struct {
 }
 type listAppearancesOutput struct {
 	Body repr.List[repr.Appearance]
+}
+
+type entityWorksInput struct {
+	WorkSubInput
+	ContentLimit string `query:"content_limit" maxLength:"32" example:"sfw" doc:"Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see."`
+	IncludeTotal string `query:"include_total" maxLength:"8" doc:"true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false."`
+}
+
+func parseEntityWorks(ctx context.Context, in *entityWorksInput) (int64, catsvc.EntityWorksGate, string, int, error) {
+	if in == nil {
+		in = &entityWorksInput{}
+	}
+	id, nsfw, cur, limit, err := parseWorkSub(ctx, &in.WorkSubInput)
+	if err != nil {
+		return 0, catsvc.EntityWorksGate{}, "", 0, err
+	}
+	limits, perr := closedCSV(in.ContentLimit, "content_limit", catsvc.DisplayLimitTokens)
+	if perr != nil {
+		return 0, catsvc.EntityWorksGate{}, "", 0, withIdent(ctx, perr)
+	}
+	gate := catsvc.EntityWorksGate{NSFW: nsfw, DisplayLimits: limits}
+	if in.IncludeTotal != "" {
+		if gate.WithTotal, perr = parse.Bool(in.IncludeTotal, "include_total"); perr != nil {
+			return 0, catsvc.EntityWorksGate{}, "", 0, withIdent(ctx, perr)
+		}
+	}
+	return id, gate, cur, limit, nil
 }
 
 func registerCatalogEntityExtras(api huma.API, cat *Catalog) {
@@ -81,13 +110,13 @@ func registerCatalogEntityExtras(api huma.API, cat *Catalog) {
 	}, getCatalogTrait(cat))
 }
 
-func getCatalogCreditNameCredits(cat *Catalog) func(context.Context, *WorkSubInput) (*listNameCreditsOutput, error) {
-	return func(ctx context.Context, in *WorkSubInput) (*listNameCreditsOutput, error) {
-		id, nsfw, cur, limit, err := parseWorkSub(ctx, in)
+func getCatalogCreditNameCredits(cat *Catalog) func(context.Context, *entityWorksInput) (*listNameCreditsOutput, error) {
+	return func(ctx context.Context, in *entityWorksInput) (*listNameCreditsOutput, error) {
+		id, gate, cur, limit, err := parseEntityWorks(ctx, in)
 		if err != nil {
 			return nil, err
 		}
-		page, gerr := cat.CreditNameCredits(ctx, id, nsfw, cur, limit)
+		page, gerr := cat.CreditNameCredits(ctx, id, gate, cur, limit)
 		if gerr != nil {
 			return nil, catalogErr(ctx, gerr)
 		}
@@ -95,13 +124,13 @@ func getCatalogCreditNameCredits(cat *Catalog) func(context.Context, *WorkSubInp
 	}
 }
 
-func getCatalogCharacterAppearances(cat *Catalog) func(context.Context, *WorkSubInput) (*listAppearancesOutput, error) {
-	return func(ctx context.Context, in *WorkSubInput) (*listAppearancesOutput, error) {
-		id, nsfw, cur, limit, err := parseWorkSub(ctx, in)
+func getCatalogCharacterAppearances(cat *Catalog) func(context.Context, *entityWorksInput) (*listAppearancesOutput, error) {
+	return func(ctx context.Context, in *entityWorksInput) (*listAppearancesOutput, error) {
+		id, gate, cur, limit, err := parseEntityWorks(ctx, in)
 		if err != nil {
 			return nil, err
 		}
-		page, gerr := cat.CharacterAppearances(ctx, id, nsfw, cur, limit)
+		page, gerr := cat.CharacterAppearances(ctx, id, gate, cur, limit)
 		if gerr != nil {
 			return nil, catalogErr(ctx, gerr)
 		}

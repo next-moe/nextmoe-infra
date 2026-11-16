@@ -105,13 +105,13 @@ func TestRosterIdentityRoundTrips(t *testing.T) {
 		check(t, f.work.ID, c.ID, c.Identity)
 	}
 
-	cw, err := read.CharacterWorks(ctx, f.rosterCh.ID, 50, 0)
+	cw, err := read.CharacterWorks(ctx, f.rosterCh.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 	require.NoError(t, err)
 	require.NotEmpty(t, cw.Works)
 	for _, w := range cw.Works {
 		check(t, w.Brief.WorkID, f.rosterCh.ID, w.Identity)
 	}
-	only, err := read.CharacterWorks(ctx, f.onlyCh.ID, 50, 0)
+	only, err := read.CharacterWorks(ctx, f.onlyCh.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 	require.NoError(t, err)
 	require.NotEmpty(t, only.Works)
 	for _, w := range only.Works {

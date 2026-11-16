@@ -113,13 +113,13 @@ func (s *PublicService) LookupTyped(ctx context.Context, source, externalID stri
 	}
 	switch entityType {
 	case model.EntityTypeCreditName:
-		rec, found, err := s.Name(ctx, id, false, nsfw, 0, 0)
+		rec, found, err := s.Name(ctx, id, false, EntityWorksGate{NSFW: nsfw}, 0, 0)
 		if err != nil || !found {
 			return dto.PublicLookupData{}, false, err
 		}
 		return dto.PublicLookupData{Name: &rec}, true, nil
 	case model.EntityTypeCharacter:
-		rec, found, err := s.Character(ctx, id, false, nsfw, 0, 0, 0)
+		rec, found, err := s.Character(ctx, id, false, EntityWorksGate{NSFW: nsfw}, 0, 0, 0)
 		if err != nil || !found {
 			return dto.PublicLookupData{}, false, err
 		}
@@ -594,8 +594,9 @@ func (s *PublicService) workCredits(ctx context.Context, workID int64) ([]dto.Pu
 	return s.publicCreditGroups(rows), nil
 }
 
-func (s *PublicService) Name(ctx context.Context, id int64, withCredits, nsfw bool, limit, offset int) (dto.PublicName, bool, error) {
-	res, err := s.read.NameWorks(ctx, id, limit, offset)
+func (s *PublicService) Name(ctx context.Context, id int64, withCredits bool, gate EntityWorksGate, limit, offset int) (dto.PublicName, bool, error) {
+	nsfw := gate.NSFW
+	res, err := s.read.NameWorks(ctx, id, gate, limit, offset)
 	if err != nil {
 		return dto.PublicName{}, false, err
 	}
@@ -683,12 +684,16 @@ func (s *PublicService) Name(ctx context.Context, id int64, withCredits, nsfw bo
 			return dto.PublicName{}, false, err
 		}
 		p.NextOffset = nextOffset(len(res.Works), limit, offset)
+		if gate.WithTotal {
+			p.WorksTotal = &res.Total
+		}
 	}
 	return p, true, nil
 }
 
-func (s *PublicService) Character(ctx context.Context, id int64, withWorks, nsfw bool, spoilers int16, limit, offset int) (dto.PublicCharacter, bool, error) {
-	res, err := s.read.CharacterWorks(ctx, id, limit, offset)
+func (s *PublicService) Character(ctx context.Context, id int64, withWorks bool, gate EntityWorksGate, spoilers int16, limit, offset int) (dto.PublicCharacter, bool, error) {
+	nsfw := gate.NSFW
+	res, err := s.read.CharacterWorks(ctx, id, gate, limit, offset)
 	if err != nil {
 		return dto.PublicCharacter{}, false, err
 	}
@@ -780,6 +785,9 @@ func (s *PublicService) Character(ctx context.Context, id int64, withWorks, nsfw
 			}
 		}
 		ch.NextOffset = nextOffset(len(res.Works), limit, offset)
+		if gate.WithTotal {
+			ch.WorksTotal = &res.Total
+		}
 	}
 	return ch, true, nil
 }
