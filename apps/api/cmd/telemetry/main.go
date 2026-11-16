@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -29,7 +30,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("telemetry")
 	if err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)
@@ -203,6 +204,9 @@ func dateUTC(t time.Time) time.Time {
 }
 
 func newSymbolBlobs(cfg *config.Config) (symbols.BlobStore, error) {
+	if cfg.TelemetrySymbols.S3.Bucket == "" && cfg.Server.IsProduction() {
+		return nil, errors.New("KUN_TELEMETRY_S3_BUCKET is empty: the filesystem fallback is private to each container, so the worker would never see an upload")
+	}
 	if cfg.TelemetrySymbols.S3.Bucket != "" {
 		s3store, err := symbols.NewS3Store(cfg.TelemetrySymbols.S3)
 		if err != nil {

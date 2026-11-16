@@ -13,6 +13,7 @@ import (
 	"api/internal/infrastructure/database"
 	"api/internal/middleware"
 	"api/internal/platform/apiv2/problem"
+	"api/internal/platform/envconfig"
 	"api/pkg/config"
 
 	"github.com/gofiber/fiber/v3"
@@ -40,6 +41,7 @@ func New(cfg *config.Config, opts Options) (*App, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 	a.DB = db
+	envconfig.Report(context.Background(), db.DB(), cfg.Service)
 
 	if opts.NeedCache {
 		redisCache, err := cache.NewRedisCache(cfg.Redis)

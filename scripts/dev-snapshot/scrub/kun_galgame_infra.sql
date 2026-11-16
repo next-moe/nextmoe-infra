@@ -69,6 +69,16 @@ TRUNCATE authorization_codes;
 TRUNCATE password_resets;
 TRUNCATE signing_keys;
 
+-- The config store holds prod secrets sealed with the prod KUN_CONFIG_KEK; the
+-- snapshot boot reports name prod hosts. A dev box has neither key nor hosts.
+-- Guarded because a snapshot can predate the tables.
+DO $$
+BEGIN
+  IF to_regclass('config_secrets') IS NOT NULL THEN
+    TRUNCATE config_secrets, config_secret_audit_logs, config_boot_snapshots;
+  END IF;
+END $$;
+
 -- OAuth first-party dev callbacks: ensure each product repo's localhost callback
 -- is present (idempotent union+dedup). forum/patch/wiki already carry these in
 -- prod; this guarantees presence regardless. letmoe's dev client is provisioned

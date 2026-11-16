@@ -250,6 +250,7 @@ var live = NewRegistry(
 		Keys: []Key{
 			{settingsPerm.View, "See the configuration center — every key, its effective value and where it comes from.", "查看配置中心(全部键、生效值与来源)"},
 			{settingsPerm.Write, "Set or reset a configuration override; every service picks it up within 30 seconds.", "设置/撤销配置覆盖值(30 秒内全服务生效)"},
+			{settingsPerm.EnvWrite, "Write or remove an environment variable or secret in the config store; services read it on their next start.", "写入/撤销环境变量与密钥(服务下次启动时读取)"},
 		},
 	},
 )

@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"log/slog"
-	"os"
 	"strings"
 
 	siteModel "api/internal/platform/site/model"
+	"api/pkg/config"
 
 	"gorm.io/gorm"
 )
@@ -225,7 +225,7 @@ func seedInitialData(db *gorm.DB, env string) error {
 		}
 	}
 
-	if err := seedEditorClient(db, os.Getenv("KUN_EDITOR_PUBLIC_URL")); err != nil {
+	if err := seedEditorClient(db, config.Env("KUN_EDITOR_PUBLIC_URL", "")); err != nil {
 		return err
 	}
 

@@ -78,6 +78,12 @@ was starting a second copy of one that was already up.
   admin `/ai/llm`; services and CLIs reach models through the ai service's
   OpenAI-compatible `/v1` with `KUN_LLM_GATEWAY_URL` / `KUN_LLM_GATEWAY_KEY`.
   Only `KUN_LLM_KEK` stays in env. Model: `docs/ai/llm-gateway.md`.
+- **Environment variables and secrets live in the config store** (admin
+  `/settings/env`, `docs/deploy/18-config-center.md` §18.9): sealed with
+  `KUN_CONFIG_KEK`, read once at startup (env > store > code default). A
+  service reads a variable through `config.LoadService` / `config.Env` —
+  never `os.Getenv` in `internal/` or a service `cmd/` (a test enforces it) —
+  or the console never sees it. Dev runs without a KEK, so the store is off.
 - `pnpm dev:full` = the whole platform from images with no source build (for
   developing a **product** repo, not infra). `pnpm dev:down` tears the base down.
 - Ports match prod (9277-9284); Postgres is the box's own `127.0.0.1:5432`, not

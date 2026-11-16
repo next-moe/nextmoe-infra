@@ -53,7 +53,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("catalog")
 	if err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)
@@ -272,7 +272,7 @@ func setupPublicCatalog(
 	usageRec := devapi.NewUsageRecorder(repo, store)
 
 	publicSvc := service.NewPublicService(catalogDB.DB(), readSvc, resolveSvc, cfg.ImageService.CDNBase)
-	draftModel := os.Getenv("KUN_AI_UPSTREAM_MODEL")
+	draftModel := cfg.AIUpstream.Model
 	if draftModel == "" {
 		draftModel = config.DefaultAIUpstreamModel
 	}

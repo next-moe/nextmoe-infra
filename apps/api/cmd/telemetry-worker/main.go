@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/envconfig"
 	"api/internal/platform/telemetry/store"
 	"api/internal/platform/telemetry/symbolicate"
 	"api/internal/platform/telemetry/symbols"
@@ -17,12 +19,19 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("telemetry-worker")
 	if err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)
 	}
 	logger.Init(cfg.Server.Env)
+
+	if mainDB, err := database.NewPostgresDB(cfg.Database); err != nil {
+		slog.Warn("config snapshot: main db unreachable", "error", err)
+	} else {
+		envconfig.Report(context.Background(), mainDB.DB(), cfg.Service)
+		_ = mainDB.Close()
+	}
 
 	telDB, err := database.NewPostgresDB(cfg.TelemetryDatabase)
 	if err != nil {
@@ -68,6 +77,9 @@ func main() {
 }
 
 func newSymbolBlobs(cfg *config.Config) (symbols.BlobStore, error) {
+	if cfg.TelemetrySymbols.S3.Bucket == "" && cfg.Server.IsProduction() {
+		return nil, errors.New("KUN_TELEMETRY_S3_BUCKET is empty: the filesystem fallback is private to each container, so the worker would never see an upload")
+	}
 	if cfg.TelemetrySymbols.S3.Bucket != "" {
 		s3store, err := symbols.NewS3Store(cfg.TelemetrySymbols.S3)
 		if err != nil {
