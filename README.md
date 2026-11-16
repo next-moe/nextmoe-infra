@@ -92,7 +92,8 @@ pnpm dev        # 平台底座(docker-compose.dev.yml:redis/minio/opensearch/mai
 > 完整步骤见 [docs/dev-environment.md](./docs/dev-environment.md) → Windows setup。
 
 完整模型(镜像拉取、Replace 模式、数据脱敏快照)见 [docs/dev-environment.md](./docs/dev-environment.md);
-community / ai 不在默认栈里(没人拨它们),需要时 `pnpm dev:full` = 全平台纯镜像(开发下游产品仓时用),
+`pnpm dev` 用 air 从源码热重载全部 Go 服务(含 ai / agent / telemetry,这几个和 artifact 一样是可选的,
+起不来只打日志不拖垮其余服务);`pnpm dev:full` = 全平台纯镜像、不跑 air(开发下游产品仓时用),
 `pnpm dev:down` 停底座。
 
 ### 生产

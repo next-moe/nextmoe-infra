@@ -15,8 +15,11 @@ GRAY='\033[0;90m'
 NC='\033[0m'
 
 # Tracked binary PIDs (killed on exit). core_pids is the subset whose exit tears
-# the whole stack down so air rebuilds; artifact is deliberately NOT in it — it
-# needs B2/S3 (often unconfigured in local dev) and must never stop the rest.
+# the whole stack down so air rebuilds. artifact, ai, agent and telemetry are
+# deliberately NOT in it: artifact needs B2/S3 (often unconfigured in local dev),
+# and ai/agent exit at startup when kun_ai holds provider keys sealed with a
+# KUN_LLM_KEK this box does not have (2026-11-15: "llm provider cloudflare key:
+# KUN_LLM_KEK is not set"). None of them may stop the rest.
 pids=()
 core_pids=()
 tail_pids=()
@@ -70,6 +73,9 @@ printf '%bchat%b       :9285\n'    "$BRIGHT_BLUE" "$NC"
 printf '%bartifact%b   :9279\n'    "$YELLOW"  "$NC"
 printf '%btrust%b      :9283\n'    "$MAGENTA" "$NC"
 printf '%bimage%b      :9278\n'    "$CYAN"    "$NC"
+printf '%bai%b         :9284\n'    "$GREEN"   "$NC"
+printf '%bagent%b      :9287\n'    "$BLUE"    "$NC"
+printf '%btelemetry%b  :9286 (+ tel-worker)\n' "$YELLOW" "$NC"
 printf '%blogs → apps/api/logs/<service>.log%b\n' "$GRAY" "$NC"
 printf '\n'
 
@@ -92,8 +98,17 @@ else
         "$YELLOW" "$GRAY" "$NC"
 fi
 
+optional() {
+    start "$@" || printf '%b%s %b|%b failed to start (optional) — continuing without it\n' \
+        "$1" "$2" "$GRAY" "$NC"
+}
+optional "$GREEN"  "ai        " ./tmp/ai
+optional "$BLUE"   "agent     " ./tmp/agent
+optional "$YELLOW" "telemetry " ./tmp/telemetry
+optional "$YELLOW" "tel-worker" ./tmp/telemetry-worker
+
 # Fail fast on CORE services only: if one exits, tear the rest down so air
-# rebuilds. artifact (optional) exiting is ignored here so it can't stop the stack.
+# rebuilds. The optional services exiting is ignored here so they can't stop the stack.
 wait -n "${core_pids[@]}"
 cleanup
 exit 1
