@@ -43,7 +43,7 @@ x-agent-env: &agent-env
   KUN_AGENT_PG_DATABASE: kun_agent
   # config.Load refuses to start without it, migrate-agent included: the first
   # prod deploy failed "JWT_SECRET is required" when only the agent had it.
-  JWT_SECRET: ${JWT_SECRET:-}
+  # in the config store: JWT_SECRET
   KUN_CONFIG_KEK: ${KUN_CONFIG_KEK:-}
 
 services:
@@ -69,9 +69,7 @@ services:
       KUN_AGENT_OAUTH_BASE: http://infra-oauth:9277
       KUN_AGENT_CATALOG_BASE: ${KUN_AGENT_CATALOG_BASE:-http://catalog:9281}
       KUN_AGENT_CLIENT_ID: ${KUN_AGENT_CLIENT_ID:-}
-      KUN_AGENT_CLIENT_SECRET: ${KUN_AGENT_CLIENT_SECRET:-}
-      KUN_AGENT_POW_KEYS: ${KUN_AGENT_POW_KEYS:-}
-      KUN_LLM_KEK: ${KUN_LLM_KEK:-}
+      # in the config store: KUN_AGENT_CLIENT_SECRET, KUN_AGENT_POW_KEYS, KUN_LLM_KEK
     expose: ["9287"]
     depends_on:
       migrate-agent: { condition: service_completed_successfully }
