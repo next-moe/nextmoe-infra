@@ -135,10 +135,10 @@ func TestServiceStartReadsTheStoreAndReportsIt(t *testing.T) {
 		}
 	}
 
-	// The test database authenticates through ~/.pgpass, so validate() rejects
-	// the missing KUN_PG_PASSWORD — after the store has already been read.
-	if _, err := config.LoadService("chat"); err == nil || !strings.Contains(err.Error(), "KUN_PG_PASSWORD") {
-		t.Fatalf("LoadService = %v, want only the password check to fail", err)
+	// A DSN without a password (local ~/.pgpass) makes validate() reject the
+	// load after the store was read; CI's DSN carries one and the load succeeds.
+	if _, err := config.LoadService("chat"); err != nil && !strings.Contains(err.Error(), "KUN_PG_PASSWORD") {
+		t.Fatalf("LoadService = %v", err)
 	}
 	jwt, trust := config.Env("JWT_SECRET", ""), config.Env("KUN_TRUST_CLIENT_SECRET", "")
 	if jwt != "shared" || trust != "chat-own" {
