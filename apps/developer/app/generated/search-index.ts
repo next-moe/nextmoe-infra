@@ -1019,7 +1019,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "某一角色的出场",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/characters/{id}/appearances",
-    "b": "getCatalogCharacterAppearances /v2/catalog/characters/{id}/appearances get Appearances of one character Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 该角色出场的作品，带 roster_role、spoiler 和配音署名。offset cursor。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogCharacterAppearances /v2/catalog/characters/{id}/appearances get Appearances of one character Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 该角色出场的作品，带 roster_role、spoiler 和配音署名。offset cursor。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw cursor limit content_limit include_total"
   },
   {
     "r": "/docs/v2/listCatalogClaimEvents",
@@ -1068,7 +1068,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "某署名名义的署名",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/credit-names/{id}/credits",
-    "b": "getCatalogCreditNameCredits /v2/catalog/credit-names/{id}/credits get Credits of one credit name Works this name is credited on. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 该署名出现过的作品。offset cursor。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogCreditNameCredits /v2/catalog/credit-names/{id}/credits get Credits of one credit name Works this name is credited on. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 该署名出现过的作品。offset cursor。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw cursor limit content_limit include_total"
   },
   {
     "r": "/docs/v2/listCatalogDiscussion",

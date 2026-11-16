@@ -26,7 +26,9 @@ export const mcpTools = [
       "id",
       "nsfw",
       "cursor",
-      "limit"
+      "limit",
+      "content_limit",
+      "include_total"
     ]
   },
   {
@@ -81,7 +83,9 @@ export const mcpTools = [
       "id",
       "nsfw",
       "cursor",
-      "limit"
+      "limit",
+      "content_limit",
+      "include_total"
     ]
   },
   {
