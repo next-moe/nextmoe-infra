@@ -7,14 +7,14 @@
 #   3. network = `dokploy-network` (external) — shared by the 3 Dokploy apps.
 #   4. **NO `env_file`** — all runtime config is inline `environment:` here, so Dokploy
 #      needs no `docker/*.env` files on disk. Non-secret/structural values are literal;
-#      secrets + deploy-specifics come from **Dokploy's Environment panel** via `${VAR}`.
+#      secrets + deploy-specifics live in the config store (docs/deploy/18 §18.9),
+#      which every Go service reads at startup; admin /settings/env shows them all.
 #
-# Set these in the infra app's Dokploy **Environment**:
-#   POSTGRES_PASSWORD  JWT_SECRET  MINIO_ROOT_USER  MINIO_ROOT_PASSWORD
-#   KUN_IMAGE_S3_ENDPOINT  KUN_IMAGE_S3_ACCESS_KEY  KUN_IMAGE_S3_SECRET_KEY   (R2/MinIO)
-#   KUN_VISUAL_NOVEL_EMAIL_PASSWORD                                          (SMTP, 可选)
-# Within infra, oauth/image/galgame all read the SAME ${JWT_SECRET}/${POSTGRES_PASSWORD}
-# → intra-app consistency is automatic.
+# The infra app's Dokploy **Environment** holds only what the store cannot:
+#   POSTGRES_USER  POSTGRES_PASSWORD  KUN_CONFIG_KEK          (reach + open the store)
+#   MINIO_ROOT_USER  MINIO_ROOT_PASSWORD                      (read by minio)
+#   KUN_CHAT_CENTRIFUGO_API_KEY  KUN_CHAT_REALTIME_TOKEN_SECRET (also read by centrifugo)
+#   NUXT_OAUTH_CLIENT_SECRET  NUXT_PUBLIC_OAUTH_CLIENT_ID      (admin is Nuxt)
 #
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
@@ -41,10 +41,10 @@ x-svc-health: &svc-health
   start_interval: 2s
 
 # ── shared backend env (union; services ignore keys they don't read) ──────────
-# Literal = non-secret/structural. ${VAR:-} = a Dokploy value that is moving to
-# the config store (docs/deploy/18 §18.9); once it is stored there, delete it
-# from Dokploy and the empty env lets the stored value through. ${VAR:?} = must
-# stay in Dokploy (bootstrap, or read by a non-Go container).
+# Literal = non-secret/structural. Secrets and deploy-specific values live in
+# the config store (docs/deploy/18 §18.9; admin /settings/env), each marked
+# below by an "in the config store" line. ${VAR:?} = must stay in Dokploy:
+# bootstrap, or read by a non-Go container.
 x-infra-env: &infra-env
   KUN_ENV: production
   # Postgres — one server; database names and the rest are the code defaults.
@@ -54,7 +54,7 @@ x-infra-env: &infra-env
   REDIS_ENABLED: "true"
   REDIS_HOST: redis
   # JWT — oauth signs access_token (HS256), image/galgame verify locally. Same secret.
-  JWT_SECRET: ${JWT_SECRET:-}
+  # in the config store: JWT_SECRET
   # Opens the config store (docs/deploy/18 §18.9): every Go service reads its
   # sealed variables from kun_galgame_infra.config_secrets at startup.
   KUN_CONFIG_KEK: ${KUN_CONFIG_KEK:-}
@@ -73,12 +73,7 @@ x-infra-env: &infra-env
   # image_service S3 — Cloudflare R2 in prod (Dokploy, then the config store).
   # image 服务空 key/secret/bucket 会 os.Exit(1) → 崩溃重启。
   # 自托管 MinIO:ENDPOINT=http://minio:9000、key/secret=MINIO_ROOT_*、FORCE_PATH_STYLE=true。
-  KUN_IMAGE_S3_ENDPOINT: ${KUN_IMAGE_S3_ENDPOINT:-}
-  KUN_IMAGE_S3_REGION: ${KUN_IMAGE_S3_REGION:-}
-  KUN_IMAGE_S3_ACCESS_KEY: ${KUN_IMAGE_S3_ACCESS_KEY:-}
-  KUN_IMAGE_S3_SECRET_KEY: ${KUN_IMAGE_S3_SECRET_KEY:-}
-  KUN_IMAGE_S3_BUCKET: ${KUN_IMAGE_S3_BUCKET:-}
-  KUN_IMAGE_S3_FORCE_PATH_STYLE: ${KUN_IMAGE_S3_FORCE_PATH_STYLE:-}
+  # in the config store: KUN_IMAGE_S3_ENDPOINT, KUN_IMAGE_S3_REGION, KUN_IMAGE_S3_ACCESS_KEY, KUN_IMAGE_S3_SECRET_KEY, KUN_IMAGE_S3_BUCKET, KUN_IMAGE_S3_FORCE_PATH_STYLE
   KUN_IMAGE_PUBLIC_BASE_URL: https://image.kungal.iloveren.link
   KUN_IMAGE_CLIENT_BASE_URL: http://image:9278
   # artifact service B2 storage + dedicated metadata DB (host/user/pass fall back
@@ -89,18 +84,16 @@ x-infra-env: &infra-env
   KUN_ARTIFACT_S3_ENDPOINT: https://s3.us-east-005.backblazeb2.com
   KUN_ARTIFACT_S3_REGION: us-east-005
   KUN_ARTIFACT_S3_BUCKET: kungal-artifact-v1
-  KUN_ARTIFACT_S3_ACCESS_KEY: ${KUN_ARTIFACT_S3_ACCESS_KEY:-}
-  KUN_ARTIFACT_S3_SECRET_KEY: ${KUN_ARTIFACT_S3_SECRET_KEY:-}
+  # in the config store: KUN_ARTIFACT_S3_ACCESS_KEY, KUN_ARTIFACT_S3_SECRET_KEY
   KUN_ARTIFACT_S3_FORCE_PATH_STYLE: "false"
   # Optional least-privilege delete-only B2 key for GC/reclaim (docs/artifact 决策 6).
   # Empty → code falls back to the presigner key above; create the scoped key in
   # B2 and set the two vars in Dokploy when convenient.
-  KUN_ARTIFACT_S3_CLEANUP_ACCESS_KEY: ${KUN_ARTIFACT_S3_CLEANUP_ACCESS_KEY:-}
-  KUN_ARTIFACT_S3_CLEANUP_SECRET_KEY: ${KUN_ARTIFACT_S3_CLEANUP_SECRET_KEY:-}
+  # in the config store: KUN_ARTIFACT_S3_CLEANUP_ACCESS_KEY, KUN_ARTIFACT_S3_CLEANUP_SECRET_KEY
   # Mail — oauth uses; PASSWORD is the only secret
   KUN_VISUAL_NOVEL_EMAIL_HOST: tuesday.mxrouting.net
   KUN_VISUAL_NOVEL_EMAIL_ACCOUNT: auth@nextmoe.com
-  KUN_VISUAL_NOVEL_EMAIL_PASSWORD: ${KUN_VISUAL_NOVEL_EMAIL_PASSWORD:-}
+  # in the config store: KUN_VISUAL_NOVEL_EMAIL_PASSWORD
 
 services:
   # ───────────────────────── shared backing services ─────────────────────────
@@ -262,12 +255,7 @@ services:
       # list never reach the container — empty creds silently register no
       # providers, so flipping auth.federation_providers would only render dead
       # buttons. Adding a provider means adding its two lines here too.
-      KUN_FEDERATION_GOOGLE_CLIENT_ID: ${KUN_FEDERATION_GOOGLE_CLIENT_ID:-}
-      KUN_FEDERATION_GOOGLE_CLIENT_SECRET: ${KUN_FEDERATION_GOOGLE_CLIENT_SECRET:-}
-      KUN_FEDERATION_GITHUB_CLIENT_ID: ${KUN_FEDERATION_GITHUB_CLIENT_ID:-}
-      KUN_FEDERATION_GITHUB_CLIENT_SECRET: ${KUN_FEDERATION_GITHUB_CLIENT_SECRET:-}
-      KUN_FEDERATION_HIKARINAGI_CLIENT_ID: ${KUN_FEDERATION_HIKARINAGI_CLIENT_ID:-}
-      KUN_FEDERATION_HIKARINAGI_CLIENT_SECRET: ${KUN_FEDERATION_HIKARINAGI_CLIENT_SECRET:-}
+      # in the config store: KUN_FEDERATION_GOOGLE_CLIENT_ID, KUN_FEDERATION_GOOGLE_CLIENT_SECRET, KUN_FEDERATION_GITHUB_CLIENT_ID, KUN_FEDERATION_GITHUB_CLIENT_SECRET, KUN_FEDERATION_HIKARINAGI_CLIENT_ID, KUN_FEDERATION_HIKARINAGI_CLIENT_SECRET
       # Image-service client for AVATAR uploads (POST /auth/me/avatar,
       # /admin/users/:uuid/avatar). Without these the oauth process builds no
       # imgClient, so the avatar route isn't even registered → 404 "无法更改头像".
@@ -275,14 +263,11 @@ services:
       # so avatars get their own site_key + quota. The client must be
       # image_enabled with "avatar" in image_allowed_presets — set via SQL, the
       # oauth-clients admin UI does not write the image_* columns.
-      KUN_IMAGE_CLIENT_ID: ${KUN_OAUTH_IMAGE_CLIENT_ID:-}
-      KUN_IMAGE_CLIENT_SECRET: ${KUN_OAUTH_IMAGE_CLIENT_SECRET:-}
+      # in the config store: KUN_IMAGE_CLIENT_ID, KUN_IMAGE_CLIENT_SECRET
       # Username/bio review (subject kind user_profile). A dedicated trust
       # client: its site binding is the tenant the review items land in.
       # Empty = no trust check or scan; only the local solicitation rule runs.
-      KUN_TRUST_CLIENT_ID: ${KUN_OAUTH_TRUST_CLIENT_ID:-}
-      KUN_TRUST_CLIENT_SECRET: ${KUN_OAUTH_TRUST_CLIENT_SECRET:-}
-      KUN_TRUST_CALLBACK_SECRET: ${KUN_OAUTH_TRUST_CALLBACK_SECRET:-}
+      # in the config store: KUN_TRUST_CLIENT_ID, KUN_TRUST_CLIENT_SECRET, KUN_TRUST_CALLBACK_SECRET
       # galgame-image-refping runs in THIS container's scheduler, but galgame
       # covers were uploaded under site=galgame_wiki and reference-ping is
       # site-scoped — so the job must authenticate as the galgame_wiki client,
@@ -290,28 +275,24 @@ services:
       # (.env KUN_IMAGE_CLIENT_ID/SECRET = galgame-wiki-admin); no new secret.
       # Without this the job pings as account → 0 updated / 60k not_found →
       # banners frozen → GC soft-deletes them ~365d later.
-      KUN_GALGAME_IMAGE_CLIENT_ID: ${KUN_IMAGE_CLIENT_ID:-}
-      KUN_GALGAME_IMAGE_CLIENT_SECRET: ${KUN_IMAGE_CLIENT_SECRET:-}
+      # in the config store: KUN_GALGAME_IMAGE_CLIENT_ID, KUN_GALGAME_IMAGE_CLIENT_SECRET
       # catalog-image-refping (daily 04:15, step 48) keeps character-portrait
       # references alive so image GC never freezes them (the 66k-freeze lesson:
       # reference-ping is site-scoped, so this MUST be the catalog image client
       # — site_key='catalog' — never the avatar/galgame ones above). Empty →
       # the job soft-skips until the client is provisioned.
-      KUN_CATALOG_IMAGE_CLIENT_ID: ${KUN_CATALOG_IMAGE_CLIENT_ID:-}
-      KUN_CATALOG_IMAGE_CLIENT_SECRET: ${KUN_CATALOG_IMAGE_CLIENT_SECRET:-}
+      # in the config store: KUN_CATALOG_IMAGE_CLIENT_ID, KUN_CATALOG_IMAGE_CLIENT_SECRET
       KUN_CATALOG_IMAGE_CLIENT_BASE_URL: http://image:9278
       # Same story for the news-scope sweep: the partner images we re-host are
       # written once and never touched, so only news-image-refping keeps them
       # alive — as the NEWS image client, never galgame_wiki. Empty → soft-skip.
-      KUN_NEWS_IMAGE_CLIENT_ID: ${KUN_NEWS_IMAGE_CLIENT_ID:-}
-      KUN_NEWS_IMAGE_CLIENT_SECRET: ${KUN_NEWS_IMAGE_CLIENT_SECRET:-}
+      # in the config store: KUN_NEWS_IMAGE_CLIENT_ID, KUN_NEWS_IMAGE_CLIENT_SECRET
       KUN_NEWS_IMAGE_CLIENT_BASE_URL: http://image:9278
       # 月幕 Galgame OpenAPI, for the ymgal-news poll/sweep jobs that run on this
       # scheduler host. MUST be the dedicated client 苍麟 issued us — the
       # credentials on their public developer page share one rate-limit bucket
       # with every other developer. Empty => both jobs soft-skip.
-      KUN_YMGAL_CLIENT_ID: ${KUN_YMGAL_CLIENT_ID:-}
-      KUN_YMGAL_CLIENT_SECRET: ${KUN_YMGAL_CLIENT_SECRET:-}
+      # in the config store: KUN_YMGAL_CLIENT_ID, KUN_YMGAL_CLIENT_SECRET
       # store-stats-sync runs in THIS container's scheduler, not catalog's. The
       # 08-26/08-29 catalog fixes put the shortlink vars only in the catalog
       # block, so this job soft-skipped hourly and store_link_daily_stats sat
@@ -321,7 +302,7 @@ services:
       # ITS OWN block. Base URL literal for the same reason as catalog's: only
       # the `shortlink-api` alias serves the S2S face.
       KUN_STORE_SHORTLINK_BASE_URL: http://shortlink-api:7845
-      KUN_STORE_SHORTLINK_API_KEY: ${KUN_STORE_SHORTLINK_API_KEY:-}
+      # in the config store: KUN_STORE_SHORTLINK_API_KEY
       # Where the news-moderate job reaches Tier0 and the AI adviser. Both are
       # spelled out because the AI client's built-in default is 127.0.0.1:9284,
       # which resolves to this container itself rather than the ai service.
@@ -336,8 +317,7 @@ services:
       # endpoints absent (today's behavior). SIGN_ASYMMETRIC flips access-token
       # signing HS256 -> ES256; flip ONLY after /oauth/jwks returns 200 and all
       # five verifiers run with KUN_OIDC_JWKS_URL wired (else new tokens 401).
-      KUN_OIDC_KEY_ENC_KEY: ${KUN_OIDC_KEY_ENC_KEY:-}
-      KUN_OIDC_SIGN_ASYMMETRIC: ${KUN_OIDC_SIGN_ASYMMETRIC:-}
+      # in the config store: KUN_OIDC_KEY_ENC_KEY, KUN_OIDC_SIGN_ASYMMETRIC
       # Developer-platform client fence (docs/developer-platform/03). CSV of the
       # OAuth client ids allowed to reach the /dev/* self-service face with a user
       # token — set this to the developer portal's own confidential client id once
@@ -345,7 +325,7 @@ services:
       # PKCE). Empty is fail-closed: only first-party /auth/login tokens pass, so
       # the portal's own users would be 403'd until this is set. Any OTHER
       # third-party app's user token is always 403 (confused-deputy guard).
-      KUN_DEV_PORTAL_CLIENT_IDS: ${KUN_DEV_PORTAL_CLIENT_IDS:-}
+      # in the config store: KUN_DEV_PORTAL_CLIENT_IDS
     expose: ["9277"]
     labels:
       # Traefik routing for this service on account.nextmoe.com (API + OIDC
@@ -499,23 +479,18 @@ services:
       # console (LLM 网关配置 → 访问密钥). No provider key lives here. An empty
       # key answers hybrid search lexically and the draft face with 503.
       KUN_LLM_GATEWAY_URL: http://ai:9284/v1
-      KUN_LLM_GATEWAY_KEY: ${KUN_LLM_GATEWAY_KEY_CATALOG:-}
-      KUN_AI_UPSTREAM_MODEL: ${KUN_AI_UPSTREAM_MODEL:-}
+      # in the config store: KUN_LLM_GATEWAY_KEY, KUN_AI_UPSTREAM_MODEL
       # W2 (wiki retirement): this process also co-hosts the full galgame HTTP
       # surface via galgameapp.Mount, so it needs the SAME image-service +
       # catalog S2S client credentials the galgame service above gets — without
       # them the co-hosted face logs "image client not configured" and rejects
       # multipart banner uploads. Same Dokploy vars, same fallback chain.
-      KUN_IMAGE_CLIENT_ID: ${KUN_IMAGE_CLIENT_ID:-}
-      KUN_IMAGE_CLIENT_SECRET: ${KUN_IMAGE_CLIENT_SECRET:-}
-      KUN_CATALOG_CLIENT_ID: ${KUN_CATALOG_CLIENT_ID:-${KUN_IMAGE_CLIENT_ID:-}}
-      KUN_CATALOG_CLIENT_SECRET: ${KUN_CATALOG_CLIENT_SECRET:-${KUN_IMAGE_CLIENT_SECRET:-}}
+      # in the config store: KUN_IMAGE_CLIENT_ID, KUN_IMAGE_CLIENT_SECRET, KUN_CATALOG_CLIENT_ID, KUN_CATALOG_CLIENT_SECRET
       # Wave 169-E: the edit-face byte upload leg stores editor covers/
       # screenshots under the catalog SITE's image identity (the scope the
       # daily refping keeps alive) — same Dokploy vars the oauth service's
       # refping job already reads, no new secret.
-      KUN_CATALOG_IMAGE_CLIENT_ID: ${KUN_CATALOG_IMAGE_CLIENT_ID:-}
-      KUN_CATALOG_IMAGE_CLIENT_SECRET: ${KUN_CATALOG_IMAGE_CLIENT_SECRET:-}
+      # in the config store: KUN_CATALOG_IMAGE_CLIENT_ID, KUN_CATALOG_IMAGE_CLIENT_SECRET
       KUN_CATALOG_IMAGE_CLIENT_BASE_URL: http://image:9278
       KUN_OPENSEARCH_HOST: http://opensearch:9200
       # The /v1/news face reads kun_news from this same process (a second DB
@@ -527,8 +502,7 @@ services:
       # daily news-image-refping is site-scoped, so bytes held under any other
       # client rot at the image TTL. Same Dokploy vars the oauth service's
       # refping job already reads, no new secret. Empty => both answer 503.
-      KUN_NEWS_IMAGE_CLIENT_ID: ${KUN_NEWS_IMAGE_CLIENT_ID:-}
-      KUN_NEWS_IMAGE_CLIENT_SECRET: ${KUN_NEWS_IMAGE_CLIENT_SECRET:-}
+      # in the config store: KUN_NEWS_IMAGE_CLIENT_ID, KUN_NEWS_IMAGE_CLIENT_SECRET
       # w02 (store face) first deploy 2026-08-26: the two shortlink vars were
       # set in the Dokploy panel and never reached the container — panel vars
       # only exist inside a service whose compose interpolates them. The base
@@ -537,31 +511,25 @@ services:
       # /api and /s, not /s2s), so the public short-link origin is not a
       # working value here.
       KUN_STORE_SHORTLINK_BASE_URL: http://shortlink-api:7845
-      KUN_STORE_SHORTLINK_API_KEY: ${KUN_STORE_SHORTLINK_API_KEY:-}
+      # in the config store: KUN_STORE_SHORTLINK_API_KEY
       # 2026-08-29, the same trap a second time: the affiliate templates and the
       # quota were filled in the panel alone and the redeployed container came
       # back without them. EVERY store var has to be listed here, not just the
       # two the first fix happened to need. (The price face's knobs are
       # config-center keys and need no line.)
-      KUN_STORE_DLSITE_AFF_URL_TMPL_MANIAX: ${KUN_STORE_DLSITE_AFF_URL_TMPL_MANIAX:-}
-      KUN_STORE_DLSITE_AFF_URL_TMPL_PRO: ${KUN_STORE_DLSITE_AFF_URL_TMPL_PRO:-}
-      KUN_STORE_PRICE_DLSITE_BASE: ${KUN_STORE_PRICE_DLSITE_BASE:-}
-      KUN_STORE_PRICE_DLSITE_PROXY: ${KUN_STORE_PRICE_DLSITE_PROXY:-}
+      # in the config store: KUN_STORE_DLSITE_AFF_URL_TMPL_MANIAX, KUN_STORE_DLSITE_AFF_URL_TMPL_PRO, KUN_STORE_PRICE_DLSITE_BASE, KUN_STORE_PRICE_DLSITE_PROXY
       # spec 2.49.0: a third-party app's rating short review is checked before
       # the write and scanned after it under trust site "nextmoe" (kind
       # user_rating, seeded by migrate-trust). This reuses the community block's
       # forwarder client: naming a wire site needs a client in trust's
       # KUN_TRUST_FORWARDER_CLIENT_IDS, and this one already is, so no new
       # secret. Empty => no check or scan; the write still goes through.
-      KUN_TRUST_CLIENT_ID: "ac2b8856594baed9c9ee6792eec082e3"
-      KUN_TRUST_CLIENT_SECRET: ${KUN_TRUST_CLIENT_SECRET:-}
+      # in the config store: KUN_TRUST_CLIENT_ID, KUN_TRUST_CLIENT_SECRET
       # Play states, playtime days, public folders and company follows go to
       # community as tenant catalog (catalog_activity_item, then the pusher).
       # Writes always fill the table; the push runs only with the switch on
       # and a client whose community_site is catalog.
-      KUN_CATALOG_ACTIVITY_PUSH: ${KUN_CATALOG_ACTIVITY_PUSH:-}
-      KUN_CATALOG_COMMUNITY_CLIENT_ID: ${KUN_CATALOG_COMMUNITY_CLIENT_ID:-}
-      KUN_CATALOG_COMMUNITY_CLIENT_SECRET: ${KUN_CATALOG_COMMUNITY_CLIENT_SECRET:-}
+      # in the config store: KUN_CATALOG_ACTIVITY_PUSH, KUN_CATALOG_COMMUNITY_CLIENT_ID, KUN_CATALOG_COMMUNITY_CLIENT_SECRET
     # S2S read/admin face stays internal — product backends (wiki/forum/moyu)
     # reach it at http://catalog:9281 over dokploy-network. The ONLY public path
     # is the open-API /v1/catalog projection routed by the labels block below.
@@ -703,9 +671,7 @@ services:
       # in the DB). Callback secret stays empty until enforcement callbacks are
       # provisioned (inbound callbacks 401 = fail-closed). Base URL defaults to
       # http://trust:9283 (dokploy-network service name).
-      KUN_TRUST_CLIENT_ID: "ac2b8856594baed9c9ee6792eec082e3"
-      KUN_TRUST_CLIENT_SECRET: ${KUN_TRUST_CLIENT_SECRET:-}
-      KUN_TRUST_CALLBACK_SECRET: ${KUN_TRUST_CALLBACK_SECRET:-}
+      # in the config store: KUN_TRUST_CLIENT_ID, KUN_TRUST_CLIENT_SECRET, KUN_TRUST_CALLBACK_SECRET
     # Internal only — product backends (letmoe/...) reach it at
     # http://community:9282 over dokploy-network.
     expose: ["9282"]
@@ -741,15 +707,11 @@ services:
       # reference pings are scoped to the uploading client, so photos sent in
       # chat must be uploaded through chat to be kept alive. Empty = photo
       # messages answer 503.
-      KUN_CHAT_IMAGE_CLIENT_ID: ${KUN_CHAT_IMAGE_CLIENT_ID:-}
-      KUN_CHAT_IMAGE_CLIENT_SECRET: ${KUN_CHAT_IMAGE_CLIENT_SECRET:-}
+      # in the config store: KUN_CHAT_IMAGE_CLIENT_ID, KUN_CHAT_IMAGE_CLIENT_SECRET
       KUN_CHAT_IMAGE_CLIENT_BASE_URL: http://image:9278
       # An application key (nmk_live_) for reading the official packs of
       # /v2/sticker. Empty = sticker messages answer 503.
-      KUN_CHAT_STICKER_API_KEY: ${KUN_CHAT_STICKER_API_KEY:-}
-      KUN_TRUST_CLIENT_ID: ${KUN_CHAT_TRUST_CLIENT_ID:-}
-      KUN_TRUST_CLIENT_SECRET: ${KUN_CHAT_TRUST_CLIENT_SECRET:-}
-      KUN_TRUST_CALLBACK_SECRET: ${KUN_CHAT_TRUST_CALLBACK_SECRET:-}
+      # in the config store: KUN_CHAT_STICKER_API_KEY, KUN_TRUST_CLIENT_ID, KUN_TRUST_CLIENT_SECRET, KUN_TRUST_CALLBACK_SECRET
     expose: ["9285"]
     labels:
       # OWNED HERE like every api.nextmoe.dev face. The explicit priority keeps
@@ -824,7 +786,7 @@ services:
       # power-on) to the community service's client id — the same value as the
       # community block's KUN_TRUST_CLIENT_ID, which the catalog block also uses
       # since spec 2.49.0.
-      KUN_TRUST_FORWARDER_CLIENT_IDS: "ac2b8856594baed9c9ee6792eec082e3,${KUN_CHAT_TRUST_CLIENT_ID:-}"
+      KUN_TRUST_FORWARDER_CLIENT_IDS: "ac2b8856594baed9c9ee6792eec082e3"
       # AI shadow-scoring pipeline (step 03; wired 2026-07-16 AI-tier power-on):
       # the scan worker scores pending trust_scan_result rows via the AI gateway's
       # moderate-text route over S2S Basic. The client is the purpose-built
@@ -836,7 +798,7 @@ services:
       # dialing (fail-closed) — tier0_matched still records.
       KUN_AI_CLIENT_BASE_URL: http://ai:9284
       KUN_AI_CLIENT_ID: "ba21dfba94274c134e01ede5eaa7c391"
-      KUN_AI_CLIENT_SECRET: ${KUN_AI_CLIENT_SECRET:-}
+      # in the config store: KUN_AI_CLIENT_SECRET
     # Internal only — product backends reach it at http://trust:9283 over
     # dokploy-network.
     expose: ["9283"]
@@ -866,16 +828,12 @@ services:
       # lives in kun_ai and is managed by ren in the admin console. KUN_LLM_KEK
       # (base64 of 32 random bytes) seals the provider keys; the agent project
       # must carry the same value. Losing it means re-entering every key.
-      KUN_LLM_KEK: ${KUN_LLM_KEK:-}
+      # in the config store: KUN_LLM_KEK
       # Seed only: read once, on the first start with an empty llm_provider, to
       # carry the Workers AI and omni-moderation config into the gateway. Delete
       # them from Dokploy after that first start.
-      KUN_AI_UPSTREAM_BASE_URL: ${KUN_AI_UPSTREAM_BASE_URL:-}
-      KUN_AI_UPSTREAM_TOKEN: ${KUN_AI_UPSTREAM_TOKEN:-}
-      KUN_AI_UPSTREAM_MODEL: ${KUN_AI_UPSTREAM_MODEL:-}
-      KUN_AI_OMNI_BASE_URL: ${KUN_AI_OMNI_BASE_URL:-https://api.openai.com}
-      KUN_AI_OMNI_TOKEN: ${KUN_AI_OMNI_TOKEN:-}
-      KUN_AI_OMNI_MODEL: ${KUN_AI_OMNI_MODEL:-omni-moderation-latest}
+      # in the config store: KUN_AI_UPSTREAM_BASE_URL, KUN_AI_UPSTREAM_TOKEN, KUN_AI_UPSTREAM_MODEL, KUN_AI_OMNI_TOKEN
+      KUN_AI_OMNI_MODEL: omni-moderation-latest
     # Internal only — product/platform backends reach it at http://ai:9284 over
     # dokploy-network.
     expose: ["9284"]
@@ -902,10 +860,7 @@ services:
       # telemetry-worker reads them, and the filesystem fallback is private to
       # each container, so without a bucket every stack would silently stay
       # undecoded. Both refuse to start in production without a bucket.
-      KUN_TELEMETRY_S3_ENDPOINT: ${KUN_TELEMETRY_S3_ENDPOINT:-}
-      KUN_TELEMETRY_S3_BUCKET: ${KUN_TELEMETRY_S3_BUCKET:-}
-      KUN_TELEMETRY_S3_ACCESS_KEY_ID: ${KUN_TELEMETRY_S3_ACCESS_KEY_ID:-}
-      KUN_TELEMETRY_S3_SECRET_ACCESS_KEY: ${KUN_TELEMETRY_S3_SECRET_ACCESS_KEY:-}
+      # in the config store: KUN_TELEMETRY_S3_ENDPOINT, KUN_TELEMETRY_S3_BUCKET, KUN_TELEMETRY_S3_ACCESS_KEY_ID, KUN_TELEMETRY_S3_SECRET_ACCESS_KEY
     expose: ["9286"]
     labels:
       # OWNED HERE like every other routed service (compose labels replace the
@@ -936,10 +891,7 @@ services:
     pull_policy: always
     environment:
       <<: *infra-env
-      KUN_TELEMETRY_S3_ENDPOINT: ${KUN_TELEMETRY_S3_ENDPOINT:-}
-      KUN_TELEMETRY_S3_BUCKET: ${KUN_TELEMETRY_S3_BUCKET:-}
-      KUN_TELEMETRY_S3_ACCESS_KEY_ID: ${KUN_TELEMETRY_S3_ACCESS_KEY_ID:-}
-      KUN_TELEMETRY_S3_SECRET_ACCESS_KEY: ${KUN_TELEMETRY_S3_SECRET_ACCESS_KEY:-}
+      # in the config store: KUN_TELEMETRY_S3_ENDPOINT, KUN_TELEMETRY_S3_BUCKET, KUN_TELEMETRY_S3_ACCESS_KEY_ID, KUN_TELEMETRY_S3_SECRET_ACCESS_KEY
     depends_on:
       postgres: { condition: service_healthy }
       migrate-telemetry: { condition: service_completed_successfully }
