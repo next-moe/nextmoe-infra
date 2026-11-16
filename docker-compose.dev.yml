@@ -302,13 +302,11 @@ services:
       CENTRIFUGO_HEALTH_ENABLED: "true"
     restart: unless-stopped
 
-  # ai's schema is `full`-profile only: nothing a bare `pnpm dev` runs dials
-  # :9284 (trust has empty AI creds so it never dials), and its consumers are
-  # the PRODUCT repos — which is what `pnpm dev:full` is for.
+  # ai / agent / telemetry run from source under `pnpm dev`, so their schemas
+  # are default-profile like the other hot services'.
   migrate-ai:
     image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
     command: ["ai"]
-    profiles: ["full"]
     network_mode: host
     environment: { <<: *dev-env }
     restart: "no"
@@ -316,17 +314,13 @@ services:
   migrate-agent:
     image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
     command: ["agent"]
-    profiles: ["full"]
     network_mode: host
     environment: { <<: *dev-env }
     restart: "no"
 
-  # telemetry is not in the default stack either: run `go run ./cmd/telemetry`
-  # (and ./cmd/telemetry-worker) when working on it.
   migrate-telemetry:
     image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
     command: ["telemetry"]
-    profiles: ["full"]
     network_mode: host
     environment: { <<: *dev-env }
     restart: "no"
@@ -337,13 +331,11 @@ services:
   # box directly, so `go run ./cmd/<svc>` on the same port replaces a stopped one.
   oauth:
     image: ghcr.io/next-moe/infra-oauth:${INFRA_IMAGE_TAG:-latest}
-    # The six frequently-edited Go services (oauth/catalog/community/image/
-    # artifact/trust) sit behind the `full` profile so a bare `up` starts the
-    # platform WITHOUT them — leaving their host ports free for `air` to
-    # hot-reload from source (see scripts/dev.sh / `pnpm dev`). Product-repo
-    # developers who want the whole platform from prebuilt images run
-    # `--profile full` — which is also what carries ai, since nothing in a
-    # bare `up` consumes it.
+    # The Go services `air` hot-reloads from source (oauth/catalog/community/
+    # chat/image/artifact/trust/ai/agent) sit behind the `full` profile so a
+    # bare `up` starts the platform WITHOUT them — leaving their host ports
+    # free (see scripts/dev.sh / `pnpm dev`). Product-repo developers who want
+    # the whole platform from prebuilt images run `--profile full`.
     profiles: ["full"]
     network_mode: host
     environment:
