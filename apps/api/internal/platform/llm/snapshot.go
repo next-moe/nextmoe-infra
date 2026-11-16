@@ -1,13 +1,13 @@
 package llm
 
 import (
+	"api/pkg/config"
 	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"math"
-	"os"
 	"slices"
 	"strconv"
 	"time"
@@ -128,7 +128,7 @@ func (s *snapshot) target(scene, model string) (*Scene, *Model, error) {
 
 func providerKey(p *Provider, kek []byte) (string, error) {
 	if p.KeyEnv != "" {
-		return os.Getenv(p.KeyEnv), nil
+		return config.Env(p.KeyEnv, ""), nil
 	}
 	if len(p.KeyCipher) == 0 {
 		return "", nil

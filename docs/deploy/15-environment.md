@@ -5,6 +5,10 @@
 > 偏「上线怎么填」的速查在 [05-configuration.md](./05-configuration.md);偏「Dokploy 怎么编排」在
 > [12-dokploy.md](./12-dokploy.md);CI 在 [13-registry-ci.md](./13-registry-ci.md)。本篇是它们的**底层全集**。
 >
+> **生产密钥正在迁出 Dokploy**:Go 服务的环境变量与密钥改存配置中心(加密,启动时读取),Dokploy 只留
+> 启动接线和第三方容器要的几项,见 [18-config-center.md §18.9](./18-config-center.md#189-环境变量与密钥启动期存储)。
+> 每个服务实际读到的全部变量在 admin `/settings/env`。
+>
 > 文中所有具体值都是**测试占位**(`191007`、`kun-docker-test-*` 等)。真实生产密钥**只填在
 > Dokploy / GitHub secrets / 各机的 `docker/*.env`**,**永不入仓、永不写进本文档**。
 

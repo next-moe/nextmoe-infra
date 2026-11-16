@@ -1,11 +1,11 @@
 package llm
 
 import (
+	"api/pkg/config"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"gorm.io/datatypes"
@@ -46,7 +46,7 @@ type seedModel struct {
 // again: after that the admin console is the only place keys and routes are
 // managed, and the env vars can be deleted.
 func SeedDefaults(ctx context.Context, db *gorm.DB, kek []byte, b Bootstrap) error {
-	upKey, omniKey := os.Getenv(b.UpstreamKeyEnv), os.Getenv(b.OmniKeyEnv)
+	upKey, omniKey := config.Env(b.UpstreamKeyEnv, ""), config.Env(b.OmniKeyEnv, "")
 	if (b.UpstreamBaseURL == "" || upKey == "") && (b.OmniBaseURL == "" || omniKey == "") {
 		return nil
 	}

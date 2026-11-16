@@ -25,6 +25,7 @@ import (
 	jobsModel "api/internal/jobs/model"
 	authModel "api/internal/platform/auth/model"
 	"api/internal/platform/devapi"
+	"api/internal/platform/envconfig"
 	ledgerModel "api/internal/platform/ledger/model"
 	ledgerService "api/internal/platform/ledger/service"
 	"api/internal/platform/notice"
@@ -40,7 +41,7 @@ import (
 func main() {
 	target, args := splitTarget(os.Args[1:])
 
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("migrate")
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
@@ -400,6 +401,14 @@ func getAllModels() []any {
 		// audit trail (2026-09-02). Brand-new tables, no existing rows to convert.
 		&settings.SettingOverride{},
 		&settings.SettingAuditLog{},
+
+		// The environment-variable store (2026-11-16, docs/deploy/18 §18.9):
+		// values sealed with KUN_CONFIG_KEK that services read at startup, the
+		// audit of every write, and each service's last reported startup view.
+		// Brand-new tables, no existing rows to convert.
+		&envconfig.ConfigSecret{},
+		&envconfig.ConfigSecretAuditLog{},
+		&envconfig.BootSnapshot{},
 
 		// DLsite distribution face (/v1/store, wave 02 of the store track,
 		// 2026-08-25). Four brand-new tables, no pre-existing rows to convert:

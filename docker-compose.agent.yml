@@ -43,7 +43,8 @@ x-agent-env: &agent-env
   KUN_AGENT_PG_DATABASE: kun_agent
   # config.Load refuses to start without it, migrate-agent included: the first
   # prod deploy failed "JWT_SECRET is required" when only the agent had it.
-  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Dokploy Environment (same as the main stack)}
+  JWT_SECRET: ${JWT_SECRET:-}
+  KUN_CONFIG_KEK: ${KUN_CONFIG_KEK:-}
 
 services:
   migrate-agent:

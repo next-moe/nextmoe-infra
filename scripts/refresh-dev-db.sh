@@ -96,6 +96,9 @@ assert_infra() {
   assert_zero "authorization_codes empty" "$db" "SELECT count(*) FROM authorization_codes"
   assert_zero "password_resets empty" "$db" "SELECT count(*) FROM password_resets"
   assert_zero "signing_keys empty"    "$db" "SELECT count(*) FROM signing_keys"
+  if [[ -n "$(lpsql -Atc "SELECT to_regclass('config_secrets')" -d "${db}${DEVDB_SUFFIX}")" ]]; then
+    assert_zero "config_secrets empty" "$db" "SELECT count(*) FROM config_secrets"
+  fi
   assert_zero "oauth tokens cleared"  "$db" "SELECT count(*) FROM oauth_accounts WHERE (access_token IS NOT NULL AND access_token<>'') OR (refresh_token IS NOT NULL AND refresh_token<>'')"
   # oauth_clients secrets = dev derivation (computed in shell, no pgcrypto needed).
   local bad=0 cid secret expect

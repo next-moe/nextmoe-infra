@@ -25,6 +25,7 @@ import (
 	authHandler "api/internal/platform/auth/handler"
 	authRepo "api/internal/platform/auth/repository"
 	authService "api/internal/platform/auth/service"
+	"api/internal/platform/envconfig"
 	ledgerHandler "api/internal/platform/ledger/handler"
 	ledgerService "api/internal/platform/ledger/service"
 	shopHandler "api/internal/platform/shop/handler"
@@ -60,7 +61,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadService("oauth")
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
@@ -591,6 +592,13 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 		}
 		return nil
 	})
+
+	envconfig.NewHandler(
+		envconfig.NewService(envconfig.NewStore(db)),
+		func(roles []string) bool { return settingsPerm.Resolver.Can(roles, settingsPerm.EnvWrite) },
+	).Register(admin,
+		middleware.RequirePermission(settingsPerm.Resolver, settingsPerm.View),
+		middleware.RequirePermission(settingsPerm.Resolver, settingsPerm.EnvWrite))
 
 	registerImageAdmin(a, cfg, admin)
 	registerArtifactAdmin(a, cfg, authSvc)
