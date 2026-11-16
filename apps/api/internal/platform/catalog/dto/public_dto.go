@@ -190,6 +190,7 @@ type PublicName struct {
 	Refs        []PublicCatalogRef             `json:"refs"`
 	Credits     []PublicNameCredit             `json:"credits,omitempty"`
 	NextOffset  *int                           `json:"next_offset,omitempty"`
+	WorksTotal  *int64                         `json:"-"`
 }
 
 // No `identity` here — see dto.WorkCharacterVA.
@@ -221,6 +222,7 @@ type PublicCharacter struct {
 	Links       []PublicLink                   `json:"links"`
 	Works       []PublicCharacterWork          `json:"works,omitempty"`
 	NextOffset  *int                           `json:"next_offset,omitempty"`
+	WorksTotal  *int64                         `json:"-"`
 	Traits      []PublicCharacterTrait         `json:"traits"`
 	Intros      []PublicIntro                  `json:"intros"`
 	Image       string                         `json:"image,omitempty"`

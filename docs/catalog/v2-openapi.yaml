@@ -15229,7 +15229,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.87.0
+  version: 2.88.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -15963,6 +15963,24 @@ paths:
           name: limit
           schema:
             description: Page size 1-100, default 20.
+            maxLength: 8
+            type: string
+        - description: "Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see."
+          explode: false
+          in: query
+          name: content_limit
+          schema:
+            description: "Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see."
+            examples:
+              - sfw
+            maxLength: 32
+            type: string
+        - description: "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false."
+          explode: false
+          in: query
+          name: include_total
+          schema:
+            description: "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false."
             maxLength: 8
             type: string
       responses:
@@ -16858,6 +16876,24 @@ paths:
           name: limit
           schema:
             description: Page size 1-100, default 20.
+            maxLength: 8
+            type: string
+        - description: "Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see."
+          explode: false
+          in: query
+          name: content_limit
+          schema:
+            description: "Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see."
+            examples:
+              - sfw
+            maxLength: 32
+            type: string
+        - description: "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false."
+          explode: false
+          in: query
+          name: include_total
+          schema:
+            description: "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false."
             maxLength: 8
             type: string
       responses:

@@ -66,7 +66,7 @@ func TestPublicQuarantineInvisibleOnReadFaces(t *testing.T) {
 	}
 	assert.Equal(t, []int64{live.ID}, labelIDs)
 
-	nm, ok, err := svc.Name(ctx, name.ID, true, true, 50, 0)
+	nm, ok, err := svc.Name(ctx, name.ID, true, EntityWorksGate{NSFW: true}, 50, 0)
 	require.NoError(t, err)
 	require.True(t, ok)
 	creditIDs := make([]int64, 0, len(nm.Credits))
@@ -75,7 +75,7 @@ func TestPublicQuarantineInvisibleOnReadFaces(t *testing.T) {
 	}
 	assert.Equal(t, []int64{live.ID}, creditIDs)
 
-	charRec, ok, err := svc.Character(ctx, ch.ID, true, true, 0, 50, 0)
+	charRec, ok, err := svc.Character(ctx, ch.ID, true, EntityWorksGate{NSFW: true}, 0, 50, 0)
 	require.NoError(t, err)
 	require.True(t, ok)
 	appearIDs := make([]int64, 0, len(charRec.Works))

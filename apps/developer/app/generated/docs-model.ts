@@ -13857,6 +13857,20 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "Page size 1-100, default 20."
+                },
+                {
+                  "name": "content_limit",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false."
                 }
               ],
               "responses": [
@@ -28769,6 +28783,20 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "Page size 1-100, default 20."
+                },
+                {
+                  "name": "content_limit",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false."
                 }
               ],
               "responses": [

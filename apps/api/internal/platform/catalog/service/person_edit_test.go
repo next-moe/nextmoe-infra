@@ -55,7 +55,7 @@ func TestNameFaceDropsSuppressedAliasesAndPersonLinks(t *testing.T) {
 	suppressEntity(t, editspec.TypeCreditName, n.ID, editspec.FieldCreditNameAliases,
 		editspec.CharacterAliasIdentity(model.AliasKindTranslation, "en", "Wrong Name"))
 
-	rec, found, err := svc.Name(t.Context(), n.ID, false, false, 50, 0)
+	rec, found, err := svc.Name(t.Context(), n.ID, false, EntityWorksGate{NSFW: false}, 50, 0)
 	require.NoError(t, err)
 	require.True(t, found)
 	assert.Equal(t, []dto.PublicLink{

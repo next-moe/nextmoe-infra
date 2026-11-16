@@ -1894,5 +1894,7 @@
   "true adds playtime_total_minutes: the sum of every listed work's playtime.minutes after the same filters as the items.": "为 true 时附带 playtime_total_minutes：经过与列表相同的筛选后，所有列出作品的 playtime.minutes 之和。",
   "Present when include_playtime_total=true: the sum of playtime.minutes over every work the filters list, not only this page. Same visibility gate as items.": "include_playtime_total=true 时出现：筛选后所有作品（不只本页）的 playtime.minutes 之和。可见性门槛与 items 相同。",
   "Who may read the companies the account follows on /v2/followed-companies. private, the default, refuses everyone but the account itself with 403 FOLLOWED_COMPANIES_PRIVATE; public lets any application read the list. A company's follower_count counts every follower either way.": "谁可以在 /v2/followed-companies 读到该账号关注的厂商。private 为缺省，除本人外一律 403 FOLLOWED_COMPANIES_PRIVATE；public 让任何应用都能读该列表。厂商的 follower_count 无论哪种都计入所有关注者。",
-  "Who may read the account's followed companies on /v2/followed-companies. Absent leaves it as it is.": "谁可以在 /v2/followed-companies 读到该账号关注的厂商。缺省时保持不变。"
+  "Who may read the account's followed companies on /v2/followed-companies. Absent leaves it as it is.": "谁可以在 /v2/followed-companies 读到该账号关注的厂商。缺省时保持不变。",
+  "Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see.": "逗号分隔的封闭编辑轴：sfw、nsfw，对每部作品的判定与 /v2/catalog/works 完全相同。缺省不设闸。条目、offset 游标与 total 一起受它过滤，所以每页都不会缺读者可见的作品。",
+  "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false.": "true 时附带 total：在本次请求的 nsfw 与 content_limit 下，本列表所有页合起来返回的不同作品数。只接受 true 或 false。"
 }

@@ -6,6 +6,7 @@ import (
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/catalog/dto"
+	catsvc "api/internal/platform/catalog/service"
 )
 
 func TestAppearanceFromPublicRow(t *testing.T) {
@@ -25,7 +26,7 @@ func TestAppearanceFromPublicRow(t *testing.T) {
 }
 
 func TestCharacterAppearancesUnbound(t *testing.T) {
-	_, err := (*Catalog)(nil).CharacterAppearances(t.Context(), 1, false, "", 20)
+	_, err := (*Catalog)(nil).CharacterAppearances(t.Context(), 1, catsvc.EntityWorksGate{}, "", 20)
 	p, ok := err.(*problem.Problem)
 	if !ok || p.Code != problem.CodeServiceUnavailable {
 		t.Fatalf("%v", err)

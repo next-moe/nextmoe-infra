@@ -14,7 +14,7 @@ func (c *Catalog) GetCreditName(ctx context.Context, id int64, nsfw bool, includ
 	if c == nil || c.Public == nil {
 		return repr.CreditName{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
-	rec, found, err := c.Public.Name(ctx, id, false, nsfw, 0, 0)
+	rec, found, err := c.Public.Name(ctx, id, false, catsvc.EntityWorksGate{NSFW: nsfw}, 0, 0)
 	if err != nil {
 		return repr.CreditName{}, err
 	}
@@ -28,7 +28,7 @@ func (c *Catalog) GetCharacter(ctx context.Context, id int64, nsfw bool, spoiler
 	if c == nil || c.Public == nil {
 		return repr.Character{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
-	rec, found, err := c.Public.Character(ctx, id, false, nsfw, spoiler, 0, 0)
+	rec, found, err := c.Public.Character(ctx, id, false, catsvc.EntityWorksGate{NSFW: nsfw}, spoiler, 0, 0)
 	if err != nil {
 		return repr.Character{}, err
 	}

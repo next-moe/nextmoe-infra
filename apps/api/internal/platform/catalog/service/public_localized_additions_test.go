@@ -100,7 +100,7 @@ func TestPublicCharacterTraitLocalized(t *testing.T) {
 	link(mkTrait("i2", "i0", "Braided Hair", "编发", model.TraitNameZhProvenanceMachine))
 	link(mkTrait("i3", "", "Hidden Past", "", model.TraitNameZhProvenanceCurated))
 
-	rec, found, err := svc.Character(t.Context(), ch.ID, false, false, 0, 50, 0)
+	rec, found, err := svc.Character(t.Context(), ch.ID, false, EntityWorksGate{NSFW: false}, 0, 50, 0)
 	if err != nil || !found {
 		t.Fatalf("character: found=%v err=%v", found, err)
 	}

@@ -196,7 +196,7 @@ func TestCharacterIntrosFollowTheirWorksShelves(t *testing.T) {
 		if !introSetEqual(got, tc.wants) {
 			t.Fatalf("characterIntros(%s, nsfw=%v) = %+v, want %+v", tc.c.DisplayName, tc.nsfw, got, tc.wants)
 		}
-		pub, found, err := svc.Character(t.Context(), tc.c.ID, false, tc.nsfw, model.SpoilerSevere, 10, 0)
+		pub, found, err := svc.Character(t.Context(), tc.c.ID, false, EntityWorksGate{NSFW: tc.nsfw}, model.SpoilerSevere, 10, 0)
 		if err != nil || !found {
 			t.Fatalf("Character(%s): found=%v err=%v", tc.c.DisplayName, found, err)
 		}

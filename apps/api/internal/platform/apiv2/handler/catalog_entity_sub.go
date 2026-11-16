@@ -7,9 +7,10 @@ import (
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
 	catmodel "api/internal/platform/catalog/model"
+	catsvc "api/internal/platform/catalog/service"
 )
 
-func (c *Catalog) CreditNameCredits(ctx context.Context, id int64, nsfw bool, cursor string, limit int) (repr.List[repr.NameCredit], error) {
+func (c *Catalog) CreditNameCredits(ctx context.Context, id int64, gate catsvc.EntityWorksGate, cursor string, limit int) (repr.List[repr.NameCredit], error) {
 	offset, limit, err := c.subPage(cursor, limit)
 	if err != nil {
 		return repr.List[repr.NameCredit]{}, err
@@ -17,7 +18,7 @@ func (c *Catalog) CreditNameCredits(ctx context.Context, id int64, nsfw bool, cu
 	if c == nil || c.Public == nil {
 		return repr.List[repr.NameCredit]{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
-	rec, found, err := c.Public.Name(ctx, id, true, nsfw, limit, offset)
+	rec, found, err := c.Public.Name(ctx, id, true, gate, limit, offset)
 	if err != nil {
 		return repr.List[repr.NameCredit]{}, err
 	}
@@ -40,10 +41,12 @@ func (c *Catalog) CreditNameCredits(ctx context.Context, id int64, nsfw bool, cu
 		}
 		items = append(items, repr.NameCredit{Object: "name_credit", Work: workFromBrief(row.Work), Roles: roles})
 	}
-	return repr.NewList(items, collect.EncodeOffset(derefInt(rec.NextOffset))), nil
+	out := repr.NewList(items, collect.EncodeOffset(derefInt(rec.NextOffset)))
+	out.Total = rec.WorksTotal
+	return out, nil
 }
 
-func (c *Catalog) CharacterAppearances(ctx context.Context, id int64, nsfw bool, cursor string, limit int) (repr.List[repr.Appearance], error) {
+func (c *Catalog) CharacterAppearances(ctx context.Context, id int64, gate catsvc.EntityWorksGate, cursor string, limit int) (repr.List[repr.Appearance], error) {
 	offset, limit, err := c.subPage(cursor, limit)
 	if err != nil {
 		return repr.List[repr.Appearance]{}, err
@@ -51,7 +54,7 @@ func (c *Catalog) CharacterAppearances(ctx context.Context, id int64, nsfw bool,
 	if c == nil || c.Public == nil {
 		return repr.List[repr.Appearance]{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
-	rec, found, err := c.Public.Character(ctx, id, true, nsfw, 0, limit, offset)
+	rec, found, err := c.Public.Character(ctx, id, true, gate, 0, limit, offset)
 	if err != nil {
 		return repr.List[repr.Appearance]{}, err
 	}
@@ -81,7 +84,9 @@ func (c *Catalog) CharacterAppearances(ctx context.Context, id int64, nsfw bool,
 			RosterRole: role, Spoiler: sp, Identity: optString(row.Identity), Voices: voices,
 		})
 	}
-	return repr.NewList(items, collect.EncodeOffset(derefInt(rec.NextOffset))), nil
+	out := repr.NewList(items, collect.EncodeOffset(derefInt(rec.NextOffset)))
+	out.Total = rec.WorksTotal
+	return out, nil
 }
 
 func (c *Catalog) PersonCreditNames(ctx context.Context, id int64) (repr.List[repr.CreditName], error) {

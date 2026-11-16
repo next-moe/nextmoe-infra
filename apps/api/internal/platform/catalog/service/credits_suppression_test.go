@@ -127,14 +127,14 @@ func TestCreditsSuppressionExcludedOnEveryReadSite(t *testing.T) {
 	t.Run("NameWorksTotalAndItemsAgree", func(t *testing.T) {
 		// The VA still holds the credit-only role and the scenario role on this
 		// work, so nothing drops yet; suppress those too and the work leaves.
-		res, err := read.NameWorks(ctx, f.va.ID, 50, 0)
+		res, err := read.NameWorks(ctx, f.va.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 		require.NoError(t, err)
 		assert.EqualValues(t, 2, res.Total)
 		require.Len(t, res.Works, 2)
 
 		suppressCredit(t, f.work.ID, f.onlyCredit)
 		suppressCredit(t, f.work.ID, f.scenCredit)
-		res, err = read.NameWorks(ctx, f.va.ID, 50, 0)
+		res, err = read.NameWorks(ctx, f.va.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 		require.NoError(t, err)
 		assert.EqualValues(t, 1, res.Total, "the total must not count a work whose every credit is suppressed")
 		require.Len(t, res.Works, 1, "and the page must agree with the total")
@@ -148,7 +148,7 @@ func TestCreditsSuppressionExcludedOnEveryReadSite(t *testing.T) {
 			editspec.TypeWork, f.work.ID, editspec.FieldWorkCredits,
 			editspec.CreditIdentity(f.scenCredit.RoleID, f.scenCredit.CreditNameID, 0)).
 			Delete(&editing.SuppressedRow{}).Error)
-		res, err := read.NameWorks(ctx, f.va.ID, 50, 0)
+		res, err := read.NameWorks(ctx, f.va.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 		require.NoError(t, err)
 		assert.EqualValues(t, 2, res.Total)
 		for _, w := range res.Works {
@@ -161,7 +161,7 @@ func TestCreditsSuppressionExcludedOnEveryReadSite(t *testing.T) {
 	})
 
 	t.Run("PublicNameCredits", func(t *testing.T) {
-		p, found, err := pub.Name(ctx, f.va.ID, true, true, 50, 0)
+		p, found, err := pub.Name(ctx, f.va.ID, true, EntityWorksGate{NSFW: true}, 50, 0)
 		require.NoError(t, err)
 		require.True(t, found)
 		for _, c := range p.Credits {
@@ -176,7 +176,7 @@ func TestCreditsSuppressionExcludedOnEveryReadSite(t *testing.T) {
 	t.Run("CharacterWorksTotalItemsAndVoices", func(t *testing.T) {
 		// rosterCh keeps its roster edge, so the work stays; its voices drop the
 		// suppressed one.
-		res, err := read.CharacterWorks(ctx, f.rosterCh.ID, 50, 0)
+		res, err := read.CharacterWorks(ctx, f.rosterCh.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 		require.NoError(t, err)
 		assert.EqualValues(t, 1, res.Total)
 		require.Len(t, res.Works, 1)
@@ -185,7 +185,7 @@ func TestCreditsSuppressionExcludedOnEveryReadSite(t *testing.T) {
 
 		// onlyCh has no roster edge, so suppressing its only credit removes the
 		// work from both halves of the union.
-		res, err = read.CharacterWorks(ctx, f.onlyCh.ID, 50, 0)
+		res, err = read.CharacterWorks(ctx, f.onlyCh.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 		require.NoError(t, err)
 		assert.EqualValues(t, 0, res.Total, "the union total must drop the credit-only work")
 		assert.Empty(t, res.Works, "and the page must agree with the total")
@@ -283,7 +283,7 @@ func TestIdentityRoundTripsToExactlyOneCreditRow(t *testing.T) {
 		}
 	}
 
-	nw, err := read.NameWorks(ctx, f.va.ID, 50, 0)
+	nw, err := read.NameWorks(ctx, f.va.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 	require.NoError(t, err)
 	require.NotEmpty(t, nw.Works)
 	for _, w := range nw.Works {
@@ -291,7 +291,7 @@ func TestIdentityRoundTripsToExactlyOneCreditRow(t *testing.T) {
 			assertOneRow(t, w.Brief.WorkID, r.Identity)
 		}
 	}
-	p, _, err := pub.Name(ctx, f.va.ID, true, true, 50, 0)
+	p, _, err := pub.Name(ctx, f.va.ID, true, EntityWorksGate{NSFW: true}, 50, 0)
 	require.NoError(t, err)
 	for _, c := range p.Credits {
 		for _, r := range c.Roles {
