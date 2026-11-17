@@ -143,6 +143,7 @@ func main() {
 	}
 	searchSync := docsync.NewSyncer(catalogDB.DB(), searcher).WithEmbedder(worksEmbedder)
 	editRegistry.Observe(searchSync.Observe)
+	claimSvc.ObserveWorkWrites(func(ids ...int64) { searchSync.Enqueue(editspec.TypeWork, ids...) })
 	searchSync.Start(permCtx)
 	editPolicy := editing.NewPolicyStore(catalogDB.DB(), editRegistry)
 	editPolicy.Start(permCtx)
