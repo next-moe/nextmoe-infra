@@ -120,11 +120,25 @@ type ClaimActionResult struct {
 }
 
 type ClaimLifecycleService struct {
-	db *gorm.DB
+	db            *gorm.DB
+	onWorkWritten func(workIDs ...int64)
 }
 
 func NewClaimLifecycleService(db *gorm.DB) *ClaimLifecycleService {
 	return &ClaimLifecycleService{db: db}
+}
+
+// ObserveWorkWrites is called after every committed claim write. These writes
+// bypass the editing engine, so its observers never see them: on 2026-11-17 a
+// work minted from kungal stayed unsearchable until the next daily reindex.
+func (s *ClaimLifecycleService) ObserveWorkWrites(fn func(workIDs ...int64)) {
+	s.onWorkWritten = fn
+}
+
+func (s *ClaimLifecycleService) workWritten(workIDs ...int64) {
+	if s.onWorkWritten != nil {
+		s.onWorkWritten(workIDs...)
+	}
 }
 
 func (s *ClaimLifecycleService) Act(ctx context.Context, p ClaimActionParams) (*ClaimActionResult, error) {
@@ -234,11 +248,12 @@ func (s *ClaimLifecycleService) Act(ctx context.Context, p ClaimActionParams) (*
 	if err != nil {
 		return nil, err
 	}
+	s.workWritten(out.WorkID)
 	return &out, nil
 }
 
 func (s *ClaimLifecycleService) DeleteDraft(ctx context.Context, workID, actorUID int64) error {
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var work struct {
 			ID          int64
 			Site        *string
@@ -276,6 +291,11 @@ func (s *ClaimLifecycleService) DeleteDraft(ctx context.Context, workID, actorUI
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	s.workWritten(workID)
+	return nil
 }
 
 type claimEventRow struct {

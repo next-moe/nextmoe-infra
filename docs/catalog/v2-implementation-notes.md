@@ -3021,3 +3021,12 @@ kungal's staff and character pages could only show "50+": neither list carried a
 - Cost, local copy 2026-11-16: the most prolific credit name (4,608 credit rows) counts in ≈7ms warm under `content_limit=sfw`, the same as the ungated count it replaces. The busiest character (61 works) takes ≈1.5ms. No counter table.
 
 Spec 2.88.0, additive: two optional query parameters on two routes; `total` was already part of the shared list envelope.
+
+## Claim writes reach the live index (2026-11-17)
+
+A kungal user created 《時計仕掛けのレイライン -陽炎に彷徨う魔女-》 (work 278778) and could not find it in search. The live index (spec 2.73.0) listens to `editing.Registry.Observe`, but `ClaimLifecycleService` writes in its own transactions and never goes through the engine. So a work minted from a site (`SubmitWork`), a claim transition (`Act`: claim, submit, publish, withdraw, approve, decline, ban, unban) and a deleted draft (`DeleteDraft`) reached OpenSearch only through the daily reindex at 06:10 CST.
+
+- `ClaimLifecycleService.ObserveWorkWrites` takes a callback. It runs after each of those three writes commits, and never runs for a refused one. `cmd/catalog` points it at `docsync.Syncer.Enqueue(work, …)`, so the work is rebuilt (or removed, for a deleted draft) within the syncer's one-second debounce, like an edit.
+- `TestClaimWritesNotifyWorkObserver` holds the contract.
+
+No spec change. **Zero migrations.**
