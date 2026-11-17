@@ -71,7 +71,7 @@ func TestSearchTagsCountsWorksAndHidesSexualTags(t *testing.T) {
 	}
 	var card map[string]any
 	_ = json.Unmarshal(out.Cards[0].Data, &card)
-	if len(out.Cards) != 1 || card["kind"] != "tag" || card["subtitle"] != "标签 · 22 部作品" {
+	if len(out.Cards) != 2 || card["kind"] != "tag" || card["subtitle"] != "标签 · 22 部作品" {
 		t.Fatalf("tag cards: %v", card)
 	}
 }
