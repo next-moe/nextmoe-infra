@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 
@@ -147,7 +148,8 @@ func (t *SearchTags) Run(ctx context.Context, args json.RawMessage) (Output, err
 	seen := map[string]bool{}
 	type match struct {
 		ID        string `json:"id"`
-		Name      string `json:"name"`
+		Tag       string `json:"tag,omitempty"`
+		Trait     string `json:"trait,omitempty"`
 		WorkCount int    `json:"work_count,omitempty"`
 		Group     string `json:"group,omitempty"`
 	}
@@ -170,7 +172,10 @@ func (t *SearchTags) Run(ctx context.Context, args json.RawMessage) (Output, err
 			if h.IsSexual != nil && *h.IsSexual && !t.Client.NSFW {
 				continue
 			}
-			m := match{ID: h.ID, Name: h.Localized.name(h.DisplayName), WorkCount: h.WorkCount}
+			m := match{ID: h.ID, Tag: h.Localized.name(h.DisplayName), WorkCount: h.WorkCount}
+			if object == "trait" {
+				m.Tag, m.Trait = "", m.Tag
+			}
 			if h.TraitPath != nil {
 				m.Group = h.TraitPath.GroupLocalized.name(h.TraitPath.Group)
 			}
@@ -184,11 +189,12 @@ func (t *SearchTags) Run(ctx context.Context, args json.RawMessage) (Output, err
 	matched := []string{}
 	for _, r := range results {
 		for _, m := range r.Matches {
+			name := m.Tag + m.Trait
 			if m.Group != "" {
-				m.Name += "（" + m.Group + "）"
+				name += "（" + m.Group + "）"
 			}
-			if !contains(matched, m.Name) {
-				matched = append(matched, m.Name)
+			if !contains(matched, name) {
+				matched = append(matched, name)
 			}
 		}
 	}
@@ -197,9 +203,59 @@ func (t *SearchTags) Run(ctx context.Context, args json.RawMessage) (Output, err
 		forName = "characters"
 	}
 	out.Meta = map[string]any{"for": forName, "matched": matched}
-	raw, _ := json.Marshal(map[string]any{"for": object + "s", "results": results})
+	body := map[string]any{"for": object + "s", "results": results}
+	missed := slices.ContainsFunc(results, func(r result) bool { return len(r.Matches) == 0 && r.Error == "" })
+	next := "These are tags, not works: call browse_works with the tag ids to list works."
+	if object == "trait" {
+		next = "These are character traits, not characters: call browse_characters with the trait ids to list characters."
+	}
+	switch {
+	case len(matched) == 0 && missed:
+		body["note"] = "No keyword matched a tag. Retry once with shorter, more common words, then search_catalog with the description. Recommend only works a tool returned, never from memory."
+	case missed:
+		body["note"] = "Keywords with no matches have no tag; use the tags that matched, or retry those once with a synonym. " + next
+	case len(matched) > 0:
+		body["note"] = next
+	}
+	if object == "tag" {
+		var firsts []string
+		for _, r := range results {
+			if len(r.Matches) > 0 {
+				firsts = append(firsts, r.Matches[0].ID)
+			}
+		}
+		if p, ok := t.preview(ctx, firsts); ok {
+			body["popular_works"] = json.RawMessage(p.Text)
+			body["note"] = "popular_works is browse_works(sort=popular) for the first tag of each keyword: recommend from it, and call browse_works for classic or newest picks or other tags. Tag names are not work titles."
+			if missed {
+				body["note"] = "Keywords with no matches have no tag. " + body["note"].(string)
+			}
+			out.Cards, out.Browse = append(out.Cards, p.Cards...), p.Browse
+		}
+	}
+	raw, _ := json.Marshal(body)
 	out.Text = string(raw)
 	return out, nil
+}
+
+// A weak model stopped at the tag list and offered tag names (《可爱》《可爱男主角》)
+// or works from memory as recommendations, so the popular works come with it.
+func (t *SearchTags) preview(ctx context.Context, tagIDs []string) (Output, bool) {
+	for len(tagIDs) > 0 {
+		args, _ := json.Marshal(map[string]any{"tag_ids": tagIDs, "sort": "popular"})
+		out, err := (&BrowseWorks{Client: t.Client}).Run(ctx, args)
+		if err != nil {
+			return Output{}, false
+		}
+		if out.Total > 0 {
+			return out, true
+		}
+		if len(tagIDs) == 1 {
+			break
+		}
+		tagIDs = tagIDs[:1]
+	}
+	return Output{}, false
 }
 
 var workSorts = map[string]string{"popular": "popularity", "classic": "rating_vndb", "newest": "released_desc"}

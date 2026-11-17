@@ -55,6 +55,10 @@ func scriptedLLM(t *testing.T) *httptest.Server {
 func fakeCatalog(t *testing.T) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/catalog/search" {
+			_, _ = w.Write([]byte(`{"items":[]}`))
+			return
+		}
 		if r.URL.Query().Get("search_mode") != "hybrid" {
 			t.Errorf("search_catalog must ask for hybrid, got %s", r.URL.RawQuery)
 		}

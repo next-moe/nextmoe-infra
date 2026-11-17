@@ -291,6 +291,14 @@ func titles(works []workRef, n int) string {
 	return strings.Join(out, "")
 }
 
+func workRefList(works []workRef) []map[string]any {
+	list := []map[string]any{}
+	for _, w := range works {
+		list = append(list, map[string]any{"work_id": w.ID, "title": w.Localized.name(w.DisplayName), "release_date": w.ReleaseDate})
+	}
+	return list
+}
+
 func (c company) entity(nsfw bool, works []workRef) EntityCard {
 	e := EntityCard{Kind: "company", ID: c.ID, Title: c.Localized.name(c.DisplayName), Localized: c.Localized, Summary: pickIntro(c.Intros, 160)}
 	e.Cover, e.ContentLimit = c.Logo.safeURL(nsfw)
@@ -341,7 +349,7 @@ type SearchEntities struct{ Client *CatalogClient }
 func (t *SearchEntities) Spec() llm.Tool {
 	return llm.Tool{
 		Name:        "search_entities",
-		Description: "Find characters, people (voice actors, artists, writers, composers…), companies (brands, circles, publishers) or series in the NextMoe catalog by name in any language. Returns up to 6 with ids for get_entity. Works are searched with search_catalog instead.",
+		Description: "Find characters, people (voice actors, artists, writers, composers…), companies (brands, circles, publishers) or series in the NextMoe catalog by name in any language. Returns up to 6 with ids for get_entity. Names are stored mostly in the original Japanese or English. Works are searched with search_catalog instead.",
 		Parameters: schema(map[string]any{
 			"kind":  map[string]any{"type": "string", "enum": []string{"character", "person", "company", "series"}},
 			"query": map[string]any{"type": "string", "description": "A name or alias."},
@@ -357,19 +365,25 @@ func (t *SearchEntities) Run(ctx context.Context, args json.RawMessage) (Output,
 	if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Query) == "" || entityObjects[in.Kind] == "" {
 		return Output{Text: `{"error":"kind (character, person, company or series) and query are required"}`}, nil
 	}
-	var hits struct {
-		Items []struct {
-			ID string `json:"id"`
-		} `json:"items"`
-	}
-	if err := t.Client.get(ctx, "/v2/catalog/search", url.Values{"object": {entityObjects[in.Kind]}, "q": {in.Query}, "limit": {"6"}}, &hits); err != nil {
+	hits, err := t.Client.searchNames(ctx, in.Kind, in.Query, 6)
+	if err != nil {
 		return Output{}, err
 	}
-	if len(hits.Items) == 0 {
-		return Output{Text: `{"results":[]}`}, nil
+	if len(hits) == 0 {
+		miss := map[string]any{"kind": in.Kind, "results": []any{}, "note": nameMissNote}
+		if other := t.Client.sameNameIn(ctx, in.Query, otherKinds(in.Kind)); len(other) > 0 {
+			miss["same_name_as"] = other
+			miss["note"] = "No " + in.Kind + " has this name, but the entries in same_name_as do: call get_entity with their kind and id."
+			if d, ok := t.detail(ctx, other[0].Kind, other[0].ID); ok {
+				miss["detail"] = d
+				miss["note"] = "No " + in.Kind + " has this name, but the entries in same_name_as do. detail is get_entity for the first of them; answer only from it."
+			}
+		}
+		raw, _ := json.Marshal(miss)
+		return Output{Text: string(raw)}, nil
 	}
-	ids := make([]string, len(hits.Items))
-	for i, h := range hits.Items {
+	ids := make([]string, len(hits))
+	for i, h := range hits {
 		ids[i] = h.ID
 	}
 	nsfw := t.Client.NSFW
@@ -429,9 +443,22 @@ func (t *SearchEntities) Run(ctx context.Context, args json.RawMessage) (Output,
 	for _, e := range cards {
 		out.Cards = append(out.Cards, e.card())
 	}
-	raw, _ := json.Marshal(map[string]any{"kind": in.Kind, "results": briefs})
+	body := map[string]any{"kind": in.Kind, "results": briefs}
+	if len(hits) == 1 || hits[0].named(in.Query) {
+		if d, ok := t.detail(ctx, in.Kind, hits[0].ID); ok {
+			body["detail"] = d
+			body["note"] = "detail is get_entity for the first result; answer from it, or call get_entity for another result."
+		}
+	}
+	raw, _ := json.Marshal(body)
 	out.Text = string(raw)
 	return out, nil
+}
+
+func (t *SearchEntities) detail(ctx context.Context, kind, id string) (json.RawMessage, bool) {
+	args, _ := json.Marshal(map[string]string{"kind": kind, "id": id})
+	out, err := (&GetEntity{Client: t.Client}).Run(ctx, args)
+	return json.RawMessage(out.Text), err == nil
 }
 
 type GetEntity struct{ Client *CatalogClient }
@@ -439,7 +466,7 @@ type GetEntity struct{ Client *CatalogClient }
 func (t *GetEntity) Spec() llm.Tool {
 	return llm.Tool{
 		Name:        "get_entity",
-		Description: "Read one character, person, company or series by the id search_entities returned: a character's profile, traits, works and voice actors; a person's roles and works; a company's or series' works.",
+		Description: "Read one character, person, company or series by the id search_entities returned: a character's profile, traits, works and voice actors; a person's roles and works; a company's or series' works, most popular first in works and newest first in latest_works.",
 		Parameters: schema(map[string]any{
 			"kind": map[string]any{"type": "string", "enum": []string{"character", "person", "company", "series"}},
 			"id":   map[string]any{"type": "string"},
@@ -543,11 +570,14 @@ func (t *GetEntity) Run(ctx context.Context, args json.RawMessage) (Output, erro
 			e = s.entity(works.Items)
 			detail["intro"] = pickIntro(s.Intros, 800)
 		}
-		var list []map[string]any
-		for _, w := range works.Items {
-			list = append(list, map[string]any{"work_id": w.ID, "title": w.Localized.name(w.DisplayName), "release_date": w.ReleaseDate})
+		var latest struct{ Items []workRef }
+		q.Set("sort", "released_desc")
+		q.Set("limit", "5")
+		if err := t.Client.get(ctx, "/v2/catalog/works", q, &latest); err != nil {
+			return Output{}, err
 		}
-		detail["works"] = list
+		detail["works"] = workRefList(works.Items)
+		detail["latest_works"] = workRefList(latest.Items)
 	}
 	detail["kind"], detail["id"], detail["name"] = e.Kind, e.ID, e.Title
 	detail["other_names"] = e.Localized.others(e.Title)
