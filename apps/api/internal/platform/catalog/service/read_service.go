@@ -129,6 +129,7 @@ type WorkCoverRow struct {
 	Shared         bool
 	MergedIn       bool
 	HumanPinned    bool
+	HumanUpload    bool
 	Votes          int
 }
 
@@ -608,12 +609,15 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 		Shared         bool   `gorm:"column:shared"`
 		MergedIn       bool   `gorm:"column:merged_in"`
 		HumanPinned    bool   `gorm:"column:human_pinned"`
+		HumanUpload    bool   `gorm:"column:human_upload"`
 		Votes          int    `gorm:"column:votes"`
 	}
 	if err := db.Raw(`WITH wc AS (
 			SELECT id, work_id, image_hash, sort_order, kind, portrait_pinned, sexual, violence, source_id, merged_in,
 			       portrait_pinned AND (`+editspec.CuratedLaneSQL("vc.source_id")+` OR `+
-		editspec.HumanFieldProvenanceSQL("vc.field_provenance", "portrait_pinned")+` IS TRUE) AS human_pinned
+		editspec.HumanFieldProvenanceSQL("vc.field_provenance", "portrait_pinned")+` IS TRUE) AS human_pinned,
+			       `+editspec.CuratedLaneSQL("vc.source_id")+` AND `+
+		editspec.HumanFieldProvenanceSQL("vc.field_provenance", model.CoverUploadStampColumn)+` IS TRUE AS human_upload
 			FROM catalog_work_cover vc WHERE vc.work_id IN ? AND `+editspec.NotSuppressedWorkCoverSQL("vc")+`
 		), votes AS (
 			SELECT cover_id, count(*) AS votes FROM catalog_cover_vote
@@ -637,7 +641,7 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 		out[r.WorkID] = append(out[r.WorkID], WorkCoverRow{
 			ID: r.ID, ImageHash: r.ImageHash, Kind: r.Kind, PortraitPinned: r.PortraitPinned,
 			SortOrder: r.SortOrder, Sexual: r.Sexual, Violence: r.Violence, SourceID: r.SourceID,
-			Shared: r.Shared, MergedIn: r.MergedIn, HumanPinned: r.HumanPinned, Votes: r.Votes,
+			Shared: r.Shared, MergedIn: r.MergedIn, HumanPinned: r.HumanPinned, HumanUpload: r.HumanUpload, Votes: r.Votes,
 		})
 	}
 	return nil

@@ -131,6 +131,17 @@ type FieldSpec struct {
 	Validate      func(value any) error
 	Apply         ApplyFunc
 	Mirror        *MirrorSpec
+	// Restore narrows a value read back from history to what Apply can still
+	// write. Without it, restoring a list that names an item an importer has
+	// since collected upstream fails the whole revert with a 422.
+	Restore func(ctx context.Context, db *gorm.DB, entityID int64, value any) (any, error)
+}
+
+func (f *FieldSpec) restoreValue(ctx context.Context, db *gorm.DB, entityID int64, value any) (any, error) {
+	if f.Restore == nil || value == nil {
+		return value, nil
+	}
+	return f.Restore(ctx, db, entityID, value)
 }
 
 // MirrorSpec is for a field whose Apply also rewrites the same field on other

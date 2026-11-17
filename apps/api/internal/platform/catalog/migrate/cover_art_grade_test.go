@@ -109,6 +109,22 @@ func TestCoverArtGradeCountsOnlyElectableArt(t *testing.T) {
 	}
 }
 
+func TestCoverArtGradeCountsAnEditorUploadNextToOfficialArt(t *testing.T) {
+	coverFixture(t)
+	require.NoError(t, testDB.Exec(`
+		INSERT INTO catalog_source (id, key, trust_tier) VALUES (?, 'curated', 0)
+		ON CONFLICT (id) DO NOTHING`, model.SourceCurated).Error)
+	w := newWork(t, "上傳")
+	addCover(t, w, srcDLsite, "main", strings.Repeat("e", 64), model.SexualExplicit)
+	upload := addCover(t, w, model.SourceCurated, "", strings.Repeat("f", 64), model.SexualSafe)
+	assert.True(t, gradeOf(t, w), "a legacy upload yields to official art, so it does not grade the work")
+
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work_cover
+		SET field_provenance = jsonb_build_object(?::text, jsonb_build_array(jsonb_build_object('source', 'curated')))
+		WHERE id = ?`, model.CoverUploadStampColumn, upload).Error)
+	assert.False(t, gradeOf(t, w), "an editor's upload is elected ahead of official art, so its safe grade counts")
+}
+
 func TestCoverArtGradeSurvivesABulkRegrade(t *testing.T) {
 	coverFixture(t)
 	ids := make([]int64, 0, 20)

@@ -46,6 +46,14 @@ func encodeJSON(v any) (datatypes.JSON, error) {
 	return datatypes.JSON(b), nil
 }
 
+func encodePrior(before map[string]any, changed []string) (datatypes.JSON, error) {
+	prior := make(map[string]any, len(changed))
+	for _, key := range changed {
+		prior[key] = before[key]
+	}
+	return encodeJSON(prior)
+}
+
 func effectivePatch(p *Proposal, amendments []ProposalAmendment) (map[string]any, map[string]struct{}, error) {
 	patch, err := decodeObject(p.Patch)
 	if err != nil {

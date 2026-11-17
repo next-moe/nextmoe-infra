@@ -410,10 +410,14 @@ func (e *Engine) mergeLocked(
 	if err != nil {
 		return nil, err
 	}
+	rawPrior, err := encodePrior(base, changed)
+	if err != nil {
+		return nil, err
+	}
 	rev := &Revision{
 		EntityFamily: spec.Family, EntityType: spec.Type, EntityID: prop.EntityID,
 		Seq: seq + 1, Action: action,
-		ChangedFields: rawChanged, Snapshot: rawSnapshot,
+		ChangedFields: rawChanged, Snapshot: rawSnapshot, PriorValues: rawPrior,
 		ActorUID: prop.ProposerUID, AmenderUID: amenderUID, ProposalID: &prop.ID,
 		Site: prop.Site, OriginSite: prop.OriginSite,
 	}

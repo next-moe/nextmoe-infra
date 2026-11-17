@@ -104,7 +104,7 @@ func TestUndoOfTheFirstRevisionNeedsARecordedBaseline(t *testing.T) {
 	createWidget(t, 1)
 	reviewer := reviewerActor(10)
 	mergeName(t, eng, reviewer, "first")
-	if err := testDB.Exec("UPDATE edit_revision SET baseline_snapshot = NULL").Error; err != nil {
+	if err := testDB.Exec("UPDATE edit_revision SET baseline_snapshot = NULL, prior_values = NULL").Error; err != nil {
 		t.Fatalf("drop baseline: %v", err)
 	}
 	_, _, err := eng.Undo(testCtx, editing.UndoInput{EntityType: "test.widget", EntityID: 1, Seq: 1, Actor: reviewer})

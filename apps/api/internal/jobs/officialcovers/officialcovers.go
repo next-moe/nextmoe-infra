@@ -240,9 +240,10 @@ func (w *writer) write(ctx context.Context, p planned, body []byte, name string)
 		// The first production run ended dedup=31: the legacy upload was the
 		// official image byte for byte, so the insert hit uq_catalog_work_cover
 		// and the work kept no official row — and its machine-pinned upscale.
-		// Such a row is re-sourced; one an editor pinned is theirs and stays.
-		case model.IsUploadedCoverSource(held[0].SourceID) &&
-			!(held[0].SourceID == model.SourceCurated && held[0].PortraitPinned):
+		// Such a row is re-sourced. A curated row never is: moving it out of
+		// the editor's lane writes no revision, so the next edit's history
+		// showed the editor deleting a cover they never touched.
+		case model.IsUploadedCoverSource(held[0].SourceID) && held[0].SourceID != model.SourceCurated:
 			if err := tx.Model(&held[0]).Updates(map[string]any{"source_id": p.Source, "kind": p.Kind}).Error; err != nil {
 				return err
 			}

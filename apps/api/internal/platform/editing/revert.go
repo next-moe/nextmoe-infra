@@ -41,16 +41,31 @@ func (e *Engine) Revert(ctx context.Context, in RevertInput) (*Proposal, *Revisi
 	if err != nil {
 		return nil, nil, err
 	}
-	patch := make(map[string]any)
-	for _, key := range sortedKeys(targetSnap) {
-		if _, err := spec.fieldForWrite(key); err != nil {
-			continue
-		}
-		if !jsonValueEqual(current[key], targetSnap[key]) {
-			patch[key] = targetSnap[key]
-		}
+	patch, err := e.restorePatch(ctx, spec, in.EntityID, sortedKeys(targetSnap), targetSnap, current)
+	if err != nil {
+		return nil, nil, err
 	}
 	return e.commitRevert(ctx, spec, in.EntityID, patch, in.Note, in.Actor)
+}
+
+func (e *Engine) restorePatch(
+	ctx context.Context, spec *EntityTypeSpec, entityID int64, keys []string, values, current map[string]any,
+) (map[string]any, error) {
+	patch := make(map[string]any)
+	for _, key := range keys {
+		f, err := spec.fieldForWrite(key)
+		if err != nil {
+			continue
+		}
+		v, err := f.restoreValue(ctx, e.db.WithContext(ctx), entityID, values[key])
+		if err != nil {
+			return nil, err
+		}
+		if !jsonValueEqual(current[key], v) {
+			patch[key] = v
+		}
+	}
+	return patch, nil
 }
 
 type UndoInput struct {
@@ -77,14 +92,7 @@ func (e *Engine) Undo(ctx context.Context, in UndoInput) (*Proposal, *Revision, 
 	if err != nil {
 		return nil, nil, err
 	}
-	prior, err := e.revisionAt(ctx, spec, in.EntityID, in.Seq-1)
-	if err != nil {
-		if in.Seq == 1 && errors.Is(err, ErrRevisionNotFound) {
-			return nil, nil, ErrNoBaseline
-		}
-		return nil, nil, err
-	}
-	priorSnap, err := decodeObject(prior.Snapshot)
+	priorVals, err := e.valuesBefore(ctx, spec, target)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,16 +113,25 @@ func (e *Engine) Undo(ctx context.Context, in UndoInput) (*Proposal, *Revision, 
 	if err != nil {
 		return nil, nil, err
 	}
-	patch := make(map[string]any)
-	for _, key := range keys {
-		if _, err := spec.fieldForWrite(key); err != nil {
-			continue
-		}
-		if !jsonValueEqual(current[key], priorSnap[key]) {
-			patch[key] = priorSnap[key]
-		}
+	patch, err := e.restorePatch(ctx, spec, in.EntityID, keys, priorVals, current)
+	if err != nil {
+		return nil, nil, err
 	}
 	return e.commitRevert(ctx, spec, in.EntityID, patch, in.Note, in.Actor)
+}
+
+func (e *Engine) valuesBefore(ctx context.Context, spec *EntityTypeSpec, target *Revision) (map[string]any, error) {
+	if len(target.PriorValues) > 0 {
+		return decodeObject(target.PriorValues)
+	}
+	prior, err := e.revisionAt(ctx, spec, target.EntityID, target.Seq-1)
+	if err != nil {
+		if target.Seq == 1 && errors.Is(err, ErrRevisionNotFound) {
+			return nil, ErrNoBaseline
+		}
+		return nil, err
+	}
+	return decodeObject(prior.Snapshot)
 }
 
 func (e *Engine) keysChangedAfter(ctx context.Context, spec *EntityTypeSpec, entityID int64, seq int, keys []string) ([]string, error) {

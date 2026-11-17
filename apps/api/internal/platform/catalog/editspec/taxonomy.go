@@ -79,6 +79,7 @@ func registerLabel(reg *editing.Registry, db *gorm.DB) error {
 				}
 				return applyLinksFor(ctx, tx, catmodel.EntityTypeLabel, entityID, value)
 			},
+			Restore: restoreLabelLinks,
 		},
 	}
 	aliases := labelAliasesFieldSpec()
