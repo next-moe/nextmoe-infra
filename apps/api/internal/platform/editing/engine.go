@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 
 	"gorm.io/gorm"
@@ -408,6 +409,9 @@ func (e *Engine) Diff(ctx context.Context, entityType string, entityID int64, fr
 	if err != nil {
 		return nil, err
 	}
+	if fromSeq > 0 && toSeq == fromSeq+1 && len(to.PriorValues) > 0 {
+		return priorDiff(spec, to)
+	}
 	fromSnap, err := decodeObject(from.Snapshot)
 	if err != nil {
 		return nil, err
@@ -425,17 +429,45 @@ func (e *Engine) Diff(ctx context.Context, entityType string, entityID int64, fr
 	}
 	var diffs []FieldDiff
 	for _, key := range sortedKeys(union) {
-		a, b := fromSnap[key], toSnap[key]
-		if jsonValueEqual(a, b) {
-			continue
+		if d, ok := fieldDiff(spec, key, fromSnap[key], toSnap[key]); ok {
+			diffs = append(diffs, d)
 		}
-		d := FieldDiff{Key: key, From: a, To: b}
-		if f, ok := spec.Field(key); ok {
-			d.Kind, d.DiffHint = f.Kind, f.DiffHint
-		}
-		diffs = append(diffs, d)
 	}
 	return diffs, nil
+}
+
+func priorDiff(spec *EntityTypeSpec, rev *Revision) ([]FieldDiff, error) {
+	prior, err := decodeObject(rev.PriorValues)
+	if err != nil {
+		return nil, err
+	}
+	snap, err := decodeObject(rev.Snapshot)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := decodeKeys(rev.ChangedFields)
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(keys)
+	var diffs []FieldDiff
+	for _, key := range keys {
+		if d, ok := fieldDiff(spec, key, prior[key], snap[key]); ok {
+			diffs = append(diffs, d)
+		}
+	}
+	return diffs, nil
+}
+
+func fieldDiff(spec *EntityTypeSpec, key string, from, to any) (FieldDiff, bool) {
+	if jsonValueEqual(from, to) {
+		return FieldDiff{}, false
+	}
+	d := FieldDiff{Key: key, From: from, To: to}
+	if f, ok := spec.Field(key); ok {
+		d.Kind, d.DiffHint = f.Kind, f.DiffHint
+	}
+	return d, true
 }
 
 func (e *Engine) revisionAt(ctx context.Context, spec *EntityTypeSpec, entityID int64, seq int) (*Revision, error) {

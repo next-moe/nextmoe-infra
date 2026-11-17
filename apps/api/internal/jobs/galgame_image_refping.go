@@ -129,6 +129,12 @@ WITH all_hashes AS (
         WHERE r.entity_type = 'catalog.work'
           AND jsonb_typeof(r.baseline_snapshot->k) = 'array'
     UNION
+    SELECT (jsonb_array_elements(r.prior_values->k))->>'image_hash'
+        FROM edit_revision r, LATERAL unnest(ARRAY[
+            'catalog.work.covers', 'catalog.work.screenshots']) AS k
+        WHERE r.entity_type = 'catalog.work'
+          AND jsonb_typeof(r.prior_values->k) = 'array'
+    UNION
     SELECT (jsonb_array_elements(p.patch->k))->>'image_hash'
         FROM edit_proposal p, LATERAL unnest(ARRAY[
             'galgame.game.covers', 'galgame.game.screenshots',
@@ -139,6 +145,7 @@ WITH all_hashes AS (
     SELECT doc->>k
         FROM (SELECT r.snapshot AS doc FROM edit_revision r
               UNION ALL SELECT r.baseline_snapshot FROM edit_revision r WHERE r.baseline_snapshot IS NOT NULL
+              UNION ALL SELECT r.prior_values FROM edit_revision r WHERE r.prior_values IS NOT NULL
               UNION ALL SELECT p.patch FROM edit_proposal p) d,
              LATERAL unnest(ARRAY[
             'catalog.character.image_hash', 'catalog.character.figure_hash',

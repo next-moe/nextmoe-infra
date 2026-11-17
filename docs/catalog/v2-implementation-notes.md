@@ -3030,3 +3030,15 @@ A kungal user created 《時計仕掛けのレイライン -陽炎に彷徨う�
 - `TestClaimWritesNotifyWorkObserver` holds the contract.
 
 No spec change. **Zero migrations.**
+
+## Edit history records what an edit replaced; editor uploads rank as pins (spec 2.89.0, 2026-11-17)
+
+A reviewer read work 206751's history as an editor deleting its Fox House brand. The edit had only added Mango Party. Revision diffs and Undo took the "before" of an edit from the previous revision's snapshot, and that snapshot was a galgame-era revision: the 2026-07-30 rekey mapped the wiki's labels, covers, screenshots and links onto catalog keys whose loaders read the curated lane alone, while the rows they named live in other lanes (Fox House is a `source_id` NULL edge). Measured on production, the latest snapshot disagreed with the live curated lane for labels on ~10k works, covers on ~10k and screenshots on 7.2k. A second report, uploaded covers "replaced by VNDB", had two causes: the 2026-09 wiki-lineage cleanup deleted curated covers by source with no revision, taking 18 covers users had uploaded through the editor in August (12 works); and the 2026-10-28 rule put every upload behind official art.
+
+- **Prior values.** `edit_revision.prior_values` (jsonb, nullable) holds each changed field's value as the engine loaded it just before the write, for merges and mirror revisions. `Engine.Diff` between adjacent revisions reads `prior_values -> snapshot` when present; `Undo` restores `prior_values`. Revisions without it keep the old behavior.
+- **Restore narrowing.** `FieldSpec.Restore` drops from a value read back from history the items an importer now holds, which `Apply` would reject with a 422. `catalog.work.labels`, `.covers`, `.screenshots`, `.links` and `catalog.label.links` have it; Revert and Undo apply it.
+- **Editor uploads.** `applyCovers` stamps every cover row it inserts under `field_provenance.image_hash`. A stamped curated cover is elected after an explicit pin and ahead of votes and official art, and `cover_art_all_explicit` grades it; unstamped curated rows (legacy wiki uploads) still yield to official art.
+- **Machine writers.** `officialcovers` no longer re-sources a curated row that is byte-identical to official art. `archtest.TestMachineWritersOfCuratedLaneTablesAreReviewed` lists every raw UPDATE/DELETE that `cmd/` and `internal/jobs` issue against `catalog_work_cover`, `catalog_work_screenshot` and `catalog_work_label`, with why each keeps out of source 12.
+- **Repair.** `cmd/repair-edit-history -mode prior | stamp-uploads | restore-covers` (dry-run unless `-apply`): fills `prior_values` on catalog-engine revisions (labels after a galgame-era revision start from `[]`, since no curated label row predates 2026-08-01; covers, screenshots and links drop upstream-held items); stamps curated covers created on or after 2026-08-01; restores the covers an engine revision added that no row holds, one revision per work.
+
+Spec 2.89.0: the `cover` description. **Migration:** `go run ./cmd/migrate catalog` adds `edit_revision.prior_values` (nullable, no backfill in the migration; the repair command fills existing rows).

@@ -188,10 +188,12 @@ func TestApplyAddsTheCoversAndLiftsOnlyMachinePins(t *testing.T) {
 func TestALegacyUploadIdenticalToTheOfficialCoverIsResourced(t *testing.T) {
 	clean(t)
 	legacy := work(t, "", "81")
-	cover(t, legacy, model.SourceCurated, "", "c", false)
+	cover(t, legacy, model.SourceUser, "", "c", false)
 	cover(t, legacy, model.SourceUpscale, "", "u", true)
 	pinned := work(t, "", "82")
 	cover(t, pinned, model.SourceCurated, "", "p", true)
+	curated := work(t, "", "83")
+	cover(t, curated, model.SourceCurated, "", "q", false)
 
 	var srv *httptest.Server
 	srv = httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -205,7 +207,7 @@ func TestALegacyUploadIdenticalToTheOfficialCoverIsResourced(t *testing.T) {
 			require.NoError(t, r.ParseMultipartForm(1<<20))
 			_, fh, err := r.FormFile("file")
 			require.NoError(t, err)
-			seed := map[string]string{"81.jpg": "c", "82.jpg": "p"}[fh.Filename]
+			seed := map[string]string{"81.jpg": "c", "82.jpg": "p", "83.jpg": "q"}[fh.Filename]
 			_ = json.NewEncoder(rw).Encode(map[string]any{"code": 0, "data": map[string]any{
 				"hash": strings.Repeat(seed, 64), "width": 700, "height": 1000}})
 		default:
@@ -220,7 +222,7 @@ func TestALegacyUploadIdenticalToTheOfficialCoverIsResourced(t *testing.T) {
 		ImageBaseURL: srv.URL, VNDBBase: srv.URL, BgmBase: srv.URL})
 	require.NoError(t, err)
 	assert.Equal(t, 1, stats.Relabeled, stats.String())
-	assert.Equal(t, 1, stats.Dedup, "the editor-pinned identical row is left alone")
+	assert.Equal(t, 2, stats.Dedup, "curated rows, pinned or not, stay in the editor's lane")
 
 	var got model.CatalogWorkCover
 	require.NoError(t, testDB.Where("work_id = ? AND image_hash = ?", legacy, strings.Repeat("c", 64)).Take(&got).Error)
@@ -233,6 +235,9 @@ func TestALegacyUploadIdenticalToTheOfficialCoverIsResourced(t *testing.T) {
 	var kept model.CatalogWorkCover
 	require.NoError(t, testDB.Where("work_id = ? AND image_hash = ?", pinned, strings.Repeat("p", 64)).Take(&kept).Error)
 	assert.Equal(t, model.SourceCurated, kept.SourceID)
+	var unpinned model.CatalogWorkCover
+	require.NoError(t, testDB.Where("work_id = ? AND image_hash = ?", curated, strings.Repeat("q", 64)).Take(&unpinned).Error)
+	assert.Equal(t, model.SourceCurated, unpinned.SourceID)
 }
 
 func TestADigitalCoverAlreadyHeldAsMainConverges(t *testing.T) {

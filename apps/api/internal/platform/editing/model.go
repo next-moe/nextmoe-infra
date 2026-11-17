@@ -53,12 +53,18 @@ type Revision struct {
 	// BaselineSnapshot is set only on an entity's first revision: the state the
 	// engine found before its first write, which Revert and Diff address as seq 0.
 	BaselineSnapshot datatypes.JSON `gorm:"type:jsonb" json:"baseline_snapshot,omitempty"`
-	ActorUID         int64          `gorm:"column:actor_uid;not null;index:idx_edit_revision_actor,priority:1" json:"actor_uid"`
-	AmenderUID       *int64         `gorm:"column:amender_uid" json:"amender_uid"`
-	ProposalID       *int64         `gorm:"index" json:"proposal_id"`
-	Site             string         `gorm:"not null" json:"site"`
-	OriginSite       *string        `gorm:"column:origin_site;size:16" json:"origin_site"`
-	CreatedAt        time.Time      `gorm:"index:idx_edit_revision_actor,priority:2" json:"created_at"`
+	// PriorValues holds each changed field's value as loaded just before this
+	// revision wrote it. The previous revision's snapshot is not that value
+	// whenever something outside the engine moved the field in between: work
+	// 206751's diff showed its Fox House brand "deleted" because the rekeyed
+	// wiki snapshot listed a label edge the curated lane never held.
+	PriorValues datatypes.JSON `gorm:"type:jsonb" json:"prior_values,omitempty"`
+	ActorUID    int64          `gorm:"column:actor_uid;not null;index:idx_edit_revision_actor,priority:1" json:"actor_uid"`
+	AmenderUID  *int64         `gorm:"column:amender_uid" json:"amender_uid"`
+	ProposalID  *int64         `gorm:"index" json:"proposal_id"`
+	Site        string         `gorm:"not null" json:"site"`
+	OriginSite  *string        `gorm:"column:origin_site;size:16" json:"origin_site"`
+	CreatedAt   time.Time      `gorm:"index:idx_edit_revision_actor,priority:2" json:"created_at"`
 
 	LegacyAction *string        `gorm:"->;column:legacy_action;type:text" json:"legacy_action,omitempty"`
 	LegacyMeta   datatypes.JSON `gorm:"->;column:legacy_meta;type:jsonb" json:"legacy_meta,omitempty"`

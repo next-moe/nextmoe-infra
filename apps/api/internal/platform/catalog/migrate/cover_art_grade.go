@@ -126,7 +126,8 @@ func coverArtRowSQL(cover, source string) (string, error) {
 
 // gradedCoverRowSQL narrows coverArtRowSQL to the rows the public election
 // can reach: once a work holds official art, an uploaded cover counts only
-// while an editor pins it (PublicService.officialCoversFirst). Grading the
+// while an editor pins it or uploaded it through the editor
+// (PublicService.officialCoversFirst). Grading the
 // uploads too kept a work whose official art is all explicit on the sfw shelf
 // behind a hand-censored legacy upload the election no longer shows.
 func gradedCoverRowSQL(cover, source string) (string, error) {
@@ -142,6 +143,8 @@ func gradedCoverRowSQL(cover, source string) (string, error) {
 	return art + ` AND (` + cover + `.source_id NOT IN (` + uploaded + `)
 		   OR (` + cover + `.portrait_pinned AND (` + cover + `.source_id = ` + fmt.Sprint(model.SourceCurated) + ` OR
 		       (` + cover + `.field_provenance -> 'portrait_pinned' -> 0 ->> 'source') IN (` + humanSourcesSQL() + `)))
+		   OR (` + cover + `.source_id = ` + fmt.Sprint(model.SourceCurated) + ` AND
+		       (` + cover + `.field_provenance -> '` + model.CoverUploadStampColumn + `' -> 0 ->> 'source') IN (` + humanSourcesSQL() + `))
 		   OR NOT EXISTS (SELECT 1 FROM catalog_work_cover o JOIN catalog_source os ON os.id = o.source_id
 		                   WHERE o.work_id = ` + cover + `.work_id AND ` + officialArt + `
 		                     AND o.source_id NOT IN (` + uploaded + `)))`, nil

@@ -11782,7 +11782,7 @@ export interface components {
              * @enum {string}
              */
             content_rating: "all_ages" | "sensitive" | "r18";
-            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. Covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none. */
+            /** @description Selected portrait image. An editor's pin comes first, then the cover row with strictly the most votes (a tie elects neither), then the official cover art ladder. A cover an editor uploaded through the catalog editor ranks as a pin, after an explicit pin and ahead of votes and official art; other covers uploaded to this platform are elected only while the work has no official cover art. With nsfw=true on a work whose content_limit is nsfw, a VNDB cover replaces the Bangumi ones, which Bangumi serves censored for adult games. An AI-redrawn or AI-enlarged cover (source ai_redraw) stands in for official art that is landscape or under 1080px on its long edge, and yields once the work holds an official portrait of at least 1080px. Every step is under the work's nsfw gate. null if none. */
             cover: components["schemas"]["CoverSlot"] | null;
             /** @description Present on the works listings (works list and search, rankings, calendar) when include=covers: the portrait the cover election returns for this work when sexual art is not allowed, whatever nsfw says — real safe or suggestive art first, the blurred censored stand-in (origin censored) when the work has none. The same image as cover whenever cover is already safe for every reader, so it is emitted even then. Absent when that election finds no portrait, so absent under include=covers means no SFW portrait exists; never present on work detail. */
             cover_sfw?: components["schemas"]["CoverSlot"];
@@ -12672,6 +12672,10 @@ export interface operations {
                 cursor?: string;
                 /** @description Page size 1-100, default 20. */
                 limit?: string;
+                /** @description Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see. */
+                content_limit?: string;
+                /** @description true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false. */
+                include_total?: string;
             };
             header?: never;
             path: {
@@ -13455,6 +13459,10 @@ export interface operations {
                 cursor?: string;
                 /** @description Page size 1-100, default 20. */
                 limit?: string;
+                /** @description Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see. */
+                content_limit?: string;
+                /** @description true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false. */
+                include_total?: string;
             };
             header?: never;
             path: {

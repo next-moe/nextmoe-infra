@@ -286,6 +286,7 @@ func workFieldSpecs() []editing.FieldSpec {
 			}},
 			Validate: validateLabels,
 			Apply:    applyLabels,
+			Restore:  restoreLabels,
 		},
 		{
 			Key: FieldWorkEngineIDs, Kind: editing.KindList, DiffHint: editing.DiffHintItems,
@@ -304,6 +305,7 @@ func workFieldSpecs() []editing.FieldSpec {
 			Value:    &editing.ValueSpec{Element: &editing.ElementSpec{Type: "text"}},
 			Validate: validateLinks,
 			Apply:    applyLinks,
+			Restore:  restoreWorkLinks,
 		},
 		{
 			Key: FieldWorkCovers, Kind: editing.KindList, DiffHint: editing.DiffHintImage,
@@ -319,6 +321,7 @@ func workFieldSpecs() []editing.FieldSpec {
 			}},
 			Validate: validateCovers,
 			Apply:    applyCovers,
+			Restore:  restoreCovers,
 		},
 		{
 			Key: FieldWorkScreenshots, Kind: editing.KindList, DiffHint: editing.DiffHintImage,
@@ -333,6 +336,7 @@ func workFieldSpecs() []editing.FieldSpec {
 			}},
 			Validate: validateScreenshots,
 			Apply:    applyScreenshots,
+			Restore:  restoreScreenshots,
 		},
 		credits,
 		editing.SuppressedFieldSpec(TypeWork, credits),
