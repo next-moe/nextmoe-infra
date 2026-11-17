@@ -61,7 +61,7 @@ func (s *PublicService) electSlotRows(rows []WorkCoverRow, meta map[string]Image
 }
 
 func (s *PublicService) chosenPortrait(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *WorkCoverRow {
-	var top *WorkCoverRow
+	var top, upload *WorkCoverRow
 	tied := false
 	for i := range rows {
 		c := &rows[i]
@@ -69,10 +69,11 @@ func (s *PublicService) chosenPortrait(rows []WorkCoverRow, meta map[string]Imag
 			s.sourceKey(c.SourceID) == model.CensoredSourceKey {
 			continue
 		}
-		if c.HumanPinned {
-			if m, ok := meta[c.ImageHash]; !ok || m.Width <= 0 || m.Height <= 0 || isPortraitDims(m.Width, m.Height) {
-				return c
-			}
+		if c.HumanPinned && portraitOrUnmeasured(meta, c.ImageHash) {
+			return c
+		}
+		if c.HumanUpload && upload == nil && !c.MergedIn && portraitOrUnmeasured(meta, c.ImageHash) {
+			upload = c
 		}
 		switch {
 		case c.Votes == 0 || c.MergedIn:
@@ -82,10 +83,18 @@ func (s *PublicService) chosenPortrait(rows []WorkCoverRow, meta map[string]Imag
 			tied = true
 		}
 	}
+	if upload != nil {
+		return upload
+	}
 	if tied {
 		return nil
 	}
 	return top
+}
+
+func portraitOrUnmeasured(meta map[string]ImageMeta, hash string) bool {
+	m, ok := meta[hash]
+	return !ok || m.Width <= 0 || m.Height <= 0 || isPortraitDims(m.Width, m.Height)
 }
 
 // The cover_art_all_explicit trigger (catalog migrate, cover_art_grade.go)
@@ -105,7 +114,7 @@ func (s *PublicService) officialCoversFirst(rows []WorkCoverRow) []WorkCoverRow 
 	}
 	out := make([]WorkCoverRow, 0, len(rows))
 	for _, c := range rows {
-		if !model.IsUploadedCoverSource(c.SourceID) || c.HumanPinned {
+		if !model.IsUploadedCoverSource(c.SourceID) || c.HumanPinned || c.HumanUpload {
 			out = append(out, c)
 		}
 	}

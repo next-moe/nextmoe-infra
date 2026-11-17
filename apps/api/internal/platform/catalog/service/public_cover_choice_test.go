@@ -139,6 +139,43 @@ func TestVotedUploadStillWins(t *testing.T) {
 	wantPortrait(t, svc, []WorkCoverRow{legacy, official}, meta, false, legacy, "votes outrank the official-first rule")
 }
 
+func TestAnEditorUploadBeatsOfficialArtAndVotes(t *testing.T) {
+	svc := choiceSvc()
+	upload, official := choiceRow("0b10", "", curatedTestSourceID), choiceRow("0ff3", "main", vndbTestSourceID)
+	upload.HumanUpload, official.Votes = true, 5
+	meta := map[string]ImageMeta{
+		upload.ImageHash:   {Width: 500, Height: 700},
+		official.ImageHash: {Width: 1000, Height: 1400},
+	}
+	wantPortrait(t, svc, []WorkCoverRow{official, upload}, meta, false, upload,
+		"a cover an editor uploaded counts as pinned: it outranks sharper, voted official art")
+}
+
+func TestAnEditorPinBeatsAnEditorUpload(t *testing.T) {
+	svc := choiceSvc()
+	upload, pin := choiceRow("0b11", "", curatedTestSourceID), choiceRow("9e9f", "main", vndbTestSourceID)
+	upload.HumanUpload = true
+	pin.PortraitPinned, pin.HumanPinned = true, true
+	meta := map[string]ImageMeta{
+		upload.ImageHash: {Width: 600, Height: 900},
+		pin.ImageHash:    {Width: 600, Height: 900},
+	}
+	wantPortrait(t, svc, []WorkCoverRow{upload, pin}, meta, false, pin, "an explicit pin still decides between covers")
+}
+
+func TestAnExplicitEditorUploadYieldsToSafeArtForAnSFWReader(t *testing.T) {
+	svc := choiceSvc()
+	upload, official := choiceRow("0b12", "", curatedTestSourceID), choiceRow("0ff4", "main", vndbTestSourceID)
+	upload.HumanUpload, upload.Sexual = true, 2
+	meta := map[string]ImageMeta{
+		upload.ImageHash:   {Width: 600, Height: 900},
+		official.ImageHash: {Width: 600, Height: 900},
+	}
+	rows := []WorkCoverRow{upload, official}
+	wantPortrait(t, svc, rows, meta, false, official, "the SFW gate comes before the upload's preference")
+	wantPortrait(t, svc, rows, meta, true, upload, "an R18 reader gets the upload")
+}
+
 func TestVotesOnMergedInCoversDoNotElect(t *testing.T) {
 	svc := choiceSvc()
 	own, carried := choiceRow("0a0a", "main", vndbTestSourceID), choiceRow("ca1a", "main", vndbTestSourceID)
@@ -163,6 +200,8 @@ func TestCoverLoaderCarriesVotesAndEditorPins(t *testing.T) {
 	machinePin := mk("3ac1", vndbTestSourceID, true, `{}`)
 	editedPin := mk("ed17", vndbTestSourceID, true, `{"portrait_pinned":[{"source":"user"}]}`)
 	voted := mk("707f", vndbTestSourceID, false, `{}`)
+	upload := mk("0b13", curatedTestSourceID, false, `{"image_hash":[{"source":"curated"}]}`)
+	legacy := mk("1e9d", curatedTestSourceID, false, `{}`)
 	for uid := int64(1); uid <= 2; uid++ {
 		require.NoError(t, testDB.Create(&model.CatalogCoverVote{WorkID: w.ID, CoverID: voted, ActorUID: 9100 + uid, Site: "kungal"}).Error)
 	}
@@ -176,6 +215,9 @@ func TestCoverLoaderCarriesVotesAndEditorPins(t *testing.T) {
 	assert.True(t, byID[curatedPin].HumanPinned, "a pin in the curated lane is an editor's")
 	assert.False(t, byID[machinePin].HumanPinned, "a pin with no human provenance is a machine pin")
 	assert.True(t, byID[editedPin].HumanPinned, "an upstream pin an editor set carries human provenance")
+	assert.True(t, byID[upload].HumanUpload, "a stamped curated cover is an editor's upload")
+	assert.False(t, byID[legacy].HumanUpload, "an unstamped curated cover is a legacy wiki row")
+	assert.False(t, byID[curatedPin].HumanUpload)
 	assert.Equal(t, 2, byID[voted].Votes)
 	assert.Equal(t, 0, byID[machinePin].Votes)
 }

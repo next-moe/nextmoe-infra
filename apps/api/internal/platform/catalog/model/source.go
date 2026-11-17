@@ -111,6 +111,11 @@ func VetoesIdentity(entityType, sourceID int16) bool {
 // store publishes.
 var UploadedCoverSourceIDs = []int16{SourceUser, SourceCurated, SourceUpscale}
 
+// CoverUploadStampColumn is the field_provenance key under which the editor
+// stamps a cover a person uploaded. A stamped curated cover is elected ahead of
+// official art; an unstamped one — a legacy wiki upload — still yields to it.
+const CoverUploadStampColumn = "image_hash"
+
 func IsUploadedCoverSource(id int16) bool {
 	return slices.Contains(UploadedCoverSourceIDs, id)
 }

@@ -2,11 +2,14 @@ package editspec
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	catmodel "api/internal/platform/catalog/model"
 	"api/internal/platform/editing"
+	"api/internal/platform/provenance"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -127,12 +130,17 @@ func applyCovers(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 	if len(covers) == 0 {
 		return nil
 	}
+	stamp, err := coverUploadStamp()
+	if err != nil {
+		return err
+	}
 	rows := make([]catmodel.CatalogWorkCover, 0, len(covers))
 	for i, c := range covers {
 		rows = append(rows, catmodel.CatalogWorkCover{
 			WorkID: entityID, ImageHash: c.ImageHash, SortOrder: i,
 			Kind: c.Kind, PortraitPinned: c.PortraitPinned,
 			Sexual: c.Sexual, Violence: c.Violence, SourceID: curatedSourceID,
+			FieldProvenance: stamp,
 		})
 	}
 	return tx.WithContext(ctx).Clauses(clause.OnConflict{
@@ -142,6 +150,14 @@ func applyCovers(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 		Where: clause.Where{Exprs: []clause.Expression{clause.Expr{
 			SQL: "catalog_work_cover.source_id = ?", Vars: []any{curatedSourceID}}}},
 	}).Create(&rows).Error
+}
+
+func coverUploadStamp() (datatypes.JSON, error) {
+	entry, err := editing.StampJSON(provenance.SourceCurated)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(map[string]json.RawMessage{catmodel.CoverUploadStampColumn: entry})
 }
 
 // rejectUpstreamCoverCollisions makes an unwinnable insert an explicit 422.
