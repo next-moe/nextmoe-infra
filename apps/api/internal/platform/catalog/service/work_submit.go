@@ -288,6 +288,7 @@ func (s *ClaimLifecycleService) SubmitWork(ctx context.Context, p SubmitWorkPara
 	if err != nil {
 		return nil, err
 	}
+	s.workWritten(out.WorkID)
 	return &out, nil
 }
 
