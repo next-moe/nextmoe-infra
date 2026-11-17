@@ -262,7 +262,14 @@ func (t *SearchCatalog) Run(ctx context.Context, args json.RawMessage) (Output, 
 	if err := json.Unmarshal(args, &in); err != nil || strings.TrimSpace(in.Query) == "" {
 		return Output{Text: `{"error":"query is required"}`}, nil
 	}
+	var named []namedAs
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		named = t.Client.sameNameIn(ctx, in.Query, []string{"company", "person"})
+	}()
 	works, _, err := t.Client.searchWorks(ctx, in.Query, 8)
+	<-done
 	if err != nil {
 		return Output{}, err
 	}
@@ -272,7 +279,15 @@ func (t *SearchCatalog) Run(ctx context.Context, args json.RawMessage) (Output, 
 		briefs = append(briefs, w.searchBrief(t.Client.NSFW))
 		out.Cards = append(out.Cards, w.card(t.Client.NSFW))
 	}
-	raw, _ := json.Marshal(map[string]any{"works": briefs})
+	body := map[string]any{"works": briefs}
+	switch {
+	case len(named) > 0:
+		body["same_name_as"] = named
+		body["note"] = "The query is the name of the company or person in same_name_as, so the works above may only share words with it. If the user meant that company or person, call get_entity with its kind and id."
+	case len(works) == 0:
+		body["note"] = nameMissNote
+	}
+	raw, _ := json.Marshal(body)
 	out.Text = string(raw)
 	return out, nil
 }
