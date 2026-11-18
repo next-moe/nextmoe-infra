@@ -58,11 +58,12 @@ had to be rebuilt by hand.
 | pg-offsite | daily 04:30 | daily 20:30 (prev. day) | 48h |
 | disk-watch | every 10 min | every 10 min | 2h |
 | log-archive | every 5 min | every 5 min | 2h |
+| config-watch | hourly :25 | hourly :25 | 6h |
 | umami-retention | daily 04:40 | daily 20:40 (prev. day) | 48h |
 
 `source-import/test.sh`, `char-xsrc-nightly/test.sh`,
 `llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh`,
-`reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh`, `disk-watch/test.sh`, `log-archive/test.sh` and `text-safety-nightly/test.sh` are the offline tests in this directory: each
+`reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh`, `disk-watch/test.sh`, `log-archive/test.sh`, `config-watch/test.sh` and `text-safety-nightly/test.sh` are the offline tests in this directory: each
 runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
 and asserts the call order, the ceilings and the lock/stamp rules. Run the
 matching one before redeploying any of those scripts. `umami-retention/test.sh` is the one that

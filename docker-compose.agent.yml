@@ -20,13 +20,16 @@
 #   2. Deploy the main stack first: its migrate-ai job creates the llm_* tables
 #      in kun_ai and the ai service seeds them; providers and keys are then
 #      managed in the admin console. Until then the agent exits and restarts.
-#   3. Create the agent's oauth client (moemoepoint awarder) and set
-#      KUN_AGENT_CLIENT_ID / KUN_AGENT_CLIENT_SECRET below.
+#   3. Create the agent's oauth client (moemoepoint awarder) and store
+#      KUN_AGENT_CLIENT_ID / KUN_AGENT_CLIENT_SECRET in the config store.
 #
-# Set in this project's Dokploy Environment:
-#   POSTGRES_PASSWORD  JWT_SECRET                          (same values as the main stack)
+# Set in this project's Dokploy Environment, and nothing else:
+#   POSTGRES_PASSWORD  KUN_CONFIG_KEK                      (same values as the main stack)
+#   KUN_AGENT_INFRA_PG_HOST  KUN_AGENT_INFRA_REDIS_HOST    (only when a bare name resolves into two projects)
+# In the config store, scope agent (admin /settings/env):
+#   JWT_SECRET                                             (same value as the main stack)
 #   KUN_LLM_KEK                                            (the ai service's value; opens the sealed provider keys)
-#   KUN_AGENT_CLIENT_ID  KUN_AGENT_CLIENT_SECRET           (moemoepoint charges)
+#   KUN_AGENT_CLIENT_ID  KUN_AGENT_CLIENT_SECRET           (moemoepoint charges; without them users get the daily free units only)
 #   KUN_AGENT_POW_KEYS                                     (anonymous search proof of work)
 name: kun-galgame-infra-agent
 
@@ -68,8 +71,7 @@ services:
       KUN_OIDC_JWKS_URL: http://infra-oauth:9277/oauth/jwks
       KUN_AGENT_OAUTH_BASE: http://infra-oauth:9277
       KUN_AGENT_CATALOG_BASE: ${KUN_AGENT_CATALOG_BASE:-http://catalog:9281}
-      KUN_AGENT_CLIENT_ID: ${KUN_AGENT_CLIENT_ID:-}
-      # in the config store: KUN_AGENT_CLIENT_SECRET, KUN_AGENT_POW_KEYS, KUN_LLM_KEK
+      # in the config store: KUN_AGENT_CLIENT_ID, KUN_AGENT_CLIENT_SECRET, KUN_AGENT_POW_KEYS, KUN_LLM_KEK
     expose: ["9287"]
     depends_on:
       migrate-agent: { condition: service_completed_successfully }
