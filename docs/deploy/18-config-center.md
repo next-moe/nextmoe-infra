@@ -259,6 +259,8 @@ env 行已拔。此后删掉某行 DB 值,回落的是**代码默认**(不再有
 变量分三类,由名字决定:
 
 - **启动接线**:`KUN_PG_*`、`*_PG_*`、`KUN_CONFIG_KEK`——读配置中心之前就要用,只能在 compose / Dokploy。
+  等于代码默认值也要在 compose 里写出来:主机上的 root cron 用 `docker inspect` 读容器环境来拼 DSN,
+  2026-11-16 删掉这些字面量后,这类 cron 全部静默失败。邮件的 `HOST`/`PORT`/`ACCOUNT` 同理(告警脚本读 oauth 容器)。
 - **拓扑**:`*_HOST`、`*_PORT`、`KUN_ENV`——随部署在 compose 里评审,控制台只读。
 - **其余都可存储**。名字含 `SECRET` / `PASSWORD` / `TOKEN` / `KEK` / `_KEY` / `_KEYS` 的是**密钥**:
   控制台与上报只出现指纹(以主密钥为键的 HMAC 前 12 位)和末尾 4 位,审计只记指纹;其余变量明文显示。
