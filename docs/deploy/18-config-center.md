@@ -282,6 +282,12 @@ env 行已拔。此后删掉某行 DB 值,回落的是**代码默认**(不再有
 服务路径(`internal/` 与各服务的 `cmd/`)不许直接 `os.Getenv`,`TestServicesReadEnvironmentThroughConfig`
 会拦;要读新变量用 `config.Env`(或在 `config.go` 里加字段),否则它不会出现在控制台。
 
+快照每个服务只留最近一次启动,所以控制台看不出「上次有值、这次没了」。这件事由宿主机的
+`config-watch` cron 每小时检查(`scripts/prod-cron/config-watch`):它记住每个曾经有值的
+`服务|变量`,一旦某次启动后变成没值就发 `[CONFIG]` 告警,直到补回为止。2026-11-16 面板瘦身时
+agent 的 `KUN_AGENT_CLIENT_ID` 既没导入存储也不在保留清单里,萌萌点扣费因此停了两天才被发现。
+有意删除一个变量时,把它那一行从 `/root/config-watch/state/seen-set` 删掉。
+
 ### 18.9.3 Dokploy 里最终只剩
 
 | 变量 | 为什么 |
