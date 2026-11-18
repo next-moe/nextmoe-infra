@@ -11,7 +11,7 @@ Date: 2026-08-24, GA declared 2026-08-25 (stage 9); news write face added 2026-0
 - `GET /v2/catalog/works` binds 05 §6.1 filters (`q=`, `company_id=`, `tag_id=`, `series_id=`, `engine_id=`, `olang=`, dates, claim/content axes). `q=` / search sorts / `facets=` use the search engine (`WorksSearch`; OpenSearch is the search engine since 2026-09-01, Meilisearch retired 2026-09-02); other filter combinations use the live registry (`WorksList`). `sort=relevance` requires `q=`.
 - `GET /v2/catalog/characters/{id}/appearances` is the character reverse-lookup collection (roster_role, spoiler, voices). Company reverse lookup is `works?company_id=`. Staff reverse lookup stays `credit-names/{id}/credits`.
 - Character `view=full` carries D30 attributes (`gender`, `birthday` as `MM-DD`, measurements, `blood_type` as `a|b|ab|o`, `instance_of_id`). `description` / `extra` / `field_provenance` stay out, as D30.
-- `/v2/me/playtimes` and `/v2/me/work-states` GET/PUT/DELETE and POST 207 batch; `/v2/me/cover-votes` GET/PUT/DELETE.
+- `/v2/me/playtimes` and `/v2/me/work-states` GET/PUT/DELETE and POST 207 batch; `/v2/me/playtimes/{work_id}/sources` GET/DELETE plus `sources/{client_id}` DELETE (first-party only, 2.90.0); `/v2/me/cover-votes` GET/PUT/DELETE.
 - `/v2/me/claims` list (keyset on last claim-event id)/create/get/withdraw; `/v2/me/proposals` list/create/get/patch/amend.
 - `/v2/moderation/claims` queue + GET by id + decisions; `/v2/moderation/proposals` queue + decisions; reverts; snapshots. Queue and GET are site-fenced (`SITE_NOT_BOUND` when the token client has no catalog site).
 - User token on `/v2/me` and `/v2/moderation`, not an application key; `private, no-store`. JWT `roles` are copied into the handler context so `HasPerm` matches v1.
@@ -3064,3 +3064,14 @@ On 2026-11-15 the mint screens of two source-import lanes, bgm-type4-gated and d
 - `temp_file_limit` 20GB is now set on the cluster with ALTER SYSTEM. The next runaway query fails on its own instead of filling the disk.
 
 No spec change. **Zero migrations.**
+
+## Playtime sources: which app reported it, and a delete across apps (spec 2.90.0, 2026-11-18)
+
+A user had no way to remove their own playtime. GET `/v2/me/playtimes/{work_id}` answers the most minutes any app reported, and DELETE removes only the calling app's row. Most of a user's minutes come from developer-platform timers and the kungal App, so a forum delete removed nothing the user could see, and many timers have no delete at all. The forum asked for a per-app read and a delete the user owns.
+
+- `GET /v2/me/playtimes/{work_id}/sources` lists one row per app, most minutes first: `client_id`, `app_name` (the oauth client's name, null once the client is gone), `minutes`, `last_played_at`, `updated_at`, and `self` for the calling app's row. Nothing recorded is an empty list, not a 404.
+- `DELETE /v2/me/playtimes/{work_id}/sources/{client_id}` removes that app's row, whichever first-party app asks; 404 when it has no row. `DELETE /v2/me/playtimes/{work_id}/sources` removes every app's row and is idempotent.
+- All three require a user token from a first-party site client: `requireFirstPartyUser`, site-bound and not third-party. The kungal App's public clients carry `catalog_site=kungal` and pass. A third-party app gets 403, because the list names the other apps the user runs.
+- The cascade is the existing one. When no row is left on the work, its `pt:` daily play activity items are retracted, and the community push carries the removal. While other rows remain, the day items stay. The public median recomputes from the rows at the next playtime-aggregate run.
+
+Spec 2.90.0: three operations, the `PlaytimeSource` schema. **Zero migrations.**

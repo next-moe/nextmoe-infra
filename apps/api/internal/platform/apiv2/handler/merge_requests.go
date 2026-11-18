@@ -192,7 +192,7 @@ func requireFirstPartyUser(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	if thirdPartyFrom(ctx) {
-		return 0, problem.New(problem.CodePermissionRequired, "", "", "merge requests are open to first-party sites only.")
+		return 0, problem.New(problem.CodePermissionRequired, "", "", "this operation is open to first-party sites only.")
 	}
 	return uid, nil
 }

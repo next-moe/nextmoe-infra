@@ -9,6 +9,17 @@ type UserPlaytime struct {
 	Minutes int      `json:"minutes" minimum:"0" doc:"Absolute cumulative minutes."`
 }
 
+type PlaytimeSource struct {
+	_            struct{} `json:"-" additionalProperties:"true"`
+	Object       string   `json:"object" enum:"playtime_source" doc:"Type discriminant. Always playtime_source."`
+	ClientID     string   `json:"client_id" minLength:"1" maxLength:"50" pattern:"^[A-Za-z0-9._-]+$" doc:"The app that reported this row."`
+	AppName      *string  `json:"app_name" maxLength:"100" doc:"That app's display name. null when the app no longer exists. Must not be used as a discriminant."`
+	Minutes      int      `json:"minutes" minimum:"0" doc:"Absolute cumulative minutes this app reported."`
+	LastPlayedAt *string  `json:"last_played_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the last play this app reported. null when it never said."`
+	UpdatedAt    string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of this app's last report."`
+	Self         bool     `json:"self" doc:"true for the row the calling app reported."`
+}
+
 type ClaimRecord struct {
 	_             struct{}       `json:"-" additionalProperties:"true"`
 	Object        string         `json:"object" enum:"claim" doc:"Type discriminant. Always claim."`
