@@ -46,6 +46,7 @@ type chatMessage struct {
 }
 
 type chatResponse struct {
+	Model   string `json:"model"`
 	Choices []struct {
 		Message      chatMessage `json:"message"`
 		FinishReason string      `json:"finish_reason"`
@@ -56,6 +57,7 @@ type chatResponse struct {
 	} `json:"usage"`
 	Error *struct {
 		Message string `json:"message"`
+		Code    string `json:"code"`
 	} `json:"error"`
 }
 
@@ -63,6 +65,11 @@ type chatResponse struct {
 // ("Request blocked ... under the model provider's usage guidelines"), on every
 // retry of the same text, so callers split the batch to isolate the text.
 var ErrBlocked = errors.New("llm refused the prompt under the provider's usage guidelines")
+
+// ErrTruncated: deepseek-v4.1-flash through the gateway stopped every intro
+// batch at its 8192-token max_output on 2026-11-18, and the identical retries
+// at temperature 0 stopped at 8192 again, so a cut-off reply splits the batch.
+var ErrTruncated = errors.New("llm reply was cut off at the output limit")
 
 // Both upstreams answer 429 by the minute under load (Workers AI: "inference
 // request per min rate reached"); four retries over ~2.5 min dropped whole intro
@@ -72,86 +79,96 @@ var retrySchedule = []time.Duration{
 	90 * time.Second, 120 * time.Second, 120 * time.Second, 120 * time.Second,
 }
 
-// Ask sends one user message and decodes the JSON object in the reply into out.
-func (c *LLM) Ask(ctx context.Context, prompt string, out any) error {
+// Ask sends one user message, decodes the JSON object in the reply into out
+// and returns the model that served it (a gateway scene can fall back).
+func (c *LLM) Ask(ctx context.Context, prompt string, out any) (string, error) {
 	raw, err := json.Marshal(map[string]any{
 		"model":       c.model,
 		"temperature": 0,
 		"messages":    []chatMessage{{Role: "user", Content: prompt}},
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 	var lastErr error
 	prose := 0
 	for attempt := 0; ; attempt++ {
-		content, retryable, err := c.post(ctx, raw)
+		content, served, retryable, err := c.post(ctx, raw)
 		if err == nil {
 			if err = decodeJSONObject(content, out); err == nil {
-				return nil
+				return served, nil
 			}
 			// A model that refuses in prose ("这类内容涉及未成年人的性剥削…") does so
 			// on every retry; the 2026-10-24 backfill retried 29 such intros for
 			// ~10 min each. Two prose replies count as a refusal.
 			if prose++; prose >= 2 {
-				return fmt.Errorf("%w: %v", ErrBlocked, err)
+				return "", fmt.Errorf("%w: %v", ErrBlocked, err)
 			}
 			retryable = true
 		}
 		lastErr = err
 		if !retryable || attempt >= len(retrySchedule) {
-			return lastErr
+			return "", lastErr
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return "", ctx.Err()
 		case <-time.After(retrySchedule[attempt] + time.Duration(rand.Int64N(int64(retrySchedule[attempt]/2)+1))):
 		}
 	}
 }
 
-func (c *LLM) post(ctx context.Context, raw []byte) (string, bool, error) {
+func (c *LLM) post(ctx context.Context, raw []byte) (content, served string, retryable bool, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/chat/completions", bytes.NewReader(raw))
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", ctx.Err() == nil, err
+		return "", "", ctx.Err() == nil, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", true, err
-	}
-	if resp.StatusCode == http.StatusUnprocessableEntity {
-		return "", false, fmt.Errorf("%w: %s", ErrBlocked, truncate(string(body), 200))
-	}
-	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusRequestTimeout || resp.StatusCode >= 500 {
-		return "", true, fmt.Errorf("llm http %d: %s", resp.StatusCode, truncate(string(body), 300))
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", false, fmt.Errorf("llm http %d: %s", resp.StatusCode, truncate(string(body), 300))
+		return "", "", true, err
 	}
 	var cr chatResponse
-	if err := json.Unmarshal(body, &cr); err != nil {
-		return "", true, fmt.Errorf("decode llm response: %w", err)
+	decodeErr := json.Unmarshal(body, &cr)
+	if resp.StatusCode == http.StatusUnprocessableEntity || (cr.Error != nil && cr.Error.Code == "content_filtered") {
+		return "", "", false, fmt.Errorf("%w: %s", ErrBlocked, truncate(string(body), 200))
+	}
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusRequestTimeout || resp.StatusCode >= 500 {
+		return "", "", true, fmt.Errorf("llm http %d: %s", resp.StatusCode, truncate(string(body), 300))
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", "", false, fmt.Errorf("llm http %d: %s", resp.StatusCode, truncate(string(body), 300))
+	}
+	if decodeErr != nil {
+		return "", "", true, fmt.Errorf("decode llm response: %w", decodeErr)
 	}
 	if cr.Error != nil {
-		return "", true, fmt.Errorf("llm error: %s", cr.Error.Message)
+		return "", "", true, fmt.Errorf("llm error: %s", cr.Error.Message)
 	}
 	if len(cr.Choices) == 0 {
-		return "", true, fmt.Errorf("llm returned no choices")
-	}
-	if fr := cr.Choices[0].FinishReason; fr != "" && fr != "stop" {
-		return "", true, fmt.Errorf("llm finish_reason=%q", fr)
+		return "", "", true, fmt.Errorf("llm returned no choices")
 	}
 	c.calls.Add(1)
 	c.promptTokens.Add(cr.Usage.PromptTokens)
 	c.completionTokens.Add(cr.Usage.CompletionTokens)
-	return cr.Choices[0].Message.Content, false, nil
+	switch fr := cr.Choices[0].FinishReason; fr {
+	case "", "stop":
+	case "length":
+		return "", "", false, fmt.Errorf("%w (%d completion tokens)", ErrTruncated, cr.Usage.CompletionTokens)
+	default:
+		return "", "", true, fmt.Errorf("llm finish_reason=%q", fr)
+	}
+	served = cr.Model
+	if served == "" {
+		served = c.model
+	}
+	return cr.Choices[0].Message.Content, served, false, nil
 }
 
 func decodeJSONObject(content string, out any) error {

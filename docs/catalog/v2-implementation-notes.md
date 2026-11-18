@@ -3042,3 +3042,15 @@ A reviewer read work 206751's history as an editor deleting its Fox House brand.
 - **Repair.** `cmd/repair-edit-history -mode prior | stamp-uploads | restore-covers` (dry-run unless `-apply`): fills `prior_values` on catalog-engine revisions (labels after a galgame-era revision start from `[]`, since no curated label row predates 2026-08-01; covers, screenshots and links drop upstream-held items); stamps curated covers created on or after 2026-08-01; restores the covers an engine revision added that no row holds, one revision per work.
 
 Spec 2.89.0: the `cover` description. **Migration:** `go run ./cmd/migrate catalog` adds `edit_revision.prior_values` (nullable, no backfill in the migration; the repair command fills existing rows).
+
+## Text safety through the gateway (2026-11-18)
+
+From 2026-11-16 the text-safety nightly judged no intros. The intro lanes called `@cf/deepseek-ai/deepseek-v4.1-flash-1017` by model name, so the gateway sent no reasoning control. Every call spent the model's 8192-token `max_output` thinking and stopped with `finish_reason=length`. The client retried each identical request eight times, then failed the batch. `set -e` then skipped char-intros and the shelf reindex. The title lanes went around the gateway altogether, through a Cursor sidecar that the script started with its own copy of the Cursor key.
+
+- **One path.** Every lane now calls a gateway scene with the cron access key: `catalog.text-safety.title` (grok, falling back to claude), `catalog.text-safety.review` (claude, with no fallback, since a review must not be the first judge again) and `catalog.text-safety.intro` (deepseek with `reasoning=off`, falling back to grok). The Cursor models reach the gateway through the new `cursor-llm` compose service, whose bearer token is the Cursor key sealed in the `cursor` provider. `docs/ai/llm-gateway.md` describes it.
+- **Client.** A `length` stop is `ErrTruncated`: it is not retried, and `bisect` halves the batch as it does for a refusal. A single item that is still cut off stays pending (fail-closed); it is not recorded as refused. The gateway's `content_filtered` maps to `ErrBlocked`. Verdict rows record the model that served the call, which can be a fallback, instead of the requested scene.
+- **Nightly.** A failed lane is logged and the run continues. The reindex follows `apply`'s output, and the run exits non-zero naming every failed lane. `scripts/prod-cron/text-safety-nightly/test.sh` checks this.
+- **CI.** A push that changes only a compose file now redeploys its Dokploy project. #540 built no image and went live only after a manual dispatch.
+- **Ops.** `cmd/llm-config import | set-key` applies a gateway config export and seals a provider key from the host, with no admin session.
+
+No spec change. **Zero migrations.** The gateway rows are data in `kun_ai`, imported once with `llm-config`.

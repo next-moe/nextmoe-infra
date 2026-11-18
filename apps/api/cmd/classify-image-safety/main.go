@@ -7,9 +7,11 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"api/pkg/config"
 	"api/pkg/logger"
 )
 
@@ -24,8 +26,8 @@ func main() {
 	baseURL := flag.String("base-url", os.Getenv("KUN_IMAGE_PUBLIC_BASE_URL"), "scan: public image base URL")
 	variant := flag.String("variant", "", "scan: variant name to score instead of the main image")
 
-	omniBase := flag.String("omni-base", os.Getenv("KUN_AI_OMNI_BASE_URL"), "scan: moderations API root")
-	omniToken := flag.String("omni-token", os.Getenv("KUN_AI_OMNI_TOKEN"), "scan: bearer token")
+	omniBase := flag.String("omni-base", envOr("KUN_AI_OMNI_BASE_URL", strings.TrimSuffix(config.LLMBaseURL(), "/v1")), "scan: moderations API root (default: the ai gateway)")
+	omniToken := flag.String("omni-token", envOr("KUN_AI_OMNI_TOKEN", config.LLMToken()), "scan: bearer token (default: the gateway key)")
 	omniModel := flag.String("omni-model", envOr("KUN_AI_OMNI_MODEL", "omni-moderation-latest"), "scan: model id")
 
 	concurrency := flag.Int("concurrency", 8, "scan: parallel requests")

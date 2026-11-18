@@ -225,15 +225,22 @@ func pack[T any](items []T, size func(T) int, maxRunes, maxItems int) [][]T {
 	return out
 }
 
-// bisect runs a batch and, when the provider refuses it, halves it until the
-// refused items stand alone; those are answered by refused.
+// bisect runs a batch and, when the provider refuses it or the reply is cut
+// off, halves it until the offending items stand alone: a refused item is
+// answered by refused, a lone cut-off item is left out and stays pending.
 func bisect[T, R any](ctx context.Context, batch []T, run func(context.Context, []T) ([]R, error), refused func(T) R) ([]R, error) {
 	out, err := run(ctx, batch)
-	if !errors.Is(err, ErrBlocked) {
+	switch {
+	case errors.Is(err, ErrBlocked):
+		if len(batch) == 1 {
+			return []R{refused(batch[0])}, nil
+		}
+	case errors.Is(err, ErrTruncated):
+		if len(batch) == 1 {
+			return nil, nil
+		}
+	default:
 		return out, err
-	}
-	if len(batch) == 1 {
-		return []R{refused(batch[0])}, nil
 	}
 	mid := len(batch) / 2
 	left, err := bisect(ctx, batch[:mid], run, refused)

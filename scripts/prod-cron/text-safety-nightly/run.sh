@@ -3,28 +3,23 @@
 # intros that changed since the last run, then fold the title verdicts into the display axis
 # (catalog_work.title_nsfw, and display_nsfw on claimed works no human set).
 #
-# Title lanes use Cursor-hosted models through the infra-cursor-llm sidecar, an
-# OpenAI-compatible shim over the Cursor SDK that this script starts on
-# dokploy-network for the length of the run and removes on exit; its key lives
-# in $BASE/cursor.env (CURSOR_API_KEY=..., mode 600), written by the owner on
-# the box. Intro lanes use the Workers AI gateway in /root/env-llm-key.env, the
-# same file llm-adjudicate-nightly reads (never shredded here).
+# Every lane reaches its model through the ai gateway with the cron access key
+# in /root/env-llm-key.env (the file llm-adjudicate-nightly reads), by scene:
+# the gateway console decides which model and fallback each scene uses.
 #
 # crontab (root): 30 16 * * * /root/text-safety-nightly/run.sh
 # 16:30 CST = 08:30 UTC, after intromt-nightly (13:00 CST) has written the
 # day's machine-translated intros, so they are judged the same day.
 #
-# Runs from the infra-tools and infra-cursor-llm images resolved below; nothing
-# is staged on this host. Canonical copy:
-# scripts/prod-cron/text-safety-nightly/run.sh in nextmoe-infra — installing or
-# updating it on the box is a manual scp over /root/text-safety-nightly/run.sh.
+# Runs from the infra-tools image resolved below; nothing is staged on this
+# host. Canonical copy: scripts/prod-cron/text-safety-nightly/run.sh in
+# nextmoe-infra — installing or updating it on the box is a manual scp over
+# /root/text-safety-nightly/run.sh.
 set -eu
 BASE=${TS_BASE:-/root/text-safety-nightly}
 ALERT_SH=${TS_ALERT:-/root/lib/alert.sh}
 REINDEX_SH=${TS_REINDEX:-/root/reindex-catalog/run.sh}
-CURSOR_ENV=${TS_CURSOR_ENV:-$BASE/cursor.env}
 LLM_ENV=${TS_LLM_ENV:-/root/env-llm-key.env}
-SIDECAR=text-safety-llm
 cd "$BASE"
 mkdir -p logs state
 LOG="logs/run-$(date +%F).log"
@@ -34,10 +29,7 @@ LOCKED=1
 
 on_exit() {
   rc=$?
-  docker rm -f "$SIDECAR" >/dev/null 2>&1 || true
-  for f in env.tmp llm.tmp; do
-    if [ -f "$f" ]; then shred -u "$f"; fi
-  done
+  if [ -f env.tmp ]; then shred -u env.tmp; fi
   if [ "$rc" -eq 0 ] && [ "${LOCKED:-0}" = 1 ]; then
     date -u '+%F %T' > "$BASE/state/last-success"
   elif [ "$rc" -ne 0 ]; then
@@ -48,68 +40,44 @@ on_exit() {
 trap on_exit EXIT
 echo "=== text safety nightly start $(date -u '+%F %T')Z ==="
 
-resolve() {
-  docker pull -q "$1" >/dev/null 2>&1 || echo "WARN: image pull failed for $1; using the local copy" >&2
-  docker image inspect --format '{{index .RepoDigests 0}}' "$1"
-}
-IMG=$(resolve ghcr.io/next-moe/infra-tools:latest)
-LLM_IMG=$(resolve ghcr.io/next-moe/infra-cursor-llm:latest)
+docker pull -q ghcr.io/next-moe/infra-tools:latest >/dev/null 2>&1 || echo "WARN: image pull failed; using the local copy"
+IMG=$(docker image inspect --format '{{index .RepoDigests 0}}' ghcr.io/next-moe/infra-tools:latest)
 echo "image: $IMG"
-echo "llm image: $LLM_IMG"
 
 CATC=kun-visual-novel-infra-vqvqbc-catalog-1
-docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$CATC" | grep -v '^$' > env.tmp
-chmod 600 env.tmp
-
-# The sidecar's bearer token lives only as long as this run.
-TOKEN=$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')
 umask 077
-printf 'LLM_TOKEN=%s\nKUN_TEXT_SAFETY_LLM_TOKEN=%s\nKUN_TEXT_SAFETY_LLM_BASE=http://%s:8790/v1\n' \
-  "$TOKEN" "$TOKEN" "$SIDECAR" > llm.tmp
+docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$CATC" | grep -v '^$' > env.tmp
 umask 022
-
-docker rm -f "$SIDECAR" >/dev/null 2>&1 || true
-docker run -d --name "$SIDECAR" --network dokploy-network \
-  --env-file "$CURSOR_ENV" --env-file "$BASE/llm.tmp" -e LLM_CONCURRENCY=8 "$LLM_IMG" >/dev/null
-i=0
-until docker exec "$SIDECAR" node -e "fetch('http://127.0.0.1:8790/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" 2>/dev/null; do
-  i=$((i + 1))
-  if [ "$i" -ge 30 ]; then
-    echo "=== sidecar never became healthy ==="
-    docker logs --tail 50 "$SIDECAR" || true
-    exit 1
-  fi
-  sleep 2
-done
 
 # The password rides PGPASSWORD, never the DSN (lib/dsn-test.sh).
 DSNSH='export PGPASSWORD="$KUN_PG_PASSWORD"; DSN="host=$KUN_PG_HOST port=$KUN_PG_PORT user=$KUN_PG_USER dbname=$KUN_CATALOG_PG_DATABASE sslmode=disable"'
 
-# step <name> <llm env file> <text-safety args...>: llm.tmp points the tool at
-# the Cursor sidecar; $LLM_ENV (KUN_AI_UPSTREAM_*) at the Workers AI gateway.
+# A lane that fails is recorded and the run goes on: on 2026-11-18 the intro
+# lane failed under `set -e` and took char-intros and the shelf reindex with it.
+FAILED=""
 step() {
   _name=$1
-  _llm=$2
-  shift 2
+  shift
   echo "--- $_name ---"
-  docker run --rm --name "text-safety-$_name" --network dokploy-network \
-    --env-file "$BASE/env.tmp" --env-file "$_llm" "$IMG" \
-    sh -c "$DSNSH"'; exec text-safety -dsn "$DSN" '"$*"
+  if ! docker run --rm --name "text-safety-$_name" --network dokploy-network \
+    --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
+    sh -c "$DSNSH"'; exec text-safety -dsn "$DSN" '"$*"; then
+    echo "!!! $_name failed"
+    FAILED="$FAILED $_name"
+  fi
 }
 
 MARK=$(wc -c < "$LOG")
 # apply before the intros: the intro lanes judge only what the sfw shelf shows,
 # so a work the title verdicts moved onto it is judged tonight, not tomorrow.
-CF_MODEL=@cf/deepseek-ai/deepseek-v4.1-flash-1017
-step titles "$BASE/llm.tmp" -mode titles -model grok-4.7:low:fast -concurrency 8
-step release-titles "$BASE/llm.tmp" -mode release-titles -model grok-4.7:low:fast -concurrency 8
-step title-review "$BASE/llm.tmp" -mode title-review -model claude-sonnet-5-5:medium -concurrency 4
-step apply "$BASE/llm.tmp" -mode apply -run -prune
+step titles -mode titles -model catalog.text-safety.title -concurrency 8
+step release-titles -mode release-titles -model catalog.text-safety.title -concurrency 8
+step title-review -mode title-review -model catalog.text-safety.review -concurrency 4
+step apply -mode apply -run -prune
 # Workers AI rate-limits per minute; 24 calls in flight answered 429 on most
 # requests during the backfill, and llm-adjudicate saw it at 4.
-step intros "$LLM_ENV" -mode intros -model "$CF_MODEL" -concurrency 3
-step char-intros "$LLM_ENV" -mode char-intros -model "$CF_MODEL" -concurrency 3
-docker logs --tail 5 "$SIDECAR" || true
+step intros -mode intros -model catalog.text-safety.intro -concurrency 3
+step char-intros -mode char-intros -model catalog.text-safety.intro -concurrency 3
 
 # A title verdict that moved a work's shelf changes the content_limit the search
 # index serves; the reindex owns its own lock, alerting and stamp.
@@ -120,4 +88,8 @@ fi
 
 find logs -name 'run-*.log' ! -name "run-$(date +%F).log" -exec gzip -qf {} \;
 find logs -name 'run-*.log.gz' -mtime +90 -delete
+if [ -n "$FAILED" ]; then
+  echo "=== text safety nightly had failed lane(s):$FAILED ==="
+  exit 1
+fi
 echo "=== text safety nightly done $(date -u '+%F %T')Z ==="
