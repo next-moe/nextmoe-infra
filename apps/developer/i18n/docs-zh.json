@@ -1896,5 +1896,19 @@
   "Who may read the companies the account follows on /v2/followed-companies. private, the default, refuses everyone but the account itself with 403 FOLLOWED_COMPANIES_PRIVATE; public lets any application read the list. A company's follower_count counts every follower either way.": "谁可以在 /v2/followed-companies 读到该账号关注的厂商。private 为缺省，除本人外一律 403 FOLLOWED_COMPANIES_PRIVATE；public 让任何应用都能读该列表。厂商的 follower_count 无论哪种都计入所有关注者。",
   "Who may read the account's followed companies on /v2/followed-companies. Absent leaves it as it is.": "谁可以在 /v2/followed-companies 读到该账号关注的厂商。缺省时保持不变。",
   "Comma-separated closed editorial axis: sfw, nsfw, applied to each work exactly as on /v2/catalog/works. Absent applies no gate. It gates items, the offset cursor and total alike, so a page is never short of works the reader may see.": "逗号分隔的封闭编辑轴：sfw、nsfw，对每部作品的判定与 /v2/catalog/works 完全相同。缺省不设闸。条目、offset 游标与 total 一起受它过滤，所以每页都不会缺读者可见的作品。",
-  "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false.": "true 时附带 total：在本次请求的 nsfw 与 content_limit 下，本列表所有页合起来返回的不同作品数。只接受 true 或 false。"
+  "true adds total: the distinct works every page of this list returns together, under this request's nsfw and content_limit. Only true or false.": "true 时附带 total：在本次请求的 nsfw 与 content_limit 下，本列表所有页合起来返回的不同作品数。只接受 true 或 false。",
+  "Absolute cumulative minutes this app reported.": "该应用上报的绝对累计分钟数。",
+  "Delete every app's playtime on one work": "删除所有应用在某作品上的游玩时长",
+  "Delete one app's playtime on one work": "删除某个应用在某作品上的游玩时长",
+  "Deletes every app's row on the work and withdraws its daily play activity items. Idempotent: 204 also when nothing was recorded. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs.": "删除所有应用在此作品上的记录，并撤回按天的游玩动态。幂等：本来就没有记录时同样返回 204。需要第一方站点应用签发的用户访问令牌；其他应用返回 403 PERMISSION_REQUIRED，因为这份列表会说出用户还在用哪些应用。",
+  "Deletes the row the named app reported, whichever first-party app asks. 404 when that app has no row on the work. Once no app's row is left, the work's daily play activity items are withdrawn. 204 with no body. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs.": "删除指定应用上报的那一行，由哪个第一方应用发起都可以。该应用在此作品上没有记录时返回 404。一旦所有应用的记录都删除了，该作品按天的游玩动态随之撤回。204 无响应体。需要第一方站点应用签发的用户访问令牌；其他应用返回 403 PERMISSION_REQUIRED，因为这份列表会说出用户还在用哪些应用。",
+  "List which apps reported my playtime on one work": "列出哪些应用上报了我在某作品上的游玩时长",
+  "One row per app, most minutes first. GET /v2/me/playtimes/{work_id} answers the most minutes among these rows. An empty list when no app reported. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs.": "每个应用一行，分钟数多的在前。GET /v2/me/playtimes/{work_id} 返回的是这些行里最多的分钟数。没有应用上报时为空列表。需要第一方站点应用签发的用户访问令牌；其他应用返回 403 PERMISSION_REQUIRED，因为这份列表会说出用户还在用哪些应用。",
+  "RFC 3339 UTC of the last play this app reported. null when it never said.": "该应用上报的最近一次游玩时间，RFC 3339 UTC。从未上报过时为 null。",
+  "RFC 3339 UTC of this app's last report.": "该应用最近一次上报的时间，RFC 3339 UTC。",
+  "That app's display name. null when the app no longer exists. Must not be used as a discriminant.": "该应用的显示名称。应用已不存在时为 null。不得用作判别条件。",
+  "The app that reported this row.": "上报这一行的应用。",
+  "The app whose row to delete, as client_id in the sources list.": "要删除哪个应用的记录，取来源列表里的 client_id。",
+  "Type discriminant. Always playtime_source.": "类型判别字段。恒为 playtime_source。",
+  "true for the row the calling app reported.": "调用方应用自己上报的那一行为 true。"
 }

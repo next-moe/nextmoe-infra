@@ -278,6 +278,7 @@ func liveCatalog(t *testing.T) *liveEnv {
 		cat.Deletions = catsvc.NewDeletionService(db, resolve)
 		cat.Splits = catsvc.NewSplitService(db, resolve, catsvc.NewMergeService(db, resolve))
 		cat.UsersOf = liveUsersOf
+		cat.AppNameOf = func(_ context.Context, clientID string) (string, error) { return clientID, nil }
 		app := fiber.New(fiber.Config{ErrorHandler: problem.WriteFiberError})
 		SetupWith(app, Options{
 			Store:   &liveUnlimitedStore{},
@@ -1239,6 +1240,7 @@ func liveSubstitute(path string, fx liveFix) string {
 	path = strings.ReplaceAll(path, "{cover_id}", idstr(fx.Cover))
 	path = strings.ReplaceAll(path, "{product_id}", "RJ01000000")
 	path = strings.ReplaceAll(path, "{uid}", idstr(liveEmptyUID))
+	path = strings.ReplaceAll(path, "{client_id}", liveClient)
 	path = strings.ReplaceAll(path, "{id}", idstr(id))
 	if path == "/v2/catalog/search" {
 		path += "?object=work"

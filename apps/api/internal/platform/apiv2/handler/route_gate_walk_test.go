@@ -52,6 +52,7 @@ var specPathParams = strings.NewReplacer(
 	"{cover_id}", "1",
 	"{product_id}", "RJ01000000",
 	"{uid}", "1",
+	"{client_id}", "kungal-app",
 )
 
 func concretePath(t *testing.T, specPath string) string {

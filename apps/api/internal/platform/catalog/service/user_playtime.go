@@ -16,6 +16,7 @@ var (
 	ErrPlaytimeClientRequired  = stderrors.New("catalog: a playtime report requires a client id")
 	ErrPlaytimeWorkUnavailable = stderrors.New("catalog: work not available for playtime reporting")
 	ErrPlaytimeMinutesRange    = stderrors.New("catalog: minutes must be between 0 and 60000")
+	ErrPlaytimeSourceNotFound  = stderrors.New("catalog: that app has no playtime on this work")
 )
 
 type UserPlaytimeService struct{ db *gorm.DB }
@@ -89,18 +90,23 @@ func reportPlaytimeTx(tx *gorm.DB, r PlaytimeReport) (model.CatalogUserPlaytime,
 	return row, feedPlaytimeTx(tx, r.ActorUID, r.WorkID, before, after)
 }
 
+func deletePlaytimeTx(tx *gorm.DB, uid, workID int64, clientID string) error {
+	_, err := removePlaytimeTx(tx, uid, workID, "actor_uid = ? AND work_id = ? AND client_id = ?", uid, workID, clientID)
+	return err
+}
+
 // The day items go only when no client's report is left: a client deleting
 // its own report does not undo what another reported.
-func deletePlaytimeTx(tx *gorm.DB, uid, workID int64, clientID string) error {
-	if err := tx.Where("actor_uid = ? AND work_id = ? AND client_id = ?", uid, workID, clientID).
-		Delete(&model.CatalogUserPlaytime{}).Error; err != nil {
-		return err
+func removePlaytimeTx(tx *gorm.DB, uid, workID int64, where string, args ...any) (int64, error) {
+	res := tx.Where(where, args...).Delete(&model.CatalogUserPlaytime{})
+	if res.Error != nil {
+		return 0, res.Error
 	}
 	total, err := playtimeTotalTx(tx, uid, workID)
 	if err != nil || total > 0 {
-		return err
+		return res.RowsAffected, err
 	}
-	return retractPlaytimeFeedTx(tx, uid, workID)
+	return res.RowsAffected, retractPlaytimeFeedTx(tx, uid, workID)
 }
 
 func (s *UserPlaytimeService) ListMine(ctx context.Context, uid int64, since time.Time, sinceWorkID int64, limit int) ([]PlaytimeRecord, error) {
@@ -161,6 +167,54 @@ func (s *UserPlaytimeService) DeleteMine(ctx context.Context, uid, workID int64,
 	}
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return deletePlaytimeTx(tx, uid, workID, clientID)
+	})
+}
+
+// ListSources answers the per-client rows ListMineFor folds into one.
+func (s *UserPlaytimeService) ListSources(ctx context.Context, uid, workID int64) ([]PlaytimeRecord, error) {
+	if uid <= 0 {
+		return nil, ErrPlaytimeActorRequired
+	}
+	var rows []model.CatalogUserPlaytime
+	if err := s.db.WithContext(ctx).
+		Where("actor_uid = ? AND work_id = ?", uid, workID).Where(liveWorkCond("catalog_user_playtime.work_id")).
+		Order("minutes DESC, updated_at DESC, id ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]PlaytimeRecord, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, PlaytimeRecord{
+			WorkID: r.WorkID, Minutes: r.Minutes,
+			LastPlayedAt: r.LastPlayedAt, ClientID: r.ClientID, UpdatedAt: r.UpdatedAt,
+		})
+	}
+	return out, nil
+}
+
+// DeleteSource removes one client's row for its user, whichever client asks.
+func (s *UserPlaytimeService) DeleteSource(ctx context.Context, uid, workID int64, clientID string) error {
+	if uid <= 0 {
+		return ErrPlaytimeActorRequired
+	}
+	if clientID == "" {
+		return ErrPlaytimeClientRequired
+	}
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		n, err := removePlaytimeTx(tx, uid, workID, "actor_uid = ? AND work_id = ? AND client_id = ?", uid, workID, clientID)
+		if err == nil && n == 0 {
+			return ErrPlaytimeSourceNotFound
+		}
+		return err
+	})
+}
+
+func (s *UserPlaytimeService) DeleteSources(ctx context.Context, uid, workID int64) error {
+	if uid <= 0 {
+		return ErrPlaytimeActorRequired
+	}
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		_, err := removePlaytimeTx(tx, uid, workID, "actor_uid = ? AND work_id = ?", uid, workID)
+		return err
 	})
 }
 
