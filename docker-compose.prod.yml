@@ -47,9 +47,26 @@ x-svc-health: &svc-health
 # bootstrap, or read by a non-Go container.
 x-infra-env: &infra-env
   KUN_ENV: production
-  # Postgres — one server; database names and the rest are the code defaults.
+  # Postgres — one server. These equal the code defaults and still stay: the
+  # root crons on the host build their DSNs from `docker inspect` of these
+  # containers, and dropping them on 2026-11-16 failed every such cron silently
+  # ("invalid port", `role "dbname=kun_catalog" does not exist`).
   KUN_PG_HOST: postgres
+  KUN_PG_PORT: "5432"
+  KUN_PG_USER: postgres
   KUN_PG_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy Environment}
+  KUN_PG_DATABASE: kun_galgame_infra
+  KUN_PG_SSLMODE: disable
+  KUN_PG_TIMEZONE: Asia/Shanghai
+  KUN_IMAGES_PG_DATABASE: kun_images
+  KUN_CATALOG_PG_DATABASE: kun_catalog
+  KUN_COMMUNITY_PG_DATABASE: kun_community
+  KUN_CHAT_PG_DATABASE: kun_chat
+  KUN_TRUST_PG_DATABASE: kun_trust
+  KUN_AI_PG_DATABASE: kun_ai
+  KUN_TELEMETRY_PG_DATABASE: kun_telemetry
+  KUN_NEWS_PG_DATABASE: kun_news
+  KUN_ARTIFACTS_PG_DATABASE: kun_artifacts
   # Redis
   REDIS_ENABLED: "true"
   REDIS_HOST: redis
@@ -90,8 +107,11 @@ x-infra-env: &infra-env
   # Empty → code falls back to the presigner key above; create the scoped key in
   # B2 and set the two vars in Dokploy when convenient.
   # in the config store: KUN_ARTIFACT_S3_CLEANUP_ACCESS_KEY, KUN_ARTIFACT_S3_CLEANUP_SECRET_KEY
-  # Mail — oauth uses; PASSWORD is the only secret
+  # Mail — oauth uses; PASSWORD is the only secret. /root/lib/alert.sh reads
+  # these from the oauth container's env as well.
+  KUN_VISUAL_NOVEL_EMAIL_FROM: NextMoe·未萌
   KUN_VISUAL_NOVEL_EMAIL_HOST: tuesday.mxrouting.net
+  KUN_VISUAL_NOVEL_EMAIL_PORT: "587"
   KUN_VISUAL_NOVEL_EMAIL_ACCOUNT: auth@nextmoe.com
   # in the config store: KUN_VISUAL_NOVEL_EMAIL_PASSWORD
 
