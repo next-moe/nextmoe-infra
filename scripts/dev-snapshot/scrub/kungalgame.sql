@@ -30,4 +30,14 @@ UPDATE message
 -- reach.
 TRUNCATE user_purge_archive;
 
+-- The forum's own config store (kungal migration 230_config_store) holds prod
+-- secrets sealed with the forum's prod KUN_CONFIG_KEK. Guarded because a
+-- snapshot can predate the tables.
+DO $$
+BEGIN
+  IF to_regclass('config_secret') IS NOT NULL THEN
+    TRUNCATE config_secret, config_secret_audit;
+  END IF;
+END $$;
+
 COMMIT;
