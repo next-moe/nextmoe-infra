@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import http from "node:http";
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -6,19 +7,29 @@ import { Agent, Cursor } from "@cursor/sdk";
 const env = (k, d) => process.env[k] ?? d;
 const HOST = env("LLM_HOST", "0.0.0.0");
 const PORT = Number(env("LLM_PORT", "8790"));
-const TOKEN = env("LLM_TOKEN", "");
 const CONCURRENCY = Number(env("LLM_CONCURRENCY", "16"));
 const TIMEOUT_MS = Number(env("LLM_TIMEOUT_MS", "600000"));
 const WORKSPACE = env("LLM_WORKSPACE", "/tmp/cursor-llm/ws");
 const CURSOR_HOME = join(env("HOME", "/tmp"), ".cursor");
 
-if (!process.env.CURSOR_API_KEY) throw new Error("CURSOR_API_KEY is required");
-if (!TOKEN) throw new Error("LLM_TOKEN is required");
 await mkdir(WORKSPACE, { recursive: true });
 
-const catalog = new Map((await Cursor.models.list()).map((m) => [m.id, m]));
+// The bearer token is the Cursor API key: the gateway's cursor provider holds
+// it sealed, so this container keeps no secret of its own.
+const bearer = (req) => /^Bearer (.+)$/.exec(req.headers.authorization ?? "")?.[1] ?? "";
 
-const resolveModel = (name, effort) => {
+const catalogs = new Map();
+const CATALOG_TTL_MS = 60 * 60 * 1000;
+const catalogFor = async (apiKey) => {
+  const id = createHash("sha256").update(apiKey).digest("hex");
+  const hit = catalogs.get(id);
+  if (hit && hit.until > Date.now()) return hit.models;
+  const models = new Map((await Cursor.models.list({ apiKey })).map((m) => [m.id, m]));
+  catalogs.set(id, { models, until: Date.now() + CATALOG_TTL_MS });
+  return models;
+};
+
+const resolveModel = (catalog, name, effort) => {
   const [id, suffixEffort, fast] = String(name ?? "").split(":");
   const m = catalog.get(id);
   if (!m) return null;
@@ -74,14 +85,22 @@ const readBody = (req) =>
     req.on("error", reject);
   });
 
-const complete = async (req, res) => {
+const errorStatus = (e) => (e?.name === "RateLimitError" ? 429 : e?.name === "AuthenticationError" ? 401 : 502);
+
+const complete = async (req, res, apiKey) => {
   let body;
   try {
     body = JSON.parse(await readBody(req));
   } catch {
     return fail(res, 400, "invalid JSON body");
   }
-  const model = resolveModel(body.model, body.reasoning_effort);
+  let catalog;
+  try {
+    catalog = await catalogFor(apiKey);
+  } catch (e) {
+    return fail(res, errorStatus(e), String(e?.message ?? e));
+  }
+  const model = resolveModel(catalog, body.model, body.reasoning_effort);
   if (!model) return fail(res, 400, `unknown model ${JSON.stringify(body.model)}`);
   if (!Array.isArray(body.messages) || body.messages.length === 0) return fail(res, 400, "messages is required");
 
@@ -89,7 +108,7 @@ const complete = async (req, res) => {
   await acquire();
   try {
     const r = await withTimeout(
-      Agent.prompt(withSchema(renderPrompt(body.messages), body.response_format), { model, tools: [], local: { cwd: WORKSPACE, settingSources: [] } }),
+      Agent.prompt(withSchema(renderPrompt(body.messages), body.response_format), { model, apiKey, tools: [], local: { cwd: WORKSPACE, settingSources: [] } }),
       TIMEOUT_MS,
     );
     const u = r.usage ?? {};
@@ -111,7 +130,7 @@ const complete = async (req, res) => {
   } catch (e) {
     console.log(JSON.stringify({ model: body.model, status: "error", ms: Date.now() - started, error: String(e?.message ?? e) }));
     if (e?.code === "timeout") return fail(res, 504, "upstream run timed out");
-    return fail(res, e?.name === "RateLimitError" ? 429 : e?.name === "AuthenticationError" ? 401 : 502, String(e?.message ?? e));
+    return fail(res, errorStatus(e), String(e?.message ?? e));
   } finally {
     release();
   }
@@ -119,11 +138,17 @@ const complete = async (req, res) => {
 
 const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/healthz") return send(res, 200, { ok: true, active, waiting: waiting.length });
-  if (req.headers.authorization !== `Bearer ${TOKEN}`) return fail(res, 401, "bad token");
+  const apiKey = bearer(req);
+  if (!apiKey) return fail(res, 401, "a Cursor API key is required as the bearer token");
   if (req.method === "GET" && req.url === "/v1/models") {
-    return send(res, 200, { object: "list", data: [...catalog.keys()].map((id) => ({ id, object: "model" })) });
+    try {
+      const catalog = await catalogFor(apiKey);
+      return send(res, 200, { object: "list", data: [...catalog.keys()].map((id) => ({ id, object: "model" })) });
+    } catch (e) {
+      return fail(res, errorStatus(e), String(e?.message ?? e));
+    }
   }
-  if (req.method === "POST" && req.url === "/v1/chat/completions") return complete(req, res);
+  if (req.method === "POST" && req.url === "/v1/chat/completions") return complete(req, res, apiKey);
   fail(res, 404, "not found");
 });
 

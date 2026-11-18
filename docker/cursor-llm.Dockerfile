@@ -1,6 +1,6 @@
 # OpenAI-compatible /v1/chat/completions over the Cursor SDK's local runtime
-# (tools disabled), for batch jobs that hold a Cursor API key instead of a model
-# gateway. The text-safety cron starts it as a sidecar; Dokploy never deploys it.
+# (tools disabled). Dokploy runs it as the cursor-llm service, the ai gateway's
+# "cursor" provider; callers send the Cursor API key as the bearer token.
 FROM node:24-trixie-slim
 
 WORKDIR /app

@@ -62,7 +62,7 @@ had to be rebuilt by hand.
 
 `source-import/test.sh`, `char-xsrc-nightly/test.sh`,
 `llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh`,
-`reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh`, `disk-watch/test.sh` and `log-archive/test.sh` are the offline tests in this directory: each
+`reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh`, `disk-watch/test.sh`, `log-archive/test.sh` and `text-safety-nightly/test.sh` are the offline tests in this directory: each
 runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
 and asserts the call order, the ceilings and the lock/stamp rules. Run the
 matching one before redeploying any of those scripts. `umami-retention/test.sh` is the one that
@@ -125,9 +125,10 @@ no in-script trap can see. Registry: `lib/watchdog.conf`.
 
 Each job owns `/root/<job>/` with `run.sh`, `logs/`, `state/` (last-success
 stamp + job-specific state), and job-local env files where needed
-(intromt-nightly keeps `app.env` + `llm.env`; text-safety-nightly keeps the
-Cursor key in `cursor.env`; image-grade-nightly reads
-`/root/imgsafety/env.img`, left in place by the full-corpus grading run). Secrets never live in these
+(intromt-nightly keeps `app.env` + `llm.env`; image-grade-nightly reads
+`/root/imgsafety/env.img`, left in place by the full-corpus grading run). Every LLM call these jobs make
+goes through the ai gateway with the cron access key in `/root/env-llm-key.env`,
+by scene; no job holds a provider key. Secrets never live in these
 scripts: DB env is snapshotted from the live catalog container per run and
 shredded on exit; DSNs are assembled inside the tool container, never on a
 host command line.

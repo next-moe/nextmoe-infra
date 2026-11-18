@@ -153,7 +153,8 @@ func judgeTitleBatch(ctx context.Context, llm *LLM, batch []workTitles, promptVe
 		items[i] = map[string]any{"id": i + 1, "names": w.Names}
 	}
 	var reply titleReply
-	if err := llm.Ask(ctx, titlePrompt+jsonLines(items), &reply); err != nil {
+	served, err := llm.Ask(ctx, titlePrompt+jsonLines(items), &reply)
+	if err != nil {
 		return nil, err
 	}
 	seen := map[int]bool{}
@@ -166,7 +167,7 @@ func judgeTitleBatch(ctx context.Context, llm *LLM, batch []workTitles, promptVe
 		seen[it.ID] = true
 		out = append(out, model.CatalogWorkTitleSafety{
 			TitleHash: batch[it.ID-1].Hash, Verdict: cls, Confidence: float32(it.Confidence),
-			Model: llm.Model(), PromptVersion: promptVersion,
+			Model: served, PromptVersion: promptVersion,
 		})
 	}
 	return out, nil

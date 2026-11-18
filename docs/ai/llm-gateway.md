@@ -182,8 +182,33 @@ KUN_LLM_GATEWAY_KEY=nmk_…        # 管理端创建的访问密钥
 | `agent.summary` | 长对话的滚动摘要（没有可用路由时用 `agent.assistant`） | chat |
 | `agent.memory` | 对话静止后整理用户的长期记忆，输出 JSON（没有可用路由时用 `agent.assistant`） | chat |
 | `agent.embed` | 过去对话的语义索引和检索（没有可用路由时用 `catalog.embed`）。向量取前 256 维再归一化，换模型后旧向量要清空重建 | embedding |
+| `catalog.text-safety.title` | text-safety 夜间任务的作品名、发行名判定（grok，回退 claude；kimi、deepseek 判标题偏松，不要放进回退） | chat |
+| `catalog.text-safety.review` | 低置信度标题的复审。必须是与 `.title` 不同的模型，所以不配回退 | chat |
+| `catalog.text-safety.intro` | 作品与角色简介的判定、删句、改写（deepseek，`reasoning=off`，回退 grok） | chat |
 
 新加调用方时先在管理端建场景，代码里只写场景 key，不写具体模型。
+
+按模型名直接调用不经过场景，推理模型会按自己的默认去思考：2026-11-18 text-safety 按 `@cf/deepseek-ai/deepseek-v4.1-flash-1017` 直接调用，每次都在 8192 的 `max_output` 处被截断，一条简介都没判出来。批处理任务一律调场景。
+
+### Cursor 供应商
+
+`cursor` 供应商指向 compose 里的 `cursor-llm` 服务（`http://cursor-llm:8790/v1`，`docker/cursor-llm/`）：一个跑在 Cursor SDK 本地运行时上的 OpenAI 兼容层，关闭了全部工具，提供 Cursor 订阅里的 grok、claude 等模型。
+
+- 供应商的 API key 就是 Cursor API key，和其他供应商一样封存在网关里。每个请求的 bearer 就是这把 key，`cursor-llm` 容器本身不持有任何密钥。
+- 路由的上游 id 写成 `<模型>:<effort>[:fast]`（如 `grok-4.7:low:fast`），思考档位由 id 决定，所以路由的 `thinking_control` 设为 `none`。
+- 它不流式返回：整段回答一次性给出，首字超时要覆盖整次生成，这类场景的 `ttft_ms` / `idle_ms` 设为 10 分钟。
+- 内容被拒时返回 422，网关转成 `content_filtered`（400）。
+
+### 在主机上改网关
+
+拿不到 ren 的管理端会话时（比如运维脚本），用 infra-tools 里的 `llm-config`。它读 ai 作用域的配置中心（数据库与 `KUN_LLM_KEK`），所以环境要取自 ai 容器：
+
+```
+llm-config import [-apply] config.json            # 按名字 upsert 供应商、模型、路由、场景，格式同管理端「导出」
+llm-config set-key -provider cursor -from-env K   # 把环境变量 K 里的 key 封存进供应商
+```
+
+key 只从环境变量读，不接受命令行参数：容器里进程的 argv 在宿主机的 `ps` 里可见。
 
 `agent.web_search` 和 `agent.vision` 不会自动生成，要由 ren 在管理端建好：
 
