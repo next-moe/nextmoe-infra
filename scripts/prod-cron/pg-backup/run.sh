@@ -8,10 +8,12 @@
 # Same-disk logical dumps: they cover bad writes, purges and broken migrations,
 # not the loss of this disk. pg-offsite copies them off the host, encrypted.
 #
-# Every database in the cluster must be named in DBS or SKIP. One in neither is
-# left undumped and fails the run, so the alert names it: a new service's
-# database cannot go without a backup unnoticed. SKIP, and why each entry needs
-# no dump here:
+# Every database in the cluster that SKIP does not name is dumped. DBS lists
+# the ones expected to exist, so one that disappears fails the run; one that is
+# dumped but not in DBS is mailed as a reminder to name it. Until 2026-11-18 a
+# database in neither list was left undumped and failed the run instead, and
+# kun_agent went three weeks without a backup while that alert was tuned out.
+# SKIP, and why each entry needs no dump here:
 #   dlsite, getchu, howlongtobeat  primary copy on the crawler box; crawler-restage
 #                                  pulls them back every Sunday
 #   erogamescape                   weekly instead (below); its crawler on this
@@ -63,7 +65,7 @@ echo "=== pg-backup start $(date -u '+%F %T')Z ==="
 
 PG=kun-visual-novel-infra-vqvqbc-postgres-1
 UMAMI=kun-visual-novel-umami-fm1njw-db-1
-DBS="kungalgame kun_galgame_infra kun_catalog kun_community kun_chat kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai kun_telemetry"
+DBS="kungalgame kun_galgame_infra kun_catalog kun_community kun_chat kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai kun_agent kun_telemetry"
 SKIP="dlsite getchu howlongtobeat erogamescape kun_galgame_wiki_retired_w1 kun_letmoe_staging postgres"
 
 # The dumps share the disk with the database itself; filling it would take
@@ -77,8 +79,11 @@ fi
 present=" $(docker exec "$PG" psql -U postgres -d postgres -tAc \
   "SELECT string_agg(datname, ' ' ORDER BY datname) FROM pg_database WHERE datallowconn AND NOT datistemplate") "
 unlisted=""
+targets=""
 for db in $present; do
-  case " $DBS $SKIP " in
+  case " $SKIP " in *" $db "*) continue ;; esac
+  targets="$targets $db"
+  case " $DBS " in
     *" $db "*) ;;
     *) unlisted="$unlisted $db" ;;
   esac
@@ -113,8 +118,7 @@ pg_dump_db() {
   fi
 }
 
-for db in $DBS; do
-  case " $missing " in *" $db "*) continue ;; esac
+for db in $targets; do
   start=$(date +%s)
   pg_dump_db "$db" > "$OUT.partial/$db.dump"
   docker exec -i "$PG" pg_restore --list < "$OUT.partial/$db.dump" > /dev/null
@@ -164,9 +168,13 @@ for dir in dumps/????-??-??; do
 done
 find logs -name 'run-*.log' -mtime +60 -delete
 
-if [ -n "$unlisted$missing" ]; then
-  [ -z "$unlisted" ] || echo "in the cluster but in neither DBS nor SKIP, not dumped:$unlisted"
-  [ -z "$missing" ] || echo "in DBS but not in the cluster:$missing"
+if [ -n "$unlisted" ]; then
+  echo "dumped, but in neither DBS nor SKIP:$unlisted"
+  echo "dumped, but in neither DBS nor SKIP:$unlisted" | ALERT_DIGEST="$unlisted" \
+    "$ALERT_SH" "[BACKUP] name the new database(s) in pg-backup's DBS" - || echo "alert delivery failed"
+fi
+if [ -n "$missing" ]; then
+  echo "in DBS but not in the cluster:$missing"
   exit 3
 fi
 echo "=== pg-backup done $(date -u '+%F %T')Z, ${free_gb}G was free ==="

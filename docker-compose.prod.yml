@@ -154,6 +154,11 @@ services:
     #   idle_in_transaction_session_timeout 30min — a forgotten transaction
     #                            holds its row locks indefinitely; 30min clears
     #                            the nightly jobs that call LLMs mid-transaction.
+    #   temp_file_limit 20GB / log_temp_files 1GB — on 2026-11-15 two
+    #                            source-import queries spilled temp files until
+    #                            the disk was full ("No space left on device",
+    #                            SQLSTATE 53100); a runaway query now fails alone
+    #                            instead of filling the disk the cluster lives on.
     command:
       - postgres
       - -c
