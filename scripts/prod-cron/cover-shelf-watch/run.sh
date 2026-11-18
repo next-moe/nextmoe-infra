@@ -89,13 +89,15 @@ chmod 600 env.tmp
 DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog} sslmode=disable"'
 
 rc=0
+MARK=$(wc -c < "$LOG")
 docker run --rm --network "container:$PG" --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "$DSNSH"'; audit-cover-shelf -dsn "$CAT" -fix -fail-on-findings' || rc=$?
 
 case "$rc" in
   0) echo "no findings outstanding" ;;
   3) echo "=== findings need a human - sending alert ==="
-     /root/lib/alert.sh "[SHELF] cover-shelf findings need a human" "$BASE/$LOG" || echo "alert delivery failed" ;;
+     FINDINGS=$(tail -c "+$((MARK + 1))" "$LOG" | grep -E '^\[[a-z]+\] work=' | sort | sha256sum | cut -c1-16)
+     ALERT_DIGEST=$FINDINGS /root/lib/alert.sh "[SHELF] cover-shelf findings need a human" "$BASE/$LOG" || echo "alert delivery failed" ;;
   *) echo "FATAL: cover-shelf audit exited $rc"; exit "$rc" ;;
 esac
 
