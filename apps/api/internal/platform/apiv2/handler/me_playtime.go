@@ -185,6 +185,8 @@ func playtimeErr(err error) error {
 		p.Errors = []problem.FieldError{{Pointer: "/minutes", Reason: problem.ReasonOutOfRange, Detail: err.Error(),
 			Params: &problem.FieldParams{Minimum: problem.Ptr(0.0), Maximum: problem.Ptr(float64(model.PlaytimeMinutesMax))}}}
 		return p
+	case err == catsvc.ErrPlaytimeSourceNotFound:
+		return problem.New(problem.CodeNotFound, "", "", "that app has no playtime on this work.")
 	case err == catsvc.ErrPlaytimeWorkUnavailable:
 		return problem.New(problem.CodeNotFound, "", "", "work is not available for playtime.")
 	case err == catsvc.ErrPlaytimeActorRequired, err == catsvc.ErrPlaytimeClientRequired:

@@ -56,8 +56,10 @@ type Catalog struct {
 	DiscussionTrust   RatingTrust
 	WalkthroughDrafts *walkthroughdraft.Service
 	// oauth_clients lives in the infra database, which no catalog service can
-	// reach, so the moderation fence takes its client -> site resolver here.
+	// reach, so the moderation fence and the playtime sources take their
+	// client resolvers here.
 	SiteOfAppClient func(ctx context.Context, clientID string) (string, error)
+	AppNameOf       func(ctx context.Context, clientID string) (string, error)
 }
 
 func (c *Catalog) ListWorks(ctx context.Context, q collect.Query) (repr.List[repr.Work], error) {

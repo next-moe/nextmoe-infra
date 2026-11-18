@@ -120,6 +120,7 @@ var liveReadPaths = []string{
 	"/v2/folders/{id}",
 	"/v2/folders/{id}/items",
 	"/v2/me/playtimes",
+	"/v2/me/playtimes/{work_id}/sources",
 	"/v2/me/work-states",
 	"/v2/me/followed-companies",
 	"/v2/me/followed-folders",
@@ -212,7 +213,7 @@ func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 	t.Helper()
 	url := strings.NewReplacer(
 		"{code}", problem.CodeRateLimited, "{name}", "medium", "{object}", "work",
-		"{uid}", idstr(liveEmptyUID), "{work_id}", idstr(fx.Work),
+		"{uid}", idstr(liveEmptyUID), "{work_id}", idstr(fx.Work), "{client_id}", liveClient,
 	).Replace(tmpl)
 	// Longest-prefix, not liveSubstitute's substring switch: that one matches
 	// "/tags" inside /v2/catalog/works/{id}/tags and addresses a tag id as if it

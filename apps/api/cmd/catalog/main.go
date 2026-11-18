@@ -389,6 +389,16 @@ func setupPublicCatalog(
 		bind, err := bindingOfClient(ctx, clientID)
 		return bind.Site, err
 	}
+	appNameOf := func(ctx context.Context, clientID string) (string, error) {
+		cl, err := clientRepo.FindByClientID(ctx, clientID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		return cl.Name, nil
+	}
 	// Every service in the platform shares one HS256 secret and one JWK Set, so
 	// a token this OP signed for anything else parsed here as a v2 user token.
 	// KUN_SITE_URL sits in the shared compose env and is the OP's own issuer in
@@ -460,6 +470,7 @@ func setupPublicCatalog(
 			DiscussionTrust: ratingTrust,
 
 			SiteOfAppClient: siteOfClient,
+			AppNameOf:       appNameOf,
 		},
 	})
 	v2spec, err := json.Marshal(v2API.OpenAPI())
