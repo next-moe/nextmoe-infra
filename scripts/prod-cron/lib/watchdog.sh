@@ -32,7 +32,7 @@ RENOTIFY_HOURS=72
 
 mkdir -p "$STATE"
 NOW=$(date +%s)
-REPORT=$(mktemp); OVERDUE=$(mktemp); trap 'rm -f "$REPORT" "$OVERDUE"' EXIT
+REPORT=$(mktemp); OVERDUE=$(mktemp); MARKS=$(mktemp); trap 'rm -f "$REPORT" "$OVERDUE" "$MARKS"' EXIT
 STALE=0
 
 while read -r NAME FILE MAXH; do
@@ -65,7 +65,7 @@ while read -r NAME FILE MAXH; do
   else
     echo "$NAME: last success ${AGE}h ago (limit ${MAXH}h) — $FILE" >> "$REPORT"
   fi
-  : > "$MARK"
+  echo "$MARK" >> "$MARKS"
   STALE=$((STALE + 1))
 done < "$CONF"
 
@@ -103,3 +103,8 @@ fi
   echo "Logs: /root/<job>/logs/"
 } | "$ALERT" "[STALE] $STALE maintenance job(s) overdue" - || {
   echo "watchdog: alert send failed" >&2; exit 1; }
+
+# Marked only once the mail went out: on 2026-11-17 and 11-18 the marks were
+# written before a send that failed, and pg-backup and work-dedup-nightly then
+# stayed silent for the 72h renotify window without ever having been reported.
+while read -r m; do : > "$m"; done < "$MARKS"
