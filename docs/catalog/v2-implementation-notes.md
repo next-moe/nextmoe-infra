@@ -3054,3 +3054,13 @@ From 2026-11-16 the text-safety nightly judged no intros. The intro lanes called
 - **Ops.** `cmd/llm-config import | set-key` applies a gateway config export and seals a provider key from the host, with no admin session.
 
 No spec change. **Zero migrations.** The gateway rows are data in `kun_ai`, imported once with `llm-config`.
+
+## Mint screens no longer spill the veto to disk (2026-11-18)
+
+On 2026-11-15 the mint screens of two source-import lanes, bgm-type4-gated and dlsite-games, wrote temp files until the disk was full ("No space left on device", SQLSTATE 53100). One of them was screening a single work. `ScreenMintedWorks` checked the identity veto as `NOT EXISTS` over a self-joined CTE. The planner turned that into an anti join, whose inner side was every same-source pair of exact refs: 2,333,101,295 estimated rows, cost 92M.
+
+- The candidate pairs are now grouped and materialized first. The vetoed pairs are inner joins from those pairs to each side's exact refs through the `(entity_type, entity_id, …)` primary key, and `NOT EXISTS` reads only that small set. On prod the same statement plans at cost 289k and runs in about 6 s.
+- The results are unchanged. `TestScreenMintedWorks*` pass, including the veto case, and so do the importer, egworks and getchuattach mint tests.
+- `temp_file_limit` 20GB is now set on the cluster with ALTER SYSTEM. The next runaway query fails on its own instead of filling the disk.
+
+No spec change. **Zero migrations.**

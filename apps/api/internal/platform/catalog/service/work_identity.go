@@ -130,33 +130,43 @@ func ScreenMintedWorks(tx *gorm.DB, works []MintedWork) ([]MintScreenHit, error)
 			SELECT mk.work_id AS a, o.work_id AS b
 			FROM mykeys mk JOIN keys o ON o.source_id = mk.source_id AND o.k = mk.k AND o.work_id <> mk.work_id
 		),
-		veto AS (
-			SELECT entity_id AS work_id, source_id, external_id FROM catalog_external_ref
-			WHERE entity_type = `+strconv.Itoa(int(model.EntityTypeWork))+` AND link_kind = `+strconv.Itoa(int(model.LinkKindExact))+`
-			  AND dead_at IS NULL AND source_id IN (`+Int16CSV(model.WorkIdentityVetoSourceIDs)+`)
-		),
 		hits AS (
 			SELECT a, b, true AS by_name FROM title_hits
 			UNION ALL
 			SELECT a, b, false FROM key_hits
+		),
+		pairs AS MATERIALIZED (
+			SELECT h.a, h.b, bool_or(h.by_name) AS by_name
+			FROM hits h
+			JOIN mine m ON m.id = h.a
+			JOIN catalog_work o ON o.id = h.b AND o.deleted_at IS NULL AND o.medium_id = m.medium_id
+			  AND o.status IN (`+Int16CSV([]int16{model.WorkStatusLive, model.WorkStatusStub})+`)
+			GROUP BY h.a, h.b
+		),
+		-- The veto joins outward from the few candidate pairs. As a NOT EXISTS
+		-- over a self-joined veto CTE it planned as an anti join whose inner
+		-- side was every same-source pair of exact refs (2.3 billion rows), and
+		-- on 2026-11-15 two mint screens spilled it until the disk was full.
+		vetoed AS (
+			SELECT DISTINCT p.a, p.b FROM pairs p
+			JOIN catalog_external_ref va ON va.entity_type = `+strconv.Itoa(int(model.EntityTypeWork))+` AND va.entity_id = p.a
+			  AND va.link_kind = `+strconv.Itoa(int(model.LinkKindExact))+` AND va.dead_at IS NULL
+			  AND va.source_id IN (`+Int16CSV(model.WorkIdentityVetoSourceIDs)+`)
+			JOIN catalog_external_ref vb ON vb.entity_type = `+strconv.Itoa(int(model.EntityTypeWork))+` AND vb.entity_id = p.b
+			  AND vb.link_kind = `+strconv.Itoa(int(model.LinkKindExact))+` AND vb.dead_at IS NULL
+			  AND vb.source_id = va.source_id AND vb.external_id <> va.external_id
 		)
-		SELECT h.a, h.b, bool_or(h.by_name) AS by_name
-		FROM hits h
-		JOIN mine m ON m.id = h.a
-		JOIN catalog_work o ON o.id = h.b AND o.deleted_at IS NULL AND o.medium_id = m.medium_id
-		  AND o.status IN (`+Int16CSV([]int16{model.WorkStatusLive, model.WorkStatusStub})+`)
-		WHERE NOT EXISTS (
-			SELECT 1 FROM veto va JOIN veto vb ON vb.source_id = va.source_id AND vb.external_id <> va.external_id
-			WHERE va.work_id = h.a AND vb.work_id = h.b)
+		SELECT p.a, p.b, p.by_name
+		FROM pairs p
+		WHERE NOT EXISTS (SELECT 1 FROM vetoed v WHERE v.a = p.a AND v.b = p.b)
 		  AND NOT EXISTS (
 			SELECT 1 FROM catalog_match_rejection mr
 			JOIN catalog_external_ref ar ON ar.source_id = mr.source_id AND ar.external_id = mr.external_id
 			LEFT JOIN catalog_release arel ON ar.entity_type = `+strconv.Itoa(int(model.EntityTypeRelease))+` AND arel.id = ar.entity_id
-			WHERE mr.entity_type = `+strconv.Itoa(int(model.EntityTypeWork))+` AND mr.entity_id = h.b
-			  AND ((ar.entity_type = `+strconv.Itoa(int(model.EntityTypeWork))+` AND ar.entity_id = h.a)
-			    OR (ar.entity_type = `+strconv.Itoa(int(model.EntityTypeRelease))+` AND arel.work_id = h.a)))
-		GROUP BY h.a, h.b
-		ORDER BY h.a, h.b`, args...).Scan(&hits).Error
+			WHERE mr.entity_type = `+strconv.Itoa(int(model.EntityTypeWork))+` AND mr.entity_id = p.b
+			  AND ((ar.entity_type = `+strconv.Itoa(int(model.EntityTypeWork))+` AND ar.entity_id = p.a)
+			    OR (ar.entity_type = `+strconv.Itoa(int(model.EntityTypeRelease))+` AND arel.work_id = p.a)))
+		ORDER BY p.a, p.b`, args...).Scan(&hits).Error
 	if err != nil || len(hits) == 0 {
 		return hits, err
 	}

@@ -121,6 +121,25 @@ Crontab (root) also runs `/root/lib/watchdog.sh` daily at 09:00 — the deadman
 that alerts when a job has not *succeeded* within its limit, the failure mode
 no in-script trap can see. Registry: `lib/watchdog.conf`.
 
+## Alerts
+
+`lib/alert.sh "<subject>" <body-file|->` mails through infra-tools'
+`ops-alert`, which reads the SMTP settings the way the services do: the
+environment compose gives the oauth container, then the config store, where the
+password lives. The same alert is mailed once per 72 hours. A `[FAIL]` alert is
+mailed again as soon as its job has succeeded once since the last mail. A
+findings alert that passes `ALERT_DIGEST` is mailed again as soon as the
+findings change. An alert that cannot be sent is appended to
+`/root/lib/state/undelivered`.
+
+The mail path runs on this host, so it cannot report itself broken. Set
+`DEADMAN_URL=<check ping URL>` in `/root/lib/deadman.env` (mode 600, written on
+the box; any healthchecks.io-style check with a daily period works). The
+watchdog then pings it after each run. When a job is overdue or an alert went
+undelivered, it pings `<url>/fail` with the report instead. A check that stops
+being pinged is mailed by the external service, not by this host.
+`lib/alert-test.sh` and `lib/watchdog-test.sh` are the offline tests for both.
+
 ## Layout on the box
 
 Each job owns `/root/<job>/` with `run.sh`, `logs/`, `state/` (last-success
