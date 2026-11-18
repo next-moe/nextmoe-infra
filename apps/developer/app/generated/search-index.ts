@@ -948,7 +948,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 201 个端点",
+    "d": "/v2 · 204 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1986,6 +1986,27 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/playtimes/{work_id}",
     "b": "deleteMyPlaytime /v2/me/playtimes/{work_id} delete Delete this app's playtime on one work Deletes only the row the calling app reported. Rows other apps reported on the same work stay, and GET keeps answering from them. 204 with no body. Requires a user access token. Any app may call this; playtime:write is not required. 只删除调用方应用自己上报的那一行；其他应用对同一作品上报的行保留，GET 仍按它们作答。204 无响应体。需要用户访问令牌。任何应用均可调用；不要求 playtime:write。 work_id"
+  },
+  {
+    "r": "/docs/v2/listMyPlaytimeSources",
+    "t": "列出哪些应用上报了我在某作品上的游玩时长",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/playtimes/{work_id}/sources",
+    "b": "listMyPlaytimeSources /v2/me/playtimes/{work_id}/sources get List which apps reported my playtime on one work One row per app, most minutes first. GET /v2/me/playtimes/{work_id} answers the most minutes among these rows. An empty list when no app reported. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs. 每个应用一行，分钟数多的在前。GET /v2/me/playtimes/{work_id} 返回的是这些行里最多的分钟数。没有应用上报时为空列表。需要第一方站点应用签发的用户访问令牌；其他应用返回 403 PERMISSION_REQUIRED，因为这份列表会说出用户还在用哪些应用。 work_id"
+  },
+  {
+    "r": "/docs/v2/deleteMyPlaytimeSources",
+    "t": "删除所有应用在某作品上的游玩时长",
+    "s": "端点 · 我的",
+    "d": "DELETE /v2/me/playtimes/{work_id}/sources",
+    "b": "deleteMyPlaytimeSources /v2/me/playtimes/{work_id}/sources delete Delete every app's playtime on one work Deletes every app's row on the work and withdraws its daily play activity items. Idempotent: 204 also when nothing was recorded. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs. 删除所有应用在此作品上的记录，并撤回按天的游玩动态。幂等：本来就没有记录时同样返回 204。需要第一方站点应用签发的用户访问令牌；其他应用返回 403 PERMISSION_REQUIRED，因为这份列表会说出用户还在用哪些应用。 work_id"
+  },
+  {
+    "r": "/docs/v2/deleteMyPlaytimeSource",
+    "t": "删除某个应用在某作品上的游玩时长",
+    "s": "端点 · 我的",
+    "d": "DELETE /v2/me/playtimes/{work_id}/sources/{client_id}",
+    "b": "deleteMyPlaytimeSource /v2/me/playtimes/{work_id}/sources/{client_id} delete Delete one app's playtime on one work Deletes the row the named app reported, whichever first-party app asks. 404 when that app has no row on the work. Once no app's row is left, the work's daily play activity items are withdrawn. 204 with no body. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs. 删除指定应用上报的那一行，由哪个第一方应用发起都可以。该应用在此作品上没有记录时返回 404。一旦所有应用的记录都删除了，该作品按天的游玩动态随之撤回。204 无响应体。需要第一方站点应用签发的用户访问令牌；其他应用返回 403 PERMISSION_REQUIRED，因为这份列表会说出用户还在用哪些应用。 work_id client_id"
   },
   {
     "r": "/docs/v2/getMyPrivacy",

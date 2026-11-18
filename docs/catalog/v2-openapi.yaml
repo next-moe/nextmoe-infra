@@ -5568,6 +5568,62 @@ components:
         - object
         - items
       type: object
+    ListPlaytimeSource:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListPlaytimeSource.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/PlaytimeSource"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
     ListProblemType:
       additionalProperties: true
       properties:
@@ -9472,6 +9528,56 @@ components:
           type: string
       required:
         - status
+      type: object
+    PlaytimeSource:
+      additionalProperties: true
+      properties:
+        app_name:
+          description: That app's display name. null when the app no longer exists. Must not be used as a discriminant.
+          maxLength: 100
+          type:
+            - string
+            - "null"
+        client_id:
+          description: The app that reported this row.
+          maxLength: 50
+          minLength: 1
+          pattern: ^[A-Za-z0-9._-]+$
+          type: string
+        last_played_at:
+          description: RFC 3339 UTC of the last play this app reported. null when it never said.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        minutes:
+          description: Absolute cumulative minutes this app reported.
+          format: int64
+          minimum: 0
+          type: integer
+        object:
+          description: Type discriminant. Always playtime_source.
+          enum:
+            - playtime_source
+          type: string
+          x-vocabulary-closed: true
+        self:
+          description: true for the row the calling app reported.
+          type: boolean
+        updated_at:
+          description: RFC 3339 UTC of this app's last report.
+          format: date-time
+          maxLength: 32
+          type: string
+      required:
+        - object
+        - client_id
+        - app_name
+        - minutes
+        - last_played_at
+        - updated_at
+        - self
       type: object
     Popularity:
       additionalProperties: true
@@ -15229,7 +15335,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.89.0
+  version: 2.90.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -30596,6 +30702,234 @@ paths:
       security:
         - userToken: []
       summary: Replace my playtime on one work
+      tags:
+        - me
+  /v2/me/playtimes/{work_id}/sources:
+    delete:
+      description: "Deletes every app's row on the work and withdraws its daily play activity items. Idempotent: 204 also when nothing was recorded. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs."
+      operationId: deleteMyPlaytimeSources
+      parameters:
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Delete every app's playtime on one work
+      tags:
+        - me
+    get:
+      description: One row per app, most minutes first. GET /v2/me/playtimes/{work_id} answers the most minutes among these rows. An empty list when no app reported. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs.
+      operationId: listMyPlaytimeSources
+      parameters:
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPlaytimeSource"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: List which apps reported my playtime on one work
+      tags:
+        - me
+  /v2/me/playtimes/{work_id}/sources/{client_id}:
+    delete:
+      description: Deletes the row the named app reported, whichever first-party app asks. 404 when that app has no row on the work. Once no app's row is left, the work's daily play activity items are withdrawn. 204 with no body. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs.
+      operationId: deleteMyPlaytimeSource
+      parameters:
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+        - description: The app whose row to delete, as client_id in the sources list.
+          in: path
+          name: client_id
+          required: true
+          schema:
+            description: The app whose row to delete, as client_id in the sources list.
+            maxLength: 50
+            minLength: 1
+            pattern: ^[A-Za-z0-9._-]+$
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Delete one app's playtime on one work
       tags:
         - me
   /v2/me/privacy:
