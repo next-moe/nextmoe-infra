@@ -866,6 +866,25 @@ services:
       <<: *svc-health
     restart: unless-stopped
 
+  # The gateway's "cursor" provider (http://cursor-llm:8790/v1): Cursor-hosted
+  # models (grok, claude) for batch jobs, reached only through the ai gateway.
+  # Each request's bearer token is the Cursor API key the provider holds sealed,
+  # so this container carries no secret.
+  cursor-llm:
+    image: ghcr.io/next-moe/infra-cursor-llm:latest
+    pull_policy: always
+    environment:
+      LLM_CONCURRENCY: "8"
+    expose: ["8790"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8790/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      <<: *svc-health
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
   # App telemetry (kun_telemetry): OTLP log ingest from the NextMoe apps, CI
   # symbol uploads, sessions and daily metrics, issues and alerts. Public on
   # telemetry.nextmoe.dev for exactly two paths; the admin console reaches the

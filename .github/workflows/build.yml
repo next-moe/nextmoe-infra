@@ -19,13 +19,14 @@
 # run it and pass the target as an argument (`command: ["catalog"]`), so there is
 # no per-domain image to keep in sync. `infra-tools` packs every `cmd/*` binary,
 # so a push that changes a job must rebuild it or prod keeps running the old one.
-# `tools`, `wdtagger` and `cursorllm` are the groups Dokploy does not deploy (the
-# image-grade and text-safety crons start their sidecars themselves), so a build of only those does not trigger a
+# `tools` and `wdtagger` are the groups Dokploy does not deploy (the image-grade
+# cron starts its tagger itself), so a build of only those does not trigger a
 # redeploy; Actions → Run workflow → scope=tools rebuilds infra-tools alone.
 #
-# Three Dokploy projects deploy from this repo, and each is redeployed only when
-# an image it runs was rebuilt: the main stack (go/account/admin/editor), the developer
-# portal (infra-developer) and the MCP server (infra-mcp).
+# Four Dokploy projects deploy from this repo, and each is redeployed when an
+# image it runs was rebuilt or its compose file changed: the main stack
+# (go/account/admin/editor/cursorllm), the developer portal (infra-developer),
+# the MCP server (infra-mcp) and the agent (infra-agent).
 #
 # Images publish to ghcr.io/<repo owner>/* (today: next-moe). The first push
 # creates the package and links it to this repo — that is how GHCR "new
@@ -136,6 +137,14 @@ jobs:
               - 'docker/cursor-llm.Dockerfile'
               - 'docker/cursor-llm/**'
               - '.github/workflows/build.yml'
+            compose_infra:
+              - 'docker-compose.prod.yml'
+            compose_developer:
+              - 'docker-compose.developer.yml'
+            compose_mcp:
+              - 'docker-compose.mcp.yml'
+            compose_agent:
+              - 'docker-compose.agent.yml'
       - id: set
         env:
           EVENT: ${{ github.event_name }}
@@ -148,6 +157,10 @@ jobs:
           TOOLS: ${{ steps.filter.outputs.tools }}
           WDTAGGER: ${{ steps.filter.outputs.wdtagger }}
           CURSORLLM: ${{ steps.filter.outputs.cursorllm }}
+          COMPOSE_INFRA: ${{ steps.filter.outputs.compose_infra }}
+          COMPOSE_DEVELOPER: ${{ steps.filter.outputs.compose_developer }}
+          COMPOSE_MCP: ${{ steps.filter.outputs.compose_mcp }}
+          COMPOSE_AGENT: ${{ steps.filter.outputs.compose_agent }}
         run: |
           set -euo pipefail
           # Auto-built on push (path-filtered). account/admin args are baked at build.
@@ -186,10 +199,13 @@ jobs:
           fi
           n=$(jq -n --argjson s "$sel" '$s | length')
           echo "any=$([ "$n" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "deploy_infra=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "go" or .group == "account" or .group == "admin" or .group == "editor")')" >> "$GITHUB_OUTPUT"
-          echo "deploy_developer=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "developer")')" >> "$GITHUB_OUTPUT"
-          echo "deploy_mcp=$(jq -n --argjson s "$sel" '$s | any(.[]; .name == "infra-mcp")')" >> "$GITHUB_OUTPUT"
-          echo "deploy_agent=$(jq -n --argjson s "$sel" '$s | any(.[]; .name == "infra-agent")')" >> "$GITHUB_OUTPUT"
+          # A compose-only push changes what Dokploy runs without rebuilding an
+          # image; #540 (2026-11-18) built nothing, so it went live only by hand.
+          deploy() { jq -n --argjson s "$sel" --arg compose "${2:-false}" "(\$s | any(.[]; $1)) or \$compose == \"true\""; }
+          echo "deploy_infra=$(deploy '.group == "go" or .group == "account" or .group == "admin" or .group == "editor" or .group == "cursorllm"' "${COMPOSE_INFRA:-}")" >> "$GITHUB_OUTPUT"
+          echo "deploy_developer=$(deploy '.group == "developer"' "${COMPOSE_DEVELOPER:-}")" >> "$GITHUB_OUTPUT"
+          echo "deploy_mcp=$(deploy '.name == "infra-mcp"' "${COMPOSE_MCP:-}")" >> "$GITHUB_OUTPUT"
+          echo "deploy_agent=$(deploy '.name == "infra-agent"' "${COMPOSE_AGENT:-}")" >> "$GITHUB_OUTPUT"
           printf 'matrix={"include":%s}\n' "$sel" >> "$GITHUB_OUTPUT"
           echo "Selected $n image(s) to build:"
           jq -rn --argjson s "$sel" '$s[].name' | sed 's/^/  - /'
@@ -224,13 +240,15 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
-  deploy:                    # each Dokploy project that runs a rebuilt image
+  deploy:                    # each Dokploy project with a rebuilt image or a changed compose
     needs: [changes, build]
     if: >-
-      needs.changes.outputs.deploy_infra == 'true' ||
+      !cancelled() && needs.changes.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.changes.outputs.deploy_infra == 'true' ||
       needs.changes.outputs.deploy_developer == 'true' ||
       needs.changes.outputs.deploy_mcp == 'true' ||
-      needs.changes.outputs.deploy_agent == 'true'
+      needs.changes.outputs.deploy_agent == 'true')
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Dokploy redeploys
