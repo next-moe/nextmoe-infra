@@ -78,4 +78,16 @@ grep -q 'text safety' "$td/ping-body" || fail "fail ping does not carry the unde
 grep -q 'text safety' "$td/state/undelivered.reported" || fail "reported alerts not kept"
 tend
 
+tstart 5
+setup
+printf 'old %s 48\n' "$td/old" >> "$td/conf"
+printf '#!/bin/sh\ncat > /dev/null\nexit 1\n' > "$td/alert"
+watch 2>/dev/null || true
+[ ! -f "$td/state/alerted-old" ] || fail "marked an overdue job whose alert was never sent"
+printf '#!/bin/sh\ncat > /dev/null\necho "$1" >> "%s/alerts"\n' "$td" > "$td/alert"
+watch
+grep -q STALE "$td/alerts" || fail "the next run stayed silent after a failed send"
+[ -f "$td/state/alerted-old" ] || fail "not marked after a delivered alert"
+tend
+
 exit "$FAILED"
