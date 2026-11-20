@@ -111,6 +111,16 @@ func TestStreamFailsOverBeforeTheFirstContent(t *testing.T) {
 	}
 }
 
+func TestRetiredModelFailsOver(t *testing.T) {
+	gone := streamServer(t, http.StatusGone, `{"errors":[{"message":"AiError: Model has been deprecated: @cf/zai-org/glm-5.2 was deprecated on 2026-11-20.","code":5028}],"success":false}`)
+	good := streamServer(t, http.StatusOK, sse(okFrames("from good")...))
+	g := testGateway(t, gone.URL, good.URL)
+	res, err := g.Stream(context.Background(), Call{Scene: "s", Buffered: true}, nil)
+	if err != nil || res.Text != "from good" {
+		t.Fatalf("res=%+v err=%v", res, err)
+	}
+}
+
 func TestStreamDoesNotFailOverAfterCommitting(t *testing.T) {
 	broken := streamServer(t, http.StatusOK, sse(`{"choices":[{"delta":{"content":"partial"}}]}`))
 	good := streamServer(t, http.StatusOK, sse(okFrames("other")...))
@@ -153,6 +163,7 @@ func TestClassifyHTTP(t *testing.T) {
 		{503, `Unknown internal error (code 3048)`, ErrKindUpstream},
 		{400, `余额不足`, ErrKindQuota},
 		{400, `unknown parameter: foo`, ErrKindBadRequest},
+		{410, `AiError: Model has been deprecated`, ErrKindNotFound},
 	} {
 		if got := classifyHTTP(tc.status, tc.body).Kind; got != tc.want {
 			t.Errorf("classify(%d, %q) = %s, want %s", tc.status, tc.body, got, tc.want)

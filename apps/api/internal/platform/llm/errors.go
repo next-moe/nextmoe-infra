@@ -84,7 +84,10 @@ func classifyHTTP(status int, body string) *Error {
 		e.Kind = ErrKindAuth
 	case status == http.StatusPaymentRequired || reQuota.MatchString(body):
 		e.Kind = ErrKindQuota
-	case status == http.StatusNotFound:
+	// Cloudflare retires a model with 410 "Model has been deprecated" (code
+	// 5028). Classed as bad_request it never failed over, and on 2026-11-20
+	// ai.moderation.llm failed open for six hours with its fallback untouched.
+	case status == http.StatusNotFound || status == http.StatusGone:
 		e.Kind = ErrKindNotFound
 	case status == http.StatusTooManyRequests:
 		e.Kind = ErrKindRateLimit
