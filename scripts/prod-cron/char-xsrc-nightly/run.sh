@@ -95,7 +95,7 @@ judge() {
   docker run --rm --name "xsrc-judge-$_label" --network dokploy-network \
     --env-file "$LLM_ENV" -v "$BASE:/w" --user 0:0 "$IMG" \
     catalog-adjudicate -packets "/w/work/$2" -verdicts "/w/state/$3" -errors "/w/state/$4" \
-    -model @cf/deepseek-ai/deepseek-v4-flash -workers 1 -rpm 30 -chunk 1 -limit "$JUDGE_LIMIT" \
+    -model deepseek-v4.1-flash-1017 -workers 1 -rpm 30 -chunk 1 -limit "$JUDGE_LIMIT" \
     -request-timeout 120s -deadline "$JUDGE_DEADLINE" || _rc=$?
   _counts=$(tail -c "+$((_mark + 1))" "$LOG" \
     | sed -n 's/.*adjudicate done .* judged=\([0-9]*\) .* errors=\([0-9]*\).*/\1 \2/p' | tail -1)
