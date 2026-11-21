@@ -258,3 +258,18 @@ func TestAnchorOnDeletedReleaseIsNeverReanchored(t *testing.T) {
 	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_type = 6 AND source_id = 4 AND external_id = 'RJDEL01'`))
 	assert.NotZero(t, workOfSKU(t, "RJDEL02"))
 }
+
+func TestAllAgesNonVNProductIsNotMinted(t *testing.T) {
+	requireDLGamesDB(t)
+	insertDL(t, "VJ0SCOPE1", "ユーロ トラック シミュレーターの試験作", "VGSCOPE", "1", "SLN", "2021-04-02 00:00:00+00", "")
+	insertDL(t, "RJ0SCOPE2", "全年齢アクションの試験作", "RGSCOPE", "1", "ACN", "2021-04-02 00:00:00+00", "")
+	insertDL(t, "RJ0SCOPE3", "全年齢ノベルの試験作", "RGSCOPE", "1", "DNV", "2021-04-02 00:00:00+00", "")
+	insertDL(t, "RJ0SCOPE4", "成人向けRPGの試験作", "RGSCOPE", "3", "RPG", "2021-04-02 00:00:00+00", "")
+	st := runDLGames(t, false, 0, "")
+	assert.Equal(t, 2, st.OutOfScopeGroups)
+	assert.Equal(t, 2, st.MintedGroups)
+	assert.Zero(t, workOfSKU(t, "VJ0SCOPE1"))
+	assert.Zero(t, workOfSKU(t, "RJ0SCOPE2"))
+	assert.NotZero(t, workOfSKU(t, "RJ0SCOPE3"))
+	assert.NotZero(t, workOfSKU(t, "RJ0SCOPE4"))
+}

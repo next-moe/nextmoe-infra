@@ -31,6 +31,7 @@ type DLsiteGamesStats struct {
 	SplitGroups         int
 	TitleAttachedGroups int
 	RejectedSkips       int
+	OutOfScopeGroups    int
 	QuarantinedGroups   int
 	ScreenQuarantined   int
 	MintedGroups        int
@@ -53,6 +54,7 @@ func (st DLsiteGamesStats) slogArgs() []any {
 		"split_groups", st.SplitGroups,
 		"title_attached_groups", st.TitleAttachedGroups,
 		"rejected_skips", st.RejectedSkips,
+		"out_of_scope_groups", st.OutOfScopeGroups,
 		"quarantined_groups", st.QuarantinedGroups,
 		"minted_groups", st.MintedGroups,
 		"folded_groups", st.FoldedGroups,

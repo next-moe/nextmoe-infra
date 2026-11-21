@@ -53,6 +53,8 @@ func TestMain(m *testing.M) {
 		`ALTER TABLE games ADD COLUMN IF NOT EXISTS dlsite_id text`,
 		`ALTER TABLE games ADD COLUMN IF NOT EXISTS vndb text`,
 		`ALTER TABLE games ADD COLUMN IF NOT EXISTS gamename text`,
+		`ALTER TABLE games ADD COLUMN IF NOT EXISTS erogame boolean`,
+		`ALTER TABLE games ADD COLUMN IF NOT EXISTS genre text`,
 	}
 	for _, s := range stmts {
 		if err := db.Exec(s).Error; err != nil {

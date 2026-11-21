@@ -3,6 +3,7 @@ package egworks
 import (
 	"sort"
 
+	"api/internal/platform/catalog/gamescope"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/titlekey"
 )
@@ -85,6 +86,10 @@ func decide(snap snapshot, pop []game, limit int) ([]plannedAction, Stats) {
 					hasPrimary[w] = true
 				}
 			}
+			continue
+		}
+		if !g.Erogame && gamescope.NonVNGenre(g.Genre) {
+			st.OutOfScope++
 			continue
 		}
 		if len(hits) > 0 {
