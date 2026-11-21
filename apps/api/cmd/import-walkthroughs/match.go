@@ -151,8 +151,28 @@ func gatedCharts(ctx context.Context, src *gorm.DB, ids []int64) (map[int64]*wal
 	return out, nil
 }
 
-func liveWorks(alias string) string {
-	return fmt.Sprintf(`EXISTS (SELECT 1 FROM catalog_work w WHERE w.id = %s AND w.status = %d AND w.deleted_at IS NULL)`, alias, model.WorkStatusLive)
+// A crawled game page often carries its tie-in ASMR's DLsite code, and a short
+// title often names only the anime or novel adaptation: the first import hung
+// 75 walkthroughs on such works, where no public face can show them.
+func liveGalgame(alias string) string {
+	return fmt.Sprintf(`EXISTS (SELECT 1 FROM catalog_work w WHERE w.id = %s AND w.status = %d AND w.deleted_at IS NULL
+  AND w.medium_id = (SELECT m.id FROM catalog_medium m WHERE m.key = 'galgame'))`, alias, model.WorkStatusLive)
+}
+
+func liveGalgameWorks(ctx context.Context, cat *gorm.DB, ids []int64) (map[int64]bool, error) {
+	out := map[int64]bool{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var live []int64
+	if err := cat.WithContext(ctx).Raw(`SELECT c.id FROM catalog_work c WHERE c.id IN ? AND `+liveGalgame("c.id"), ids).
+		Scan(&live).Error; err != nil {
+		return nil, err
+	}
+	for _, id := range live {
+		out[id] = true
+	}
+	return out, nil
 }
 
 func matchWorks(ctx context.Context, cat *gorm.DB, games []matchSource) (map[int64]matchResult, error) {
@@ -193,7 +213,7 @@ LEFT JOIN catalog_release rl ON r.entity_type = %d AND rl.id = r.entity_id AND r
 WHERE r.source_id = %d AND r.link_kind = %d AND r.entity_type IN (%d, %d) AND upper(r.external_id) IN ?
   AND (r.entity_type = %d OR rl.id IS NOT NULL) AND %s`,
 		model.EntityTypeRelease, sourceDLsite, model.LinkKindExact, model.EntityTypeRelease, model.EntityTypeWork,
-		model.EntityTypeWork, liveWorks("COALESCE(rl.work_id, r.entity_id)")), rj)
+		model.EntityTypeWork, liveGalgame("COALESCE(rl.work_id, r.entity_id)")), rj)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +221,7 @@ WHERE r.source_id = %d AND r.link_kind = %d AND r.entity_type IN (%d, %d) AND up
 SELECT lower(r.external_id) AS code, r.entity_id AS work_id
 FROM catalog_external_ref r
 WHERE r.source_id = %d AND r.link_kind = %d AND r.entity_type = %d AND lower(r.external_id) IN ? AND %s`,
-		sourceDMM, model.LinkKindExact, model.EntityTypeWork, liveWorks("r.entity_id")), fanza)
+		sourceDMM, model.LinkKindExact, model.EntityTypeWork, liveGalgame("r.entity_id")), fanza)
 	if err != nil {
 		return nil, err
 	}
@@ -211,11 +231,16 @@ WHERE r.source_id = %d AND r.link_kind = %d AND r.entity_type = %d AND lower(r.e
 	}
 	var ambiguous []int64
 	for _, g := range games {
+		dlHit, fzHit, titleHit := dl[strings.ToUpper(g.DlsiteID)], fz[strings.ToLower(g.FanzaID)], tt[g.Title]
+		// The store code on a crawled page often belongs to a sibling product: 61
+		// walkthroughs for a sequel, remake or FD landed on the original because
+		// the code lane outranked a unique exact title naming the right game.
+		agrees := func(hit []int64) bool { return len(titleHit) != 1 || titleHit[0] == hit[0] }
 		switch {
-		case len(dl[strings.ToUpper(g.DlsiteID)]) == 1 && g.DlsiteID != "":
-			out[g.EntryID] = matchResult{WorkID: &dl[strings.ToUpper(g.DlsiteID)][0], Method: matchDLsite}
-		case len(fz[strings.ToLower(g.FanzaID)]) == 1 && g.FanzaID != "":
-			out[g.EntryID] = matchResult{WorkID: &fz[strings.ToLower(g.FanzaID)][0], Method: matchFanza}
+		case len(dlHit) == 1 && g.DlsiteID != "" && agrees(dlHit):
+			out[g.EntryID] = matchResult{WorkID: &dlHit[0], Method: matchDLsite}
+		case len(fzHit) == 1 && g.FanzaID != "" && agrees(fzHit):
+			out[g.EntryID] = matchResult{WorkID: &fzHit[0], Method: matchFanza}
 		case len(tt[g.Title]) == 1:
 			out[g.EntryID] = matchResult{WorkID: &tt[g.Title][0], Method: matchTitle}
 		case len(tt[g.Title]) > 1:
@@ -258,7 +283,7 @@ WITH q AS (SELECT t AS code, regexp_replace(lower(normalize(t, NFKC)), @punct, '
            FROM unnest(string_to_array(@titles, E'\x1f')) t)
 SELECT DISTINCT q.code, wt.work_id
 FROM q JOIN catalog_work_title wt ON regexp_replace(wt.title_norm, @punct, '', 'g') = q.k
-WHERE q.k <> '' AND `+liveWorks("wt.work_id"),
+WHERE q.k <> '' AND `+liveGalgame("wt.work_id"),
 		map[string]any{"punct": titlePunct, "titles": strings.Join(titles, "\x1f")}).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

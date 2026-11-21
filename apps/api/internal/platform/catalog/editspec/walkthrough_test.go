@@ -236,8 +236,13 @@ func TestWalkthroughRefusesBrokenCharts(t *testing.T) {
 	e := newWalkthroughEngine(t)
 	work := createWork(t, "w")
 	w := importedWalkthrough(t, work.ID)
+	anime := createWork(t, "anime adaptation")
+	if err := testDB.Model(anime).Update("medium_id", 4).Error; err != nil {
+		t.Fatal(err)
+	}
 	cases := map[string]map[string]any{
-		"unknown key": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) { c["prose"] = "x" })},
+		"work of another medium": {editspec.FieldWalkthroughWork: float64(anime.ID)},
+		"unknown key":            {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) { c["prose"] = "x" })},
 		"dangling ending": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) {
 			c["endings"] = []any{}
 		})},
