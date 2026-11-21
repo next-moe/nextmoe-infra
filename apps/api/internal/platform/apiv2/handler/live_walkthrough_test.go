@@ -199,3 +199,41 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	status, _, _ = liveDo(t, env, http.MethodGet, "/v2/me/walkthrough-backlog", liveAppKey, "")
 	assert.Contains(t, []int{http.StatusUnauthorized, http.StatusForbidden}, status, "the backlog is an editing face")
 }
+
+func TestLiveWalkthroughFacesShowOnlyGalgame(t *testing.T) {
+	env := liveCatalog(t)
+	var anime int16
+	require.NoError(t, env.db.Raw(`SELECT id FROM catalog_medium WHERE key = 'anime'`).Scan(&anime).Error)
+	empty := datatypes.JSON([]byte("{}"))
+	work := &model.CatalogWork{MediumID: anime, OLang: "ja", DisplayName: "Walkthrough Anime",
+		ContentRating: model.ContentRatingAllAges, Status: model.WorkStatusLive, Extra: empty, FieldProvenance: empty}
+	require.NoError(t, env.db.Create(work).Error)
+	chart := datatypes.JSON(`{"characters":[],"sections":[],"entries":[],"saves":[],"endings":[],"segments":[]}`)
+	live := &model.CatalogWalkthrough{WorkID: work.ID, SourceID: model.SourceSeiya, SourceURL: "https://seiya-saiga.com/game/anime.html",
+		ChartVersion: 1, SourceHash: "anime", ExtractModel: "test", Chart: chart}
+	require.NoError(t, env.db.Create(live).Error)
+	backlog := &model.CatalogWalkthrough{WorkID: work.ID, SourceID: model.SourceSeiya, SourceURL: "https://seiya-saiga.com/game/anime-half.html",
+		ChartVersion: 1, SourceHash: "anime-half", ExtractModel: "test", Chart: chart, Status: model.WalkthroughStatusHidden,
+		ImportReview: datatypes.JSON(`{"missed":["○"],"end_markers":2,"endings_reached":1,"coverage":0.5}`)}
+	require.NoError(t, env.db.Create(backlog).Error)
+	t.Cleanup(func() {
+		env.db.Delete(&model.CatalogWalkthrough{}, []int64{live.ID, backlog.ID})
+		env.db.Unscoped().Delete(&model.CatalogWork{}, work.ID)
+	})
+
+	status, _, _ := liveDo(t, env, http.MethodGet, "/v2/catalog/walkthroughs/"+idstr(live.ID)+"?nsfw=true", liveAppKey, "")
+	assert.Equal(t, http.StatusNotFound, status, "a walkthrough on an anime work is not served")
+	for path, key := range map[string]string{
+		"/v2/catalog/walkthroughs?nsfw=true&work_id=" + idstr(work.ID): liveAppKey,
+		"/v2/catalog/walkthroughs?ids=" + idstr(live.ID):               liveAppKey,
+		"/v2/me/walkthrough-backlog?work_id=" + idstr(work.ID):         liveUserToken,
+	} {
+		status, _, body := liveDo(t, env, http.MethodGet, path, key, "")
+		require.Equal(t, http.StatusOK, status, string(body))
+		var page struct {
+			Items []json.RawMessage `json:"items"`
+		}
+		require.NoError(t, json.Unmarshal(body, &page))
+		assert.Empty(t, page.Items, path)
+	}
+}

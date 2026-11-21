@@ -172,6 +172,14 @@ func applyWalkthroughWork(ctx context.Context, tx *gorm.DB, entityID int64, valu
 		}
 		return err
 	}
+	var galgame bool
+	if err := tx.WithContext(ctx).Raw(`SELECT EXISTS (SELECT 1 FROM catalog_work w JOIN catalog_medium m ON m.id = w.medium_id
+		WHERE w.id = ? AND m.key = 'galgame')`, *id).Scan(&galgame).Error; err != nil {
+		return err
+	}
+	if !galgame {
+		return &editing.ValidationError{Key: FieldWalkthroughWork, Reason: fmt.Sprintf("work %d is not a galgame; walkthroughs are shown only on galgame works", *id)}
+	}
 	if err := applyWalkthroughColumn("work_id", func(any) (any, error) { return *id, nil })(ctx, tx, entityID, value); err != nil {
 		return err
 	}
