@@ -16,6 +16,11 @@
 // saves is separate from the chain: it matches every downloaded save archive's
 // game to a catalog work and writes the JSONL manifest moyu's import-saves
 // uploads from. Nothing is written to either database.
+//
+// repair is separate too and needs only --dsn: it moves walkthroughs off
+// non-galgame works by a reviewed --plan TSV (walkthrough_id, current work_id,
+// galgame work_id or "hide"), re-pins their characters on the new roster, and
+// stamps the move curated so a later apply keeps it (dry unless --apply).
 package main
 
 import (
@@ -38,10 +43,11 @@ import (
 )
 
 func main() {
-	stage := flag.String("stage", "", "extract | regate | match | translate | apply | saves (REQUIRED)")
-	sourceDSN := flag.String("source-dsn", "", "walkthrough_save DSN (REQUIRED)")
-	dsn := flag.String("dsn", "", "catalog DSN (required by match, translate and apply)")
-	apply := flag.Bool("apply", false, "apply stage: write catalog rows (default: dry)")
+	stage := flag.String("stage", "", "extract | regate | match | translate | apply | saves | repair (REQUIRED)")
+	sourceDSN := flag.String("source-dsn", "", "walkthrough_save DSN (REQUIRED, except by repair)")
+	dsn := flag.String("dsn", "", "catalog DSN (required by match, translate, apply and repair)")
+	apply := flag.Bool("apply", false, "apply and repair stages: write catalog rows (default: dry)")
+	plan := flag.String("plan", "", "repair stage: TSV of walkthrough_id, work_id, target galgame work_id or 'hide'")
 	entryIDs := flag.String("entry-ids", "", "comma-separated source entry ids instead of every chart page")
 	limit := flag.Int("limit", 0, "max source entries this run (0 = all)")
 	redo := flag.Bool("redo", false, "re-run entries whose stored result is already settled")
@@ -56,6 +62,20 @@ func main() {
 
 	logger.Init("development")
 
+	if *stage == "repair" {
+		rows, err := loadRepairPlan(*plan)
+		if err != nil {
+			slog.Error("load repair plan", "error", err)
+			os.Exit(2)
+		}
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		if err := runRepair(ctx, openCatalog(*dsn), rows, *apply); err != nil {
+			slog.Error("run failed", "stage", *stage, "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if *sourceDSN == "" {
 		slog.Error("--source-dsn is required")
 		os.Exit(2)
@@ -105,7 +125,7 @@ func main() {
 	case "translate":
 		err = runTranslate(ctx, src, openCatalog(*dsn), newLLM(), entries, extractOpts{Workers: *workers, MaxTokens: *maxTokens, Redo: *redo})
 	default:
-		slog.Error("--stage must be extract, regate, match, translate, apply or saves", "value", *stage)
+		slog.Error("--stage must be extract, regate, match, translate, apply, saves or repair", "value", *stage)
 		os.Exit(2)
 	}
 	if err != nil {

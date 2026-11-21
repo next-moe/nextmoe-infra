@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,9 +37,9 @@ var sourceKey = map[int16]string{
 }
 
 type applyStats struct {
-	Written, Unchanged, Skipped int
-	Pinned, Created, Retired    int
-	Edited, HiddenForReview     int
+	Written, Unchanged, Skipped, NotGalgame int
+	Pinned, Created, Retired                int
+	Edited, HiddenForReview                 int
 }
 
 func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, apply bool) error {
@@ -46,6 +48,10 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 		return err
 	}
 	works, err := loadWorkMatches(ctx, src, keysOf(charts))
+	if err != nil {
+		return err
+	}
+	galgame, err := liveGalgameWorks(ctx, cat, slices.Collect(maps.Values(works)))
 	if err != nil {
 		return err
 	}
@@ -76,6 +82,10 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 		workID, ok := works[id]
 		if !ok {
 			st.Skipped++
+			continue
+		}
+		if !galgame[workID] {
+			st.NotGalgame++
 			continue
 		}
 		e := byID[id]
@@ -118,8 +128,8 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 			return err
 		}
 	}
-	fmt.Printf("written=%d unchanged=%d kept_edited=%d hidden_for_review=%d skipped_unmatched=%d characters_pinned=%d characters_created=%d placeholders_retired=%d\n",
-		st.Written, st.Unchanged, st.Edited, st.HiddenForReview, st.Skipped, st.Pinned, st.Created, st.Retired)
+	fmt.Printf("written=%d unchanged=%d kept_edited=%d hidden_for_review=%d skipped_unmatched=%d skipped_not_galgame=%d characters_pinned=%d characters_created=%d placeholders_retired=%d\n",
+		st.Written, st.Unchanged, st.Edited, st.HiddenForReview, st.Skipped, st.NotGalgame, st.Pinned, st.Created, st.Retired)
 	if !apply {
 		fmt.Println("[dry run] nothing written — re-run with --apply")
 	}
@@ -142,6 +152,7 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 			w.Status = existing.Status
 		}
 		if provenance.IsHuman(provenance.FirstSource(existing.FieldProvenance, "work_id")) {
+			curatedPins = curatedPins || existing.WorkID != w.WorkID
 			w.WorkID = existing.WorkID
 		}
 	case err != gorm.ErrRecordNotFound:
@@ -186,39 +197,53 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 		return tx.Where("walkthrough_id = ? AND chart_key NOT IN ?", w.ID, keys).
 			Delete(&model.CatalogWalkthroughCharacter{}).Error
 	}
+	return linkCharacters(tx, w, c, pins, links, st)
+}
 
-	var keep []string
+func planLinks(c walkthrough.Chart, pins map[string]characterPin, links map[string]int64) (map[string]characterPin, []walkthrough.Character) {
+	set := map[string]characterPin{}
+	var create []walkthrough.Character
 	for _, ch := range c.Characters {
-		keep = append(keep, ch.Key)
-		rule := ""
 		id, linked := links[ch.Key]
 		if p, ok := pins[ch.Key]; ok {
-			if linked && id == p.CharacterID {
-				continue
+			if !linked || id != p.CharacterID {
+				set[ch.Key] = p
 			}
-			id, rule = p.CharacterID, p.Rule
-			st.Pinned++
 		} else if !linked {
-			created, err := createNameOnlyCharacter(tx, w.WorkID, w.SourceID, ch)
-			if err != nil {
-				return err
-			}
-			id, rule = created, matchedByWalkthrough
-			st.Created++
+			create = append(create, ch)
 		}
-		if rule == "" {
+	}
+	return set, create
+}
+
+func linkCharacters(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Chart, pins map[string]characterPin, links map[string]int64, st *applyStats) error {
+	set, create := planLinks(c, pins, links)
+	st.Pinned += len(set)
+	st.Created += len(create)
+	for _, ch := range create {
+		id, err := createNameOnlyCharacter(tx, w.WorkID, w.SourceID, ch)
+		if err != nil {
+			return err
+		}
+		set[ch.Key] = characterPin{CharacterID: id, Rule: matchedByWalkthrough}
+	}
+	keep := []string{""}
+	for _, ch := range c.Characters {
+		keep = append(keep, ch.Key)
+		p, ok := set[ch.Key]
+		if !ok {
 			continue
 		}
 		if err := tx.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "walkthrough_id"}, {Name: "chart_key"}},
 			DoUpdates: clause.AssignmentColumns([]string{"character_id", "matched_by"}),
 		}).Create(&model.CatalogWalkthroughCharacter{
-			WalkthroughID: w.ID, ChartKey: ch.Key, CharacterID: id, MatchedBy: rule,
+			WalkthroughID: w.ID, ChartKey: ch.Key, CharacterID: p.CharacterID, MatchedBy: p.Rule,
 		}).Error; err != nil {
 			return err
 		}
 	}
-	return tx.Where("walkthrough_id = ? AND chart_key NOT IN ?", w.ID, append(keep, "")).
+	return tx.Where("walkthrough_id = ? AND chart_key NOT IN ?", w.ID, keep).
 		Delete(&model.CatalogWalkthroughCharacter{}).Error
 }
 
