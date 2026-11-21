@@ -9,12 +9,16 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"api/internal/platform/catalog/introguard"
 	"api/internal/platform/catalog/repository"
 
 	"gorm.io/gorm"
 )
 
-const langZhHans = "zh-Hans"
+const (
+	langZhHans     = "zh-Hans"
+	workIntroTable = "catalog_work_intro"
+)
 
 type decision int
 
@@ -50,12 +54,13 @@ func hashSource(s string) string {
 }
 
 type runner struct {
-	db      *gorm.DB
-	tr      Translator
-	stats   *Stats
-	force   bool
-	mu      sync.Mutex
-	touched []int64
+	db       *gorm.DB
+	tr       Translator
+	stats    *Stats
+	force    bool
+	rejected introguard.Rejections
+	mu       sync.Mutex
+	touched  []int64
 }
 
 func (r *runner) markTouched(workID int64) {
@@ -107,7 +112,19 @@ func (r *runner) process(ctx context.Context, cands []candidate, apply bool, del
 }
 
 func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time.Duration, idx int) {
+	if c.NoSource {
+		r.clearIfMachine(ctx, c, apply)
+		return
+	}
 	dec, hash := decide(c, r.force)
+	if dec == decSkipSame && c.MZhText != nil && introguard.Reject(c.JaText, *c.MZhText) != "" {
+		r.inc(&r.stats.WouldHeal)
+		dec = decRetrans
+	}
+	if dec != decSkipSame && r.rejected.Has(c.WorkID, hash) {
+		r.inc(&r.stats.SkipRejected)
+		return
+	}
 	switch dec {
 	case decSkipSame:
 		r.inc(&r.stats.SkipUnchanged)
@@ -154,6 +171,11 @@ func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time
 		return
 	}
 
+	if reason := introguard.Reject(c.JaText, zh); reason != "" {
+		r.reject(ctx, c, hash, reason, mtModel, zh)
+		return
+	}
+
 	rows, pruned, err := r.writeMachine(ctx, c, zh, hash, mtModel)
 	if err != nil {
 		r.inc(&r.stats.Errors)
@@ -175,6 +197,57 @@ func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time
 		r.inc(&r.stats.Inserted)
 	}
 	r.finishSample(sample, zh, mtModel)
+}
+
+// reject records why the model's answer was refused and clears the work's
+// machine rows: the row on this source is junk (the heal path) or translates a
+// text the source no longer holds, and the memo keeps the next nights from
+// asking again.
+func (r *runner) reject(ctx context.Context, c candidate, hash, reason, mtModel, zh string) {
+	r.inc(&r.stats.Rejected)
+	slog.Warn("translation refused — not a translation of the source",
+		"work", c.WorkID, "reason", reason, "src_runes", utf8.RuneCountInString(c.JaText), "zh", firstRunes(zh, 120))
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := introguard.RecordRejection(ctx, tx, workIntroTable, c.WorkID, c.JaSourceID, hash, reason, mtModel, zh); err != nil {
+			return err
+		}
+		n, err := r.deleteMachine(tx, c.WorkID)
+		if n > 0 {
+			r.inc(&r.stats.Cleared)
+			r.markTouched(c.WorkID)
+		}
+		return err
+	})
+	if err != nil {
+		r.inc(&r.stats.Errors)
+		slog.Warn("record refused translation", "work", c.WorkID, "err", err)
+	}
+}
+
+func (r *runner) clearIfMachine(ctx context.Context, c candidate, apply bool) {
+	r.inc(&r.stats.Untranslatable)
+	if !c.HasMachine {
+		return
+	}
+	r.inc(&r.stats.WouldClear)
+	if !apply {
+		return
+	}
+	n, err := r.deleteMachine(r.db.WithContext(ctx), c.WorkID)
+	if err != nil {
+		r.inc(&r.stats.Errors)
+		slog.Warn("clear machine intros of an untranslatable work", "work", c.WorkID, "err", err)
+		return
+	}
+	if n > 0 {
+		r.inc(&r.stats.Cleared)
+		r.markTouched(c.WorkID)
+	}
+}
+
+func (r *runner) deleteMachine(db *gorm.DB, workID int64) (int64, error) {
+	res := db.Exec(`DELETE FROM catalog_work_intro WHERE work_id = ? AND lang = ? AND provenance = 1`, workID, langZhHans)
+	return res.RowsAffected, res.Error
 }
 
 func (r *runner) pruneIfStray(ctx context.Context, c candidate, apply bool) {

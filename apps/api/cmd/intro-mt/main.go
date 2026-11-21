@@ -19,7 +19,7 @@ func main() {
 	dsn := flag.String("dsn", "", "catalog DSN (REQUIRED; rehearsal locally, live catalog only in the acceptance run)")
 	apply := flag.Bool("apply", false, "translate + write (default: dry — counts + samples, no LLM, no writes)")
 	population := flag.String("population", string(intromt.PopulationBodyless), "candidate lane: bodyless | claimed | published (claimed narrowed to the public face)")
-	sourceLang := flag.String("source-lang", string(intromt.SourceJa), "translate FROM: ja (default) or en (last resort — excludes anything with ja, and anything Getchu anchors)")
+	sourceLang := flag.String("source-lang", string(intromt.SourceJa), "translate FROM: ja (default) or en (last resort — only works with no translatable ja intro)")
 	top := flag.Int("top", 5000, "popularity-ranked candidate ceiling (0 = unlimited, the full-sweep posture)")
 	limit := flag.Int("limit", 0, "process only the most-popular N candidates (0 = all within --top)")
 	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id (recorded in mt_model)")
@@ -31,6 +31,7 @@ func main() {
 	workers := flag.Int("workers", 1, "apply-mode concurrency (per-request latency dominates; 8 ≈ 10 req/min, far under gateway rate limits)")
 	workIDs := flag.String("work-ids", "", "comma-separated work ids — the named list IS the population, so --top stops applying")
 	force := flag.Bool("force", false, "retranslate even when src_hash is unchanged (the prompt is not in the hash, so a prompt rewrite needs this)")
+	changedSince := flag.Duration("changed-since", 0, "only works with an intro row written within this window (e.g. 2h) — the frequent pass after editor saves; 0 = the whole population")
 	effort := flag.String("effort", "", "reasoning effort: low | medium | high (empty = the gateway's own default; a reasoning model needs low or it thinks for minutes about a translation)")
 	flag.Parse()
 
@@ -69,7 +70,8 @@ func main() {
 	st, err := intromt.Run(context.Background(), tr, intromt.Opts{
 		DSN: *dsn, Apply: *apply, Population: intromt.Population(*population),
 		SourceLang: intromt.SourceLang(*sourceLang), Top: *top, Limit: *limit,
-		WorkIDs: ids, Force: *force,
+		ChangedSince: *changedSince,
+		WorkIDs:      ids, Force: *force,
 		Delay:   time.Duration(*delayMS) * time.Millisecond,
 		Workers: *workers,
 	})
@@ -91,9 +93,11 @@ func printReport(st *intromt.Stats, apply bool) {
 	fmt.Printf("\n=== intro-mt %s ===\n", modeLabel(apply))
 	fmt.Printf("candidates=%d with_glossary=%d would_insert=%d would_retranslate=%d skip_unchanged=%d would_prune=%d\n",
 		st.Candidates, st.WithGlossary, st.WouldInsert, st.WouldRetranslate, st.SkipUnchanged, st.WouldPrune)
+	fmt.Printf("untranslatable=%d would_clear=%d would_heal=%d skip_rejected=%d\n",
+		st.Untranslatable, st.WouldClear, st.WouldHeal, st.SkipRejected)
 	if apply {
-		fmt.Printf("inserted=%d retranslated=%d refused=%d errors=%d pruned=%d\n",
-			st.Inserted, st.Retranslated, st.Refused, st.Errors, st.Pruned)
+		fmt.Printf("inserted=%d retranslated=%d refused=%d errors=%d pruned=%d rejected=%d cleared=%d\n",
+			st.Inserted, st.Retranslated, st.Refused, st.Errors, st.Pruned, st.Rejected, st.Cleared)
 	}
 	for i, s := range st.Samples {
 		fmt.Printf("\n--- sample %d (work %d, %s%s) ---\n", i+1, s.WorkID, s.Decision, modelSuffix(s.MTModel))

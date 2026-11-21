@@ -6,6 +6,7 @@ import (
 
 	"api/internal/jobs/workpop"
 	"api/internal/platform/catalog/editspec"
+	"api/internal/platform/catalog/introguard"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -49,13 +50,19 @@ func resolveRegistry(ctx context.Context, db *gorm.DB) (registry, error) {
 
 type candidate struct {
 	WorkID     int64    `gorm:"column:work_id"`
+	SrcLang    string   `gorm:"column:src_lang"`
 	JaSourceID int16    `gorm:"column:ja_source_id"`
 	JaText     string   `gorm:"column:ja_text"`
 	MZhID      *int64   `gorm:"column:mzh_id"`
 	MZhSrcHash *string  `gorm:"column:mzh_src_hash"`
+	MZhText    *string  `gorm:"column:mzh_text"`
 	MZhStrays  bool     `gorm:"column:mzh_strays"`
+	HasMachine bool     `gorm:"column:has_machine"`
 	PopScore   int64    `gorm:"column:pop_score"`
 	Gloss      Glossary `gorm:"-"`
+	// NoSource marks a work whose every ja and en intro is untranslatable
+	// (introguard.Untranslatable): its machine rows are cleared, not refreshed.
+	NoSource bool `gorm:"-"`
 }
 
 func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Population, src SourceLang, top, limit int, workIDs []int64) ([]candidate, error) {
@@ -64,11 +71,6 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 	}
 	if src != SourceJa && src != SourceEn {
 		return nil, fmt.Errorf("unknown source language %q (want %q or %q)", src, SourceJa, SourceEn)
-	}
-	lastResortGate := ""
-	if src == SourceEn {
-		lastResortGate = `
-		  AND NOT EXISTS (SELECT 1 FROM catalog_work_intro j WHERE j.work_id = b.id AND j.lang = 'ja')`
 	}
 	// A named list is the whole request, so the popularity ceiling stops
 	// applying: --work-ids with the default --top 5000 would take the 5,000
@@ -79,7 +81,7 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 		return nil, err
 	}
 	idGate := ``
-	args := []any{reg.galgameMedium, string(src),
+	args := []any{reg.galgameMedium,
 		reg.dlsiteSource, model.PopularityMetricDownloads,
 		reg.dlsiteSource, model.PopularityMetricWishlist}
 	if len(workIDs) > 0 {
@@ -87,15 +89,12 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 		  AND b.id IN (?)`
 		args = append(args, workIDs)
 	}
-	limitClause := ` LIMIT ?`
-	if unlimited {
-		limitClause = ``
-	} else {
-		args = append(args, top)
-	}
-	// Comparing against the lowest-source machine row while the write landed on the
-	// chosen source retranslated ~700 works every night and left readers on the
-	// older row (2026-09-18).
+	// Every ja and en row comes back, best first, because which one is the
+	// source is decided in Go: the reader's top ja row can be "-" or "<br />"
+	// (81 curated works on 2026-11-21), and translating the en row under it beats
+	// translating nothing. Comparing against the lowest-source machine row while
+	// the write landed on the chosen source retranslated ~700 works every night
+	// and left readers on the older row (2026-09-18), so mzh joins per row.
 	q := db.WithContext(ctx).Raw(`
 		WITH pool AS (
 			SELECT id FROM catalog_work
@@ -106,13 +105,13 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 			SELECT DISTINCT work_id FROM catalog_work_intro
 			WHERE lang IN ('zh-Hans','zh-Hant') AND provenance = 0
 		),
-		ja AS (
-			SELECT DISTINCT ON (work_id) work_id, source_id AS ja_source_id, intro AS ja_text
-			FROM catalog_work_intro WHERE lang = ? AND `+editspec.NotSuppressedWorkIntroSQL("catalog_work_intro")+`
-			ORDER BY work_id, `+editspec.IntroFoldOrderSQL("source_id", "provenance")+`
+		src AS (
+			SELECT work_id, lang, source_id, intro,
+				row_number() OVER (PARTITION BY work_id ORDER BY (lang <> 'ja'), `+editspec.IntroFoldOrderSQL("source_id", "provenance")+`) AS rk
+			FROM catalog_work_intro WHERE lang IN ('ja','en') AND `+editspec.NotSuppressedWorkIntroSQL("catalog_work_intro")+`
 		),
 		mzh AS (
-			SELECT work_id, source_id, id AS mzh_id, src_hash AS mzh_src_hash
+			SELECT work_id, source_id, id AS mzh_id, src_hash AS mzh_src_hash, intro AS mzh_text
 			FROM catalog_work_intro WHERE lang = 'zh-Hans' AND provenance = 1
 		),
 		pop AS (
@@ -121,35 +120,70 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 				max(value) FILTER (WHERE source_id = ? AND metric = ?) AS wl
 			FROM catalog_work_popularity GROUP BY work_id
 		)
-		SELECT b.id AS work_id, ja.ja_source_id, ja.ja_text,
-			mzh.mzh_id, mzh.mzh_src_hash,
+		SELECT b.id AS work_id, src.lang AS src_lang, src.source_id AS ja_source_id, src.intro AS ja_text,
+			mzh.mzh_id, mzh.mzh_src_hash, mzh.mzh_text,
 			EXISTS (
 				SELECT 1 FROM catalog_work_intro stray
 				WHERE stray.work_id = b.id
 				  AND stray.lang = 'zh-Hans'
 				  AND stray.provenance = 1
-				  AND stray.source_id <> ja.ja_source_id
+				  AND stray.source_id <> src.source_id
 			) AS mzh_strays,
+			EXISTS (
+				SELECT 1 FROM catalog_work_intro m
+				WHERE m.work_id = b.id AND m.lang = 'zh-Hans' AND m.provenance = 1
+			) AS has_machine,
 			COALESCE(pop.dl, pop.wl, 0) AS pop_score
 		FROM pool b
-		JOIN ja ON ja.work_id = b.id
+		JOIN src ON src.work_id = b.id
 		LEFT JOIN has_zh_source hs ON hs.work_id = b.id
-		LEFT JOIN mzh ON mzh.work_id = b.id AND mzh.source_id = ja.ja_source_id
+		LEFT JOIN mzh ON mzh.work_id = b.id AND mzh.source_id = src.source_id
 		LEFT JOIN pop ON pop.work_id = b.id
-		WHERE hs.work_id IS NULL`+lastResortGate+idGate+`
-		ORDER BY COALESCE(pop.dl, pop.wl, 0) DESC, b.id ASC`+limitClause,
+		WHERE hs.work_id IS NULL`+idGate+`
+		ORDER BY COALESCE(pop.dl, pop.wl, 0) DESC, b.id ASC, src.rk ASC`,
 		args...)
-	var out []candidate
-	if err := q.Scan(&out).Error; err != nil {
+	var rows []candidate
+	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	for i := range out {
-		out[i].JaText = sanitizeSource(out[i].JaText)
+	var out []candidate
+	works := 0
+	for i := 0; i < len(rows); {
+		j := i
+		for j < len(rows) && rows[j].WorkID == rows[i].WorkID {
+			j++
+		}
+		works++
+		if !unlimited && works > top {
+			break
+		}
+		if c, ok := pickSource(rows[i:j], src); ok {
+			out = append(out, c)
+		}
+		i = j
 	}
 	if limit > 0 && limit < len(out) {
 		out = out[:limit]
 	}
 	return out, nil
+}
+
+// pickSource returns the work's candidate for this lane: its first
+// translatable row when that row is in the lane's language. A work with no
+// translatable row belongs to the ja lane when it has any ja row, else to the
+// en lane, so exactly one lane clears it.
+func pickSource(rows []candidate, lane SourceLang) (candidate, bool) {
+	for _, r := range rows {
+		r.JaText = sanitizeSource(r.JaText)
+		if introguard.Untranslatable(r.JaText) {
+			continue
+		}
+		return r, r.SrcLang == string(lane)
+	}
+	c := rows[0]
+	c.NoSource = true
+	c.JaText = sanitizeSource(c.JaText)
+	return c, c.SrcLang == string(lane)
 }
 
 // sitePredicateFor renders a population as a catalog_work predicate, over
