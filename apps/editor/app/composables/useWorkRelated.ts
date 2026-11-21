@@ -51,6 +51,7 @@ export interface RelatedRelease {
   freeware: boolean
   official: boolean
   minAge: number | null
+  engine: { id: string; name: string } | null
 }
 
 interface RelatedDisplay {
@@ -132,7 +133,13 @@ const releaseOf = (raw: Loose): RelatedRelease => ({
   languages: ((raw.languages as string[] | undefined) ?? []).map(String),
   freeware: raw.freeware === true,
   official: raw.official !== false,
-  minAge: typeof raw.min_age === 'number' ? raw.min_age : null
+  minAge: typeof raw.min_age === 'number' ? raw.min_age : null,
+  engine: raw.engine
+    ? {
+        id: str((raw.engine as Loose).id),
+        name: str((raw.engine as Loose).display_name)
+      }
+    : null
 })
 
 const byId = <T extends { id: string }>(items: T[]) =>

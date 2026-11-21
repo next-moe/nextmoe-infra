@@ -48,7 +48,8 @@ export const ENTITY_META: Record<EditFamily, EntityMeta> = {
     searchable: true,
     listQuery: true,
     searchVia: 'list',
-    searchHint: '按发行标题或所属作品的标题搜索；作品标题也匹配前缀、拼音与别名。'
+    searchHint:
+      '按发行标题或所属作品的标题搜索；作品标题也匹配前缀、拼音与别名。'
   },
   character: {
     family: 'character',
@@ -70,7 +71,8 @@ export const ENTITY_META: Record<EditFamily, EntityMeta> = {
     searchable: true,
     listQuery: true,
     searchVia: 'list',
-    searchHint: '按人物公开的署名名搜索，前缀、拼音与别名都能命中，结果按相关度排列。'
+    searchHint:
+      '按人物公开的署名名搜索，前缀、拼音与别名都能命中，结果按相关度排列。'
   },
   credit_name: {
     family: 'credit_name',
@@ -298,7 +300,7 @@ export const CHARACTER_EDIT_CONFIG: EditEntityConfig = {
       control: 'objectList',
       help: '人工添加的特质可以直接修改；资料源导入的特质可以单独隐藏。',
       members: {
-        trait_id: { label: '特质', ref: 'trait' },
+        trait_id: { label: '特质', ref: 'trait', applicableOnly: true },
         spoiler: { label: '剧透' },
         lie: { label: '是谎言' }
       }

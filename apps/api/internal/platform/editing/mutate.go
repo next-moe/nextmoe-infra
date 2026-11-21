@@ -56,8 +56,8 @@ func (e *Engine) CreateProposal(ctx context.Context, in CreateProposalInput) (*P
 		if !pol.AllowsPropose(in.Actor) {
 			return nil, nil, &PermissionError{Key: key, Action: "propose"}
 		}
-		if err := f.Validate(in.Patch[key]); err != nil {
-			return nil, nil, &ValidationError{Key: key, Reason: err.Error()}
+		if err := f.validate(ctx, e.db.WithContext(ctx), key, in.Patch[key]); err != nil {
+			return nil, nil, err
 		}
 		pols[key] = pol
 		if pol.Automerge == AutomergeOwner {
@@ -177,8 +177,8 @@ func (e *Engine) AmendProposal(ctx context.Context, proposalID int64, in AmendIn
 			if !pol.AllowsReview(in.Actor) {
 				return &PermissionError{Key: key, Action: "review"}
 			}
-			if err := f.Validate(in.Set[key]); err != nil {
-				return &ValidationError{Key: key, Reason: err.Error()}
+			if err := f.validate(ctx, etx, key, in.Set[key]); err != nil {
+				return err
 			}
 		}
 		for _, key := range in.Unset {

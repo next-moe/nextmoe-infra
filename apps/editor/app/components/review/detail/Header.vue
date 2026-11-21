@@ -21,7 +21,7 @@ const state = computed(
   <KunCard bordered padding="md" content-class="space-y-2">
     <div class="flex flex-wrap items-center gap-2">
       <h1 class="sr-only">审核 {{ props.name }}</h1>
-      <div class="text-foreground text-lg font-semibold">
+      <div class="text-foreground max-w-full min-w-0 text-lg font-semibold">
         <CommonEntityLink
           :family="props.proposal.target_object"
           :id="props.proposal.entity_id"
