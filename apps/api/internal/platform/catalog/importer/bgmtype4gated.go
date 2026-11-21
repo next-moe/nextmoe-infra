@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strconv"
 
+	"api/internal/platform/catalog/gamescope"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/service"
 	"api/internal/platform/catalog/srcbangumi"
@@ -39,6 +40,7 @@ const (
 	sqlGenreAdv    = `array['ADV','AVG']`
 	sqlAgeRated    = `array['R18','全年龄']`
 	sqlGalgameFolk = `array['galgame','黄油','エロゲ','エロゲー','美少女ゲーム','ギャルゲー']`
+	sqlMetaVN      = `array['Galgame','galgame','VN','乙女','AVG','ADV']`
 )
 
 var dlsiteGameTypes = []string{
@@ -49,6 +51,7 @@ var dlsiteGameTypes = []string{
 type BgmGatedStats struct {
 	PoolTotal             int
 	ExcludedConsoleMobile int
+	ExcludedNonVN         int
 	EligiblePool          int
 
 	SigP, SigT, SigX, SigA     int
@@ -109,6 +112,8 @@ type poolRow struct {
 	SigP       bool   `gorm:"column:sig_p"`
 	SigT       bool   `gorm:"column:sig_t"`
 	Excluded   bool   `gorm:"column:excluded"`
+	MetaVN     bool   `gorm:"column:meta_vn"`
+	Genre      string `gorm:"column:genre"`
 }
 
 type wtNorm struct {
@@ -152,6 +157,10 @@ func (im *Importer) RunBgmType4Gated(dlsiteDB *gorm.DB) (BgmGatedStats, error) {
 		st.PoolTotal++
 		if r.Excluded {
 			st.ExcludedConsoleMobile++
+			continue
+		}
+		if !r.NSFW && !r.MetaVN && gamescope.NonVNGenre(r.Genre) {
+			st.ExcludedNonVN++
 			continue
 		}
 		st.EligiblePool++
@@ -392,6 +401,7 @@ func (im *Importer) screenGatedChunk(tx *gorm.DB, chunk []candidate, works []mod
 func logBgmGated(st *BgmGatedStats, dry bool) {
 	slog.Info("bgm-type4-gated survey",
 		"dry", dry, "pool_total", st.PoolTotal, "excluded_console_mobile", st.ExcludedConsoleMobile,
+		"excluded_non_vn", st.ExcludedNonVN,
 		"eligible_pool", st.EligiblePool, "sig_p", st.SigP, "sig_t", st.SigT, "sig_x", st.SigX,
 		"gated_total", st.GatedTotal, "p_and_t", st.PT, "p_and_x", st.PX, "t_and_x", st.TX, "all_three", st.All3,
 		"p_only", st.POnly, "t_only", st.TOnly, "x_only", st.XOnly, "sig_a", st.SigA, "a_only", st.AOnly,

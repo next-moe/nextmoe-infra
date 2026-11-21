@@ -37,6 +37,7 @@ type Stats struct {
 	MintedLive         int
 	EditionFolded      int
 	RejectedSkips      int
+	OutOfScope         int
 	Limited            int
 	RefsPlanned        int
 	CandidatesPlanned  int
@@ -215,6 +216,7 @@ func logSummary(st Stats) {
 		"minted_live", st.MintedLive,
 		"edition_folded", st.EditionFolded,
 		"rejected_skips", st.RejectedSkips,
+		"out_of_scope", st.OutOfScope,
 		"limited", st.Limited,
 		"refs_planned", st.RefsPlanned,
 		"candidates_planned", st.CandidatesPlanned,

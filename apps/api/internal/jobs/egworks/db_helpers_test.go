@@ -51,8 +51,10 @@ func TestMain(m *testing.M) {
 						model text,
 						brand_id bigint,
 						erogame boolean,
+						genre text,
 						vndb text,
 						dlsite_id text)`,
+					`ALTER TABLE egworks_eg.games ADD COLUMN IF NOT EXISTS genre text`,
 					`CREATE TABLE IF NOT EXISTS egworks_eg.game_relations (
 						game_subject bigint,
 						game_object bigint,
@@ -175,10 +177,10 @@ func mkWorkLabel(t *testing.T, workID, labelID int64) {
 func insertGame(t *testing.T, g game) {
 	t.Helper()
 	require.NoError(t, testDB.Exec(
-		`INSERT INTO egworks_eg.games (id, gamename, furigana, sellday, model, brand_id, erogame)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO egworks_eg.games (id, gamename, furigana, sellday, model, brand_id, erogame, genre)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		g.ID, nullIfEmpty(g.Gamename), nullIfEmpty(g.Furigana), nullIfEmpty(g.Sellday),
-		nullIfEmpty(g.Model), nullIfZero(g.BrandID), g.Erogame,
+		nullIfEmpty(g.Model), nullIfZero(g.BrandID), g.Erogame, nullIfEmpty(g.Genre),
 	).Error)
 }
 

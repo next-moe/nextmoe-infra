@@ -1,6 +1,10 @@
 package importer
 
-import "sort"
+import (
+	"sort"
+
+	"api/internal/platform/catalog/gamescope"
+)
 
 func (s *dlGamesSnap) buildGroups() []dlGameGroup {
 	var nodes []string
@@ -79,13 +83,18 @@ func (s *dlGamesSnap) decideGroup(g dlGameGroup, st *DLsiteGamesStats) dlGamePla
 		return dlGamePlan{kind: "split", members: g.pop}
 	}
 	hits := s.filterHits(g, s.titleHits(g), st)
-	switch {
-	case len(hits) == 1:
-		rule, ok := s.corroborated(g, hits[0])
-		if ok {
+	if len(hits) == 1 {
+		if rule, ok := s.corroborated(g, hits[0]); ok {
 			st.TitleAttachedGroups++
 			return s.attachPlan(g, hits[0], rule, st)
 		}
+	}
+	if g.allAgesNonVN() {
+		st.OutOfScopeGroups++
+		return dlGamePlan{}
+	}
+	switch {
+	case len(hits) == 1:
 		// Uncorroborated unique title hits were the anchored work 3,296 of 3,540
 		// times (93.1%) on the 2026-09-18 hold-out; corroborated hits were 10,109
 		// of 10,137 (99.72%). An attach is silent, so uncorroborated hits mint
@@ -96,6 +105,15 @@ func (s *dlGamesSnap) decideGroup(g dlGameGroup, st *DLsiteGamesStats) dlGamePla
 	default:
 		return s.mintPlan(g, nil, false, st)
 	}
+}
+
+func (g dlGameGroup) allAgesNonVN() bool {
+	for _, p := range g.pop {
+		if !gamescope.DLsiteNonVN(p.workType, p.age) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *dlGamesSnap) editionWorks(g dlGameGroup) []int64 {

@@ -21,9 +21,13 @@ func buildBgmGatedPoolQuery() string {
 		` AND lower(tg->>'name') = ANY(` + sqlGalgameFolk + `) AND coalesce((tg->>'count')::int,0) >= 3)`
 	sigA := `s.nsfw OR (` + metaArr + ` AND ` + ex(`R18`) + `)`
 	excluded := metaArr + ` AND ` + exAny(sqlConsoleMobile) + ` AND NOT ` + exAny(sqlPCFamily)
+	metaVN := metaArr + ` AND ` + exAny(sqlMetaVN)
+	genre := `SELECT f->>'Value' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(s.infobox_parsed->'Fields')='array'` +
+		` THEN s.infobox_parsed->'Fields' ELSE '[]'::jsonb END) f WHERE f->>'Key'='游戏类型' LIMIT 1`
 	return `SELECT s.id AS id, coalesce(s.name,'') AS name, coalesce(s.name_cn,'') AS name_cn,
 			coalesce(s.name_norm,'') AS name_norm, coalesce(s.name_cn_norm,'') AS name_cn_norm, (` + sigA + `) AS nsfw,
-			(` + sigP + `) AS sig_p, (` + sigT + `) AS sig_t, (` + excluded + `) AS excluded
+			(` + sigP + `) AS sig_p, (` + sigT + `) AS sig_t, (` + excluded + `) AS excluded,
+			coalesce(` + metaVN + `, false) AS meta_vn, coalesce((` + genre + `), '') AS genre
 		FROM src_bangumi.subject s
 		WHERE s.type = 4
 			AND NOT EXISTS (SELECT 1 FROM catalog_external_ref e
