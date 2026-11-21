@@ -62,7 +62,7 @@ func clean(t *testing.T) {
 	for _, table := range []string{"catalog_external_ref", "catalog_release"} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" CASCADE").Error)
 	}
-	for _, table := range []string{"catalog_work_intro", "catalog_work_popularity", "catalog_work"} {
+	for _, table := range []string{"catalog_work_intro", "catalog_work_popularity", "catalog_work", "catalog_intro_mt_rejection"} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" RESTART IDENTITY CASCADE").Error)
 	}
 }

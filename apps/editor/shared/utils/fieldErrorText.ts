@@ -4,6 +4,13 @@ const sameKey: MemberLabeler = (_fieldKey, member) => member
 
 const MEMBER_WORDS: Record<string, string> = { URL: '链接' }
 
+const INTRO_LANGS: Record<string, string> = {
+  ja: '日语',
+  en: '英语',
+  'zh-Hans': '简体中文',
+  'zh-Hant': '繁体中文'
+}
+
 type Rule = [
   RegExp,
   (match: RegExpMatchArray, member: (raw?: string) => string) => string
@@ -49,7 +56,12 @@ const RULES: Rule[] = [
     /^(\w+) must be a positive id/,
     (m, member) => `请选择有效的${member(m[1])}`
   ],
-  [/ is locked$/, () => '这一项已锁定，不接受修改']
+  [/ is locked$/, () => '这一项已锁定，不接受修改'],
+  [
+    /^the (\S+) intro has no description in it/,
+    (m) =>
+      `${INTRO_LANGS[m[1]!] ?? m[1]}简介里没有正文，只有链接、标点或从网页上复制来的提示文字，请删除这一栏或写上真正的简介`
+  ]
 ]
 
 const TECHNICAL =

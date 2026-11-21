@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"api/internal/platform/catalog/introguard"
 	catmodel "api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -57,8 +58,34 @@ func parseIntros(v any) ([]workIntro, error) {
 }
 
 func validateIntros(v any) error {
-	_, err := parseIntros(v)
-	return err
+	intros, err := parseIntros(v)
+	if err != nil {
+		return err
+	}
+	for i, in := range intros {
+		if introguard.Untranslatable(in.Intro) {
+			return fmt.Errorf("element %d: the %s intro has no description in it, only links, punctuation or text copied from a site's page; remove it or write the intro", i, in.Lang)
+		}
+	}
+	return nil
+}
+
+// sourceLangChanged reports whether an intro edit changes the ja or en text the
+// machine translation was made from. The lanes key their row on the source, so
+// without this the curated zh-Hans machine row kept translating the replaced
+// text: work 279247's forum page showed the model's answer to a VNDB voting
+// prompt for a day after the Japanese intro had been written (2026-11-21).
+func sourceLangChanged(before map[string]string, after []workIntro) bool {
+	next := make(map[string]string, len(after))
+	for _, in := range after {
+		next[in.Lang] = in.Intro
+	}
+	for _, lang := range []string{"ja", "en"} {
+		if before[lang] != next[lang] {
+			return true
+		}
+	}
+	return false
 }
 
 func applyIntros(ctx context.Context, tx *gorm.DB, entityID int64, value any) error {
@@ -68,6 +95,23 @@ func applyIntros(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 	}
 	if err := assertWorkExists(ctx, tx, entityID); err != nil {
 		return err
+	}
+	var before []catmodel.CatalogWorkIntro
+	if err := tx.WithContext(ctx).
+		Where("work_id = ? AND source_id = ? AND provenance = ?", entityID, curatedSourceID, catmodel.IntroProvenanceSource).
+		Find(&before).Error; err != nil {
+		return err
+	}
+	prior := make(map[string]string, len(before))
+	for _, r := range before {
+		prior[r.Lang] = r.Intro
+	}
+	if sourceLangChanged(prior, intros) {
+		if err := tx.WithContext(ctx).
+			Where("work_id = ? AND source_id = ? AND provenance = ?", entityID, curatedSourceID, catmodel.IntroProvenanceMachine).
+			Delete(&catmodel.CatalogWorkIntro{}).Error; err != nil {
+			return err
+		}
 	}
 	langs := make([]string, 0, len(intros))
 	for _, in := range intros {

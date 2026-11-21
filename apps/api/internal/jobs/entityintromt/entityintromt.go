@@ -7,6 +7,9 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/introguard"
+
+	"gorm.io/gorm"
 )
 
 const maxSamples = 30
@@ -43,6 +46,9 @@ type Opts struct {
 	// their entities independently, so the same integers name a different row in
 	// each one. Run rejects the combination rather than filtering all three.
 	EntityIDs []int64
+	// ChangedSince narrows each lane to entities with an intro row written in
+	// that window — the frequent pass that follows editor saves between nights.
+	ChangedSince time.Duration
 }
 
 type Sample struct {
@@ -72,6 +78,13 @@ type LaneStats struct {
 	Pruned           int
 	Refused          int
 	Errors           int
+	// See intromt.Stats for the meaning of these six.
+	Untranslatable int
+	WouldClear     int
+	Cleared        int
+	WouldHeal      int
+	Rejected       int
+	SkipRejected   int
 
 	Samples []Sample
 }
@@ -100,7 +113,17 @@ func Run(ctx context.Context, tr Translator, opts Opts) ([]*LaneStats, error) {
 
 	var out []*LaneStats
 	for _, lane := range selected {
-		cands, err := loadCandidates(ctx, db, lane, opts.Limit, opts.Offset, opts.EntityIDs)
+		ids := opts.EntityIDs
+		if opts.ChangedSince > 0 {
+			if ids, err = changedEntities(ctx, db, lane, opts.ChangedSince); err != nil {
+				return nil, fmt.Errorf("load changed %s entities: %w", lane.key, err)
+			}
+			if len(ids) == 0 {
+				out = append(out, &LaneStats{Lane: lane.key})
+				continue
+			}
+		}
+		cands, err := loadCandidates(ctx, db, lane, opts.Limit, opts.Offset, ids)
 		if err != nil {
 			return nil, fmt.Errorf("load %s candidates: %w", lane.key, err)
 		}
@@ -123,12 +146,16 @@ func Run(ctx context.Context, tr Translator, opts Opts) ([]*LaneStats, error) {
 			"with_glossary", st.WithGlossary,
 			"apply", opts.Apply, "limit", opts.Limit, "offset", opts.Offset,
 			"entity_ids", len(opts.EntityIDs), "force", opts.Force)
-		if n := len(opts.EntityIDs); n > 0 && n != len(cands) {
+		if n := len(opts.EntityIDs); n > 0 && opts.ChangedSince == 0 && n != len(cands) {
 			slog.Warn("named entity ids did not all become candidates — the rest fail this lane's gates (deleted, a source zh intro, or no ja/en source intro)",
 				"lane", lane.key, "named", n, "candidates", len(cands))
 		}
 
-		r := &runner{db: db, tr: tr, lane: lane, force: opts.Force, stats: st}
+		rejected, err := introguard.LoadRejections(ctx, db, lane.introTable)
+		if err != nil {
+			return nil, fmt.Errorf("load refused %s translations: %w", lane.key, err)
+		}
+		r := &runner{db: db, tr: tr, lane: lane, force: opts.Force, stats: st, rejected: rejected}
 		r.process(ctx, cands, opts.Apply, opts.Delay, opts.Workers)
 		if err := r.touch(ctx); err != nil {
 			return nil, fmt.Errorf("touch %s entities: %w", lane.key, err)
@@ -138,7 +165,9 @@ func Run(ctx context.Context, tr Translator, opts Opts) ([]*LaneStats, error) {
 			"would_retranslate", st.WouldRetranslate, "skip_unchanged", st.SkipUnchanged,
 			"skip_short_source", st.SkipShortSource, "would_prune", st.WouldPrune,
 			"inserted", st.Inserted, "retranslated", st.Retranslated, "pruned", st.Pruned,
-			"refused", st.Refused, "errors", st.Errors)
+			"refused", st.Refused, "errors", st.Errors,
+			"untranslatable", st.Untranslatable, "would_clear", st.WouldClear, "cleared", st.Cleared,
+			"would_heal", st.WouldHeal, "rejected", st.Rejected, "skip_rejected", st.SkipRejected)
 		out = append(out, st)
 		if ctx.Err() != nil {
 			break
@@ -157,4 +186,11 @@ func selectLanes(key string) ([]laneDef, error) {
 		}
 	}
 	return nil, fmt.Errorf("unknown lane %q (want %q, %q or %q)", key, LaneCharacter, LanePerson, LaneLabel)
+}
+
+func changedEntities(ctx context.Context, db *gorm.DB, lane laneDef, window time.Duration) ([]int64, error) {
+	var ids []int64
+	err := db.WithContext(ctx).Raw(`SELECT DISTINCT `+lane.idCol+` FROM `+lane.introTable+` WHERE updated_at >= ?`,
+		time.Now().Add(-window)).Scan(&ids).Error
+	return ids, err
 }

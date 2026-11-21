@@ -96,6 +96,17 @@ func applyEntityIntros(t introTable) editing.ApplyFunc {
 		}
 		del := curatedIntroScope(ctx, tx, t.ownerCol, entityID)
 		if t.hasProvenance {
+			prior, err := t.read(ctx, tx, entityID)
+			if err != nil {
+				return err
+			}
+			if sourceLangChanged(prior, intros) {
+				if err := curatedIntroScope(ctx, tx, t.ownerCol, entityID).
+					Where("provenance = ?", catmodel.IntroProvenanceMachine).
+					Delete(t.empty()).Error; err != nil {
+					return err
+				}
+			}
 			langs := make([]string, 0, len(intros))
 			for _, in := range intros {
 				langs = append(langs, in.Lang)
