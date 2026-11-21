@@ -200,8 +200,8 @@ func (e *Engine) CreateBirth(ctx context.Context, in CreateBirthInput) (*Proposa
 		if !pol.AllowsPropose(in.Actor) {
 			return nil, nil, &PermissionError{Key: key, Action: "propose"}
 		}
-		if err := f.Validate(in.Patch[key]); err != nil {
-			return nil, nil, &ValidationError{Key: key, Reason: err.Error()}
+		if err := f.validate(ctx, e.db.WithContext(ctx), key, in.Patch[key]); err != nil {
+			return nil, nil, err
 		}
 		if !pol.allowsAutomergeWithOwner(in.Actor, nil) {
 			automerge = false

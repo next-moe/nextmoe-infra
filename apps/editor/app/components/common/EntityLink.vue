@@ -18,10 +18,13 @@ const family = computed(() => ENTITY_FAMILY[props.family])
     <NuxtLink
       v-if="family"
       :to="`${family.path}/${props.id}`"
+      :title="props.name"
       class="hover:text-primary min-w-0 truncate font-medium transition-colors"
     >
       {{ props.name }}
     </NuxtLink>
-    <span v-else class="min-w-0 truncate font-medium">{{ props.name }}</span>
+    <span v-else class="min-w-0 truncate font-medium" :title="props.name">{{
+      props.name
+    }}</span>
   </span>
 </template>

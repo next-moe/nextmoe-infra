@@ -98,8 +98,8 @@ export const GUIDELINE_PITFALLS: GuidelinePitfall[] = [
     to: '/guidelines/titles'
   },
   {
-    title: '把机翻或汉化组译名标成正式名',
-    body: '只有官方发布过的名字才是正式名；其他译名作为别名。',
+    title: '有官方中文名却用汉化组译名作正式名',
+    body: '有官方中文名时它就是中文正式名，汉化组译名作为别名；没有官方中文名时，最通行的汉化组译名可以作正式名。',
     to: '/guidelines/titles'
   },
   {

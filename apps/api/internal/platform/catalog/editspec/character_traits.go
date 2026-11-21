@@ -106,6 +106,14 @@ func validateCharacterTraits(v any) error {
 	return err
 }
 
+func validateCharacterTraitRefs(ctx context.Context, db *gorm.DB, v any) error {
+	traits, err := parseCharacterTraits(v)
+	if err != nil {
+		return err
+	}
+	return assertApplicableTraits(ctx, db, traits)
+}
+
 func characterTraitsFieldSpec() editing.FieldSpec {
 	return editing.FieldSpec{
 		Key: FieldCharacterTraits, Kind: editing.KindList, DiffHint: editing.DiffHintItems,
@@ -120,8 +128,9 @@ func characterTraitsFieldSpec() editing.FieldSpec {
 				{Key: "lie", Type: "bool"},
 			},
 		}},
-		Validate: validateCharacterTraits,
-		Apply:    applyCharacterTraits,
+		Validate:   validateCharacterTraits,
+		ValidateDB: validateCharacterTraitRefs,
+		Apply:      applyCharacterTraits,
 	}
 }
 
@@ -193,7 +202,7 @@ func assertApplicableTraits(ctx context.Context, tx *gorm.DB, traits []character
 		ids = append(ids, t.TraitID)
 	}
 	var rows []catmodel.CatalogCharacterTrait
-	if err := tx.WithContext(ctx).Select("id", "name", "applicable").
+	if err := tx.WithContext(ctx).Select("id", "name", "name_zh", "applicable").
 		Where("id IN ?", ids).Find(&rows).Error; err != nil {
 		return err
 	}
@@ -204,11 +213,15 @@ func assertApplicableTraits(ctx context.Context, tx *gorm.DB, traits []character
 	for _, id := range ids {
 		r, ok := found[id]
 		if !ok {
-			return &editing.ValidationError{Key: FieldCharacterTraits, Reason: fmt.Sprintf("trait %d does not exist", id)}
+			return &editing.ValidationError{Key: FieldCharacterTraits, Reason: fmt.Sprintf("特质 #%d 不存在", id)}
 		}
 		if !r.Applicable {
+			name := r.NameZh
+			if name == "" {
+				name = r.Name
+			}
 			return &editing.ValidationError{Key: FieldCharacterTraits,
-				Reason: fmt.Sprintf("trait %d (%q) is a group heading and cannot be applied to a character", id, r.Name)}
+				Reason: fmt.Sprintf("「%s」（#%d）是分组标题，不能直接标在角色上，请改选它下面的具体特质", name, id)}
 		}
 	}
 	return nil

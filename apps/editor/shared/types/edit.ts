@@ -43,6 +43,7 @@ export type EditControl =
 export interface EditMemberConfig {
   label?: string
   ref?: EditRefFamily
+  applicableOnly?: boolean
   placeholder?: string
   readonly?: boolean
 }

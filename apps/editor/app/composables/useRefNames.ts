@@ -1,4 +1,4 @@
-import type { CatalogSearchList } from '#shared/types/catalog'
+import type { CatalogSearchList, CatalogTraitList } from '#shared/types/catalog'
 import type { EditRefFamily } from '#shared/types/edit'
 import type { NameSource } from '#shared/types/preferences'
 import { roleOptionsOf, type RoleListItem } from '~/utils/roleOptions'
@@ -212,9 +212,42 @@ export const useRefNames = () => {
     })
   }
 
+  const traitGroups = async (options: RefOption[], applicableOnly: boolean) => {
+    if (!options.length) {
+      return options
+    }
+    const list = await api<CatalogTraitList>('/v2/catalog/traits', {
+      query: { ids: options.map((o) => o.value).join(','), nsfw: true }
+    }).catch(() => null)
+    if (!list) {
+      return options
+    }
+    const byId = new Map(list.items.map((trait) => [trait.id, trait]))
+    return options.flatMap((option) => {
+      const trait = byId.get(option.value)
+      if (applicableOnly && trait && !trait.is_applicable) {
+        return []
+      }
+      const group = trait?.group
+        ? preferences.nameOf({
+            display_name: trait.group,
+            localized: trait.group_localized
+          }) || trait.group
+        : ''
+      const heading = trait && !trait.is_applicable ? '分组标题' : ''
+      return [
+        {
+          ...option,
+          hint: [group, heading, option.hint].filter(Boolean).join(' · ')
+        }
+      ]
+    })
+  }
+
   const search = async (
     family: EditRefFamily,
-    query: string
+    query: string,
+    { applicableOnly = false }: { applicableOnly?: boolean } = {}
   ): Promise<RefOption[]> => {
     const q = query.trim()
     if (family === 'role') {
@@ -225,7 +258,8 @@ export const useRefNames = () => {
       await resolve(family, [q])
       const label = nameOf(family, q)
       if (label) {
-        return [{ value: q, label, hint: `#${q}` }]
+        const exact = [{ value: q, label, hint: `#${q}` }]
+        return family === 'trait' ? traitGroups(exact, applicableOnly) : exact
       }
     }
     if (q && (family === 'person' || family === 'release')) {
@@ -237,7 +271,7 @@ export const useRefNames = () => {
     const list = await api<CatalogSearchList>('/v2/catalog/search', {
       query: { q, object: family, limit: 12, nsfw: true }
     }).catch(() => null)
-    return (list?.items ?? []).map((hit) => {
+    const options = (list?.items ?? []).map((hit) => {
       const source = {
         display_name: hit.display_name,
         localized: hit.localized
@@ -251,6 +285,7 @@ export const useRefNames = () => {
           .join(' · ')
       }
     })
+    return family === 'trait' ? traitGroups(options, applicableOnly) : options
   }
 
   return {
