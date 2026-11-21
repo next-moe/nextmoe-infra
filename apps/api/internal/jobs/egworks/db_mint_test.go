@@ -224,3 +224,19 @@ func TestSameTitleDifferentGamesAreNotFolded(t *testing.T) {
 	assert.NotEqual(t, a[0].EntityID, b[0].EntityID)
 	assert.Equal(t, model.LinkKindExact, b[0].LinkKind)
 }
+
+func TestAllAgesNonVNGameIsNotMinted(t *testing.T) {
+	requireDB(t)
+	insertGame(t, game{ID: 36871, Gamename: "ブルーアーカイブ -Blue Archive-", Sellday: "2021-02-04", Model: "iPhone", Genre: "学園×青春×物語RPG"})
+	insertGame(t, game{ID: 36872, Gamename: "成人向けRPGの試験作", Sellday: "2021-02-04", Model: "PC", Erogame: true, Genre: "RPG"})
+	insertGame(t, game{ID: 36873, Gamename: "全年齢ノベルの試験作", Sellday: "2021-02-04", Model: "PC", Genre: "ノベルゲーム"})
+	insertGame(t, game{ID: 36874, Gamename: "ジャンル空欄の試験作", Sellday: "2021-02-04", Model: "PC"})
+
+	st := runLane(t, true, "")
+	assert.Equal(t, 1, st.OutOfScope)
+	assert.Equal(t, 3, st.MintedLive)
+	assert.Empty(t, egRefByGame(t, 36871))
+	for _, id := range []int64{36872, 36873, 36874} {
+		assert.Len(t, egRefByGame(t, id), 1, id)
+	}
+}
