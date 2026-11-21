@@ -54,6 +54,17 @@ describe('plain-language validation messages', () => {
     ).toBe('第 1 条：链接需要以 http:// 或 https:// 开头')
   })
 
+  it('explains an intro that is only links or a copied page prompt', () => {
+    expect(
+      explainFieldError(
+        'catalog.work.intros',
+        "catalog.work.intros: element 0: the en intro has no description in it, only links, punctuation or text copied from a site's page; remove it or write the intro"
+      )
+    ).toBe(
+      '第 1 条：英语简介里没有正文，只有链接、标点或从网页上复制来的提示文字，请删除这一栏或写上真正的简介'
+    )
+  })
+
   it('does not repeat a scalar field name as a member', () => {
     expect(
       explainFieldError(

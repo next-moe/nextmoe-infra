@@ -276,7 +276,7 @@ func (m MockTranslator) Translate(_ context.Context, text string, _ SourceLang, 
 	if model == "" {
 		model = "stub"
 	}
-	return "【MT・rehearsal mock】[gloss:" + strconv.Itoa(len(gloss)) + "] " + firstRunes(text, 60), "mock:" + model, nil
+	return "【机翻演练 MT rehearsal mock】[gloss:" + strconv.Itoa(len(gloss)) + "] " + firstRunes(text, 60), "mock:" + model, nil
 }
 
 func firstRunes(s string, n int) string {

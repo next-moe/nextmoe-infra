@@ -300,7 +300,7 @@ func (m MockTranslator) Translate(_ context.Context, jaText string, gloss Glossa
 	if model == "" {
 		model = "stub"
 	}
-	return "【MT・rehearsal mock】[gloss:" + strconv.Itoa(len(gloss)) + "] " + firstRunes(jaText, 60), "mock:" + model, nil
+	return "【机翻演练 MT rehearsal mock】[gloss:" + strconv.Itoa(len(gloss)) + "] " + firstRunes(jaText, 60), "mock:" + model, nil
 }
 
 func firstRunes(s string, n int) string {

@@ -42,6 +42,7 @@ had to be rebuilt by hand.
 | image-grade-nightly | daily 15:00 | daily 07:00 | 48h |
 | image-grade-tag (off-host: `scripts/image-grade-local`, stamped by `image-grade-nightly/io.sh`) | daily 16:00 | daily 08:00 | 48h |
 | text-safety-nightly | daily 16:30 | daily 08:30 | 48h |
+| intro-fresh | every 20 min (:05/:25/:45) | every 20 min | 2h |
 | playtime-aggregate | daily 05:20 | daily 21:20 (prev. day) | 48h |
 | refresh-tag-counts | hourly :40 | hourly :40 | 6h |
 | tag-vocab-backlog | 1st 12:30 | 1st 04:30 | 768h |
@@ -63,7 +64,7 @@ had to be rebuilt by hand.
 
 `source-import/test.sh`, `char-xsrc-nightly/test.sh`,
 `llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh`,
-`reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh`, `disk-watch/test.sh`, `log-archive/test.sh`, `config-watch/test.sh` and `text-safety-nightly/test.sh` are the offline tests in this directory: each
+`reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh`, `disk-watch/test.sh`, `log-archive/test.sh`, `config-watch/test.sh`, `intro-fresh/test.sh` and `text-safety-nightly/test.sh` are the offline tests in this directory: each
 runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
 and asserts the call order, the ceilings and the lock/stamp rules. Run the
 matching one before redeploying any of those scripts. `umami-retention/test.sh` is the one that

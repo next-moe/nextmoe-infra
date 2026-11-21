@@ -30,6 +30,7 @@ func main() {
 	workers := flag.Int("workers", 1, "apply-mode concurrency (per-request latency dominates)")
 	force := flag.Bool("force", false, "retranslate rows whose src_hash already matches — the prompt is not in the hash, so a prompt change needs this")
 	entityIDs := flag.String("entity-ids", "", "comma-separated entity ids for --lane; the named list IS the population")
+	changedSince := flag.Duration("changed-since", 0, "only entities with an intro row written within this window (e.g. 2h) — the frequent pass after editor saves; 0 = every entity")
 	flag.Parse()
 
 	ids, err := parseEntityIDs(*entityIDs)
@@ -64,10 +65,11 @@ func main() {
 
 	st, err := entityintromt.Run(context.Background(), tr, entityintromt.Opts{
 		DSN: *dsn, Apply: *apply, Lane: *lane, Limit: *limit, Offset: *offset,
-		Delay:     time.Duration(*delayMS) * time.Millisecond,
-		Workers:   *workers,
-		Force:     *force,
-		EntityIDs: ids,
+		Delay:        time.Duration(*delayMS) * time.Millisecond,
+		Workers:      *workers,
+		Force:        *force,
+		EntityIDs:    ids,
+		ChangedSince: *changedSince,
 	})
 	if err != nil {
 		slog.Error("run failed", "error", err)
@@ -95,9 +97,11 @@ func printReport(lanes []*entityintromt.LaneStats, apply bool) {
 		fmt.Printf("\n[%s] candidates=%d from_ja=%d from_en=%d with_glossary=%d would_insert=%d would_retranslate=%d skip_unchanged=%d would_prune=%d\n",
 			st.Lane, st.Candidates, st.FromJa, st.FromEn, st.WithGlossary,
 			st.WouldInsert, st.WouldRetranslate, st.SkipUnchanged, st.WouldPrune)
+		fmt.Printf("[%s] untranslatable=%d would_clear=%d would_heal=%d skip_rejected=%d\n",
+			st.Lane, st.Untranslatable, st.WouldClear, st.WouldHeal, st.SkipRejected)
 		if apply {
-			fmt.Printf("[%s] inserted=%d retranslated=%d refused=%d errors=%d pruned=%d\n",
-				st.Lane, st.Inserted, st.Retranslated, st.Refused, st.Errors, st.Pruned)
+			fmt.Printf("[%s] inserted=%d retranslated=%d refused=%d errors=%d pruned=%d rejected=%d cleared=%d\n",
+				st.Lane, st.Inserted, st.Retranslated, st.Refused, st.Errors, st.Pruned, st.Rejected, st.Cleared)
 		}
 		for i, s := range st.Samples {
 			fmt.Printf("\n--- %s sample %d (entity %d, %s%s) ---\n", s.Lane, i+1, s.EntityID, s.Decision, modelSuffix(s.MTModel))

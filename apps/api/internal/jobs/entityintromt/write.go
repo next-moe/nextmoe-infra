@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"api/internal/platform/catalog/introguard"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -51,13 +52,14 @@ func hashSource(s string) string {
 }
 
 type runner struct {
-	db      *gorm.DB
-	tr      Translator
-	lane    laneDef
-	force   bool
-	stats   *LaneStats
-	mu      sync.Mutex
-	touched []int64
+	db       *gorm.DB
+	tr       Translator
+	lane     laneDef
+	force    bool
+	stats    *LaneStats
+	rejected introguard.Rejections
+	mu       sync.Mutex
+	touched  []int64
 }
 
 func (r *runner) markTouched(entityID int64) {
@@ -132,6 +134,10 @@ func (r *runner) process(ctx context.Context, cands []candidate, apply bool, del
 }
 
 func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time.Duration, idx int) {
+	if c.NoSource {
+		r.clearIfMachine(ctx, c, apply)
+		return
+	}
 	// A source with no substance cannot yield a non-empty translation — the
 	// empty-output guard below would refuse it after a wasted LLM call, and
 	// fill-missing would then retry it EVERY sweep. Skip it up front (same
@@ -141,6 +147,14 @@ func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time
 		return
 	}
 	dec, hash := decide(c, r.force)
+	if dec == decSkipSame && c.MZhText != nil && introguard.Reject(c.Text, *c.MZhText) != "" {
+		r.inc(&r.stats.WouldHeal)
+		dec = decRetrans
+	}
+	if dec != decSkipSame && r.rejected.Has(c.EntityID, hash) {
+		r.inc(&r.stats.SkipRejected)
+		return
+	}
 	switch dec {
 	case decSkipSame:
 		r.inc(&r.stats.SkipUnchanged)
@@ -178,6 +192,11 @@ func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time
 	if zh == "" {
 		r.inc(&r.stats.Errors)
 		slog.Warn("translate returned empty — refusing to write an empty machine row", "lane", r.lane.key, "entity", c.EntityID)
+		return
+	}
+
+	if reason := introguard.Reject(c.Text, zh); reason != "" {
+		r.reject(ctx, c, hash, reason, mtModel, zh)
 		return
 	}
 
@@ -257,6 +276,59 @@ func (r *runner) upsert(db *gorm.DB, c candidate, zh, hash, mtModel string) (int
 		return 0, res.Error
 	}
 	return res.RowsAffected, nil
+}
+
+// reject records why the model's answer was refused and clears the entity's
+// machine rows: the row on this source is junk (the heal path) or translates a
+// text the source no longer holds, and the memo keeps the next nights from
+// asking again.
+func (r *runner) reject(ctx context.Context, c candidate, hash, reason, mtModel, zh string) {
+	r.inc(&r.stats.Rejected)
+	slog.Warn("translation refused — not a translation of the source",
+		"lane", r.lane.key, "entity", c.EntityID, "reason", reason, "zh", firstRunes(zh, 120))
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := introguard.RecordRejection(ctx, tx, r.lane.introTable, c.EntityID, c.SourceID, hash, reason, mtModel, zh); err != nil {
+			return err
+		}
+		n, err := r.deleteMachine(tx, c.EntityID)
+		if n > 0 {
+			r.inc(&r.stats.Cleared)
+			r.markTouched(c.EntityID)
+		}
+		return err
+	})
+	if err != nil {
+		r.inc(&r.stats.Errors)
+		slog.Warn("record refused translation", "lane", r.lane.key, "entity", c.EntityID, "err", err)
+	}
+}
+
+func (r *runner) clearIfMachine(ctx context.Context, c candidate, apply bool) {
+	r.inc(&r.stats.Untranslatable)
+	if !c.HasMachine {
+		return
+	}
+	r.inc(&r.stats.WouldClear)
+	if !apply {
+		return
+	}
+	n, err := r.deleteMachine(r.db.WithContext(ctx), c.EntityID)
+	if err != nil {
+		r.inc(&r.stats.Errors)
+		slog.Warn("clear machine intros of an untranslatable entity", "lane", r.lane.key, "entity", c.EntityID, "err", err)
+		return
+	}
+	if n > 0 {
+		r.inc(&r.stats.Cleared)
+		r.markTouched(c.EntityID)
+	}
+}
+
+func (r *runner) deleteMachine(db *gorm.DB, entityID int64) (int64, error) {
+	res := db.Exec(`DELETE FROM `+r.lane.introTable+`
+		WHERE `+r.lane.idCol+` = ? AND lang = ? AND provenance = 1 AND source_id <> ?`,
+		entityID, langZhHans, model.SourceDerived)
+	return res.RowsAffected, res.Error
 }
 
 // The derived rows are extract-char-intros output, which the character read

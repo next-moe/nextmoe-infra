@@ -111,12 +111,16 @@ func TestLabelIntrosSurviveTheMachineTranslator(t *testing.T) {
 	assert.Equal(t, []string{"ja", "zh-Hans"}, snapshotIntroLangs(t, e, label),
 		"a machine row on the curated lane must not come back as a human intro")
 
-	editLabelIntros(t, e, label, [2]string{"ja", "老舗ブランドです。改"})
+	editLabelIntros(t, e, label, [2]string{"ja", "老舗ブランドです。"})
 	mt, ok := labelIntroRow(t, label, "zh-Hant")
-	require.True(t, ok, "a save that does not claim zh-Hant leaves the machine row alone")
+	require.True(t, ok, "a save that keeps the ja text and does not claim zh-Hant leaves the machine row alone")
 	assert.EqualValues(t, model.IntroProvenanceMachine, mt.Provenance)
 	_, ok = labelIntroRow(t, label, "zh-Hans")
 	assert.False(t, ok, "the human zh-Hans row is replaced by the new curated set")
+
+	editLabelIntros(t, e, label, [2]string{"ja", "老舗ブランドです。改"})
+	_, ok = labelIntroRow(t, label, "zh-Hant")
+	assert.False(t, ok, "a changed ja text clears the machine row that translated the old one")
 
 	editLabelIntros(t, e, label,
 		[2]string{"ja", "老舗ブランドです。改"},
