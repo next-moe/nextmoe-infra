@@ -482,3 +482,38 @@ func TestBgmType4GatedScreensAShortTitledTwinAndTheInfoboxAppID(t *testing.T) {
 		min(byStore, store), max(byStore, store), model.CandidateReasonSharedExternalID))
 	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workIDByBgmExt(t, "589609")))
 }
+
+func seedSubjectGenre(t *testing.T, id int64, name, metaTags, tags string, nsfw bool, genre string) {
+	t.Helper()
+	seedSubject(t, id, name, "", metaTags, tags, nsfw)
+	require.NoError(t, testDB.Exec(`UPDATE src_bangumi.subject SET infobox_parsed =
+		jsonb_build_object('Type', 'Game', 'Fields', jsonb_build_array(jsonb_build_object('Key', '游戏类型', 'Value', ?::text)))
+		WHERE id = ?`, genre, id).Error)
+}
+
+func TestBgmType4GatedNonVNGenreVeto(t *testing.T) {
+	clean(t)
+	require.NoError(t, testDB.Exec(`ALTER TABLE games ADD COLUMN IF NOT EXISTS gamename text`).Error)
+	require.NoError(t, testDB.Exec(`TRUNCATE src_vndb.releases_titles`).Error)
+	joke := `[{"name":"Galgame","count":6}]`
+
+	seedSubjectGenre(t, 5001, "Python", `["Windows","PC","Mac","Linux"]`, joke, false, "Programming Language")
+	seedSubjectGenre(t, 5002, "ブルーアーカイブ -Blue Archive-", `["Android","RPG","iOS","PC","游戏"]`, joke, false, "角色收集RPG")
+	seedSubjectGenre(t, 5003, "恋愛アドベンチャーの試験作", `["PC","游戏"]`, joke, false, "恋愛AVG")
+	seedSubjectGenre(t, 5004, "成人向けのRPG試験作", `["PC","游戏"]`, joke, true, "RPG")
+	seedSubjectGenre(t, 5005, "ギャルゲーRPGの試験作", `["PC","Galgame","游戏"]`, "", false, "ARPG")
+	seedSubjectGenre(t, 5006, "ジャンル空欄の試験作", `["PC","游戏"]`, joke, false, "")
+
+	dry, err := New(testDB, testDB, Options{DryRun: true}).RunBgmType4Gated(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 2, dry.ExcludedNonVN, "5001 Python, 5002 Blue Archive")
+	assert.Equal(t, 4, dry.ToCreate, "the VN genre, the adult game, the Galgame meta tag and the empty genre pass")
+
+	_, err = New(testDB, testDB, Options{}).RunBgmType4Gated(testDB)
+	require.NoError(t, err)
+	assert.Zero(t, workIDByBgmExt(t, "5001"))
+	assert.Zero(t, workIDByBgmExt(t, "5002"))
+	for _, ext := range []string{"5003", "5004", "5005", "5006"} {
+		assert.NotZero(t, workIDByBgmExt(t, ext), ext)
+	}
+}

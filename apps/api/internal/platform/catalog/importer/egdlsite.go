@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"api/internal/platform/catalog/gamescope"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/datatypes"
@@ -43,6 +44,7 @@ type EGDLsiteStats struct {
 	SkippedIntraCollision int
 	EGAliases             int
 	SkippedMultiWork      int
+	OutOfScope            int
 }
 
 type egdlItem struct {
@@ -179,6 +181,9 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 			return st, err
 		}
 		mint = gateEGDLMints(mint, wt, &st)
+		if mint, err = im.dropAllAgesNonVN(mint, &st); err != nil {
+			return st, err
+		}
 	}
 
 	st.Attached = len(attach)
@@ -308,4 +313,33 @@ func egdlLabelKind(makerID string) int16 {
 		return model.LabelKindPublisher
 	}
 	return dlLabelKind(makerID)
+}
+
+func (im *Importer) dropAllAgesNonVN(mint []egdlItem, st *EGDLsiteStats) ([]egdlItem, error) {
+	ids := make([]int64, 0, len(mint))
+	for _, it := range mint {
+		ids = append(ids, it.egGame)
+	}
+	var rows []struct {
+		ID      int64  `gorm:"column:id"`
+		Erogame bool   `gorm:"column:erogame"`
+		Genre   string `gorm:"column:genre"`
+	}
+	if err := im.eg.Raw(`SELECT id, coalesce(erogame, false) AS erogame, coalesce(genre, '') AS genre
+		FROM games WHERE id IN ?`, ids).Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("load eg genres: %w", err)
+	}
+	nonVN := make(map[int64]bool, len(rows))
+	for _, r := range rows {
+		nonVN[r.ID] = !r.Erogame && gamescope.NonVNGenre(r.Genre)
+	}
+	kept := mint[:0]
+	for _, it := range mint {
+		if nonVN[it.egGame] && it.dw.contentRating == model.ContentRatingAllAges {
+			st.OutOfScope++
+			continue
+		}
+		kept = append(kept, it)
+	}
+	return kept, nil
 }

@@ -314,3 +314,24 @@ func TestEGDLsiteReleaseDayIsTheAPIDay(t *testing.T) {
 		WHERE r.entity_type = 6 AND r.source_id = 4 AND r.external_id = 'RJ0DAY'`).Scan(&day).Error)
 	assert.Equal(t, "2023-05-15", day)
 }
+
+func TestEGDLsiteAllAgesNonVNIsNotMinted(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	clean(t)
+	require.NoError(t, testDB.Exec(`INSERT INTO games (id, dlsite_id, erogame, genre) VALUES
+		(600,'VJ0SCP1',false,'ストーリーRPG'), (601,'RJ0SCP2',false,'RPG'), (602,'RJ0SCP3',false,'ADV')`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO works (workno, work_name, work_name_kana, maker_id, maker_name, age_category, work_type_string, status, product_json) VALUES
+		('VJ0SCP1','全年齢RPGの試験作','','VG600','メーカー','1','ロールプレイング','fetched','{"creaters":[]}'::jsonb),
+		('RJ0SCP2','成人向けRPGの試験作','','RG601','サークル','3','ロールプレイング','fetched','{"creaters":[]}'::jsonb),
+		('RJ0SCP3','全年齢ADVの試験作','','RG602','サークル','1','アドベンチャー','fetched','{"creaters":[]}'::jsonb)`).Error)
+
+	st, err := New(testDB, testDB, Options{}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.OutOfScope)
+	assert.Equal(t, 2, st.Minted)
+	var minted []string
+	require.NoError(t, testDB.Raw(`SELECT external_id FROM catalog_external_ref WHERE entity_type = 6 AND source_id = 4 ORDER BY 1`).Scan(&minted).Error)
+	assert.Equal(t, []string{"RJ0SCP2", "RJ0SCP3"}, minted)
+}

@@ -26,6 +26,7 @@ type game struct {
 	Model      string
 	BrandID    int64
 	Erogame    bool
+	Genre      string
 	Transplant bool
 }
 
@@ -142,6 +143,7 @@ func loadGames(ctx context.Context, egDB *gorm.DB) ([]game, error) {
 		Model    string `gorm:"column:model"`
 		BrandID  int64  `gorm:"column:brand_id"`
 		Erogame  bool   `gorm:"column:erogame"`
+		Genre    string `gorm:"column:genre"`
 	}
 	if err := egDB.WithContext(ctx).Raw(`
 		SELECT id,
@@ -150,7 +152,8 @@ func loadGames(ctx context.Context, egDB *gorm.DB) ([]game, error) {
 			coalesce(sellday, '') AS sellday,
 			coalesce(model, '') AS model,
 			coalesce(brand_id, 0) AS brand_id,
-			coalesce(erogame, false) AS erogame
+			coalesce(erogame, false) AS erogame,
+			coalesce(genre, '') AS genre
 		FROM games ORDER BY id`).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("load eg games: %w", err)
 	}
@@ -158,7 +161,7 @@ func loadGames(ctx context.Context, egDB *gorm.DB) ([]game, error) {
 	for i, r := range rows {
 		out[i] = game{
 			ID: r.ID, Gamename: r.Gamename, Furigana: r.Furigana,
-			Sellday: r.Sellday, Model: r.Model, BrandID: r.BrandID, Erogame: r.Erogame,
+			Sellday: r.Sellday, Model: r.Model, BrandID: r.BrandID, Erogame: r.Erogame, Genre: r.Genre,
 		}
 	}
 	return out, nil
