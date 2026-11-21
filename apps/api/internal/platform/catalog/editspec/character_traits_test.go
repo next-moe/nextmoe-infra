@@ -2,6 +2,7 @@ package editspec_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"api/internal/platform/catalog/editspec"
@@ -167,6 +168,32 @@ func TestCharacterTraitValidation(t *testing.T) {
 		if !errors.As(err, &ve) {
 			t.Errorf("%s: want a validation error, got %v", name, err)
 		}
+	}
+}
+
+func TestCharacterTraitGroupHeadingRefusedAtSubmit(t *testing.T) {
+	e := newTraitEngine(t)
+	ch := createCharacter(t, "主人公")
+	group := createTrait(t, "i1", "Oral Sex", false)
+	var before int64
+	if err := testDB.Table("edit_proposal").Count(&before).Error; err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+		EntityType: editspec.TypeCharacter, EntityID: ch.ID,
+		Patch: map[string]any{editspec.FieldCharacterTraits: []any{traitEl(group, 0, false)}},
+		Note:  "test", Actor: realActor(200),
+	})
+	var ve *editing.ValidationError
+	if !errors.As(err, &ve) || ve.Key != editspec.FieldCharacterTraits || !strings.Contains(ve.Reason, "分组标题") {
+		t.Fatalf("a group heading must be refused at submit with a 422 on traits, got %v", err)
+	}
+	var after int64
+	if err := testDB.Table("edit_proposal").Count(&after).Error; err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatalf("a refused proposal must not be stored: %d -> %d", before, after)
 	}
 }
 

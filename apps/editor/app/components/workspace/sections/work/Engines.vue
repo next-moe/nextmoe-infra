@@ -103,6 +103,30 @@ const hiddenEngines = computed(() =>
   filteredEngines.value.filter((row) => row.state === 'hidden')
 )
 
+const releaseEngines = computed(() => {
+  const byEngine = new Map<
+    string,
+    { id: string; name: string; releases: { id: string; title: string }[] }
+  >()
+  for (const release of related.display.value.releases) {
+    if (!release.engine || release.kind === 'patch' || !release.official) {
+      continue
+    }
+    const entry = byEngine.get(release.engine.id) ?? {
+      ...release.engine,
+      releases: []
+    }
+    entry.releases.push({
+      id: release.id,
+      title: release.title || `发行 #${release.id}`
+    })
+    byEngine.set(release.engine.id, entry)
+  }
+  return [...byEngine.values()].filter((engine) =>
+    matchesFilter(query.value, engine.name, engine.id)
+  )
+})
+
 const selected = computed(
   () => engineRows.value.find((row) => row.key === nav.item.value) ?? null
 )
@@ -264,7 +288,7 @@ onMounted(() => {
 
         <WorkspaceRelatedGroup label="引擎" :count="visibleEngines.length" />
         <WorkspaceEmpty
-          v-if="!engineRows.length"
+          v-if="!engineRows.length && !releaseEngines.length"
           icon="lucide:cpu"
           title="还没有记录引擎"
           description="用右上角的「添加引擎」记录这部作品使用的游戏引擎。"
@@ -281,6 +305,26 @@ onMounted(() => {
           :human="row.origin === 'human'"
           @select="select(row)"
         />
+        <template v-if="releaseEngines.length">
+          <WorkspaceRelatedGroup
+            label="来自发行"
+            :count="releaseEngines.length"
+          />
+          <p class="text-default-400 px-3 pb-1 text-xs leading-5">
+            各发行记录的引擎也会显示在作品页上。要修改，请到「发行」里编辑对应的版本。
+          </p>
+          <WorkspaceRelatedRow
+            v-for="engine in releaseEngines"
+            :key="`release-${engine.id}`"
+            :title="engine.name || `引擎 #${engine.id}`"
+            :subtitle="
+              engine.releases.map((release) => release.title).join('、')
+            "
+            icon="lucide:cpu"
+            source="发行"
+            @select="nav.go('releases', engine.releases[0]!.id)"
+          />
+        </template>
         <WorkspaceRelatedHiddenGroup
           :count="hiddenEngines.length"
           label="已隐藏的引擎"

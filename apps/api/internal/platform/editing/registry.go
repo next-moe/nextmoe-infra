@@ -129,12 +129,23 @@ type FieldSpec struct {
 	MaxElements   int
 	Value         *ValueSpec
 	Validate      func(value any) error
+	ValidateDB    func(ctx context.Context, db *gorm.DB, value any) error
 	Apply         ApplyFunc
 	Mirror        *MirrorSpec
 	// Restore narrows a value read back from history to what Apply can still
 	// write. Without it, restoring a list that names an item an importer has
 	// since collected upstream fails the whole revert with a 422.
 	Restore func(ctx context.Context, db *gorm.DB, entityID int64, value any) (any, error)
+}
+
+func (f *FieldSpec) validate(ctx context.Context, db *gorm.DB, key string, value any) error {
+	if err := f.Validate(value); err != nil {
+		return &ValidationError{Key: key, Reason: err.Error()}
+	}
+	if f.ValidateDB == nil {
+		return nil
+	}
+	return f.ValidateDB(ctx, db, value)
 }
 
 func (f *FieldSpec) restoreValue(ctx context.Context, db *gorm.DB, entityID int64, value any) (any, error) {

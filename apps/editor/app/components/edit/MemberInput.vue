@@ -59,6 +59,7 @@ const boolValue = computed({
     v-if="props.member.type === 'ref' && props.config?.ref"
     v-model="refValue"
     :family="props.config.ref"
+    :applicable-only="props.config.applicableOnly"
     :disabled="props.disabled"
     :aria-label="label"
     :placeholder="props.config.placeholder"
