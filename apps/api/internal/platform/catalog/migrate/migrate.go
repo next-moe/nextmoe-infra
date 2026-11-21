@@ -79,6 +79,11 @@ func Run(db *gorm.DB) error {
 		// 2026-10-24: the same verdicts for character intros, keyed by
 		// md5(catalog_character_intro.intro). New, empty table.
 		&model.CatalogCharacterIntroSafety{},
+		// 2026-11-21: machine translations the intro lanes refused (a reply to the
+		// requester instead of a translation, the prompt echoed, no Chinese at all),
+		// keyed by intro table, owner and source hash so the nightly stops re-asking.
+		// New, empty table.
+		&model.CatalogIntroMTRejection{},
 		// Bodyless cover and screenshot images (steps 53/54). 2026-10-12 adds
 		// merged_in boolean NOT NULL DEFAULT false to both: a work merge sets it
 		// on the loser's rows it moves, and every cover election, and the

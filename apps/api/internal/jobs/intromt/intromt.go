@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/introguard"
 
 	"gorm.io/gorm"
 )
@@ -24,6 +25,9 @@ type Opts struct {
 	Force      bool
 	Delay      time.Duration
 	Workers    int
+	// ChangedSince narrows the population to works with an intro row written in
+	// that window — the frequent pass that follows editor saves between nights.
+	ChangedSince time.Duration
 }
 
 type Sample struct {
@@ -48,6 +52,17 @@ type Stats struct {
 	Refused          int
 	Collapsed        int
 	Errors           int
+	// Untranslatable counts works with no translatable ja/en source;
+	// WouldClear/Cleared the ones among them, or among refused answers, whose
+	// machine rows were removed. WouldHeal counts machine rows that fail
+	// introguard.Reject and are translated again; Rejected the answers refused;
+	// SkipRejected the sources refused within introguard.RetryAfter.
+	Untranslatable int
+	WouldClear     int
+	Cleared        int
+	WouldHeal      int
+	Rejected       int
+	SkipRejected   int
 
 	Samples []Sample
 }
@@ -79,7 +94,17 @@ func Run(ctx context.Context, tr Translator, opts Opts) (*Stats, error) {
 	if src == "" {
 		src = SourceJa
 	}
-	cands, err := loadCandidates(ctx, db, reg, pop, src, opts.Top, opts.Limit, opts.WorkIDs)
+	workIDs := opts.WorkIDs
+	if opts.ChangedSince > 0 {
+		if workIDs, err = changedWorks(ctx, db, opts.ChangedSince); err != nil {
+			return nil, fmt.Errorf("load changed works: %w", err)
+		}
+		if len(workIDs) == 0 {
+			slog.Info("intro-mt: no work intro changed in the window", "changed_since", opts.ChangedSince)
+			return &Stats{}, nil
+		}
+	}
+	cands, err := loadCandidates(ctx, db, reg, pop, src, opts.Top, opts.Limit, workIDs)
 	if err != nil {
 		return nil, fmt.Errorf("load candidates: %w", err)
 	}
@@ -95,12 +120,16 @@ func Run(ctx context.Context, tr Translator, opts Opts) (*Stats, error) {
 	slog.Info("intro-mt candidates", "population", pop, "candidates", len(cands),
 		"with_glossary", withGloss, "apply", opts.Apply, "top", opts.Top, "limit", opts.Limit,
 		"work_ids", len(opts.WorkIDs), "force", opts.Force)
-	if n := len(opts.WorkIDs); n > 0 && n != len(cands) {
+	if n := len(opts.WorkIDs); n > 0 && opts.ChangedSince == 0 && n != len(cands) {
 		slog.Warn("named work ids did not all become candidates — the rest fail this lane's gates (medium, olang, a source zh intro, or no source-lang intro)",
 			"named", n, "candidates", len(cands))
 	}
 
-	r := &runner{db: db, tr: tr, force: opts.Force, stats: &Stats{Candidates: len(cands), WithGlossary: withGloss}}
+	rejected, err := introguard.LoadRejections(ctx, db, workIntroTable)
+	if err != nil {
+		return nil, fmt.Errorf("load refused translations: %w", err)
+	}
+	r := &runner{db: db, tr: tr, force: opts.Force, rejected: rejected, stats: &Stats{Candidates: len(cands), WithGlossary: withGloss}}
 	r.process(ctx, cands, opts.Apply, opts.Delay, opts.Workers)
 	if err := r.touch(ctx); err != nil {
 		return nil, fmt.Errorf("touch works: %w", err)
@@ -112,7 +141,9 @@ func Run(ctx context.Context, tr Translator, opts Opts) (*Stats, error) {
 		"would_retranslate", st.WouldRetranslate, "skip_unchanged", st.SkipUnchanged,
 		"would_prune", st.WouldPrune,
 		"inserted", st.Inserted, "retranslated", st.Retranslated, "pruned", st.Pruned,
-		"refused", st.Refused, "collapsed", st.Collapsed, "errors", st.Errors)
+		"refused", st.Refused, "collapsed", st.Collapsed, "errors", st.Errors,
+		"untranslatable", st.Untranslatable, "would_clear", st.WouldClear, "cleared", st.Cleared,
+		"would_heal", st.WouldHeal, "rejected", st.Rejected, "skip_rejected", st.SkipRejected)
 	return st, nil
 }
 
@@ -147,6 +178,13 @@ func decisionName(d decision) string {
 	default:
 		return "skip_unchanged"
 	}
+}
+
+func changedWorks(ctx context.Context, db *gorm.DB, window time.Duration) ([]int64, error) {
+	var ids []int64
+	err := db.WithContext(ctx).Raw(`SELECT DISTINCT work_id FROM catalog_work_intro WHERE updated_at >= ?`,
+		time.Now().Add(-window)).Scan(&ids).Error
+	return ids, err
 }
 
 func openGorm(dsn string) (*gorm.DB, error) {
