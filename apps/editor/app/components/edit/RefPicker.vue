@@ -11,6 +11,7 @@ const props = withDefaults(
     placeholder?: string
     disabled?: boolean
     exclude?: string[]
+    applicableOnly?: boolean
     ariaLabel?: string
     inline?: boolean
   }>(),
@@ -19,6 +20,7 @@ const props = withDefaults(
     placeholder: '',
     disabled: false,
     exclude: () => [],
+    applicableOnly: false,
     ariaLabel: '',
     inline: false
   }
@@ -46,7 +48,9 @@ let token = 0
 const onSearch = async (text: string) => {
   const mine = ++token
   searching.value = true
-  const found = await refs.search(props.family, text)
+  const found = await refs.search(props.family, text, {
+    applicableOnly: props.applicableOnly
+  })
   if (mine !== token) {
     return
   }
