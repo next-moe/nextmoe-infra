@@ -84,7 +84,7 @@ chmod 600 env.tmp
 # --concurrency 2, not the default 4: on 2026-10-13 four calls in flight drew a
 # 429 on 9 of 40 requests. A failure is stored on the verdict row and the next
 # night's run retries it.
-LLM='--model @cf/deepseek-ai/deepseek-v4-flash --concurrency 2'
+LLM='--model deepseek-v4.1-flash-1017 --concurrency 2'
 
 # llm-suggest exits 1 when ANY judgement failed, and a handful of upstream 429s
 # is a normal night. On 2026-09-14 the ref judge finished
