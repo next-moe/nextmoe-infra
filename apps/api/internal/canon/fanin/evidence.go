@@ -18,12 +18,16 @@ import (
 	"api/internal/canon/verify"
 )
 
-type refusal struct{ code, detail string }
+type refusal struct {
+	code, detail string
+	// subject, when set, files the refusal as a todo under this key.
+	subject string
+}
 
 func (r *refusal) Error() string { return r.code + ": " + r.detail }
 
 func refuse(code, format string, args ...any) *refusal {
-	return &refusal{code, fmt.Sprintf(format, args...)}
+	return &refusal{code: code, detail: fmt.Sprintf(format, args...)}
 }
 
 // checked is one candidate after fanin re-derived everything about it.

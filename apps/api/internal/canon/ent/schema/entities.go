@@ -9,4 +9,5 @@ var Entities = []ent.Interface{
 	Release{}, ReleaseContent{}, BookWork{}, BookRelease{},
 	Person{}, PersonAlias{}, Org{}, OrgName{}, Credit{},
 	Revision{}, EvidenceSnapshot{}, EvidenceRecord{}, CommitKey{}, FaninCursor{},
+	Todo{}, Hold{}, Takedown{},
 }

@@ -22,6 +22,7 @@ const Version = "0.1.0"
 // internalTables are canon's own bookkeeping; ingest never writes them.
 var internalTables = map[string]bool{
 	"revision": true, "evidence_snapshot": true, "evidence_record": true, "commit_key": true, "fanin_cursor": true,
+	"todo": true, "hold": true, "takedown": true,
 }
 
 type Property struct {

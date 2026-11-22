@@ -18,6 +18,7 @@ import (
 	"api/internal/canon/ent/evidencerecord"
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
+	"api/internal/canon/ent/hold"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
@@ -25,6 +26,8 @@ import (
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/revision"
+	"api/internal/canon/ent/takedown"
+	"api/internal/canon/ent/todo"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
@@ -56,6 +59,8 @@ type Client struct {
 	EvidenceSnapshot *EvidenceSnapshotClient
 	// FaninCursor is the client for interacting with the FaninCursor builders.
 	FaninCursor *FaninCursorClient
+	// Hold is the client for interacting with the Hold builders.
+	Hold *HoldClient
 	// Org is the client for interacting with the Org builders.
 	Org *OrgClient
 	// OrgName is the client for interacting with the OrgName builders.
@@ -70,6 +75,10 @@ type Client struct {
 	ReleaseContent *ReleaseContentClient
 	// Revision is the client for interacting with the Revision builders.
 	Revision *RevisionClient
+	// Takedown is the client for interacting with the Takedown builders.
+	Takedown *TakedownClient
+	// Todo is the client for interacting with the Todo builders.
+	Todo *TodoClient
 	// Work is the client for interacting with the Work builders.
 	Work *WorkClient
 	// WorkPart is the client for interacting with the WorkPart builders.
@@ -94,6 +103,7 @@ func (c *Client) init() {
 	c.EvidenceRecord = NewEvidenceRecordClient(c.config)
 	c.EvidenceSnapshot = NewEvidenceSnapshotClient(c.config)
 	c.FaninCursor = NewFaninCursorClient(c.config)
+	c.Hold = NewHoldClient(c.config)
 	c.Org = NewOrgClient(c.config)
 	c.OrgName = NewOrgNameClient(c.config)
 	c.Person = NewPersonClient(c.config)
@@ -101,6 +111,8 @@ func (c *Client) init() {
 	c.Release = NewReleaseClient(c.config)
 	c.ReleaseContent = NewReleaseContentClient(c.config)
 	c.Revision = NewRevisionClient(c.config)
+	c.Takedown = NewTakedownClient(c.config)
+	c.Todo = NewTodoClient(c.config)
 	c.Work = NewWorkClient(c.config)
 	c.WorkPart = NewWorkPartClient(c.config)
 	c.WorkTitle = NewWorkTitleClient(c.config)
@@ -203,6 +215,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EvidenceRecord:   NewEvidenceRecordClient(cfg),
 		EvidenceSnapshot: NewEvidenceSnapshotClient(cfg),
 		FaninCursor:      NewFaninCursorClient(cfg),
+		Hold:             NewHoldClient(cfg),
 		Org:              NewOrgClient(cfg),
 		OrgName:          NewOrgNameClient(cfg),
 		Person:           NewPersonClient(cfg),
@@ -210,6 +223,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Release:          NewReleaseClient(cfg),
 		ReleaseContent:   NewReleaseContentClient(cfg),
 		Revision:         NewRevisionClient(cfg),
+		Takedown:         NewTakedownClient(cfg),
+		Todo:             NewTodoClient(cfg),
 		Work:             NewWorkClient(cfg),
 		WorkPart:         NewWorkPartClient(cfg),
 		WorkTitle:        NewWorkTitleClient(cfg),
@@ -239,6 +254,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EvidenceRecord:   NewEvidenceRecordClient(cfg),
 		EvidenceSnapshot: NewEvidenceSnapshotClient(cfg),
 		FaninCursor:      NewFaninCursorClient(cfg),
+		Hold:             NewHoldClient(cfg),
 		Org:              NewOrgClient(cfg),
 		OrgName:          NewOrgNameClient(cfg),
 		Person:           NewPersonClient(cfg),
@@ -246,6 +262,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Release:          NewReleaseClient(cfg),
 		ReleaseContent:   NewReleaseContentClient(cfg),
 		Revision:         NewRevisionClient(cfg),
+		Takedown:         NewTakedownClient(cfg),
+		Todo:             NewTodoClient(cfg),
 		Work:             NewWorkClient(cfg),
 		WorkPart:         NewWorkPartClient(cfg),
 		WorkTitle:        NewWorkTitleClient(cfg),
@@ -279,8 +297,9 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
-		c.EvidenceSnapshot, c.FaninCursor, c.Org, c.OrgName, c.Person, c.PersonAlias,
-		c.Release, c.ReleaseContent, c.Revision, c.Work, c.WorkPart, c.WorkTitle,
+		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.Org, c.OrgName, c.Person,
+		c.PersonAlias, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
+		c.Work, c.WorkPart, c.WorkTitle,
 	} {
 		n.Use(hooks...)
 	}
@@ -291,8 +310,9 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
-		c.EvidenceSnapshot, c.FaninCursor, c.Org, c.OrgName, c.Person, c.PersonAlias,
-		c.Release, c.ReleaseContent, c.Revision, c.Work, c.WorkPart, c.WorkTitle,
+		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.Org, c.OrgName, c.Person,
+		c.PersonAlias, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
+		c.Work, c.WorkPart, c.WorkTitle,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -315,6 +335,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EvidenceSnapshot.mutate(ctx, m)
 	case *FaninCursorMutation:
 		return c.FaninCursor.mutate(ctx, m)
+	case *HoldMutation:
+		return c.Hold.mutate(ctx, m)
 	case *OrgMutation:
 		return c.Org.mutate(ctx, m)
 	case *OrgNameMutation:
@@ -329,6 +351,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ReleaseContent.mutate(ctx, m)
 	case *RevisionMutation:
 		return c.Revision.mutate(ctx, m)
+	case *TakedownMutation:
+		return c.Takedown.mutate(ctx, m)
+	case *TodoMutation:
+		return c.Todo.mutate(ctx, m)
 	case *WorkMutation:
 		return c.Work.mutate(ctx, m)
 	case *WorkPartMutation:
@@ -1412,6 +1438,139 @@ func (c *FaninCursorClient) mutate(ctx context.Context, m *FaninCursorMutation) 
 		return (&FaninCursorDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown FaninCursor mutation op: %q", m.Op())
+	}
+}
+
+// HoldClient is a client for the Hold schema.
+type HoldClient struct {
+	config
+}
+
+// NewHoldClient returns a client for the Hold from the given config.
+func NewHoldClient(c config) *HoldClient {
+	return &HoldClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `hold.Hooks(f(g(h())))`.
+func (c *HoldClient) Use(hooks ...Hook) {
+	c.hooks.Hold = append(c.hooks.Hold, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `hold.Intercept(f(g(h())))`.
+func (c *HoldClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Hold = append(c.inters.Hold, interceptors...)
+}
+
+// Create returns a builder for creating a Hold entity.
+func (c *HoldClient) Create() *HoldCreate {
+	mutation := newHoldMutation(c.config, OpCreate)
+	return &HoldCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Hold entities.
+func (c *HoldClient) CreateBulk(builders ...*HoldCreate) *HoldCreateBulk {
+	return &HoldCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *HoldClient) MapCreateBulk(slice any, setFunc func(*HoldCreate, int)) *HoldCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &HoldCreateBulk{err: fmt.Errorf("calling to HoldClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*HoldCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &HoldCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Hold.
+func (c *HoldClient) Update() *HoldUpdate {
+	mutation := newHoldMutation(c.config, OpUpdate)
+	return &HoldUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *HoldClient) UpdateOne(_m *Hold) *HoldUpdateOne {
+	mutation := newHoldMutation(c.config, OpUpdateOne, withHold(_m))
+	return &HoldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *HoldClient) UpdateOneID(id int) *HoldUpdateOne {
+	mutation := newHoldMutation(c.config, OpUpdateOne, withHoldID(id))
+	return &HoldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Hold.
+func (c *HoldClient) Delete() *HoldDelete {
+	mutation := newHoldMutation(c.config, OpDelete)
+	return &HoldDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *HoldClient) DeleteOne(_m *Hold) *HoldDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *HoldClient) DeleteOneID(id int) *HoldDeleteOne {
+	builder := c.Delete().Where(hold.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &HoldDeleteOne{builder}
+}
+
+// Query returns a query builder for Hold.
+func (c *HoldClient) Query() *HoldQuery {
+	return &HoldQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeHold},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Hold entity by its id.
+func (c *HoldClient) Get(ctx context.Context, id int) (*Hold, error) {
+	return c.Query().Where(hold.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *HoldClient) GetX(ctx context.Context, id int) *Hold {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *HoldClient) Hooks() []Hook {
+	return c.hooks.Hold
+}
+
+// Interceptors returns the client interceptors.
+func (c *HoldClient) Interceptors() []Interceptor {
+	return c.inters.Hold
+}
+
+func (c *HoldClient) mutate(ctx context.Context, m *HoldMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&HoldCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&HoldUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&HoldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&HoldDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Hold mutation op: %q", m.Op())
 	}
 }
 
@@ -2602,6 +2761,272 @@ func (c *RevisionClient) mutate(ctx context.Context, m *RevisionMutation) (Value
 	}
 }
 
+// TakedownClient is a client for the Takedown schema.
+type TakedownClient struct {
+	config
+}
+
+// NewTakedownClient returns a client for the Takedown from the given config.
+func NewTakedownClient(c config) *TakedownClient {
+	return &TakedownClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `takedown.Hooks(f(g(h())))`.
+func (c *TakedownClient) Use(hooks ...Hook) {
+	c.hooks.Takedown = append(c.hooks.Takedown, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `takedown.Intercept(f(g(h())))`.
+func (c *TakedownClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Takedown = append(c.inters.Takedown, interceptors...)
+}
+
+// Create returns a builder for creating a Takedown entity.
+func (c *TakedownClient) Create() *TakedownCreate {
+	mutation := newTakedownMutation(c.config, OpCreate)
+	return &TakedownCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Takedown entities.
+func (c *TakedownClient) CreateBulk(builders ...*TakedownCreate) *TakedownCreateBulk {
+	return &TakedownCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TakedownClient) MapCreateBulk(slice any, setFunc func(*TakedownCreate, int)) *TakedownCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TakedownCreateBulk{err: fmt.Errorf("calling to TakedownClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TakedownCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TakedownCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Takedown.
+func (c *TakedownClient) Update() *TakedownUpdate {
+	mutation := newTakedownMutation(c.config, OpUpdate)
+	return &TakedownUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TakedownClient) UpdateOne(_m *Takedown) *TakedownUpdateOne {
+	mutation := newTakedownMutation(c.config, OpUpdateOne, withTakedown(_m))
+	return &TakedownUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TakedownClient) UpdateOneID(id int) *TakedownUpdateOne {
+	mutation := newTakedownMutation(c.config, OpUpdateOne, withTakedownID(id))
+	return &TakedownUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Takedown.
+func (c *TakedownClient) Delete() *TakedownDelete {
+	mutation := newTakedownMutation(c.config, OpDelete)
+	return &TakedownDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TakedownClient) DeleteOne(_m *Takedown) *TakedownDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TakedownClient) DeleteOneID(id int) *TakedownDeleteOne {
+	builder := c.Delete().Where(takedown.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TakedownDeleteOne{builder}
+}
+
+// Query returns a query builder for Takedown.
+func (c *TakedownClient) Query() *TakedownQuery {
+	return &TakedownQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTakedown},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Takedown entity by its id.
+func (c *TakedownClient) Get(ctx context.Context, id int) (*Takedown, error) {
+	return c.Query().Where(takedown.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TakedownClient) GetX(ctx context.Context, id int) *Takedown {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *TakedownClient) Hooks() []Hook {
+	return c.hooks.Takedown
+}
+
+// Interceptors returns the client interceptors.
+func (c *TakedownClient) Interceptors() []Interceptor {
+	return c.inters.Takedown
+}
+
+func (c *TakedownClient) mutate(ctx context.Context, m *TakedownMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TakedownCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TakedownUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TakedownUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TakedownDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Takedown mutation op: %q", m.Op())
+	}
+}
+
+// TodoClient is a client for the Todo schema.
+type TodoClient struct {
+	config
+}
+
+// NewTodoClient returns a client for the Todo from the given config.
+func NewTodoClient(c config) *TodoClient {
+	return &TodoClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `todo.Hooks(f(g(h())))`.
+func (c *TodoClient) Use(hooks ...Hook) {
+	c.hooks.Todo = append(c.hooks.Todo, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `todo.Intercept(f(g(h())))`.
+func (c *TodoClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Todo = append(c.inters.Todo, interceptors...)
+}
+
+// Create returns a builder for creating a Todo entity.
+func (c *TodoClient) Create() *TodoCreate {
+	mutation := newTodoMutation(c.config, OpCreate)
+	return &TodoCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Todo entities.
+func (c *TodoClient) CreateBulk(builders ...*TodoCreate) *TodoCreateBulk {
+	return &TodoCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TodoClient) MapCreateBulk(slice any, setFunc func(*TodoCreate, int)) *TodoCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TodoCreateBulk{err: fmt.Errorf("calling to TodoClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TodoCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TodoCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Todo.
+func (c *TodoClient) Update() *TodoUpdate {
+	mutation := newTodoMutation(c.config, OpUpdate)
+	return &TodoUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TodoClient) UpdateOne(_m *Todo) *TodoUpdateOne {
+	mutation := newTodoMutation(c.config, OpUpdateOne, withTodo(_m))
+	return &TodoUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TodoClient) UpdateOneID(id int) *TodoUpdateOne {
+	mutation := newTodoMutation(c.config, OpUpdateOne, withTodoID(id))
+	return &TodoUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Todo.
+func (c *TodoClient) Delete() *TodoDelete {
+	mutation := newTodoMutation(c.config, OpDelete)
+	return &TodoDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TodoClient) DeleteOne(_m *Todo) *TodoDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TodoClient) DeleteOneID(id int) *TodoDeleteOne {
+	builder := c.Delete().Where(todo.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TodoDeleteOne{builder}
+}
+
+// Query returns a query builder for Todo.
+func (c *TodoClient) Query() *TodoQuery {
+	return &TodoQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTodo},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Todo entity by its id.
+func (c *TodoClient) Get(ctx context.Context, id int) (*Todo, error) {
+	return c.Query().Where(todo.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TodoClient) GetX(ctx context.Context, id int) *Todo {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *TodoClient) Hooks() []Hook {
+	return c.hooks.Todo
+}
+
+// Interceptors returns the client interceptors.
+func (c *TodoClient) Interceptors() []Interceptor {
+	return c.inters.Todo
+}
+
+func (c *TodoClient) mutate(ctx context.Context, m *TodoMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TodoCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TodoUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TodoUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TodoDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Todo mutation op: %q", m.Op())
+	}
+}
+
 // WorkClient is a client for the Work schema.
 type WorkClient struct {
 	config
@@ -3181,13 +3606,13 @@ func (c *WorkTitleClient) mutate(ctx context.Context, m *WorkTitleMutation) (Val
 type (
 	hooks struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
-		FaninCursor, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
-		Revision, Work, WorkPart, WorkTitle []ent.Hook
+		FaninCursor, Hold, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
+		Revision, Takedown, Todo, Work, WorkPart, WorkTitle []ent.Hook
 	}
 	inters struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
-		FaninCursor, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
-		Revision, Work, WorkPart, WorkTitle []ent.Interceptor
+		FaninCursor, Hold, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
+		Revision, Takedown, Todo, Work, WorkPart, WorkTitle []ent.Interceptor
 	}
 )
 

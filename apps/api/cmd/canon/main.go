@@ -35,9 +35,19 @@ func main() {
 	}
 	defer db.Close()
 	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db)))
-	if len(os.Args) > 1 && os.Args[1] == "fanin" {
-		if err := runFanin(client, os.Args[2:]); err != nil {
-			slog.Error("fanin", "error", err)
+	if len(os.Args) > 1 {
+		commands := map[string]func([]string) error{
+			"fanin":    func(a []string) error { return runFanin(client, a) },
+			"takedown": func(a []string) error { return runTakedown(context.Background(), client, a) },
+			"restore":  func(a []string) error { return runRestore(context.Background(), client, a) },
+		}
+		run, ok := commands[os.Args[1]]
+		if !ok {
+			slog.Error("unknown command; want fanin, takedown or restore", "command", os.Args[1])
+			os.Exit(2)
+		}
+		if err := run(os.Args[2:]); err != nil {
+			slog.Error(os.Args[1], "error", err)
 			os.Exit(1)
 		}
 		return

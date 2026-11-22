@@ -10,6 +10,7 @@ import (
 	"api/internal/canon/ent/evidencerecord"
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
+	"api/internal/canon/ent/hold"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
@@ -17,6 +18,8 @@ import (
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/revision"
+	"api/internal/canon/ent/takedown"
+	"api/internal/canon/ent/todo"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
@@ -96,6 +99,7 @@ func checkColumn(t, c string) error {
 			evidencerecord.Table:   evidencerecord.ValidColumn,
 			evidencesnapshot.Table: evidencesnapshot.ValidColumn,
 			fanincursor.Table:      fanincursor.ValidColumn,
+			hold.Table:             hold.ValidColumn,
 			org.Table:              org.ValidColumn,
 			orgname.Table:          orgname.ValidColumn,
 			person.Table:           person.ValidColumn,
@@ -103,6 +107,8 @@ func checkColumn(t, c string) error {
 			release.Table:          release.ValidColumn,
 			releasecontent.Table:   releasecontent.ValidColumn,
 			revision.Table:         revision.ValidColumn,
+			takedown.Table:         takedown.ValidColumn,
+			todo.Table:             todo.ValidColumn,
 			work.Table:             work.ValidColumn,
 			workpart.Table:         workpart.ValidColumn,
 			worktitle.Table:        worktitle.ValidColumn,

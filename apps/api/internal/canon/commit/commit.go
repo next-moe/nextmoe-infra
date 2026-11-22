@@ -136,6 +136,13 @@ func (s *Service) apply(ctx context.Context, tx *ent.Tx, cs Changeset, i int, ch
 	if !ok || props == nil {
 		return Refused{{Change: i, Code: "PROPERTY_UNKNOWN", Detail: "unknown entity " + ch.Entity}}
 	}
+	if cs.Actor.Kind == ActorAgent && ch.ID != 0 {
+		if held, err := isHeld(ctx, tx, ch.Entity, ch.ID); err != nil {
+			return err
+		} else if held {
+			return Refused{{Change: i, Code: "ENTITY_HELD", Detail: fmt.Sprintf("%s %d is held", ch.Entity, ch.ID)}}
+		}
+	}
 	var state map[string]any
 	version := 0
 	if ch.ID != 0 && b.stamped {
@@ -199,6 +206,14 @@ func (s *Service) apply(ctx context.Context, tx *ent.Tx, cs Changeset, i int, ch
 				continue
 			}
 			val = id
+		}
+		if id, isID := val.(int64); isID && p.Shape == registry.ShapeRef && cs.Actor.Kind == ActorAgent {
+			if held, err := isHeld(ctx, tx, p.Ref, id); err != nil {
+				return err
+			} else if held {
+				refused = append(refused, Refusal{i, key, "ENTITY_HELD", fmt.Sprintf("%s %d is held", p.Ref, id)})
+				continue
+			}
 		}
 		if p.Unique == registry.UniqueGlobal {
 			if holder, err := s.holder(ctx, tx, ch.Entity, key, val, ch.ID); err != nil {
@@ -287,6 +302,15 @@ func (s *Service) holder(ctx context.Context, tx *ent.Tx, entity, column string,
 		}
 	}
 	return id, rows.Err()
+}
+
+func isHeld(ctx context.Context, tx *ent.Tx, entity string, id int64) (bool, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT 1 FROM canon.hold WHERE entity = $1 AND entity_id = $2 AND released_at IS NULL LIMIT 1`, entity, id)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	return rows.Next(), rows.Err()
 }
 
 func containsTier(ts []registry.Tier, t registry.Tier) bool {

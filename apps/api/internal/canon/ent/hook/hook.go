@@ -92,6 +92,18 @@ func (f FaninCursorFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FaninCursorMutation", m)
 }
 
+// The HoldFunc type is an adapter to allow the use of ordinary
+// function as Hold mutator.
+type HoldFunc func(context.Context, *ent.HoldMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f HoldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.HoldMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HoldMutation", m)
+}
+
 // The OrgFunc type is an adapter to allow the use of ordinary
 // function as Org mutator.
 type OrgFunc func(context.Context, *ent.OrgMutation) (ent.Value, error)
@@ -174,6 +186,30 @@ func (f RevisionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RevisionMutation", m)
+}
+
+// The TakedownFunc type is an adapter to allow the use of ordinary
+// function as Takedown mutator.
+type TakedownFunc func(context.Context, *ent.TakedownMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TakedownFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TakedownMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TakedownMutation", m)
+}
+
+// The TodoFunc type is an adapter to allow the use of ordinary
+// function as Todo mutator.
+type TodoFunc func(context.Context, *ent.TodoMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TodoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TodoMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TodoMutation", m)
 }
 
 // The WorkFunc type is an adapter to allow the use of ordinary

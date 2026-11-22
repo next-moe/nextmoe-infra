@@ -8,6 +8,7 @@ import (
 	"api/internal/canon/ent/evidencerecord"
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
+	"api/internal/canon/ent/hold"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
@@ -16,6 +17,8 @@ import (
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/revision"
 	"api/internal/canon/ent/schema"
+	"api/internal/canon/ent/takedown"
+	"api/internal/canon/ent/todo"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
@@ -80,6 +83,12 @@ func init() {
 	fanincursor.DefaultUpdatedAt = fanincursorDescUpdatedAt.Default.(func() time.Time)
 	// fanincursor.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	fanincursor.UpdateDefaultUpdatedAt = fanincursorDescUpdatedAt.UpdateDefault.(func() time.Time)
+	holdFields := schema.Hold{}.Fields()
+	_ = holdFields
+	// holdDescCreatedAt is the schema descriptor for created_at field.
+	holdDescCreatedAt := holdFields[5].Descriptor()
+	// hold.DefaultCreatedAt holds the default value on creation for the created_at field.
+	hold.DefaultCreatedAt = holdDescCreatedAt.Default.(func() time.Time)
 	orgFields := schema.Org{}.Fields()
 	_ = orgFields
 	// orgDescFieldState is the schema descriptor for field_state field.
@@ -198,6 +207,36 @@ func init() {
 	revisionDescCreatedAt := revisionFields[8].Descriptor()
 	// revision.DefaultCreatedAt holds the default value on creation for the created_at field.
 	revision.DefaultCreatedAt = revisionDescCreatedAt.Default.(func() time.Time)
+	takedownFields := schema.Takedown{}.Fields()
+	_ = takedownFields
+	// takedownDescCreatedAt is the schema descriptor for created_at field.
+	takedownDescCreatedAt := takedownFields[7].Descriptor()
+	// takedown.DefaultCreatedAt holds the default value on creation for the created_at field.
+	takedown.DefaultCreatedAt = takedownDescCreatedAt.Default.(func() time.Time)
+	todoFields := schema.Todo{}.Fields()
+	_ = todoFields
+	// todoDescState is the schema descriptor for state field.
+	todoDescState := todoFields[2].Descriptor()
+	// todo.DefaultState holds the default value on creation for the state field.
+	todo.DefaultState = todoDescState.Default.(string)
+	// todoDescDetail is the schema descriptor for detail field.
+	todoDescDetail := todoFields[3].Descriptor()
+	// todo.DefaultDetail holds the default value on creation for the detail field.
+	todo.DefaultDetail = todoDescDetail.Default.(string)
+	// todoDescSource is the schema descriptor for source field.
+	todoDescSource := todoFields[4].Descriptor()
+	// todo.DefaultSource holds the default value on creation for the source field.
+	todo.DefaultSource = todoDescSource.Default.(string)
+	// todoDescCreatedAt is the schema descriptor for created_at field.
+	todoDescCreatedAt := todoFields[7].Descriptor()
+	// todo.DefaultCreatedAt holds the default value on creation for the created_at field.
+	todo.DefaultCreatedAt = todoDescCreatedAt.Default.(func() time.Time)
+	// todoDescUpdatedAt is the schema descriptor for updated_at field.
+	todoDescUpdatedAt := todoFields[8].Descriptor()
+	// todo.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	todo.DefaultUpdatedAt = todoDescUpdatedAt.Default.(func() time.Time)
+	// todo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	todo.UpdateDefaultUpdatedAt = todoDescUpdatedAt.UpdateDefault.(func() time.Time)
 	workFields := schema.Work{}.Fields()
 	_ = workFields
 	// workDescStatus is the schema descriptor for status field.

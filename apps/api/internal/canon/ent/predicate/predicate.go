@@ -27,6 +27,9 @@ type EvidenceSnapshot func(*sql.Selector)
 // FaninCursor is the predicate function for fanincursor builders.
 type FaninCursor func(*sql.Selector)
 
+// Hold is the predicate function for hold builders.
+type Hold func(*sql.Selector)
+
 // Org is the predicate function for org builders.
 type Org func(*sql.Selector)
 
@@ -47,6 +50,12 @@ type ReleaseContent func(*sql.Selector)
 
 // Revision is the predicate function for revision builders.
 type Revision func(*sql.Selector)
+
+// Takedown is the predicate function for takedown builders.
+type Takedown func(*sql.Selector)
+
+// Todo is the predicate function for todo builders.
+type Todo func(*sql.Selector)
 
 // Work is the predicate function for work builders.
 type Work func(*sql.Selector)

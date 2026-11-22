@@ -28,6 +28,8 @@ type Tx struct {
 	EvidenceSnapshot *EvidenceSnapshotClient
 	// FaninCursor is the client for interacting with the FaninCursor builders.
 	FaninCursor *FaninCursorClient
+	// Hold is the client for interacting with the Hold builders.
+	Hold *HoldClient
 	// Org is the client for interacting with the Org builders.
 	Org *OrgClient
 	// OrgName is the client for interacting with the OrgName builders.
@@ -42,6 +44,10 @@ type Tx struct {
 	ReleaseContent *ReleaseContentClient
 	// Revision is the client for interacting with the Revision builders.
 	Revision *RevisionClient
+	// Takedown is the client for interacting with the Takedown builders.
+	Takedown *TakedownClient
+	// Todo is the client for interacting with the Todo builders.
+	Todo *TodoClient
 	// Work is the client for interacting with the Work builders.
 	Work *WorkClient
 	// WorkPart is the client for interacting with the WorkPart builders.
@@ -186,6 +192,7 @@ func (tx *Tx) init() {
 	tx.EvidenceRecord = NewEvidenceRecordClient(tx.config)
 	tx.EvidenceSnapshot = NewEvidenceSnapshotClient(tx.config)
 	tx.FaninCursor = NewFaninCursorClient(tx.config)
+	tx.Hold = NewHoldClient(tx.config)
 	tx.Org = NewOrgClient(tx.config)
 	tx.OrgName = NewOrgNameClient(tx.config)
 	tx.Person = NewPersonClient(tx.config)
@@ -193,6 +200,8 @@ func (tx *Tx) init() {
 	tx.Release = NewReleaseClient(tx.config)
 	tx.ReleaseContent = NewReleaseContentClient(tx.config)
 	tx.Revision = NewRevisionClient(tx.config)
+	tx.Takedown = NewTakedownClient(tx.config)
+	tx.Todo = NewTodoClient(tx.config)
 	tx.Work = NewWorkClient(tx.config)
 	tx.WorkPart = NewWorkPartClient(tx.config)
 	tx.WorkTitle = NewWorkTitleClient(tx.config)

@@ -13,6 +13,7 @@ import (
 	"api/internal/canon/canontest"
 	"api/internal/canon/contract"
 	"api/internal/canon/ent/bookrelease"
+	"api/internal/canon/ent/todo"
 )
 
 type fakePool struct {
@@ -169,5 +170,36 @@ func TestFaninCommitsVerifiedRowsAndRefusesTheRest(t *testing.T) {
 	}
 	if after, _ := client.Work.Query().Count(ctx); after != before {
 		t.Errorf("replaying the pool created %d more works", after-before)
+	}
+}
+
+func TestSameNamedPersonBecomesOneTodo(t *testing.T) {
+	client, _ := canontest.Client(t)
+	ctx := context.Background()
+	name := fmt.Sprintf("同名%d", rand.Int64())
+	rec := contract.Record{ID: "ndl:p", Source: "ndl", Key: "p", Hash: "x", FetchedAt: "2026-11-22T00:00:00Z",
+		Fields: json.RawMessage(fmt.Sprintf(`{"creators":[{"name":%q}]}`, name))}
+	pool := &fakePool{recs: map[string]contract.Record{"ndl:p": rec}}
+	person := func() {
+		pool.outbox = append(pool.outbox, contract.OutboxEntry{ID: int64(len(pool.outbox) + 1), Row: contract.OutboxRow{
+			ContractVersion: contract.Version, Program: "ln-pilot", Kind: "changeset", Changeset: &contract.Changeset{LeadID: "l", Entities: []contract.NewEntity{
+				{Ref: "p", Entity: "person", Properties: map[string]contract.Candidate{}},
+				{Ref: "a", Entity: "person_alias", Properties: map[string]contract.Candidate{"person_id": ref("p"),
+					"name": {Value: val(name), Evidence: []contract.Evidence{{RecordID: "ndl:p", Path: "creators.0.name"}}}}},
+			}}}})
+	}
+	person()
+	person()
+	person()
+	f := New(fmt.Sprintf("todo-%d", rand.Int64()), pool, client)
+	if _, err := f.RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	if pool.answers[0].Result != "written" || pool.answers[1].Result != "todo" || pool.answers[2].Result != "todo" {
+		t.Fatalf("answers %+v", pool.answers)
+	}
+	n, err := client.Todo.Query().Where(todo.SubjectKey("identity:person_alias:" + name)).Count(ctx)
+	if err != nil || n != 1 {
+		t.Errorf("todos for one question: %d %v", n, err)
 	}
 }

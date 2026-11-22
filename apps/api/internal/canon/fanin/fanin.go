@@ -77,6 +77,12 @@ func (f *Fanin) process(ctx context.Context, r *run, e contract.OutboxEntry) (co
 	ans := contract.InboxRow{OutboxID: e.ID}
 	refused := func(rf *refusal) (contract.InboxRow, error) {
 		ans.Result, ans.Code, ans.Detail = "refused", rf.code, rf.detail
+		if subject, ok := todoSubject(rf, e.Row); ok {
+			if err := f.fileTodo(ctx, rf, subject, e); err != nil {
+				return ans, err
+			}
+			ans.Result = "todo"
+		}
 		return ans, nil
 	}
 	row := e.Row
@@ -125,7 +131,7 @@ func (f *Fanin) process(ctx context.Context, r *run, e contract.OutboxEntry) (co
 				checks = append(checks, ck)
 				ch.Values[key] = v
 			}
-			if rf, holder := f.identity(ctx, ch); rf != nil {
+			if rf, holder := f.identity(ctx, row.Changeset.LeadID, ch); rf != nil {
 				ans.EntityID = holder
 				return refused(rf)
 			}
@@ -182,7 +188,7 @@ func (f *Fanin) property(ctx context.Context, r *run, entity, key string, c cont
 // identity applies plan 06 before anything is created: a known ISBN or JAN
 // means the release exists; a new organization is always a human's call; a
 // person name already in canon cannot be told apart by fanin alone.
-func (f *Fanin) identity(ctx context.Context, ch commit.Change) (*refusal, int64) {
+func (f *Fanin) identity(ctx context.Context, lead string, ch commit.Change) (*refusal, int64) {
 	switch ch.Entity {
 	case "book_release":
 		for _, key := range []string{"isbn13", "jan"} {
@@ -201,17 +207,23 @@ func (f *Fanin) identity(ctx context.Context, ch commit.Change) (*refusal, int64
 		}
 	case "org", "org_name":
 		if ch.Entity == "org" {
-			return refuse("IDENTITY_UNSURE", "new organizations are seeded by a person (plan 06 §5)"), 0
+			rf := refuse("IDENTITY_UNSURE", "new organizations are seeded by a person (plan 06 §5)")
+			rf.subject = "identity:org:" + lead
+			return rf, 0
 		}
 		if v, ok := ch.Values["text"]; ok {
 			if n, err := f.Client.OrgName.Query().Where(orgname.Text(unquote(v))).First(ctx); err == nil {
-				return refuse("IDENTITY_UNSURE", "org %d already has this name", n.OrgID), n.OrgID
+				rf := refuse("IDENTITY_UNSURE", "org %d already has this name", n.OrgID)
+				rf.subject = "identity:org_name:" + unquote(v)
+				return rf, n.OrgID
 			}
 		}
 	case "person_alias":
 		if v, ok := ch.Values["name"]; ok {
 			if a, err := f.Client.PersonAlias.Query().Where(personalias.Name(unquote(v))).First(ctx); err == nil {
-				return refuse("IDENTITY_UNSURE", "person alias %d already has this name; cite it instead", a.ID), a.ID
+				rf := refuse("IDENTITY_UNSURE", "alias %d already has this name; cite it if it is the same person", a.ID)
+				rf.subject = "identity:person_alias:" + unquote(v)
+				return rf, a.ID
 			}
 		}
 	}
