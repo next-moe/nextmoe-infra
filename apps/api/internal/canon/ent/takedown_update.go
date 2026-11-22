@@ -199,6 +199,66 @@ func (_u *TakedownUpdate) ClearRestoreNote() *TakedownUpdate {
 	return _u
 }
 
+// SetExcludeHost sets the "exclude_host" field.
+func (_u *TakedownUpdate) SetExcludeHost(v string) *TakedownUpdate {
+	_u.mutation.SetExcludeHost(v)
+	return _u
+}
+
+// SetNillableExcludeHost sets the "exclude_host" field if the given value is not nil.
+func (_u *TakedownUpdate) SetNillableExcludeHost(v *string) *TakedownUpdate {
+	if v != nil {
+		_u.SetExcludeHost(*v)
+	}
+	return _u
+}
+
+// ClearExcludeHost clears the value of the "exclude_host" field.
+func (_u *TakedownUpdate) ClearExcludeHost() *TakedownUpdate {
+	_u.mutation.ClearExcludeHost()
+	return _u
+}
+
+// SetPushedAt sets the "pushed_at" field.
+func (_u *TakedownUpdate) SetPushedAt(v time.Time) *TakedownUpdate {
+	_u.mutation.SetPushedAt(v)
+	return _u
+}
+
+// SetNillablePushedAt sets the "pushed_at" field if the given value is not nil.
+func (_u *TakedownUpdate) SetNillablePushedAt(v *time.Time) *TakedownUpdate {
+	if v != nil {
+		_u.SetPushedAt(*v)
+	}
+	return _u
+}
+
+// ClearPushedAt clears the value of the "pushed_at" field.
+func (_u *TakedownUpdate) ClearPushedAt() *TakedownUpdate {
+	_u.mutation.ClearPushedAt()
+	return _u
+}
+
+// SetRestorePushedAt sets the "restore_pushed_at" field.
+func (_u *TakedownUpdate) SetRestorePushedAt(v time.Time) *TakedownUpdate {
+	_u.mutation.SetRestorePushedAt(v)
+	return _u
+}
+
+// SetNillableRestorePushedAt sets the "restore_pushed_at" field if the given value is not nil.
+func (_u *TakedownUpdate) SetNillableRestorePushedAt(v *time.Time) *TakedownUpdate {
+	if v != nil {
+		_u.SetRestorePushedAt(*v)
+	}
+	return _u
+}
+
+// ClearRestorePushedAt clears the value of the "restore_pushed_at" field.
+func (_u *TakedownUpdate) ClearRestorePushedAt() *TakedownUpdate {
+	_u.mutation.ClearRestorePushedAt()
+	return _u
+}
+
 // Mutation returns the TakedownMutation object of the builder.
 func (_u *TakedownUpdate) Mutation() *TakedownMutation {
 	return _u.mutation
@@ -284,6 +344,24 @@ func (_u *TakedownUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.RestoreNoteCleared() {
 		_spec.ClearField(takedown.FieldRestoreNote, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExcludeHost(); ok {
+		_spec.SetField(takedown.FieldExcludeHost, field.TypeString, value)
+	}
+	if _u.mutation.ExcludeHostCleared() {
+		_spec.ClearField(takedown.FieldExcludeHost, field.TypeString)
+	}
+	if value, ok := _u.mutation.PushedAt(); ok {
+		_spec.SetField(takedown.FieldPushedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PushedAtCleared() {
+		_spec.ClearField(takedown.FieldPushedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RestorePushedAt(); ok {
+		_spec.SetField(takedown.FieldRestorePushedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RestorePushedAtCleared() {
+		_spec.ClearField(takedown.FieldRestorePushedAt, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -476,6 +554,66 @@ func (_u *TakedownUpdateOne) ClearRestoreNote() *TakedownUpdateOne {
 	return _u
 }
 
+// SetExcludeHost sets the "exclude_host" field.
+func (_u *TakedownUpdateOne) SetExcludeHost(v string) *TakedownUpdateOne {
+	_u.mutation.SetExcludeHost(v)
+	return _u
+}
+
+// SetNillableExcludeHost sets the "exclude_host" field if the given value is not nil.
+func (_u *TakedownUpdateOne) SetNillableExcludeHost(v *string) *TakedownUpdateOne {
+	if v != nil {
+		_u.SetExcludeHost(*v)
+	}
+	return _u
+}
+
+// ClearExcludeHost clears the value of the "exclude_host" field.
+func (_u *TakedownUpdateOne) ClearExcludeHost() *TakedownUpdateOne {
+	_u.mutation.ClearExcludeHost()
+	return _u
+}
+
+// SetPushedAt sets the "pushed_at" field.
+func (_u *TakedownUpdateOne) SetPushedAt(v time.Time) *TakedownUpdateOne {
+	_u.mutation.SetPushedAt(v)
+	return _u
+}
+
+// SetNillablePushedAt sets the "pushed_at" field if the given value is not nil.
+func (_u *TakedownUpdateOne) SetNillablePushedAt(v *time.Time) *TakedownUpdateOne {
+	if v != nil {
+		_u.SetPushedAt(*v)
+	}
+	return _u
+}
+
+// ClearPushedAt clears the value of the "pushed_at" field.
+func (_u *TakedownUpdateOne) ClearPushedAt() *TakedownUpdateOne {
+	_u.mutation.ClearPushedAt()
+	return _u
+}
+
+// SetRestorePushedAt sets the "restore_pushed_at" field.
+func (_u *TakedownUpdateOne) SetRestorePushedAt(v time.Time) *TakedownUpdateOne {
+	_u.mutation.SetRestorePushedAt(v)
+	return _u
+}
+
+// SetNillableRestorePushedAt sets the "restore_pushed_at" field if the given value is not nil.
+func (_u *TakedownUpdateOne) SetNillableRestorePushedAt(v *time.Time) *TakedownUpdateOne {
+	if v != nil {
+		_u.SetRestorePushedAt(*v)
+	}
+	return _u
+}
+
+// ClearRestorePushedAt clears the value of the "restore_pushed_at" field.
+func (_u *TakedownUpdateOne) ClearRestorePushedAt() *TakedownUpdateOne {
+	_u.mutation.ClearRestorePushedAt()
+	return _u
+}
+
 // Mutation returns the TakedownMutation object of the builder.
 func (_u *TakedownUpdateOne) Mutation() *TakedownMutation {
 	return _u.mutation
@@ -591,6 +729,24 @@ func (_u *TakedownUpdateOne) sqlSave(ctx context.Context) (_node *Takedown, err 
 	}
 	if _u.mutation.RestoreNoteCleared() {
 		_spec.ClearField(takedown.FieldRestoreNote, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExcludeHost(); ok {
+		_spec.SetField(takedown.FieldExcludeHost, field.TypeString, value)
+	}
+	if _u.mutation.ExcludeHostCleared() {
+		_spec.ClearField(takedown.FieldExcludeHost, field.TypeString)
+	}
+	if value, ok := _u.mutation.PushedAt(); ok {
+		_spec.SetField(takedown.FieldPushedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PushedAtCleared() {
+		_spec.ClearField(takedown.FieldPushedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RestorePushedAt(); ok {
+		_spec.SetField(takedown.FieldRestorePushedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RestorePushedAtCleared() {
+		_spec.ClearField(takedown.FieldRestorePushedAt, field.TypeTime)
 	}
 	_node = &Takedown{config: _u.config}
 	_spec.Assign = _node.assignValues

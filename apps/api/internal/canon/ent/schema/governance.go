@@ -75,6 +75,11 @@ func (Takedown) Fields() []ent.Field {
 		field.Time("restored_at").Optional().Nillable(),
 		field.String("restored_by").Optional(),
 		field.String("restore_note").Optional(),
+		// exclude_host is set when the rights holder also asks that their
+		// site not be crawled (plan 08 §4.5).
+		field.String("exclude_host").Optional(),
+		field.Time("pushed_at").Optional().Nillable(),
+		field.Time("restore_pushed_at").Optional().Nillable(),
 	}
 }
 

@@ -128,6 +128,48 @@ func (_c *TakedownCreate) SetNillableRestoreNote(v *string) *TakedownCreate {
 	return _c
 }
 
+// SetExcludeHost sets the "exclude_host" field.
+func (_c *TakedownCreate) SetExcludeHost(v string) *TakedownCreate {
+	_c.mutation.SetExcludeHost(v)
+	return _c
+}
+
+// SetNillableExcludeHost sets the "exclude_host" field if the given value is not nil.
+func (_c *TakedownCreate) SetNillableExcludeHost(v *string) *TakedownCreate {
+	if v != nil {
+		_c.SetExcludeHost(*v)
+	}
+	return _c
+}
+
+// SetPushedAt sets the "pushed_at" field.
+func (_c *TakedownCreate) SetPushedAt(v time.Time) *TakedownCreate {
+	_c.mutation.SetPushedAt(v)
+	return _c
+}
+
+// SetNillablePushedAt sets the "pushed_at" field if the given value is not nil.
+func (_c *TakedownCreate) SetNillablePushedAt(v *time.Time) *TakedownCreate {
+	if v != nil {
+		_c.SetPushedAt(*v)
+	}
+	return _c
+}
+
+// SetRestorePushedAt sets the "restore_pushed_at" field.
+func (_c *TakedownCreate) SetRestorePushedAt(v time.Time) *TakedownCreate {
+	_c.mutation.SetRestorePushedAt(v)
+	return _c
+}
+
+// SetNillableRestorePushedAt sets the "restore_pushed_at" field if the given value is not nil.
+func (_c *TakedownCreate) SetNillableRestorePushedAt(v *time.Time) *TakedownCreate {
+	if v != nil {
+		_c.SetRestorePushedAt(*v)
+	}
+	return _c
+}
+
 // Mutation returns the TakedownMutation object of the builder.
 func (_c *TakedownCreate) Mutation() *TakedownMutation {
 	return _c.mutation
@@ -262,6 +304,18 @@ func (_c *TakedownCreate) createSpec() (*Takedown, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RestoreNote(); ok {
 		_spec.SetField(takedown.FieldRestoreNote, field.TypeString, value)
 		_node.RestoreNote = value
+	}
+	if value, ok := _c.mutation.ExcludeHost(); ok {
+		_spec.SetField(takedown.FieldExcludeHost, field.TypeString, value)
+		_node.ExcludeHost = value
+	}
+	if value, ok := _c.mutation.PushedAt(); ok {
+		_spec.SetField(takedown.FieldPushedAt, field.TypeTime, value)
+		_node.PushedAt = &value
+	}
+	if value, ok := _c.mutation.RestorePushedAt(); ok {
+		_spec.SetField(takedown.FieldRestorePushedAt, field.TypeTime, value)
+		_node.RestorePushedAt = &value
 	}
 	return _node, _spec
 }
@@ -462,6 +516,60 @@ func (u *TakedownUpsert) UpdateRestoreNote() *TakedownUpsert {
 // ClearRestoreNote clears the value of the "restore_note" field.
 func (u *TakedownUpsert) ClearRestoreNote() *TakedownUpsert {
 	u.SetNull(takedown.FieldRestoreNote)
+	return u
+}
+
+// SetExcludeHost sets the "exclude_host" field.
+func (u *TakedownUpsert) SetExcludeHost(v string) *TakedownUpsert {
+	u.Set(takedown.FieldExcludeHost, v)
+	return u
+}
+
+// UpdateExcludeHost sets the "exclude_host" field to the value that was provided on create.
+func (u *TakedownUpsert) UpdateExcludeHost() *TakedownUpsert {
+	u.SetExcluded(takedown.FieldExcludeHost)
+	return u
+}
+
+// ClearExcludeHost clears the value of the "exclude_host" field.
+func (u *TakedownUpsert) ClearExcludeHost() *TakedownUpsert {
+	u.SetNull(takedown.FieldExcludeHost)
+	return u
+}
+
+// SetPushedAt sets the "pushed_at" field.
+func (u *TakedownUpsert) SetPushedAt(v time.Time) *TakedownUpsert {
+	u.Set(takedown.FieldPushedAt, v)
+	return u
+}
+
+// UpdatePushedAt sets the "pushed_at" field to the value that was provided on create.
+func (u *TakedownUpsert) UpdatePushedAt() *TakedownUpsert {
+	u.SetExcluded(takedown.FieldPushedAt)
+	return u
+}
+
+// ClearPushedAt clears the value of the "pushed_at" field.
+func (u *TakedownUpsert) ClearPushedAt() *TakedownUpsert {
+	u.SetNull(takedown.FieldPushedAt)
+	return u
+}
+
+// SetRestorePushedAt sets the "restore_pushed_at" field.
+func (u *TakedownUpsert) SetRestorePushedAt(v time.Time) *TakedownUpsert {
+	u.Set(takedown.FieldRestorePushedAt, v)
+	return u
+}
+
+// UpdateRestorePushedAt sets the "restore_pushed_at" field to the value that was provided on create.
+func (u *TakedownUpsert) UpdateRestorePushedAt() *TakedownUpsert {
+	u.SetExcluded(takedown.FieldRestorePushedAt)
+	return u
+}
+
+// ClearRestorePushedAt clears the value of the "restore_pushed_at" field.
+func (u *TakedownUpsert) ClearRestorePushedAt() *TakedownUpsert {
+	u.SetNull(takedown.FieldRestorePushedAt)
 	return u
 }
 
@@ -682,6 +790,69 @@ func (u *TakedownUpsertOne) UpdateRestoreNote() *TakedownUpsertOne {
 func (u *TakedownUpsertOne) ClearRestoreNote() *TakedownUpsertOne {
 	return u.Update(func(s *TakedownUpsert) {
 		s.ClearRestoreNote()
+	})
+}
+
+// SetExcludeHost sets the "exclude_host" field.
+func (u *TakedownUpsertOne) SetExcludeHost(v string) *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.SetExcludeHost(v)
+	})
+}
+
+// UpdateExcludeHost sets the "exclude_host" field to the value that was provided on create.
+func (u *TakedownUpsertOne) UpdateExcludeHost() *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.UpdateExcludeHost()
+	})
+}
+
+// ClearExcludeHost clears the value of the "exclude_host" field.
+func (u *TakedownUpsertOne) ClearExcludeHost() *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.ClearExcludeHost()
+	})
+}
+
+// SetPushedAt sets the "pushed_at" field.
+func (u *TakedownUpsertOne) SetPushedAt(v time.Time) *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.SetPushedAt(v)
+	})
+}
+
+// UpdatePushedAt sets the "pushed_at" field to the value that was provided on create.
+func (u *TakedownUpsertOne) UpdatePushedAt() *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.UpdatePushedAt()
+	})
+}
+
+// ClearPushedAt clears the value of the "pushed_at" field.
+func (u *TakedownUpsertOne) ClearPushedAt() *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.ClearPushedAt()
+	})
+}
+
+// SetRestorePushedAt sets the "restore_pushed_at" field.
+func (u *TakedownUpsertOne) SetRestorePushedAt(v time.Time) *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.SetRestorePushedAt(v)
+	})
+}
+
+// UpdateRestorePushedAt sets the "restore_pushed_at" field to the value that was provided on create.
+func (u *TakedownUpsertOne) UpdateRestorePushedAt() *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.UpdateRestorePushedAt()
+	})
+}
+
+// ClearRestorePushedAt clears the value of the "restore_pushed_at" field.
+func (u *TakedownUpsertOne) ClearRestorePushedAt() *TakedownUpsertOne {
+	return u.Update(func(s *TakedownUpsert) {
+		s.ClearRestorePushedAt()
 	})
 }
 
@@ -1068,6 +1239,69 @@ func (u *TakedownUpsertBulk) UpdateRestoreNote() *TakedownUpsertBulk {
 func (u *TakedownUpsertBulk) ClearRestoreNote() *TakedownUpsertBulk {
 	return u.Update(func(s *TakedownUpsert) {
 		s.ClearRestoreNote()
+	})
+}
+
+// SetExcludeHost sets the "exclude_host" field.
+func (u *TakedownUpsertBulk) SetExcludeHost(v string) *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.SetExcludeHost(v)
+	})
+}
+
+// UpdateExcludeHost sets the "exclude_host" field to the value that was provided on create.
+func (u *TakedownUpsertBulk) UpdateExcludeHost() *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.UpdateExcludeHost()
+	})
+}
+
+// ClearExcludeHost clears the value of the "exclude_host" field.
+func (u *TakedownUpsertBulk) ClearExcludeHost() *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.ClearExcludeHost()
+	})
+}
+
+// SetPushedAt sets the "pushed_at" field.
+func (u *TakedownUpsertBulk) SetPushedAt(v time.Time) *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.SetPushedAt(v)
+	})
+}
+
+// UpdatePushedAt sets the "pushed_at" field to the value that was provided on create.
+func (u *TakedownUpsertBulk) UpdatePushedAt() *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.UpdatePushedAt()
+	})
+}
+
+// ClearPushedAt clears the value of the "pushed_at" field.
+func (u *TakedownUpsertBulk) ClearPushedAt() *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.ClearPushedAt()
+	})
+}
+
+// SetRestorePushedAt sets the "restore_pushed_at" field.
+func (u *TakedownUpsertBulk) SetRestorePushedAt(v time.Time) *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.SetRestorePushedAt(v)
+	})
+}
+
+// UpdateRestorePushedAt sets the "restore_pushed_at" field to the value that was provided on create.
+func (u *TakedownUpsertBulk) UpdateRestorePushedAt() *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.UpdateRestorePushedAt()
+	})
+}
+
+// ClearRestorePushedAt clears the value of the "restore_pushed_at" field.
+func (u *TakedownUpsertBulk) ClearRestorePushedAt() *TakedownUpsertBulk {
+	return u.Update(func(s *TakedownUpsert) {
+		s.ClearRestorePushedAt()
 	})
 }
 

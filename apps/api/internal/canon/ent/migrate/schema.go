@@ -443,6 +443,9 @@ var (
 		{Name: "restored_at", Type: field.TypeTime, Nullable: true},
 		{Name: "restored_by", Type: field.TypeString, Nullable: true},
 		{Name: "restore_note", Type: field.TypeString, Nullable: true},
+		{Name: "exclude_host", Type: field.TypeString, Nullable: true},
+		{Name: "pushed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "restore_pushed_at", Type: field.TypeTime, Nullable: true},
 	}
 	// TakedownTable holds the schema information for the "takedown" table.
 	TakedownTable = &schema.Table{

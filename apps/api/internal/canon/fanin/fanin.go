@@ -37,6 +37,9 @@ func New(name string, pool Pool, client *ent.Client) *Fanin {
 // RunOnce processes one page from the cursor and answers every row; a row's
 // refusal is an answer, not an error. It returns how many rows it handled.
 func (f *Fanin) RunOnce(ctx context.Context, limit int) (int, error) {
+	if err := f.pushBlocklist(ctx); err != nil {
+		return 0, fmt.Errorf("push blocklist: %w", err)
+	}
 	if err := f.answerSettled(ctx); err != nil {
 		return 0, fmt.Errorf("answer settled todos: %w", err)
 	}

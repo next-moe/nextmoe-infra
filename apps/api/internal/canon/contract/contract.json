@@ -1404,6 +1404,9 @@
     }
   ],
   "pool": {
+    "block_batch": {
+      "$ref": "#/$defs/BlockBatch"
+    },
     "inbox": {
       "$ref": "#/$defs/InboxRow"
     },
@@ -1425,12 +1428,72 @@
   },
   "pool_api": {
     "auth": "Authorization: Bearer \u003cpool token\u003e",
+    "block": "POST /pool/v0/blocklist",
     "inbox": "POST /pool/v0/inbox",
     "outbox": "GET /pool/v0/outbox?after=\u003cid\u003e\u0026limit=\u003cn\u003e",
     "record": "GET /pool/v0/records/{id}",
     "snapshot": "GET /pool/v0/snapshots/{hash}"
   },
   "$defs": {
+    "BlockBatch": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/BlockItem"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "type": "object"
+    },
+    "BlockItem": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "entity": {
+          "type": "string"
+        },
+        "entity_id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "entity",
+            "asset",
+            "host"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "takedown_id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "value": {
+          "description": "Asset hash or host name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "reason",
+        "takedown_id",
+        "active"
+      ],
+      "type": "object"
+    },
     "Candidate": {
       "additionalProperties": false,
       "properties": {

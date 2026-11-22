@@ -13416,25 +13416,28 @@ func (m *RevisionMutation) ResetEdge(name string) error {
 // TakedownMutation represents an operation that mutates the Takedown nodes in the graph.
 type TakedownMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	notice_id     *string
-	scope         *string
-	entity        *string
-	entity_id     *int64
-	addentity_id  *int64
-	asset_hash    *string
-	reason        *string
-	created_by    *string
-	created_at    *time.Time
-	restored_at   *time.Time
-	restored_by   *string
-	restore_note  *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Takedown, error)
-	predicates    []predicate.Takedown
+	op                Op
+	typ               string
+	id                *int
+	notice_id         *string
+	scope             *string
+	entity            *string
+	entity_id         *int64
+	addentity_id      *int64
+	asset_hash        *string
+	reason            *string
+	created_by        *string
+	created_at        *time.Time
+	restored_at       *time.Time
+	restored_by       *string
+	restore_note      *string
+	exclude_host      *string
+	pushed_at         *time.Time
+	restore_pushed_at *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*Takedown, error)
+	predicates        []predicate.Takedown
 }
 
 var _ ent.Mutation = (*TakedownMutation)(nil)
@@ -14003,6 +14006,153 @@ func (m *TakedownMutation) ResetRestoreNote() {
 	delete(m.clearedFields, takedown.FieldRestoreNote)
 }
 
+// SetExcludeHost sets the "exclude_host" field.
+func (m *TakedownMutation) SetExcludeHost(s string) {
+	m.exclude_host = &s
+}
+
+// ExcludeHost returns the value of the "exclude_host" field in the mutation.
+func (m *TakedownMutation) ExcludeHost() (r string, exists bool) {
+	v := m.exclude_host
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExcludeHost returns the old "exclude_host" field's value of the Takedown entity.
+// If the Takedown object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TakedownMutation) OldExcludeHost(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExcludeHost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExcludeHost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExcludeHost: %w", err)
+	}
+	return oldValue.ExcludeHost, nil
+}
+
+// ClearExcludeHost clears the value of the "exclude_host" field.
+func (m *TakedownMutation) ClearExcludeHost() {
+	m.exclude_host = nil
+	m.clearedFields[takedown.FieldExcludeHost] = struct{}{}
+}
+
+// ExcludeHostCleared returns if the "exclude_host" field was cleared in this mutation.
+func (m *TakedownMutation) ExcludeHostCleared() bool {
+	_, ok := m.clearedFields[takedown.FieldExcludeHost]
+	return ok
+}
+
+// ResetExcludeHost resets all changes to the "exclude_host" field.
+func (m *TakedownMutation) ResetExcludeHost() {
+	m.exclude_host = nil
+	delete(m.clearedFields, takedown.FieldExcludeHost)
+}
+
+// SetPushedAt sets the "pushed_at" field.
+func (m *TakedownMutation) SetPushedAt(t time.Time) {
+	m.pushed_at = &t
+}
+
+// PushedAt returns the value of the "pushed_at" field in the mutation.
+func (m *TakedownMutation) PushedAt() (r time.Time, exists bool) {
+	v := m.pushed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPushedAt returns the old "pushed_at" field's value of the Takedown entity.
+// If the Takedown object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TakedownMutation) OldPushedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPushedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPushedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPushedAt: %w", err)
+	}
+	return oldValue.PushedAt, nil
+}
+
+// ClearPushedAt clears the value of the "pushed_at" field.
+func (m *TakedownMutation) ClearPushedAt() {
+	m.pushed_at = nil
+	m.clearedFields[takedown.FieldPushedAt] = struct{}{}
+}
+
+// PushedAtCleared returns if the "pushed_at" field was cleared in this mutation.
+func (m *TakedownMutation) PushedAtCleared() bool {
+	_, ok := m.clearedFields[takedown.FieldPushedAt]
+	return ok
+}
+
+// ResetPushedAt resets all changes to the "pushed_at" field.
+func (m *TakedownMutation) ResetPushedAt() {
+	m.pushed_at = nil
+	delete(m.clearedFields, takedown.FieldPushedAt)
+}
+
+// SetRestorePushedAt sets the "restore_pushed_at" field.
+func (m *TakedownMutation) SetRestorePushedAt(t time.Time) {
+	m.restore_pushed_at = &t
+}
+
+// RestorePushedAt returns the value of the "restore_pushed_at" field in the mutation.
+func (m *TakedownMutation) RestorePushedAt() (r time.Time, exists bool) {
+	v := m.restore_pushed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRestorePushedAt returns the old "restore_pushed_at" field's value of the Takedown entity.
+// If the Takedown object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TakedownMutation) OldRestorePushedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRestorePushedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRestorePushedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRestorePushedAt: %w", err)
+	}
+	return oldValue.RestorePushedAt, nil
+}
+
+// ClearRestorePushedAt clears the value of the "restore_pushed_at" field.
+func (m *TakedownMutation) ClearRestorePushedAt() {
+	m.restore_pushed_at = nil
+	m.clearedFields[takedown.FieldRestorePushedAt] = struct{}{}
+}
+
+// RestorePushedAtCleared returns if the "restore_pushed_at" field was cleared in this mutation.
+func (m *TakedownMutation) RestorePushedAtCleared() bool {
+	_, ok := m.clearedFields[takedown.FieldRestorePushedAt]
+	return ok
+}
+
+// ResetRestorePushedAt resets all changes to the "restore_pushed_at" field.
+func (m *TakedownMutation) ResetRestorePushedAt() {
+	m.restore_pushed_at = nil
+	delete(m.clearedFields, takedown.FieldRestorePushedAt)
+}
+
 // Where appends a list predicates to the TakedownMutation builder.
 func (m *TakedownMutation) Where(ps ...predicate.Takedown) {
 	m.predicates = append(m.predicates, ps...)
@@ -14037,7 +14187,7 @@ func (m *TakedownMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TakedownMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 14)
 	if m.notice_id != nil {
 		fields = append(fields, takedown.FieldNoticeID)
 	}
@@ -14071,6 +14221,15 @@ func (m *TakedownMutation) Fields() []string {
 	if m.restore_note != nil {
 		fields = append(fields, takedown.FieldRestoreNote)
 	}
+	if m.exclude_host != nil {
+		fields = append(fields, takedown.FieldExcludeHost)
+	}
+	if m.pushed_at != nil {
+		fields = append(fields, takedown.FieldPushedAt)
+	}
+	if m.restore_pushed_at != nil {
+		fields = append(fields, takedown.FieldRestorePushedAt)
+	}
 	return fields
 }
 
@@ -14101,6 +14260,12 @@ func (m *TakedownMutation) Field(name string) (ent.Value, bool) {
 		return m.RestoredBy()
 	case takedown.FieldRestoreNote:
 		return m.RestoreNote()
+	case takedown.FieldExcludeHost:
+		return m.ExcludeHost()
+	case takedown.FieldPushedAt:
+		return m.PushedAt()
+	case takedown.FieldRestorePushedAt:
+		return m.RestorePushedAt()
 	}
 	return nil, false
 }
@@ -14132,6 +14297,12 @@ func (m *TakedownMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRestoredBy(ctx)
 	case takedown.FieldRestoreNote:
 		return m.OldRestoreNote(ctx)
+	case takedown.FieldExcludeHost:
+		return m.OldExcludeHost(ctx)
+	case takedown.FieldPushedAt:
+		return m.OldPushedAt(ctx)
+	case takedown.FieldRestorePushedAt:
+		return m.OldRestorePushedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Takedown field %s", name)
 }
@@ -14218,6 +14389,27 @@ func (m *TakedownMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRestoreNote(v)
 		return nil
+	case takedown.FieldExcludeHost:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExcludeHost(v)
+		return nil
+	case takedown.FieldPushedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPushedAt(v)
+		return nil
+	case takedown.FieldRestorePushedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRestorePushedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Takedown field %s", name)
 }
@@ -14275,6 +14467,15 @@ func (m *TakedownMutation) ClearedFields() []string {
 	if m.FieldCleared(takedown.FieldRestoreNote) {
 		fields = append(fields, takedown.FieldRestoreNote)
 	}
+	if m.FieldCleared(takedown.FieldExcludeHost) {
+		fields = append(fields, takedown.FieldExcludeHost)
+	}
+	if m.FieldCleared(takedown.FieldPushedAt) {
+		fields = append(fields, takedown.FieldPushedAt)
+	}
+	if m.FieldCleared(takedown.FieldRestorePushedAt) {
+		fields = append(fields, takedown.FieldRestorePushedAt)
+	}
 	return fields
 }
 
@@ -14300,6 +14501,15 @@ func (m *TakedownMutation) ClearField(name string) error {
 		return nil
 	case takedown.FieldRestoreNote:
 		m.ClearRestoreNote()
+		return nil
+	case takedown.FieldExcludeHost:
+		m.ClearExcludeHost()
+		return nil
+	case takedown.FieldPushedAt:
+		m.ClearPushedAt()
+		return nil
+	case takedown.FieldRestorePushedAt:
+		m.ClearRestorePushedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Takedown nullable field %s", name)
@@ -14341,6 +14551,15 @@ func (m *TakedownMutation) ResetField(name string) error {
 		return nil
 	case takedown.FieldRestoreNote:
 		m.ResetRestoreNote()
+		return nil
+	case takedown.FieldExcludeHost:
+		m.ResetExcludeHost()
+		return nil
+	case takedown.FieldPushedAt:
+		m.ResetPushedAt()
+		return nil
+	case takedown.FieldRestorePushedAt:
+		m.ResetRestorePushedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Takedown field %s", name)

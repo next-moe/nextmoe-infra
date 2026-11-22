@@ -14,6 +14,7 @@ import (
 	"api/internal/canon/contract"
 	"api/internal/canon/ent/bookrelease"
 	"api/internal/canon/ent/todo"
+	"api/internal/canon/takedown"
 )
 
 type fakePool struct {
@@ -21,6 +22,7 @@ type fakePool struct {
 	snaps   map[string]contract.Snapshot
 	recs    map[string]contract.Record
 	answers []contract.InboxRow
+	blocked []contract.BlockItem
 }
 
 func (p *fakePool) Outbox(_ context.Context, after int64, limit int) (contract.OutboxPage, error) {
@@ -48,6 +50,11 @@ func (p *fakePool) Record(_ context.Context, id string) (contract.Record, error)
 		return r, errNotFound
 	}
 	return r, nil
+}
+
+func (p *fakePool) Block(_ context.Context, items []contract.BlockItem) error {
+	p.blocked = append(p.blocked, items...)
+	return nil
 }
 
 func (p *fakePool) Answer(_ context.Context, rows []contract.InboxRow) error {
@@ -221,5 +228,53 @@ func TestSettledTodosAreAnsweredOnce(t *testing.T) {
 	}
 	if len(pool.answers) != 1 || pool.answers[0].OutboxID != 42 || pool.answers[0].Result != "written" || pool.answers[0].IDs["alias.ndl.1"] != 11 {
 		t.Errorf("answers %+v", pool.answers)
+	}
+}
+
+func TestTakedownsReachThePoolAndLiftOnRestore(t *testing.T) {
+	client, _ := canontest.Client(t)
+	ctx := context.Background()
+	w, err := client.Work.Create().SetMedium("novel").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	td, err := takedown.Take(ctx, client, takedown.Notice{NoticeID: "trust:9", Scope: "entity", Entity: "work", EntityID: w.ID,
+		Reason: "rights holder", By: "user:1", ExcludeHost: "rights.example.jp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool := &fakePool{}
+	f := New(fmt.Sprintf("block-%d", rand.Int64()), pool, client)
+	mine := func() []contract.BlockItem {
+		var out []contract.BlockItem
+		for _, it := range pool.blocked {
+			if it.TakedownID == td.ID {
+				out = append(out, it)
+			}
+		}
+		pool.blocked = nil
+		return out
+	}
+	if _, err := f.RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	got := mine()
+	if len(got) != 2 || !got[0].Active || got[0].Kind != "entity" || got[0].EntityID != w.ID || got[1].Kind != "host" || got[1].Value != "rights.example.jp" {
+		t.Fatalf("blocked %+v", got)
+	}
+	if _, err := f.RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	if again := mine(); len(again) != 0 {
+		t.Errorf("pushed twice: %+v", again)
+	}
+	if err := takedown.Restore(ctx, client, td.ID, "user:1", "counter-notice"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	if lifted := mine(); len(lifted) != 2 || lifted[0].Active || lifted[1].Active {
+		t.Errorf("restore did not lift: %+v", lifted)
 	}
 }

@@ -70,6 +70,7 @@ const (
 	PathSnapshot = "/pool/v0/snapshots/{hash}"
 	PathRecord   = "/pool/v0/records/{id}"
 	PathInbox    = "/pool/v0/inbox"
+	PathBlock    = "/pool/v0/blocklist"
 )
 
 type OutboxEntry struct {
@@ -104,4 +105,20 @@ type Record struct {
 
 type InboxBatch struct {
 	Items []InboxRow `json:"items"`
+}
+
+// BlockItem is a takedown's effect on collection (plan 08 §4.3, §4.5): ingest
+// must not bring the entity, asset or host back. Active false lifts it.
+type BlockItem struct {
+	Kind       string `json:"kind" enum:"entity,asset,host"`
+	Entity     string `json:"entity,omitempty"`
+	EntityID   int64  `json:"entity_id,omitempty"`
+	Value      string `json:"value,omitempty" doc:"Asset hash or host name."`
+	Reason     string `json:"reason"`
+	TakedownID int    `json:"takedown_id"`
+	Active     bool   `json:"active"`
+}
+
+type BlockBatch struct {
+	Items []BlockItem `json:"items"`
 }

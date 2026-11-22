@@ -109,6 +109,21 @@ func RestoreNote(v string) predicate.Takedown {
 	return predicate.Takedown(sql.FieldEQ(FieldRestoreNote, v))
 }
 
+// ExcludeHost applies equality check predicate on the "exclude_host" field. It's identical to ExcludeHostEQ.
+func ExcludeHost(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldEQ(FieldExcludeHost, v))
+}
+
+// PushedAt applies equality check predicate on the "pushed_at" field. It's identical to PushedAtEQ.
+func PushedAt(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldEQ(FieldPushedAt, v))
+}
+
+// RestorePushedAt applies equality check predicate on the "restore_pushed_at" field. It's identical to RestorePushedAtEQ.
+func RestorePushedAt(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldEQ(FieldRestorePushedAt, v))
+}
+
 // NoticeIDEQ applies the EQ predicate on the "notice_id" field.
 func NoticeIDEQ(v string) predicate.Takedown {
 	return predicate.Takedown(sql.FieldEQ(FieldNoticeID, v))
@@ -787,6 +802,181 @@ func RestoreNoteEqualFold(v string) predicate.Takedown {
 // RestoreNoteContainsFold applies the ContainsFold predicate on the "restore_note" field.
 func RestoreNoteContainsFold(v string) predicate.Takedown {
 	return predicate.Takedown(sql.FieldContainsFold(FieldRestoreNote, v))
+}
+
+// ExcludeHostEQ applies the EQ predicate on the "exclude_host" field.
+func ExcludeHostEQ(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldEQ(FieldExcludeHost, v))
+}
+
+// ExcludeHostNEQ applies the NEQ predicate on the "exclude_host" field.
+func ExcludeHostNEQ(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldNEQ(FieldExcludeHost, v))
+}
+
+// ExcludeHostIn applies the In predicate on the "exclude_host" field.
+func ExcludeHostIn(vs ...string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldIn(FieldExcludeHost, vs...))
+}
+
+// ExcludeHostNotIn applies the NotIn predicate on the "exclude_host" field.
+func ExcludeHostNotIn(vs ...string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldNotIn(FieldExcludeHost, vs...))
+}
+
+// ExcludeHostGT applies the GT predicate on the "exclude_host" field.
+func ExcludeHostGT(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldGT(FieldExcludeHost, v))
+}
+
+// ExcludeHostGTE applies the GTE predicate on the "exclude_host" field.
+func ExcludeHostGTE(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldGTE(FieldExcludeHost, v))
+}
+
+// ExcludeHostLT applies the LT predicate on the "exclude_host" field.
+func ExcludeHostLT(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldLT(FieldExcludeHost, v))
+}
+
+// ExcludeHostLTE applies the LTE predicate on the "exclude_host" field.
+func ExcludeHostLTE(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldLTE(FieldExcludeHost, v))
+}
+
+// ExcludeHostContains applies the Contains predicate on the "exclude_host" field.
+func ExcludeHostContains(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldContains(FieldExcludeHost, v))
+}
+
+// ExcludeHostHasPrefix applies the HasPrefix predicate on the "exclude_host" field.
+func ExcludeHostHasPrefix(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldHasPrefix(FieldExcludeHost, v))
+}
+
+// ExcludeHostHasSuffix applies the HasSuffix predicate on the "exclude_host" field.
+func ExcludeHostHasSuffix(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldHasSuffix(FieldExcludeHost, v))
+}
+
+// ExcludeHostIsNil applies the IsNil predicate on the "exclude_host" field.
+func ExcludeHostIsNil() predicate.Takedown {
+	return predicate.Takedown(sql.FieldIsNull(FieldExcludeHost))
+}
+
+// ExcludeHostNotNil applies the NotNil predicate on the "exclude_host" field.
+func ExcludeHostNotNil() predicate.Takedown {
+	return predicate.Takedown(sql.FieldNotNull(FieldExcludeHost))
+}
+
+// ExcludeHostEqualFold applies the EqualFold predicate on the "exclude_host" field.
+func ExcludeHostEqualFold(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldEqualFold(FieldExcludeHost, v))
+}
+
+// ExcludeHostContainsFold applies the ContainsFold predicate on the "exclude_host" field.
+func ExcludeHostContainsFold(v string) predicate.Takedown {
+	return predicate.Takedown(sql.FieldContainsFold(FieldExcludeHost, v))
+}
+
+// PushedAtEQ applies the EQ predicate on the "pushed_at" field.
+func PushedAtEQ(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldEQ(FieldPushedAt, v))
+}
+
+// PushedAtNEQ applies the NEQ predicate on the "pushed_at" field.
+func PushedAtNEQ(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldNEQ(FieldPushedAt, v))
+}
+
+// PushedAtIn applies the In predicate on the "pushed_at" field.
+func PushedAtIn(vs ...time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldIn(FieldPushedAt, vs...))
+}
+
+// PushedAtNotIn applies the NotIn predicate on the "pushed_at" field.
+func PushedAtNotIn(vs ...time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldNotIn(FieldPushedAt, vs...))
+}
+
+// PushedAtGT applies the GT predicate on the "pushed_at" field.
+func PushedAtGT(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldGT(FieldPushedAt, v))
+}
+
+// PushedAtGTE applies the GTE predicate on the "pushed_at" field.
+func PushedAtGTE(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldGTE(FieldPushedAt, v))
+}
+
+// PushedAtLT applies the LT predicate on the "pushed_at" field.
+func PushedAtLT(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldLT(FieldPushedAt, v))
+}
+
+// PushedAtLTE applies the LTE predicate on the "pushed_at" field.
+func PushedAtLTE(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldLTE(FieldPushedAt, v))
+}
+
+// PushedAtIsNil applies the IsNil predicate on the "pushed_at" field.
+func PushedAtIsNil() predicate.Takedown {
+	return predicate.Takedown(sql.FieldIsNull(FieldPushedAt))
+}
+
+// PushedAtNotNil applies the NotNil predicate on the "pushed_at" field.
+func PushedAtNotNil() predicate.Takedown {
+	return predicate.Takedown(sql.FieldNotNull(FieldPushedAt))
+}
+
+// RestorePushedAtEQ applies the EQ predicate on the "restore_pushed_at" field.
+func RestorePushedAtEQ(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldEQ(FieldRestorePushedAt, v))
+}
+
+// RestorePushedAtNEQ applies the NEQ predicate on the "restore_pushed_at" field.
+func RestorePushedAtNEQ(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldNEQ(FieldRestorePushedAt, v))
+}
+
+// RestorePushedAtIn applies the In predicate on the "restore_pushed_at" field.
+func RestorePushedAtIn(vs ...time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldIn(FieldRestorePushedAt, vs...))
+}
+
+// RestorePushedAtNotIn applies the NotIn predicate on the "restore_pushed_at" field.
+func RestorePushedAtNotIn(vs ...time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldNotIn(FieldRestorePushedAt, vs...))
+}
+
+// RestorePushedAtGT applies the GT predicate on the "restore_pushed_at" field.
+func RestorePushedAtGT(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldGT(FieldRestorePushedAt, v))
+}
+
+// RestorePushedAtGTE applies the GTE predicate on the "restore_pushed_at" field.
+func RestorePushedAtGTE(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldGTE(FieldRestorePushedAt, v))
+}
+
+// RestorePushedAtLT applies the LT predicate on the "restore_pushed_at" field.
+func RestorePushedAtLT(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldLT(FieldRestorePushedAt, v))
+}
+
+// RestorePushedAtLTE applies the LTE predicate on the "restore_pushed_at" field.
+func RestorePushedAtLTE(v time.Time) predicate.Takedown {
+	return predicate.Takedown(sql.FieldLTE(FieldRestorePushedAt, v))
+}
+
+// RestorePushedAtIsNil applies the IsNil predicate on the "restore_pushed_at" field.
+func RestorePushedAtIsNil() predicate.Takedown {
+	return predicate.Takedown(sql.FieldIsNull(FieldRestorePushedAt))
+}
+
+// RestorePushedAtNotNil applies the NotNil predicate on the "restore_pushed_at" field.
+func RestorePushedAtNotNil() predicate.Takedown {
+	return predicate.Takedown(sql.FieldNotNull(FieldRestorePushedAt))
 }
 
 // And groups predicates with the AND operator between them.

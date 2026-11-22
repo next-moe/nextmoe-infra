@@ -26,6 +26,9 @@ type Notice struct {
 	Asset    string
 	Reason   string
 	By       string
+	// ExcludeHost, when the rights holder asks that their site not be
+	// crawled, becomes a host exclusion on the ingest side.
+	ExcludeHost string
 }
 
 var ErrRestored = errors.New("takedown already restored")
@@ -40,7 +43,7 @@ func Take(ctx context.Context, client *ent.Client, n Notice) (*ent.Takedown, err
 	}
 	defer tx.Rollback()
 	td, err := tx.Takedown.Create().SetNoticeID(n.NoticeID).SetScope(n.Scope).SetEntity(n.Entity).SetEntityID(n.EntityID).
-		SetAssetHash(n.Asset).SetReason(n.Reason).SetCreatedBy(n.By).Save(ctx)
+		SetAssetHash(n.Asset).SetReason(n.Reason).SetCreatedBy(n.By).SetExcludeHost(n.ExcludeHost).Save(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -38,8 +38,14 @@ type Takedown struct {
 	// RestoredBy holds the value of the "restored_by" field.
 	RestoredBy string `json:"restored_by,omitempty"`
 	// RestoreNote holds the value of the "restore_note" field.
-	RestoreNote  string `json:"restore_note,omitempty"`
-	selectValues sql.SelectValues
+	RestoreNote string `json:"restore_note,omitempty"`
+	// ExcludeHost holds the value of the "exclude_host" field.
+	ExcludeHost string `json:"exclude_host,omitempty"`
+	// PushedAt holds the value of the "pushed_at" field.
+	PushedAt *time.Time `json:"pushed_at,omitempty"`
+	// RestorePushedAt holds the value of the "restore_pushed_at" field.
+	RestorePushedAt *time.Time `json:"restore_pushed_at,omitempty"`
+	selectValues    sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -49,9 +55,9 @@ func (*Takedown) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case takedown.FieldID, takedown.FieldEntityID:
 			values[i] = new(sql.NullInt64)
-		case takedown.FieldNoticeID, takedown.FieldScope, takedown.FieldEntity, takedown.FieldAssetHash, takedown.FieldReason, takedown.FieldCreatedBy, takedown.FieldRestoredBy, takedown.FieldRestoreNote:
+		case takedown.FieldNoticeID, takedown.FieldScope, takedown.FieldEntity, takedown.FieldAssetHash, takedown.FieldReason, takedown.FieldCreatedBy, takedown.FieldRestoredBy, takedown.FieldRestoreNote, takedown.FieldExcludeHost:
 			values[i] = new(sql.NullString)
-		case takedown.FieldCreatedAt, takedown.FieldRestoredAt:
+		case takedown.FieldCreatedAt, takedown.FieldRestoredAt, takedown.FieldPushedAt, takedown.FieldRestorePushedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -141,6 +147,26 @@ func (_m *Takedown) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RestoreNote = value.String
 			}
+		case takedown.FieldExcludeHost:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field exclude_host", values[i])
+			} else if value.Valid {
+				_m.ExcludeHost = value.String
+			}
+		case takedown.FieldPushedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field pushed_at", values[i])
+			} else if value.Valid {
+				_m.PushedAt = new(time.Time)
+				*_m.PushedAt = value.Time
+			}
+		case takedown.FieldRestorePushedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field restore_pushed_at", values[i])
+			} else if value.Valid {
+				_m.RestorePushedAt = new(time.Time)
+				*_m.RestorePushedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -211,6 +237,19 @@ func (_m *Takedown) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("restore_note=")
 	builder.WriteString(_m.RestoreNote)
+	builder.WriteString(", ")
+	builder.WriteString("exclude_host=")
+	builder.WriteString(_m.ExcludeHost)
+	builder.WriteString(", ")
+	if v := _m.PushedAt; v != nil {
+		builder.WriteString("pushed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.RestorePushedAt; v != nil {
+		builder.WriteString("restore_pushed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

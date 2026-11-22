@@ -19,6 +19,7 @@ type Pool interface {
 	Snapshot(ctx context.Context, hash string) (contract.Snapshot, error)
 	Record(ctx context.Context, id string) (contract.Record, error)
 	Answer(ctx context.Context, rows []contract.InboxRow) error
+	Block(ctx context.Context, items []contract.BlockItem) error
 }
 
 type HTTPPool struct {
@@ -52,6 +53,13 @@ func (p *HTTPPool) Answer(ctx context.Context, rows []contract.InboxRow) error {
 		return nil
 	}
 	return p.do(ctx, http.MethodPost, contract.PathInbox, contract.InboxBatch{Items: rows}, nil)
+}
+
+func (p *HTTPPool) Block(ctx context.Context, items []contract.BlockItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+	return p.do(ctx, http.MethodPost, contract.PathBlock, contract.BlockBatch{Items: items}, nil)
 }
 
 var errNotFound = fmt.Errorf("not in the pool")

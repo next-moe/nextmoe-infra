@@ -35,6 +35,12 @@ const (
 	FieldRestoredBy = "restored_by"
 	// FieldRestoreNote holds the string denoting the restore_note field in the database.
 	FieldRestoreNote = "restore_note"
+	// FieldExcludeHost holds the string denoting the exclude_host field in the database.
+	FieldExcludeHost = "exclude_host"
+	// FieldPushedAt holds the string denoting the pushed_at field in the database.
+	FieldPushedAt = "pushed_at"
+	// FieldRestorePushedAt holds the string denoting the restore_pushed_at field in the database.
+	FieldRestorePushedAt = "restore_pushed_at"
 	// Table holds the table name of the takedown in the database.
 	Table = "takedown"
 )
@@ -53,6 +59,9 @@ var Columns = []string{
 	FieldRestoredAt,
 	FieldRestoredBy,
 	FieldRestoreNote,
+	FieldExcludeHost,
+	FieldPushedAt,
+	FieldRestorePushedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -131,4 +140,19 @@ func ByRestoredBy(opts ...sql.OrderTermOption) OrderOption {
 // ByRestoreNote orders the results by the restore_note field.
 func ByRestoreNote(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRestoreNote, opts...).ToFunc()
+}
+
+// ByExcludeHost orders the results by the exclude_host field.
+func ByExcludeHost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExcludeHost, opts...).ToFunc()
+}
+
+// ByPushedAt orders the results by the pushed_at field.
+func ByPushedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPushedAt, opts...).ToFunc()
+}
+
+// ByRestorePushedAt orders the results by the restore_pushed_at field.
+func ByRestorePushedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRestorePushedAt, opts...).ToFunc()
 }

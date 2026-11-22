@@ -19,6 +19,7 @@ func runTakedown(ctx context.Context, client *ent.Client, args []string) error {
 	fs.StringVar(&n.Asset, "asset", "", "asset hash for scope=asset")
 	fs.StringVar(&n.Reason, "reason", "", "why, as the notice states it")
 	fs.StringVar(&n.By, "by", "", "who takes it down, e.g. user:<id>")
+	fs.StringVar(&n.ExcludeHost, "exclude-host", "", "the rights holder's host, when they ask not to be crawled")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
