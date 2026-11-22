@@ -10,7 +10,9 @@ import (
 
 type Revision struct{ ent.Schema }
 
-func (Revision) Annotations() []schema.Annotation { return []schema.Annotation{entsql.Table("revision")} }
+func (Revision) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Table("revision")}
+}
 
 func (Revision) Fields() []ent.Field {
 	return []ent.Field{
