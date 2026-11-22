@@ -74,6 +74,11 @@ func Entails(p registry.Property, value any, ex Excerpt) bool {
 		if t == nil {
 			return false
 		}
+		if len(t.EntailedBy) == 0 {
+			// A term with no page words is a classification (an official
+			// title, a standard edition); the source's grade vouches for it.
+			return true
+		}
 		for _, k := range t.EntailedBy {
 			if strings.Contains(text, fold(k)) {
 				return true

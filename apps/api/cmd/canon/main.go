@@ -36,6 +36,13 @@ func main() {
 	}
 	defer db.Close()
 	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db)))
+	if len(os.Args) > 1 && os.Args[1] == "fanin" {
+		if err := runFanin(client, os.Args[2:]); err != nil {
+			slog.Error("fanin", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	handler, _ := api.New(client)
 
 	srv := &http.Server{

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -18,6 +19,7 @@ type OrgNameCreate struct {
 	config
 	mutation *OrgNameMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetOrgID sets the "org_id" field.
@@ -146,6 +148,7 @@ func (_c *OrgNameCreate) createSpec() (*OrgName, *sqlgraph.CreateSpec) {
 		_node = &OrgName{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(orgname.Table, sqlgraph.NewFieldSpec(orgname.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if value, ok := _c.mutation.Text(); ok {
 		_spec.SetField(orgname.FieldText, field.TypeString, value)
 		_node.Text = value
@@ -178,11 +181,251 @@ func (_c *OrgNameCreate) createSpec() (*OrgName, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.OrgName.Create().
+//		SetOrgID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.OrgNameUpsert) {
+//			SetOrgID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *OrgNameCreate) OnConflict(opts ...sql.ConflictOption) *OrgNameUpsertOne {
+	_c.conflict = opts
+	return &OrgNameUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.OrgName.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *OrgNameCreate) OnConflictColumns(columns ...string) *OrgNameUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &OrgNameUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// OrgNameUpsertOne is the builder for "upsert"-ing
+	//  one OrgName node.
+	OrgNameUpsertOne struct {
+		create *OrgNameCreate
+	}
+
+	// OrgNameUpsert is the "OnConflict" setter.
+	OrgNameUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetOrgID sets the "org_id" field.
+func (u *OrgNameUpsert) SetOrgID(v int64) *OrgNameUpsert {
+	u.Set(orgname.FieldOrgID, v)
+	return u
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *OrgNameUpsert) UpdateOrgID() *OrgNameUpsert {
+	u.SetExcluded(orgname.FieldOrgID)
+	return u
+}
+
+// SetText sets the "text" field.
+func (u *OrgNameUpsert) SetText(v string) *OrgNameUpsert {
+	u.Set(orgname.FieldText, v)
+	return u
+}
+
+// UpdateText sets the "text" field to the value that was provided on create.
+func (u *OrgNameUpsert) UpdateText() *OrgNameUpsert {
+	u.SetExcluded(orgname.FieldText)
+	return u
+}
+
+// SetLang sets the "lang" field.
+func (u *OrgNameUpsert) SetLang(v string) *OrgNameUpsert {
+	u.Set(orgname.FieldLang, v)
+	return u
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *OrgNameUpsert) UpdateLang() *OrgNameUpsert {
+	u.SetExcluded(orgname.FieldLang)
+	return u
+}
+
+// SetPosition sets the "position" field.
+func (u *OrgNameUpsert) SetPosition(v int) *OrgNameUpsert {
+	u.Set(orgname.FieldPosition, v)
+	return u
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *OrgNameUpsert) UpdatePosition() *OrgNameUpsert {
+	u.SetExcluded(orgname.FieldPosition)
+	return u
+}
+
+// AddPosition adds v to the "position" field.
+func (u *OrgNameUpsert) AddPosition(v int) *OrgNameUpsert {
+	u.Add(orgname.FieldPosition, v)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create.
+// Using this option is equivalent to using:
+//
+//	client.OrgName.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//		).
+//		Exec(ctx)
+func (u *OrgNameUpsertOne) UpdateNewValues() *OrgNameUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.OrgName.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *OrgNameUpsertOne) Ignore() *OrgNameUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *OrgNameUpsertOne) DoNothing() *OrgNameUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the OrgNameCreate.OnConflict
+// documentation for more info.
+func (u *OrgNameUpsertOne) Update(set func(*OrgNameUpsert)) *OrgNameUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&OrgNameUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetOrgID sets the "org_id" field.
+func (u *OrgNameUpsertOne) SetOrgID(v int64) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetOrgID(v)
+	})
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *OrgNameUpsertOne) UpdateOrgID() *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateOrgID()
+	})
+}
+
+// SetText sets the "text" field.
+func (u *OrgNameUpsertOne) SetText(v string) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetText(v)
+	})
+}
+
+// UpdateText sets the "text" field to the value that was provided on create.
+func (u *OrgNameUpsertOne) UpdateText() *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateText()
+	})
+}
+
+// SetLang sets the "lang" field.
+func (u *OrgNameUpsertOne) SetLang(v string) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetLang(v)
+	})
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *OrgNameUpsertOne) UpdateLang() *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateLang()
+	})
+}
+
+// SetPosition sets the "position" field.
+func (u *OrgNameUpsertOne) SetPosition(v int) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetPosition(v)
+	})
+}
+
+// AddPosition adds v to the "position" field.
+func (u *OrgNameUpsertOne) AddPosition(v int) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.AddPosition(v)
+	})
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *OrgNameUpsertOne) UpdatePosition() *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdatePosition()
+	})
+}
+
+// Exec executes the query.
+func (u *OrgNameUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for OrgNameCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *OrgNameUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *OrgNameUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *OrgNameUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // OrgNameCreateBulk is the builder for creating many OrgName entities in bulk.
 type OrgNameCreateBulk struct {
 	config
 	err      error
 	builders []*OrgNameCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the OrgName entities in the database.
@@ -212,6 +455,7 @@ func (_c *OrgNameCreateBulk) Save(ctx context.Context) ([]*OrgName, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -262,6 +506,173 @@ func (_c *OrgNameCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *OrgNameCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.OrgName.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.OrgNameUpsert) {
+//			SetOrgID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *OrgNameCreateBulk) OnConflict(opts ...sql.ConflictOption) *OrgNameUpsertBulk {
+	_c.conflict = opts
+	return &OrgNameUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.OrgName.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *OrgNameCreateBulk) OnConflictColumns(columns ...string) *OrgNameUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &OrgNameUpsertBulk{
+		create: _c,
+	}
+}
+
+// OrgNameUpsertBulk is the builder for "upsert"-ing
+// a bulk of OrgName nodes.
+type OrgNameUpsertBulk struct {
+	create *OrgNameCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.OrgName.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//		).
+//		Exec(ctx)
+func (u *OrgNameUpsertBulk) UpdateNewValues() *OrgNameUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.OrgName.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *OrgNameUpsertBulk) Ignore() *OrgNameUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *OrgNameUpsertBulk) DoNothing() *OrgNameUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the OrgNameCreateBulk.OnConflict
+// documentation for more info.
+func (u *OrgNameUpsertBulk) Update(set func(*OrgNameUpsert)) *OrgNameUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&OrgNameUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetOrgID sets the "org_id" field.
+func (u *OrgNameUpsertBulk) SetOrgID(v int64) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetOrgID(v)
+	})
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *OrgNameUpsertBulk) UpdateOrgID() *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateOrgID()
+	})
+}
+
+// SetText sets the "text" field.
+func (u *OrgNameUpsertBulk) SetText(v string) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetText(v)
+	})
+}
+
+// UpdateText sets the "text" field to the value that was provided on create.
+func (u *OrgNameUpsertBulk) UpdateText() *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateText()
+	})
+}
+
+// SetLang sets the "lang" field.
+func (u *OrgNameUpsertBulk) SetLang(v string) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetLang(v)
+	})
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *OrgNameUpsertBulk) UpdateLang() *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateLang()
+	})
+}
+
+// SetPosition sets the "position" field.
+func (u *OrgNameUpsertBulk) SetPosition(v int) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetPosition(v)
+	})
+}
+
+// AddPosition adds v to the "position" field.
+func (u *OrgNameUpsertBulk) AddPosition(v int) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.AddPosition(v)
+	})
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *OrgNameUpsertBulk) UpdatePosition() *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdatePosition()
+	})
+}
+
+// Exec executes the query.
+func (u *OrgNameUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the OrgNameCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for OrgNameCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *OrgNameUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

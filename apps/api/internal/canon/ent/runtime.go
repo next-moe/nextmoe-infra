@@ -3,7 +3,11 @@
 package ent
 
 import (
+	"api/internal/canon/ent/commitkey"
 	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/evidencerecord"
+	"api/internal/canon/ent/evidencesnapshot"
+	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
@@ -22,6 +26,12 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	commitkeyFields := schema.CommitKey{}.Fields()
+	_ = commitkeyFields
+	// commitkeyDescCreatedAt is the schema descriptor for created_at field.
+	commitkeyDescCreatedAt := commitkeyFields[2].Descriptor()
+	// commitkey.DefaultCreatedAt holds the default value on creation for the created_at field.
+	commitkey.DefaultCreatedAt = commitkeyDescCreatedAt.Default.(func() time.Time)
 	creditFields := schema.Credit{}.Fields()
 	_ = creditFields
 	// creditDescPosition is the schema descriptor for position field.
@@ -46,6 +56,30 @@ func init() {
 	credit.DefaultUpdatedAt = creditDescUpdatedAt.Default.(func() time.Time)
 	// credit.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	credit.UpdateDefaultUpdatedAt = creditDescUpdatedAt.UpdateDefault.(func() time.Time)
+	evidencerecordFields := schema.EvidenceRecord{}.Fields()
+	_ = evidencerecordFields
+	// evidencerecordDescArchivedAt is the schema descriptor for archived_at field.
+	evidencerecordDescArchivedAt := evidencerecordFields[6].Descriptor()
+	// evidencerecord.DefaultArchivedAt holds the default value on creation for the archived_at field.
+	evidencerecord.DefaultArchivedAt = evidencerecordDescArchivedAt.Default.(func() time.Time)
+	evidencesnapshotFields := schema.EvidenceSnapshot{}.Fields()
+	_ = evidencesnapshotFields
+	// evidencesnapshotDescArchivedAt is the schema descriptor for archived_at field.
+	evidencesnapshotDescArchivedAt := evidencesnapshotFields[6].Descriptor()
+	// evidencesnapshot.DefaultArchivedAt holds the default value on creation for the archived_at field.
+	evidencesnapshot.DefaultArchivedAt = evidencesnapshotDescArchivedAt.Default.(func() time.Time)
+	fanincursorFields := schema.FaninCursor{}.Fields()
+	_ = fanincursorFields
+	// fanincursorDescAfter is the schema descriptor for after field.
+	fanincursorDescAfter := fanincursorFields[1].Descriptor()
+	// fanincursor.DefaultAfter holds the default value on creation for the after field.
+	fanincursor.DefaultAfter = fanincursorDescAfter.Default.(int64)
+	// fanincursorDescUpdatedAt is the schema descriptor for updated_at field.
+	fanincursorDescUpdatedAt := fanincursorFields[2].Descriptor()
+	// fanincursor.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	fanincursor.DefaultUpdatedAt = fanincursorDescUpdatedAt.Default.(func() time.Time)
+	// fanincursor.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	fanincursor.UpdateDefaultUpdatedAt = fanincursorDescUpdatedAt.UpdateDefault.(func() time.Time)
 	orgFields := schema.Org{}.Fields()
 	_ = orgFields
 	// orgDescFieldState is the schema descriptor for field_state field.

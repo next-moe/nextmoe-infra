@@ -18,8 +18,16 @@ type Tx struct {
 	BookRelease *BookReleaseClient
 	// BookWork is the client for interacting with the BookWork builders.
 	BookWork *BookWorkClient
+	// CommitKey is the client for interacting with the CommitKey builders.
+	CommitKey *CommitKeyClient
 	// Credit is the client for interacting with the Credit builders.
 	Credit *CreditClient
+	// EvidenceRecord is the client for interacting with the EvidenceRecord builders.
+	EvidenceRecord *EvidenceRecordClient
+	// EvidenceSnapshot is the client for interacting with the EvidenceSnapshot builders.
+	EvidenceSnapshot *EvidenceSnapshotClient
+	// FaninCursor is the client for interacting with the FaninCursor builders.
+	FaninCursor *FaninCursorClient
 	// Org is the client for interacting with the Org builders.
 	Org *OrgClient
 	// OrgName is the client for interacting with the OrgName builders.
@@ -173,7 +181,11 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.BookRelease = NewBookReleaseClient(tx.config)
 	tx.BookWork = NewBookWorkClient(tx.config)
+	tx.CommitKey = NewCommitKeyClient(tx.config)
 	tx.Credit = NewCreditClient(tx.config)
+	tx.EvidenceRecord = NewEvidenceRecordClient(tx.config)
+	tx.EvidenceSnapshot = NewEvidenceSnapshotClient(tx.config)
+	tx.FaninCursor = NewFaninCursorClient(tx.config)
 	tx.Org = NewOrgClient(tx.config)
 	tx.OrgName = NewOrgNameClient(tx.config)
 	tx.Person = NewPersonClient(tx.config)

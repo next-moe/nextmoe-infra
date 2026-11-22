@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -18,6 +19,7 @@ type WorkTitleCreate struct {
 	config
 	mutation *WorkTitleMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetWorkID sets the "work_id" field.
@@ -176,6 +178,7 @@ func (_c *WorkTitleCreate) createSpec() (*WorkTitle, *sqlgraph.CreateSpec) {
 		_node = &WorkTitle{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(worktitle.Table, sqlgraph.NewFieldSpec(worktitle.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if value, ok := _c.mutation.Text(); ok {
 		_spec.SetField(worktitle.FieldText, field.TypeString, value)
 		_node.Text = value
@@ -216,11 +219,303 @@ func (_c *WorkTitleCreate) createSpec() (*WorkTitle, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.WorkTitle.Create().
+//		SetWorkID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.WorkTitleUpsert) {
+//			SetWorkID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *WorkTitleCreate) OnConflict(opts ...sql.ConflictOption) *WorkTitleUpsertOne {
+	_c.conflict = opts
+	return &WorkTitleUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.WorkTitle.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *WorkTitleCreate) OnConflictColumns(columns ...string) *WorkTitleUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &WorkTitleUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// WorkTitleUpsertOne is the builder for "upsert"-ing
+	//  one WorkTitle node.
+	WorkTitleUpsertOne struct {
+		create *WorkTitleCreate
+	}
+
+	// WorkTitleUpsert is the "OnConflict" setter.
+	WorkTitleUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetWorkID sets the "work_id" field.
+func (u *WorkTitleUpsert) SetWorkID(v int64) *WorkTitleUpsert {
+	u.Set(worktitle.FieldWorkID, v)
+	return u
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdateWorkID() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldWorkID)
+	return u
+}
+
+// SetText sets the "text" field.
+func (u *WorkTitleUpsert) SetText(v string) *WorkTitleUpsert {
+	u.Set(worktitle.FieldText, v)
+	return u
+}
+
+// UpdateText sets the "text" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdateText() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldText)
+	return u
+}
+
+// SetLang sets the "lang" field.
+func (u *WorkTitleUpsert) SetLang(v string) *WorkTitleUpsert {
+	u.Set(worktitle.FieldLang, v)
+	return u
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdateLang() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldLang)
+	return u
+}
+
+// SetKind sets the "kind" field.
+func (u *WorkTitleUpsert) SetKind(v string) *WorkTitleUpsert {
+	u.Set(worktitle.FieldKind, v)
+	return u
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdateKind() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldKind)
+	return u
+}
+
+// SetMachine sets the "machine" field.
+func (u *WorkTitleUpsert) SetMachine(v bool) *WorkTitleUpsert {
+	u.Set(worktitle.FieldMachine, v)
+	return u
+}
+
+// UpdateMachine sets the "machine" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdateMachine() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldMachine)
+	return u
+}
+
+// SetPosition sets the "position" field.
+func (u *WorkTitleUpsert) SetPosition(v int) *WorkTitleUpsert {
+	u.Set(worktitle.FieldPosition, v)
+	return u
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdatePosition() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldPosition)
+	return u
+}
+
+// AddPosition adds v to the "position" field.
+func (u *WorkTitleUpsert) AddPosition(v int) *WorkTitleUpsert {
+	u.Add(worktitle.FieldPosition, v)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create.
+// Using this option is equivalent to using:
+//
+//	client.WorkTitle.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//		).
+//		Exec(ctx)
+func (u *WorkTitleUpsertOne) UpdateNewValues() *WorkTitleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.WorkTitle.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *WorkTitleUpsertOne) Ignore() *WorkTitleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *WorkTitleUpsertOne) DoNothing() *WorkTitleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the WorkTitleCreate.OnConflict
+// documentation for more info.
+func (u *WorkTitleUpsertOne) Update(set func(*WorkTitleUpsert)) *WorkTitleUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&WorkTitleUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *WorkTitleUpsertOne) SetWorkID(v int64) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdateWorkID() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// SetText sets the "text" field.
+func (u *WorkTitleUpsertOne) SetText(v string) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetText(v)
+	})
+}
+
+// UpdateText sets the "text" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdateText() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateText()
+	})
+}
+
+// SetLang sets the "lang" field.
+func (u *WorkTitleUpsertOne) SetLang(v string) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetLang(v)
+	})
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdateLang() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateLang()
+	})
+}
+
+// SetKind sets the "kind" field.
+func (u *WorkTitleUpsertOne) SetKind(v string) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdateKind() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetMachine sets the "machine" field.
+func (u *WorkTitleUpsertOne) SetMachine(v bool) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetMachine(v)
+	})
+}
+
+// UpdateMachine sets the "machine" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdateMachine() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateMachine()
+	})
+}
+
+// SetPosition sets the "position" field.
+func (u *WorkTitleUpsertOne) SetPosition(v int) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetPosition(v)
+	})
+}
+
+// AddPosition adds v to the "position" field.
+func (u *WorkTitleUpsertOne) AddPosition(v int) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.AddPosition(v)
+	})
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdatePosition() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdatePosition()
+	})
+}
+
+// Exec executes the query.
+func (u *WorkTitleUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for WorkTitleCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *WorkTitleUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *WorkTitleUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *WorkTitleUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // WorkTitleCreateBulk is the builder for creating many WorkTitle entities in bulk.
 type WorkTitleCreateBulk struct {
 	config
 	err      error
 	builders []*WorkTitleCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the WorkTitle entities in the database.
@@ -250,6 +545,7 @@ func (_c *WorkTitleCreateBulk) Save(ctx context.Context) ([]*WorkTitle, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -300,6 +596,201 @@ func (_c *WorkTitleCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *WorkTitleCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.WorkTitle.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.WorkTitleUpsert) {
+//			SetWorkID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *WorkTitleCreateBulk) OnConflict(opts ...sql.ConflictOption) *WorkTitleUpsertBulk {
+	_c.conflict = opts
+	return &WorkTitleUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.WorkTitle.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *WorkTitleCreateBulk) OnConflictColumns(columns ...string) *WorkTitleUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &WorkTitleUpsertBulk{
+		create: _c,
+	}
+}
+
+// WorkTitleUpsertBulk is the builder for "upsert"-ing
+// a bulk of WorkTitle nodes.
+type WorkTitleUpsertBulk struct {
+	create *WorkTitleCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.WorkTitle.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//		).
+//		Exec(ctx)
+func (u *WorkTitleUpsertBulk) UpdateNewValues() *WorkTitleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.WorkTitle.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *WorkTitleUpsertBulk) Ignore() *WorkTitleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *WorkTitleUpsertBulk) DoNothing() *WorkTitleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the WorkTitleCreateBulk.OnConflict
+// documentation for more info.
+func (u *WorkTitleUpsertBulk) Update(set func(*WorkTitleUpsert)) *WorkTitleUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&WorkTitleUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *WorkTitleUpsertBulk) SetWorkID(v int64) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdateWorkID() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// SetText sets the "text" field.
+func (u *WorkTitleUpsertBulk) SetText(v string) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetText(v)
+	})
+}
+
+// UpdateText sets the "text" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdateText() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateText()
+	})
+}
+
+// SetLang sets the "lang" field.
+func (u *WorkTitleUpsertBulk) SetLang(v string) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetLang(v)
+	})
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdateLang() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateLang()
+	})
+}
+
+// SetKind sets the "kind" field.
+func (u *WorkTitleUpsertBulk) SetKind(v string) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdateKind() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetMachine sets the "machine" field.
+func (u *WorkTitleUpsertBulk) SetMachine(v bool) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetMachine(v)
+	})
+}
+
+// UpdateMachine sets the "machine" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdateMachine() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateMachine()
+	})
+}
+
+// SetPosition sets the "position" field.
+func (u *WorkTitleUpsertBulk) SetPosition(v int) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetPosition(v)
+	})
+}
+
+// AddPosition adds v to the "position" field.
+func (u *WorkTitleUpsertBulk) AddPosition(v int) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.AddPosition(v)
+	})
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdatePosition() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdatePosition()
+	})
+}
+
+// Exec executes the query.
+func (u *WorkTitleUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the WorkTitleCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for WorkTitleCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *WorkTitleUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -81,6 +81,18 @@ var (
 			},
 		},
 	}
+	// CommitKeyColumns holds the columns for the "commit_key" table.
+	CommitKeyColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "ids", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// CommitKeyTable holds the schema information for the "commit_key" table.
+	CommitKeyTable = &schema.Table{
+		Name:       "commit_key",
+		Columns:    CommitKeyColumns,
+		PrimaryKey: []*schema.Column{CommitKeyColumns[0]},
+	}
 	// CreditColumns holds the columns for the "credit" table.
 	CreditColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.credit')")},
@@ -133,6 +145,50 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 		},
+	}
+	// EvidenceRecordColumns holds the columns for the "evidence_record" table.
+	EvidenceRecordColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "source", Type: field.TypeString},
+		{Name: "key", Type: field.TypeString},
+		{Name: "hash", Type: field.TypeString},
+		{Name: "fetched_at", Type: field.TypeTime},
+		{Name: "fields", Type: field.TypeJSON},
+		{Name: "archived_at", Type: field.TypeTime},
+	}
+	// EvidenceRecordTable holds the schema information for the "evidence_record" table.
+	EvidenceRecordTable = &schema.Table{
+		Name:       "evidence_record",
+		Columns:    EvidenceRecordColumns,
+		PrimaryKey: []*schema.Column{EvidenceRecordColumns[0]},
+	}
+	// EvidenceSnapshotColumns holds the columns for the "evidence_snapshot" table.
+	EvidenceSnapshotColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "requested_url", Type: field.TypeString},
+		{Name: "final_url", Type: field.TypeString},
+		{Name: "host", Type: field.TypeString},
+		{Name: "fetched_at", Type: field.TypeTime},
+		{Name: "lines", Type: field.TypeJSON},
+		{Name: "archived_at", Type: field.TypeTime},
+	}
+	// EvidenceSnapshotTable holds the schema information for the "evidence_snapshot" table.
+	EvidenceSnapshotTable = &schema.Table{
+		Name:       "evidence_snapshot",
+		Columns:    EvidenceSnapshotColumns,
+		PrimaryKey: []*schema.Column{EvidenceSnapshotColumns[0]},
+	}
+	// FaninCursorColumns holds the columns for the "fanin_cursor" table.
+	FaninCursorColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "after", Type: field.TypeInt64, Default: 0},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// FaninCursorTable holds the schema information for the "fanin_cursor" table.
+	FaninCursorTable = &schema.Table{
+		Name:       "fanin_cursor",
+		Columns:    FaninCursorColumns,
+		PrimaryKey: []*schema.Column{FaninCursorColumns[0]},
 	}
 	// OrgColumns holds the columns for the "org" table.
 	OrgColumns = []*schema.Column{
@@ -382,7 +438,11 @@ var (
 	Tables = []*schema.Table{
 		BookReleaseTable,
 		BookWorkTable,
+		CommitKeyTable,
 		CreditTable,
+		EvidenceRecordTable,
+		EvidenceSnapshotTable,
+		FaninCursorTable,
 		OrgTable,
 		OrgNameTable,
 		PersonTable,
@@ -407,6 +467,9 @@ func init() {
 	BookWorkTable.Annotation = &entsql.Annotation{
 		Table: "book_work",
 	}
+	CommitKeyTable.Annotation = &entsql.Annotation{
+		Table: "commit_key",
+	}
 	CreditTable.ForeignKeys[0].RefTable = OrgTable
 	CreditTable.ForeignKeys[1].RefTable = PersonAliasTable
 	CreditTable.ForeignKeys[2].RefTable = ReleaseTable
@@ -418,6 +481,15 @@ func init() {
 	CreditTable.Annotation.Checks = map[string]string{
 		"credit_one_holder": "num_nonnulls(alias_id, org_id) = 1",
 		"credit_one_target": "num_nonnulls(work_id, part_id, release_id) = 1",
+	}
+	EvidenceRecordTable.Annotation = &entsql.Annotation{
+		Table: "evidence_record",
+	}
+	EvidenceSnapshotTable.Annotation = &entsql.Annotation{
+		Table: "evidence_snapshot",
+	}
+	FaninCursorTable.Annotation = &entsql.Annotation{
+		Table: "fanin_cursor",
 	}
 	OrgTable.ForeignKeys[0].RefTable = OrgTable
 	OrgTable.Annotation = &entsql.Annotation{

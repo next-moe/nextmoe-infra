@@ -32,6 +32,18 @@ func (f BookWorkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BookWorkMutation", m)
 }
 
+// The CommitKeyFunc type is an adapter to allow the use of ordinary
+// function as CommitKey mutator.
+type CommitKeyFunc func(context.Context, *ent.CommitKeyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CommitKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CommitKeyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommitKeyMutation", m)
+}
+
 // The CreditFunc type is an adapter to allow the use of ordinary
 // function as Credit mutator.
 type CreditFunc func(context.Context, *ent.CreditMutation) (ent.Value, error)
@@ -42,6 +54,42 @@ func (f CreditFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreditMutation", m)
+}
+
+// The EvidenceRecordFunc type is an adapter to allow the use of ordinary
+// function as EvidenceRecord mutator.
+type EvidenceRecordFunc func(context.Context, *ent.EvidenceRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EvidenceRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EvidenceRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EvidenceRecordMutation", m)
+}
+
+// The EvidenceSnapshotFunc type is an adapter to allow the use of ordinary
+// function as EvidenceSnapshot mutator.
+type EvidenceSnapshotFunc func(context.Context, *ent.EvidenceSnapshotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EvidenceSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EvidenceSnapshotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EvidenceSnapshotMutation", m)
+}
+
+// The FaninCursorFunc type is an adapter to allow the use of ordinary
+// function as FaninCursor mutator.
+type FaninCursorFunc func(context.Context, *ent.FaninCursorMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FaninCursorFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FaninCursorMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FaninCursorMutation", m)
 }
 
 // The OrgFunc type is an adapter to allow the use of ordinary

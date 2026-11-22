@@ -5,7 +5,11 @@ package ent
 import (
 	"api/internal/canon/ent/bookrelease"
 	"api/internal/canon/ent/bookwork"
+	"api/internal/canon/ent/commitkey"
 	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/evidencerecord"
+	"api/internal/canon/ent/evidencesnapshot"
+	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
@@ -36,19 +40,23 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeBookRelease    = "BookRelease"
-	TypeBookWork       = "BookWork"
-	TypeCredit         = "Credit"
-	TypeOrg            = "Org"
-	TypeOrgName        = "OrgName"
-	TypePerson         = "Person"
-	TypePersonAlias    = "PersonAlias"
-	TypeRelease        = "Release"
-	TypeReleaseContent = "ReleaseContent"
-	TypeRevision       = "Revision"
-	TypeWork           = "Work"
-	TypeWorkPart       = "WorkPart"
-	TypeWorkTitle      = "WorkTitle"
+	TypeBookRelease      = "BookRelease"
+	TypeBookWork         = "BookWork"
+	TypeCommitKey        = "CommitKey"
+	TypeCredit           = "Credit"
+	TypeEvidenceRecord   = "EvidenceRecord"
+	TypeEvidenceSnapshot = "EvidenceSnapshot"
+	TypeFaninCursor      = "FaninCursor"
+	TypeOrg              = "Org"
+	TypeOrgName          = "OrgName"
+	TypePerson           = "Person"
+	TypePersonAlias      = "PersonAlias"
+	TypeRelease          = "Release"
+	TypeReleaseContent   = "ReleaseContent"
+	TypeRevision         = "Revision"
+	TypeWork             = "Work"
+	TypeWorkPart         = "WorkPart"
+	TypeWorkTitle        = "WorkTitle"
 )
 
 // BookReleaseMutation represents an operation that mutates the BookRelease nodes in the graph.
@@ -1657,6 +1665,392 @@ func (m *BookWorkMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown BookWork edge %s", name)
 }
 
+// CommitKeyMutation represents an operation that mutates the CommitKey nodes in the graph.
+type CommitKeyMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *string
+	ids           *map[string]int64
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*CommitKey, error)
+	predicates    []predicate.CommitKey
+}
+
+var _ ent.Mutation = (*CommitKeyMutation)(nil)
+
+// commitkeyOption allows management of the mutation configuration using functional options.
+type commitkeyOption func(*CommitKeyMutation)
+
+// newCommitKeyMutation creates new mutation for the CommitKey entity.
+func newCommitKeyMutation(c config, op Op, opts ...commitkeyOption) *CommitKeyMutation {
+	m := &CommitKeyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCommitKey,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCommitKeyID sets the ID field of the mutation.
+func withCommitKeyID(id string) commitkeyOption {
+	return func(m *CommitKeyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CommitKey
+		)
+		m.oldValue = func(ctx context.Context) (*CommitKey, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CommitKey.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCommitKey sets the old CommitKey of the mutation.
+func withCommitKey(node *CommitKey) commitkeyOption {
+	return func(m *CommitKeyMutation) {
+		m.oldValue = func(context.Context) (*CommitKey, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CommitKeyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CommitKeyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of CommitKey entities.
+func (m *CommitKeyMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CommitKeyMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CommitKeyMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CommitKey.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetIds sets the "ids" field.
+func (m *CommitKeyMutation) SetIds(value map[string]int64) {
+	m.ids = &value
+}
+
+// Ids returns the value of the "ids" field in the mutation.
+func (m *CommitKeyMutation) Ids() (r map[string]int64, exists bool) {
+	v := m.ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIds returns the old "ids" field's value of the CommitKey entity.
+// If the CommitKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CommitKeyMutation) OldIds(ctx context.Context) (v map[string]int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIds: %w", err)
+	}
+	return oldValue.Ids, nil
+}
+
+// ResetIds resets all changes to the "ids" field.
+func (m *CommitKeyMutation) ResetIds() {
+	m.ids = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CommitKeyMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CommitKeyMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CommitKey entity.
+// If the CommitKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CommitKeyMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CommitKeyMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the CommitKeyMutation builder.
+func (m *CommitKeyMutation) Where(ps ...predicate.CommitKey) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CommitKeyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CommitKeyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CommitKey, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CommitKeyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CommitKeyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CommitKey).
+func (m *CommitKeyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CommitKeyMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.ids != nil {
+		fields = append(fields, commitkey.FieldIds)
+	}
+	if m.created_at != nil {
+		fields = append(fields, commitkey.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CommitKeyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case commitkey.FieldIds:
+		return m.Ids()
+	case commitkey.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CommitKeyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case commitkey.FieldIds:
+		return m.OldIds(ctx)
+	case commitkey.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CommitKey field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CommitKeyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case commitkey.FieldIds:
+		v, ok := value.(map[string]int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIds(v)
+		return nil
+	case commitkey.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CommitKey field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CommitKeyMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CommitKeyMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CommitKeyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown CommitKey numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CommitKeyMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CommitKeyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CommitKeyMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown CommitKey nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CommitKeyMutation) ResetField(name string) error {
+	switch name {
+	case commitkey.FieldIds:
+		m.ResetIds()
+		return nil
+	case commitkey.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CommitKey field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CommitKeyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CommitKeyMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CommitKeyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CommitKeyMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CommitKeyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CommitKeyMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CommitKeyMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CommitKey unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CommitKeyMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CommitKey edge %s", name)
+}
+
 // CreditMutation represents an operation that mutates the Credit nodes in the graph.
 type CreditMutation struct {
 	config
@@ -2932,6 +3326,1648 @@ func (m *CreditMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Credit edge %s", name)
+}
+
+// EvidenceRecordMutation represents an operation that mutates the EvidenceRecord nodes in the graph.
+type EvidenceRecordMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *string
+	source        *string
+	key           *string
+	hash          *string
+	fetched_at    *time.Time
+	fields        *map[string]interface{}
+	archived_at   *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*EvidenceRecord, error)
+	predicates    []predicate.EvidenceRecord
+}
+
+var _ ent.Mutation = (*EvidenceRecordMutation)(nil)
+
+// evidencerecordOption allows management of the mutation configuration using functional options.
+type evidencerecordOption func(*EvidenceRecordMutation)
+
+// newEvidenceRecordMutation creates new mutation for the EvidenceRecord entity.
+func newEvidenceRecordMutation(c config, op Op, opts ...evidencerecordOption) *EvidenceRecordMutation {
+	m := &EvidenceRecordMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEvidenceRecord,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEvidenceRecordID sets the ID field of the mutation.
+func withEvidenceRecordID(id string) evidencerecordOption {
+	return func(m *EvidenceRecordMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EvidenceRecord
+		)
+		m.oldValue = func(ctx context.Context) (*EvidenceRecord, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EvidenceRecord.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEvidenceRecord sets the old EvidenceRecord of the mutation.
+func withEvidenceRecord(node *EvidenceRecord) evidencerecordOption {
+	return func(m *EvidenceRecordMutation) {
+		m.oldValue = func(context.Context) (*EvidenceRecord, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EvidenceRecordMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EvidenceRecordMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of EvidenceRecord entities.
+func (m *EvidenceRecordMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EvidenceRecordMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EvidenceRecordMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EvidenceRecord.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSource sets the "source" field.
+func (m *EvidenceRecordMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *EvidenceRecordMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the EvidenceRecord entity.
+// If the EvidenceRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceRecordMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *EvidenceRecordMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetKey sets the "key" field.
+func (m *EvidenceRecordMutation) SetKey(s string) {
+	m.key = &s
+}
+
+// Key returns the value of the "key" field in the mutation.
+func (m *EvidenceRecordMutation) Key() (r string, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKey returns the old "key" field's value of the EvidenceRecord entity.
+// If the EvidenceRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceRecordMutation) OldKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+	}
+	return oldValue.Key, nil
+}
+
+// ResetKey resets all changes to the "key" field.
+func (m *EvidenceRecordMutation) ResetKey() {
+	m.key = nil
+}
+
+// SetHash sets the "hash" field.
+func (m *EvidenceRecordMutation) SetHash(s string) {
+	m.hash = &s
+}
+
+// Hash returns the value of the "hash" field in the mutation.
+func (m *EvidenceRecordMutation) Hash() (r string, exists bool) {
+	v := m.hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHash returns the old "hash" field's value of the EvidenceRecord entity.
+// If the EvidenceRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceRecordMutation) OldHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHash: %w", err)
+	}
+	return oldValue.Hash, nil
+}
+
+// ResetHash resets all changes to the "hash" field.
+func (m *EvidenceRecordMutation) ResetHash() {
+	m.hash = nil
+}
+
+// SetFetchedAt sets the "fetched_at" field.
+func (m *EvidenceRecordMutation) SetFetchedAt(t time.Time) {
+	m.fetched_at = &t
+}
+
+// FetchedAt returns the value of the "fetched_at" field in the mutation.
+func (m *EvidenceRecordMutation) FetchedAt() (r time.Time, exists bool) {
+	v := m.fetched_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFetchedAt returns the old "fetched_at" field's value of the EvidenceRecord entity.
+// If the EvidenceRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceRecordMutation) OldFetchedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFetchedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFetchedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFetchedAt: %w", err)
+	}
+	return oldValue.FetchedAt, nil
+}
+
+// ResetFetchedAt resets all changes to the "fetched_at" field.
+func (m *EvidenceRecordMutation) ResetFetchedAt() {
+	m.fetched_at = nil
+}
+
+// SetFields sets the "fields" field.
+func (m *EvidenceRecordMutation) SetFields(value map[string]interface{}) {
+	m.fields = &value
+}
+
+// GetFields returns the value of the "fields" field in the mutation.
+func (m *EvidenceRecordMutation) GetFields() (r map[string]interface{}, exists bool) {
+	v := m.fields
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFields returns the old "fields" field's value of the EvidenceRecord entity.
+// If the EvidenceRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceRecordMutation) OldFields(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFields is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFields requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFields: %w", err)
+	}
+	return oldValue.Fields, nil
+}
+
+// ResetFields resets all changes to the "fields" field.
+func (m *EvidenceRecordMutation) ResetFields() {
+	m.fields = nil
+}
+
+// SetArchivedAt sets the "archived_at" field.
+func (m *EvidenceRecordMutation) SetArchivedAt(t time.Time) {
+	m.archived_at = &t
+}
+
+// ArchivedAt returns the value of the "archived_at" field in the mutation.
+func (m *EvidenceRecordMutation) ArchivedAt() (r time.Time, exists bool) {
+	v := m.archived_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArchivedAt returns the old "archived_at" field's value of the EvidenceRecord entity.
+// If the EvidenceRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceRecordMutation) OldArchivedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArchivedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArchivedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArchivedAt: %w", err)
+	}
+	return oldValue.ArchivedAt, nil
+}
+
+// ResetArchivedAt resets all changes to the "archived_at" field.
+func (m *EvidenceRecordMutation) ResetArchivedAt() {
+	m.archived_at = nil
+}
+
+// Where appends a list predicates to the EvidenceRecordMutation builder.
+func (m *EvidenceRecordMutation) Where(ps ...predicate.EvidenceRecord) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EvidenceRecordMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EvidenceRecordMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EvidenceRecord, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EvidenceRecordMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EvidenceRecordMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EvidenceRecord).
+func (m *EvidenceRecordMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EvidenceRecordMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.source != nil {
+		fields = append(fields, evidencerecord.FieldSource)
+	}
+	if m.key != nil {
+		fields = append(fields, evidencerecord.FieldKey)
+	}
+	if m.hash != nil {
+		fields = append(fields, evidencerecord.FieldHash)
+	}
+	if m.fetched_at != nil {
+		fields = append(fields, evidencerecord.FieldFetchedAt)
+	}
+	if m.fields != nil {
+		fields = append(fields, evidencerecord.FieldFields)
+	}
+	if m.archived_at != nil {
+		fields = append(fields, evidencerecord.FieldArchivedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EvidenceRecordMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case evidencerecord.FieldSource:
+		return m.Source()
+	case evidencerecord.FieldKey:
+		return m.Key()
+	case evidencerecord.FieldHash:
+		return m.Hash()
+	case evidencerecord.FieldFetchedAt:
+		return m.FetchedAt()
+	case evidencerecord.FieldFields:
+		return m.GetFields()
+	case evidencerecord.FieldArchivedAt:
+		return m.ArchivedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EvidenceRecordMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case evidencerecord.FieldSource:
+		return m.OldSource(ctx)
+	case evidencerecord.FieldKey:
+		return m.OldKey(ctx)
+	case evidencerecord.FieldHash:
+		return m.OldHash(ctx)
+	case evidencerecord.FieldFetchedAt:
+		return m.OldFetchedAt(ctx)
+	case evidencerecord.FieldFields:
+		return m.OldFields(ctx)
+	case evidencerecord.FieldArchivedAt:
+		return m.OldArchivedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EvidenceRecord field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EvidenceRecordMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case evidencerecord.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case evidencerecord.FieldKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKey(v)
+		return nil
+	case evidencerecord.FieldHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHash(v)
+		return nil
+	case evidencerecord.FieldFetchedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFetchedAt(v)
+		return nil
+	case evidencerecord.FieldFields:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFields(v)
+		return nil
+	case evidencerecord.FieldArchivedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArchivedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EvidenceRecord field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EvidenceRecordMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EvidenceRecordMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EvidenceRecordMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown EvidenceRecord numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EvidenceRecordMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EvidenceRecordMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EvidenceRecordMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown EvidenceRecord nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EvidenceRecordMutation) ResetField(name string) error {
+	switch name {
+	case evidencerecord.FieldSource:
+		m.ResetSource()
+		return nil
+	case evidencerecord.FieldKey:
+		m.ResetKey()
+		return nil
+	case evidencerecord.FieldHash:
+		m.ResetHash()
+		return nil
+	case evidencerecord.FieldFetchedAt:
+		m.ResetFetchedAt()
+		return nil
+	case evidencerecord.FieldFields:
+		m.ResetFields()
+		return nil
+	case evidencerecord.FieldArchivedAt:
+		m.ResetArchivedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EvidenceRecord field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EvidenceRecordMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EvidenceRecordMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EvidenceRecordMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EvidenceRecordMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EvidenceRecordMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EvidenceRecordMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EvidenceRecordMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EvidenceRecord unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EvidenceRecordMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EvidenceRecord edge %s", name)
+}
+
+// EvidenceSnapshotMutation represents an operation that mutates the EvidenceSnapshot nodes in the graph.
+type EvidenceSnapshotMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *string
+	requested_url *string
+	final_url     *string
+	host          *string
+	fetched_at    *time.Time
+	lines         *[]string
+	appendlines   []string
+	archived_at   *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*EvidenceSnapshot, error)
+	predicates    []predicate.EvidenceSnapshot
+}
+
+var _ ent.Mutation = (*EvidenceSnapshotMutation)(nil)
+
+// evidencesnapshotOption allows management of the mutation configuration using functional options.
+type evidencesnapshotOption func(*EvidenceSnapshotMutation)
+
+// newEvidenceSnapshotMutation creates new mutation for the EvidenceSnapshot entity.
+func newEvidenceSnapshotMutation(c config, op Op, opts ...evidencesnapshotOption) *EvidenceSnapshotMutation {
+	m := &EvidenceSnapshotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEvidenceSnapshot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEvidenceSnapshotID sets the ID field of the mutation.
+func withEvidenceSnapshotID(id string) evidencesnapshotOption {
+	return func(m *EvidenceSnapshotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EvidenceSnapshot
+		)
+		m.oldValue = func(ctx context.Context) (*EvidenceSnapshot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EvidenceSnapshot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEvidenceSnapshot sets the old EvidenceSnapshot of the mutation.
+func withEvidenceSnapshot(node *EvidenceSnapshot) evidencesnapshotOption {
+	return func(m *EvidenceSnapshotMutation) {
+		m.oldValue = func(context.Context) (*EvidenceSnapshot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EvidenceSnapshotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EvidenceSnapshotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of EvidenceSnapshot entities.
+func (m *EvidenceSnapshotMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EvidenceSnapshotMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EvidenceSnapshotMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EvidenceSnapshot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRequestedURL sets the "requested_url" field.
+func (m *EvidenceSnapshotMutation) SetRequestedURL(s string) {
+	m.requested_url = &s
+}
+
+// RequestedURL returns the value of the "requested_url" field in the mutation.
+func (m *EvidenceSnapshotMutation) RequestedURL() (r string, exists bool) {
+	v := m.requested_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedURL returns the old "requested_url" field's value of the EvidenceSnapshot entity.
+// If the EvidenceSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceSnapshotMutation) OldRequestedURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedURL: %w", err)
+	}
+	return oldValue.RequestedURL, nil
+}
+
+// ResetRequestedURL resets all changes to the "requested_url" field.
+func (m *EvidenceSnapshotMutation) ResetRequestedURL() {
+	m.requested_url = nil
+}
+
+// SetFinalURL sets the "final_url" field.
+func (m *EvidenceSnapshotMutation) SetFinalURL(s string) {
+	m.final_url = &s
+}
+
+// FinalURL returns the value of the "final_url" field in the mutation.
+func (m *EvidenceSnapshotMutation) FinalURL() (r string, exists bool) {
+	v := m.final_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinalURL returns the old "final_url" field's value of the EvidenceSnapshot entity.
+// If the EvidenceSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceSnapshotMutation) OldFinalURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinalURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinalURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinalURL: %w", err)
+	}
+	return oldValue.FinalURL, nil
+}
+
+// ResetFinalURL resets all changes to the "final_url" field.
+func (m *EvidenceSnapshotMutation) ResetFinalURL() {
+	m.final_url = nil
+}
+
+// SetHost sets the "host" field.
+func (m *EvidenceSnapshotMutation) SetHost(s string) {
+	m.host = &s
+}
+
+// Host returns the value of the "host" field in the mutation.
+func (m *EvidenceSnapshotMutation) Host() (r string, exists bool) {
+	v := m.host
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHost returns the old "host" field's value of the EvidenceSnapshot entity.
+// If the EvidenceSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceSnapshotMutation) OldHost(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHost: %w", err)
+	}
+	return oldValue.Host, nil
+}
+
+// ResetHost resets all changes to the "host" field.
+func (m *EvidenceSnapshotMutation) ResetHost() {
+	m.host = nil
+}
+
+// SetFetchedAt sets the "fetched_at" field.
+func (m *EvidenceSnapshotMutation) SetFetchedAt(t time.Time) {
+	m.fetched_at = &t
+}
+
+// FetchedAt returns the value of the "fetched_at" field in the mutation.
+func (m *EvidenceSnapshotMutation) FetchedAt() (r time.Time, exists bool) {
+	v := m.fetched_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFetchedAt returns the old "fetched_at" field's value of the EvidenceSnapshot entity.
+// If the EvidenceSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceSnapshotMutation) OldFetchedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFetchedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFetchedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFetchedAt: %w", err)
+	}
+	return oldValue.FetchedAt, nil
+}
+
+// ResetFetchedAt resets all changes to the "fetched_at" field.
+func (m *EvidenceSnapshotMutation) ResetFetchedAt() {
+	m.fetched_at = nil
+}
+
+// SetLines sets the "lines" field.
+func (m *EvidenceSnapshotMutation) SetLines(s []string) {
+	m.lines = &s
+	m.appendlines = nil
+}
+
+// Lines returns the value of the "lines" field in the mutation.
+func (m *EvidenceSnapshotMutation) Lines() (r []string, exists bool) {
+	v := m.lines
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLines returns the old "lines" field's value of the EvidenceSnapshot entity.
+// If the EvidenceSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceSnapshotMutation) OldLines(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLines is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLines requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLines: %w", err)
+	}
+	return oldValue.Lines, nil
+}
+
+// AppendLines adds s to the "lines" field.
+func (m *EvidenceSnapshotMutation) AppendLines(s []string) {
+	m.appendlines = append(m.appendlines, s...)
+}
+
+// AppendedLines returns the list of values that were appended to the "lines" field in this mutation.
+func (m *EvidenceSnapshotMutation) AppendedLines() ([]string, bool) {
+	if len(m.appendlines) == 0 {
+		return nil, false
+	}
+	return m.appendlines, true
+}
+
+// ResetLines resets all changes to the "lines" field.
+func (m *EvidenceSnapshotMutation) ResetLines() {
+	m.lines = nil
+	m.appendlines = nil
+}
+
+// SetArchivedAt sets the "archived_at" field.
+func (m *EvidenceSnapshotMutation) SetArchivedAt(t time.Time) {
+	m.archived_at = &t
+}
+
+// ArchivedAt returns the value of the "archived_at" field in the mutation.
+func (m *EvidenceSnapshotMutation) ArchivedAt() (r time.Time, exists bool) {
+	v := m.archived_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArchivedAt returns the old "archived_at" field's value of the EvidenceSnapshot entity.
+// If the EvidenceSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EvidenceSnapshotMutation) OldArchivedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArchivedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArchivedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArchivedAt: %w", err)
+	}
+	return oldValue.ArchivedAt, nil
+}
+
+// ResetArchivedAt resets all changes to the "archived_at" field.
+func (m *EvidenceSnapshotMutation) ResetArchivedAt() {
+	m.archived_at = nil
+}
+
+// Where appends a list predicates to the EvidenceSnapshotMutation builder.
+func (m *EvidenceSnapshotMutation) Where(ps ...predicate.EvidenceSnapshot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EvidenceSnapshotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EvidenceSnapshotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EvidenceSnapshot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EvidenceSnapshotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EvidenceSnapshotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EvidenceSnapshot).
+func (m *EvidenceSnapshotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EvidenceSnapshotMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.requested_url != nil {
+		fields = append(fields, evidencesnapshot.FieldRequestedURL)
+	}
+	if m.final_url != nil {
+		fields = append(fields, evidencesnapshot.FieldFinalURL)
+	}
+	if m.host != nil {
+		fields = append(fields, evidencesnapshot.FieldHost)
+	}
+	if m.fetched_at != nil {
+		fields = append(fields, evidencesnapshot.FieldFetchedAt)
+	}
+	if m.lines != nil {
+		fields = append(fields, evidencesnapshot.FieldLines)
+	}
+	if m.archived_at != nil {
+		fields = append(fields, evidencesnapshot.FieldArchivedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EvidenceSnapshotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case evidencesnapshot.FieldRequestedURL:
+		return m.RequestedURL()
+	case evidencesnapshot.FieldFinalURL:
+		return m.FinalURL()
+	case evidencesnapshot.FieldHost:
+		return m.Host()
+	case evidencesnapshot.FieldFetchedAt:
+		return m.FetchedAt()
+	case evidencesnapshot.FieldLines:
+		return m.Lines()
+	case evidencesnapshot.FieldArchivedAt:
+		return m.ArchivedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EvidenceSnapshotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case evidencesnapshot.FieldRequestedURL:
+		return m.OldRequestedURL(ctx)
+	case evidencesnapshot.FieldFinalURL:
+		return m.OldFinalURL(ctx)
+	case evidencesnapshot.FieldHost:
+		return m.OldHost(ctx)
+	case evidencesnapshot.FieldFetchedAt:
+		return m.OldFetchedAt(ctx)
+	case evidencesnapshot.FieldLines:
+		return m.OldLines(ctx)
+	case evidencesnapshot.FieldArchivedAt:
+		return m.OldArchivedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EvidenceSnapshot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EvidenceSnapshotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case evidencesnapshot.FieldRequestedURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedURL(v)
+		return nil
+	case evidencesnapshot.FieldFinalURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinalURL(v)
+		return nil
+	case evidencesnapshot.FieldHost:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHost(v)
+		return nil
+	case evidencesnapshot.FieldFetchedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFetchedAt(v)
+		return nil
+	case evidencesnapshot.FieldLines:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLines(v)
+		return nil
+	case evidencesnapshot.FieldArchivedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArchivedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EvidenceSnapshot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EvidenceSnapshotMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EvidenceSnapshotMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EvidenceSnapshotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown EvidenceSnapshot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EvidenceSnapshotMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EvidenceSnapshotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EvidenceSnapshotMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown EvidenceSnapshot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EvidenceSnapshotMutation) ResetField(name string) error {
+	switch name {
+	case evidencesnapshot.FieldRequestedURL:
+		m.ResetRequestedURL()
+		return nil
+	case evidencesnapshot.FieldFinalURL:
+		m.ResetFinalURL()
+		return nil
+	case evidencesnapshot.FieldHost:
+		m.ResetHost()
+		return nil
+	case evidencesnapshot.FieldFetchedAt:
+		m.ResetFetchedAt()
+		return nil
+	case evidencesnapshot.FieldLines:
+		m.ResetLines()
+		return nil
+	case evidencesnapshot.FieldArchivedAt:
+		m.ResetArchivedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EvidenceSnapshot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EvidenceSnapshotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EvidenceSnapshotMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EvidenceSnapshotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EvidenceSnapshotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EvidenceSnapshotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EvidenceSnapshotMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EvidenceSnapshotMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EvidenceSnapshot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EvidenceSnapshotMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EvidenceSnapshot edge %s", name)
+}
+
+// FaninCursorMutation represents an operation that mutates the FaninCursor nodes in the graph.
+type FaninCursorMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *string
+	after         *int64
+	addafter      *int64
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*FaninCursor, error)
+	predicates    []predicate.FaninCursor
+}
+
+var _ ent.Mutation = (*FaninCursorMutation)(nil)
+
+// fanincursorOption allows management of the mutation configuration using functional options.
+type fanincursorOption func(*FaninCursorMutation)
+
+// newFaninCursorMutation creates new mutation for the FaninCursor entity.
+func newFaninCursorMutation(c config, op Op, opts ...fanincursorOption) *FaninCursorMutation {
+	m := &FaninCursorMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeFaninCursor,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withFaninCursorID sets the ID field of the mutation.
+func withFaninCursorID(id string) fanincursorOption {
+	return func(m *FaninCursorMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *FaninCursor
+		)
+		m.oldValue = func(ctx context.Context) (*FaninCursor, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().FaninCursor.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withFaninCursor sets the old FaninCursor of the mutation.
+func withFaninCursor(node *FaninCursor) fanincursorOption {
+	return func(m *FaninCursorMutation) {
+		m.oldValue = func(context.Context) (*FaninCursor, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m FaninCursorMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m FaninCursorMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of FaninCursor entities.
+func (m *FaninCursorMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *FaninCursorMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *FaninCursorMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().FaninCursor.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAfter sets the "after" field.
+func (m *FaninCursorMutation) SetAfter(i int64) {
+	m.after = &i
+	m.addafter = nil
+}
+
+// After returns the value of the "after" field in the mutation.
+func (m *FaninCursorMutation) After() (r int64, exists bool) {
+	v := m.after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAfter returns the old "after" field's value of the FaninCursor entity.
+// If the FaninCursor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FaninCursorMutation) OldAfter(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAfter: %w", err)
+	}
+	return oldValue.After, nil
+}
+
+// AddAfter adds i to the "after" field.
+func (m *FaninCursorMutation) AddAfter(i int64) {
+	if m.addafter != nil {
+		*m.addafter += i
+	} else {
+		m.addafter = &i
+	}
+}
+
+// AddedAfter returns the value that was added to the "after" field in this mutation.
+func (m *FaninCursorMutation) AddedAfter() (r int64, exists bool) {
+	v := m.addafter
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAfter resets all changes to the "after" field.
+func (m *FaninCursorMutation) ResetAfter() {
+	m.after = nil
+	m.addafter = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *FaninCursorMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *FaninCursorMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the FaninCursor entity.
+// If the FaninCursor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FaninCursorMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *FaninCursorMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the FaninCursorMutation builder.
+func (m *FaninCursorMutation) Where(ps ...predicate.FaninCursor) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the FaninCursorMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *FaninCursorMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.FaninCursor, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *FaninCursorMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *FaninCursorMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (FaninCursor).
+func (m *FaninCursorMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *FaninCursorMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.after != nil {
+		fields = append(fields, fanincursor.FieldAfter)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, fanincursor.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *FaninCursorMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case fanincursor.FieldAfter:
+		return m.After()
+	case fanincursor.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *FaninCursorMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case fanincursor.FieldAfter:
+		return m.OldAfter(ctx)
+	case fanincursor.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown FaninCursor field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FaninCursorMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case fanincursor.FieldAfter:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAfter(v)
+		return nil
+	case fanincursor.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown FaninCursor field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *FaninCursorMutation) AddedFields() []string {
+	var fields []string
+	if m.addafter != nil {
+		fields = append(fields, fanincursor.FieldAfter)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *FaninCursorMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case fanincursor.FieldAfter:
+		return m.AddedAfter()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FaninCursorMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case fanincursor.FieldAfter:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAfter(v)
+		return nil
+	}
+	return fmt.Errorf("unknown FaninCursor numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *FaninCursorMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *FaninCursorMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *FaninCursorMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown FaninCursor nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *FaninCursorMutation) ResetField(name string) error {
+	switch name {
+	case fanincursor.FieldAfter:
+		m.ResetAfter()
+		return nil
+	case fanincursor.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown FaninCursor field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *FaninCursorMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *FaninCursorMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *FaninCursorMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *FaninCursorMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *FaninCursorMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *FaninCursorMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *FaninCursorMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown FaninCursor unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *FaninCursorMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown FaninCursor edge %s", name)
 }
 
 // OrgMutation represents an operation that mutates the Org nodes in the graph.

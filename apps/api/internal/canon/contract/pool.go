@@ -33,7 +33,7 @@ type Candidate struct {
 	Property string          `json:"property"`
 	Value    json.RawMessage `json:"value"`
 	Tier     string          `json:"tier"`
-	Evidence []Evidence      `json:"evidence" minItems:"1"`
+	Evidence []Evidence      `json:"evidence" doc:"At least one item, except for a ref property, which is structural."`
 }
 
 type NewEntity struct {
@@ -59,4 +59,47 @@ type InboxRow struct {
 	Code     string `json:"code,omitempty"`
 	Detail   string `json:"detail,omitempty"`
 	EntityID int64  `json:"entity_id,omitempty"`
+}
+
+// The pool API ingest serves on its private network and fanin calls; the
+// direction is always fanin → pool (plan 05 §15).
+const (
+	PathOutbox   = "/pool/v0/outbox"
+	PathSnapshot = "/pool/v0/snapshots/{hash}"
+	PathRecord   = "/pool/v0/records/{id}"
+	PathInbox    = "/pool/v0/inbox"
+)
+
+type OutboxEntry struct {
+	ID        int64     `json:"id"`
+	CreatedAt string    `json:"created_at" format:"date-time"`
+	Row       OutboxRow `json:"row"`
+}
+
+type OutboxPage struct {
+	Items     []OutboxEntry `json:"items"`
+	NextAfter int64         `json:"next_after"`
+}
+
+type Snapshot struct {
+	Hash         string   `json:"hash" doc:"sha256 of the lines joined by newline, hex."`
+	RequestedURL string   `json:"requested_url"`
+	FinalURL     string   `json:"final_url"`
+	FetchedAt    string   `json:"fetched_at" format:"date-time"`
+	Loaded       bool     `json:"loaded"`
+	Cut          bool     `json:"cut"`
+	Lines        []string `json:"lines"`
+}
+
+type Record struct {
+	ID        string          `json:"id"`
+	Source    string          `json:"source" doc:"Registered source key, e.g. ndl or jpro."`
+	Key       string          `json:"key" doc:"The source's own key, e.g. an ISBN or a JP-e number."`
+	Hash      string          `json:"hash"`
+	FetchedAt string          `json:"fetched_at" format:"date-time"`
+	Fields    json.RawMessage `json:"fields"`
+}
+
+type InboxBatch struct {
+	Items []InboxRow `json:"items"`
 }

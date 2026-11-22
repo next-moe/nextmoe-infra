@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -21,6 +22,7 @@ type OrgCreate struct {
 	config
 	mutation *OrgMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetKind sets the "kind" field.
@@ -275,6 +277,7 @@ func (_c *OrgCreate) createSpec() (*Org, *sqlgraph.CreateSpec) {
 		_node = &Org{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(org.Table, sqlgraph.NewFieldSpec(org.FieldID, field.TypeInt64))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -399,11 +402,301 @@ func (_c *OrgCreate) createSpec() (*Org, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Org.Create().
+//		SetKind(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.OrgUpsert) {
+//			SetKind(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *OrgCreate) OnConflict(opts ...sql.ConflictOption) *OrgUpsertOne {
+	_c.conflict = opts
+	return &OrgUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Org.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *OrgCreate) OnConflictColumns(columns ...string) *OrgUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &OrgUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// OrgUpsertOne is the builder for "upsert"-ing
+	//  one Org node.
+	OrgUpsertOne struct {
+		create *OrgCreate
+	}
+
+	// OrgUpsert is the "OnConflict" setter.
+	OrgUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetKind sets the "kind" field.
+func (u *OrgUpsert) SetKind(v string) *OrgUpsert {
+	u.Set(org.FieldKind, v)
+	return u
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *OrgUpsert) UpdateKind() *OrgUpsert {
+	u.SetExcluded(org.FieldKind)
+	return u
+}
+
+// SetParentID sets the "parent_id" field.
+func (u *OrgUpsert) SetParentID(v int64) *OrgUpsert {
+	u.Set(org.FieldParentID, v)
+	return u
+}
+
+// UpdateParentID sets the "parent_id" field to the value that was provided on create.
+func (u *OrgUpsert) UpdateParentID() *OrgUpsert {
+	u.SetExcluded(org.FieldParentID)
+	return u
+}
+
+// ClearParentID clears the value of the "parent_id" field.
+func (u *OrgUpsert) ClearParentID() *OrgUpsert {
+	u.SetNull(org.FieldParentID)
+	return u
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *OrgUpsert) SetFieldState(v map[string]interface{}) *OrgUpsert {
+	u.Set(org.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *OrgUpsert) UpdateFieldState() *OrgUpsert {
+	u.SetExcluded(org.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *OrgUpsert) SetVersion(v int) *OrgUpsert {
+	u.Set(org.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *OrgUpsert) UpdateVersion() *OrgUpsert {
+	u.SetExcluded(org.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *OrgUpsert) AddVersion(v int) *OrgUpsert {
+	u.Add(org.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *OrgUpsert) SetUpdatedAt(v time.Time) *OrgUpsert {
+	u.Set(org.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *OrgUpsert) UpdateUpdatedAt() *OrgUpsert {
+	u.SetExcluded(org.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Org.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(org.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *OrgUpsertOne) UpdateNewValues() *OrgUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(org.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(org.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Org.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *OrgUpsertOne) Ignore() *OrgUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *OrgUpsertOne) DoNothing() *OrgUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the OrgCreate.OnConflict
+// documentation for more info.
+func (u *OrgUpsertOne) Update(set func(*OrgUpsert)) *OrgUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&OrgUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetKind sets the "kind" field.
+func (u *OrgUpsertOne) SetKind(v string) *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *OrgUpsertOne) UpdateKind() *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetParentID sets the "parent_id" field.
+func (u *OrgUpsertOne) SetParentID(v int64) *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetParentID(v)
+	})
+}
+
+// UpdateParentID sets the "parent_id" field to the value that was provided on create.
+func (u *OrgUpsertOne) UpdateParentID() *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateParentID()
+	})
+}
+
+// ClearParentID clears the value of the "parent_id" field.
+func (u *OrgUpsertOne) ClearParentID() *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.ClearParentID()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *OrgUpsertOne) SetFieldState(v map[string]interface{}) *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *OrgUpsertOne) UpdateFieldState() *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *OrgUpsertOne) SetVersion(v int) *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *OrgUpsertOne) AddVersion(v int) *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *OrgUpsertOne) UpdateVersion() *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *OrgUpsertOne) SetUpdatedAt(v time.Time) *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *OrgUpsertOne) UpdateUpdatedAt() *OrgUpsertOne {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *OrgUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for OrgCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *OrgUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *OrgUpsertOne) ID(ctx context.Context) (id int64, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *OrgUpsertOne) IDX(ctx context.Context) int64 {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // OrgCreateBulk is the builder for creating many Org entities in bulk.
 type OrgCreateBulk struct {
 	config
 	err      error
 	builders []*OrgCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Org entities in the database.
@@ -433,6 +726,7 @@ func (_c *OrgCreateBulk) Save(ctx context.Context) ([]*Org, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -483,6 +777,207 @@ func (_c *OrgCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *OrgCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Org.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.OrgUpsert) {
+//			SetKind(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *OrgCreateBulk) OnConflict(opts ...sql.ConflictOption) *OrgUpsertBulk {
+	_c.conflict = opts
+	return &OrgUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Org.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *OrgCreateBulk) OnConflictColumns(columns ...string) *OrgUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &OrgUpsertBulk{
+		create: _c,
+	}
+}
+
+// OrgUpsertBulk is the builder for "upsert"-ing
+// a bulk of Org nodes.
+type OrgUpsertBulk struct {
+	create *OrgCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Org.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(org.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *OrgUpsertBulk) UpdateNewValues() *OrgUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(org.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(org.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Org.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *OrgUpsertBulk) Ignore() *OrgUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *OrgUpsertBulk) DoNothing() *OrgUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the OrgCreateBulk.OnConflict
+// documentation for more info.
+func (u *OrgUpsertBulk) Update(set func(*OrgUpsert)) *OrgUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&OrgUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetKind sets the "kind" field.
+func (u *OrgUpsertBulk) SetKind(v string) *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *OrgUpsertBulk) UpdateKind() *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetParentID sets the "parent_id" field.
+func (u *OrgUpsertBulk) SetParentID(v int64) *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetParentID(v)
+	})
+}
+
+// UpdateParentID sets the "parent_id" field to the value that was provided on create.
+func (u *OrgUpsertBulk) UpdateParentID() *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateParentID()
+	})
+}
+
+// ClearParentID clears the value of the "parent_id" field.
+func (u *OrgUpsertBulk) ClearParentID() *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.ClearParentID()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *OrgUpsertBulk) SetFieldState(v map[string]interface{}) *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *OrgUpsertBulk) UpdateFieldState() *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *OrgUpsertBulk) SetVersion(v int) *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *OrgUpsertBulk) AddVersion(v int) *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *OrgUpsertBulk) UpdateVersion() *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *OrgUpsertBulk) SetUpdatedAt(v time.Time) *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *OrgUpsertBulk) UpdateUpdatedAt() *OrgUpsertBulk {
+	return u.Update(func(s *OrgUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *OrgUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the OrgCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for OrgCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *OrgUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

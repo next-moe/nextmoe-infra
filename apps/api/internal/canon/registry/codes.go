@@ -17,6 +17,7 @@ var RefusalCodes = []Code{
 	{"PROPERTY_UNKNOWN", "the property is not in the registry"},
 	{"VOCAB_TERM_UNKNOWN", "the value is not a term of the property's vocabulary"},
 	{"HUMAN_LOCKED", "a person wrote this field; agents do not overwrite it"},
+	{"STRONGER_VALUE_EXISTS", "the current value rests on a stronger tier than this evidence"},
 	{"ENTITY_HELD", "the entity is held (takedown, dispute or review)"},
 	{"ENTITY_MERGED", "the entity was merged; resubmit against its survivor"},
 	{"UNIQUE_CONFLICT", "another entity already holds this unique key"},

@@ -61,10 +61,14 @@ type Changeset struct {
 	Actor   Actor
 	Note    string
 	Changes []Change
+	// Key, when set, makes Apply idempotent: a second Apply with the same key
+	// writes nothing and returns the first result.
+	Key string
 }
 
 type Result struct {
-	IDs map[string]int64
+	IDs      map[string]int64
+	Replayed bool
 }
 
 type Refusal struct {
@@ -101,8 +105,22 @@ func (s *Service) Apply(ctx context.Context, cs Changeset) (Result, error) {
 		return res, err
 	}
 	defer tx.Rollback()
+	if cs.Key != "" {
+		prior, err := tx.CommitKey.Get(ctx, cs.Key)
+		if err == nil {
+			return Result{IDs: prior.Ids, Replayed: true}, nil
+		}
+		if !ent.IsNotFound(err) {
+			return res, err
+		}
+	}
 	for i, ch := range cs.Changes {
 		if err := s.apply(ctx, tx, cs, i, ch, res.IDs); err != nil {
+			return Result{}, err
+		}
+	}
+	if cs.Key != "" {
+		if err := tx.CommitKey.Create().SetID(cs.Key).SetIds(res.IDs).Exec(ctx); err != nil {
 			return Result{}, err
 		}
 	}
@@ -234,11 +252,16 @@ func (s *Service) permitted(a Actor, p registry.Property, v Value, prior any) st
 	if !p.Agent {
 		return "PROPERTY_OUT_OF_SCOPE"
 	}
-	if !containsTier(p.Tiers, v.Tier) {
+	if p.Shape != registry.ShapeRef && !containsTier(p.Tiers, v.Tier) {
 		return "TIER_NOT_ALLOWED"
 	}
-	if st, ok := prior.(map[string]any); ok && st["by"] == string(ActorHuman) {
-		return "HUMAN_LOCKED"
+	if st, ok := prior.(map[string]any); ok {
+		if st["by"] == string(ActorHuman) {
+			return "HUMAN_LOCKED"
+		}
+		if was, _ := st["assurance"].(string); was != "" && registry.Rank(registry.Tier(was)) < registry.Rank(v.Tier) {
+			return "STRONGER_VALUE_EXISTS"
+		}
 	}
 	return ""
 }

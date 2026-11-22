@@ -19,6 +19,11 @@ import (
 
 const Version = "0.1.0"
 
+// internalTables are canon's own bookkeeping; ingest never writes them.
+var internalTables = map[string]bool{
+	"revision": true, "evidence_snapshot": true, "evidence_record": true, "commit_key": true, "fanin_cursor": true,
+}
+
 type Property struct {
 	Key      string `json:"key"`
 	Optional bool   `json:"optional"`
@@ -35,7 +40,10 @@ type Contract struct {
 	Entities     []Entity                `json:"entities"`
 	Vocabularies []registry.Vocabulary   `json:"vocabularies"`
 	RefusalCodes []registry.Code         `json:"refusal_codes"`
+	Sources      []registry.Source       `json:"sources"`
+	Programs     []registry.Program      `json:"programs"`
 	Pool         map[string]*huma.Schema `json:"pool"`
+	PoolAPI      map[string]string       `json:"pool_api"`
 	Defs         map[string]*huma.Schema `json:"$defs"`
 }
 
@@ -46,7 +54,7 @@ func Build() (Contract, error) {
 		if err != nil {
 			return c, err
 		}
-		if e.Name != "revision" {
+		if !internalTables[e.Name] {
 			c.Entities = append(c.Entities, e)
 		}
 	}
@@ -54,9 +62,22 @@ func Build() (Contract, error) {
 
 	reg := huma.NewMapRegistry("#/$defs/", huma.DefaultSchemaNamer)
 	c.Pool = map[string]*huma.Schema{
-		"outbox": reg.Schema(reflect.TypeFor[OutboxRow](), true, ""),
-		"inbox":  reg.Schema(reflect.TypeFor[InboxRow](), true, ""),
+		"outbox":      reg.Schema(reflect.TypeFor[OutboxRow](), true, ""),
+		"inbox":       reg.Schema(reflect.TypeFor[InboxRow](), true, ""),
+		"outbox_page": reg.Schema(reflect.TypeFor[OutboxPage](), true, ""),
+		"snapshot":    reg.Schema(reflect.TypeFor[Snapshot](), true, ""),
+		"record":      reg.Schema(reflect.TypeFor[Record](), true, ""),
+		"inbox_batch": reg.Schema(reflect.TypeFor[InboxBatch](), true, ""),
 	}
+	c.PoolAPI = map[string]string{
+		"outbox":   "GET " + PathOutbox + "?after=<id>&limit=<n>",
+		"snapshot": "GET " + PathSnapshot,
+		"record":   "GET " + PathRecord,
+		"inbox":    "POST " + PathInbox,
+		"auth":     "Authorization: Bearer <pool token>",
+	}
+	c.Sources = registry.Sources
+	c.Programs = registry.Programs
 	c.Defs = reg.Map()
 	pinEnums(c.Defs)
 	return c, nil

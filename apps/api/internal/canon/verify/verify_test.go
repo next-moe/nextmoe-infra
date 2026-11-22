@@ -70,6 +70,7 @@ func TestEntailment(t *testing.T) {
 		{prop(registry.ShapeVocab, "book_role"), "illustrator"},
 		{prop(registry.ShapeCurrency, ""), "JPY"},
 		{prop(registry.ShapeVocab, "price_basis"), "tax_excluded"},
+		{prop(registry.ShapeVocab, "title_kind"), "official"},
 		{prop(registry.ShapeURL, ""), "https://www.kadokawa.co.jp/product/322508000515/"},
 	}
 	for _, c := range yes {

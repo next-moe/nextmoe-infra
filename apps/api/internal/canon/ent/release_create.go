@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -21,6 +22,7 @@ type ReleaseCreate struct {
 	config
 	mutation *ReleaseMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetLang sets the "lang" field.
@@ -309,6 +311,7 @@ func (_c *ReleaseCreate) createSpec() (*Release, *sqlgraph.CreateSpec) {
 		_node = &Release{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(release.Table, sqlgraph.NewFieldSpec(release.FieldID, field.TypeInt64))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -404,11 +407,418 @@ func (_c *ReleaseCreate) createSpec() (*Release, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Release.Create().
+//		SetLang(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ReleaseUpsert) {
+//			SetLang(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ReleaseCreate) OnConflict(opts ...sql.ConflictOption) *ReleaseUpsertOne {
+	_c.conflict = opts
+	return &ReleaseUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Release.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ReleaseCreate) OnConflictColumns(columns ...string) *ReleaseUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ReleaseUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// ReleaseUpsertOne is the builder for "upsert"-ing
+	//  one Release node.
+	ReleaseUpsertOne struct {
+		create *ReleaseCreate
+	}
+
+	// ReleaseUpsert is the "OnConflict" setter.
+	ReleaseUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetLang sets the "lang" field.
+func (u *ReleaseUpsert) SetLang(v string) *ReleaseUpsert {
+	u.Set(release.FieldLang, v)
+	return u
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateLang() *ReleaseUpsert {
+	u.SetExcluded(release.FieldLang)
+	return u
+}
+
+// SetEditionKind sets the "edition_kind" field.
+func (u *ReleaseUpsert) SetEditionKind(v string) *ReleaseUpsert {
+	u.Set(release.FieldEditionKind, v)
+	return u
+}
+
+// UpdateEditionKind sets the "edition_kind" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateEditionKind() *ReleaseUpsert {
+	u.SetExcluded(release.FieldEditionKind)
+	return u
+}
+
+// SetFormat sets the "format" field.
+func (u *ReleaseUpsert) SetFormat(v string) *ReleaseUpsert {
+	u.Set(release.FieldFormat, v)
+	return u
+}
+
+// UpdateFormat sets the "format" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateFormat() *ReleaseUpsert {
+	u.SetExcluded(release.FieldFormat)
+	return u
+}
+
+// SetReleased sets the "released" field.
+func (u *ReleaseUpsert) SetReleased(v string) *ReleaseUpsert {
+	u.Set(release.FieldReleased, v)
+	return u
+}
+
+// UpdateReleased sets the "released" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateReleased() *ReleaseUpsert {
+	u.SetExcluded(release.FieldReleased)
+	return u
+}
+
+// ClearReleased clears the value of the "released" field.
+func (u *ReleaseUpsert) ClearReleased() *ReleaseUpsert {
+	u.SetNull(release.FieldReleased)
+	return u
+}
+
+// SetReleaseStatus sets the "release_status" field.
+func (u *ReleaseUpsert) SetReleaseStatus(v string) *ReleaseUpsert {
+	u.Set(release.FieldReleaseStatus, v)
+	return u
+}
+
+// UpdateReleaseStatus sets the "release_status" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateReleaseStatus() *ReleaseUpsert {
+	u.SetExcluded(release.FieldReleaseStatus)
+	return u
+}
+
+// SetOfficialURL sets the "official_url" field.
+func (u *ReleaseUpsert) SetOfficialURL(v string) *ReleaseUpsert {
+	u.Set(release.FieldOfficialURL, v)
+	return u
+}
+
+// UpdateOfficialURL sets the "official_url" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateOfficialURL() *ReleaseUpsert {
+	u.SetExcluded(release.FieldOfficialURL)
+	return u
+}
+
+// ClearOfficialURL clears the value of the "official_url" field.
+func (u *ReleaseUpsert) ClearOfficialURL() *ReleaseUpsert {
+	u.SetNull(release.FieldOfficialURL)
+	return u
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *ReleaseUpsert) SetFieldState(v map[string]interface{}) *ReleaseUpsert {
+	u.Set(release.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateFieldState() *ReleaseUpsert {
+	u.SetExcluded(release.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *ReleaseUpsert) SetVersion(v int) *ReleaseUpsert {
+	u.Set(release.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateVersion() *ReleaseUpsert {
+	u.SetExcluded(release.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *ReleaseUpsert) AddVersion(v int) *ReleaseUpsert {
+	u.Add(release.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ReleaseUpsert) SetUpdatedAt(v time.Time) *ReleaseUpsert {
+	u.Set(release.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ReleaseUpsert) UpdateUpdatedAt() *ReleaseUpsert {
+	u.SetExcluded(release.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Release.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(release.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ReleaseUpsertOne) UpdateNewValues() *ReleaseUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(release.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(release.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Release.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *ReleaseUpsertOne) Ignore() *ReleaseUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ReleaseUpsertOne) DoNothing() *ReleaseUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ReleaseCreate.OnConflict
+// documentation for more info.
+func (u *ReleaseUpsertOne) Update(set func(*ReleaseUpsert)) *ReleaseUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ReleaseUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetLang sets the "lang" field.
+func (u *ReleaseUpsertOne) SetLang(v string) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetLang(v)
+	})
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateLang() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateLang()
+	})
+}
+
+// SetEditionKind sets the "edition_kind" field.
+func (u *ReleaseUpsertOne) SetEditionKind(v string) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetEditionKind(v)
+	})
+}
+
+// UpdateEditionKind sets the "edition_kind" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateEditionKind() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateEditionKind()
+	})
+}
+
+// SetFormat sets the "format" field.
+func (u *ReleaseUpsertOne) SetFormat(v string) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetFormat(v)
+	})
+}
+
+// UpdateFormat sets the "format" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateFormat() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateFormat()
+	})
+}
+
+// SetReleased sets the "released" field.
+func (u *ReleaseUpsertOne) SetReleased(v string) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetReleased(v)
+	})
+}
+
+// UpdateReleased sets the "released" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateReleased() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateReleased()
+	})
+}
+
+// ClearReleased clears the value of the "released" field.
+func (u *ReleaseUpsertOne) ClearReleased() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.ClearReleased()
+	})
+}
+
+// SetReleaseStatus sets the "release_status" field.
+func (u *ReleaseUpsertOne) SetReleaseStatus(v string) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetReleaseStatus(v)
+	})
+}
+
+// UpdateReleaseStatus sets the "release_status" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateReleaseStatus() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateReleaseStatus()
+	})
+}
+
+// SetOfficialURL sets the "official_url" field.
+func (u *ReleaseUpsertOne) SetOfficialURL(v string) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetOfficialURL(v)
+	})
+}
+
+// UpdateOfficialURL sets the "official_url" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateOfficialURL() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateOfficialURL()
+	})
+}
+
+// ClearOfficialURL clears the value of the "official_url" field.
+func (u *ReleaseUpsertOne) ClearOfficialURL() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.ClearOfficialURL()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *ReleaseUpsertOne) SetFieldState(v map[string]interface{}) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateFieldState() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *ReleaseUpsertOne) SetVersion(v int) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *ReleaseUpsertOne) AddVersion(v int) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateVersion() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ReleaseUpsertOne) SetUpdatedAt(v time.Time) *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ReleaseUpsertOne) UpdateUpdatedAt() *ReleaseUpsertOne {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ReleaseUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ReleaseCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ReleaseUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *ReleaseUpsertOne) ID(ctx context.Context) (id int64, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *ReleaseUpsertOne) IDX(ctx context.Context) int64 {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // ReleaseCreateBulk is the builder for creating many Release entities in bulk.
 type ReleaseCreateBulk struct {
 	config
 	err      error
 	builders []*ReleaseCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Release entities in the database.
@@ -438,6 +848,7 @@ func (_c *ReleaseCreateBulk) Save(ctx context.Context) ([]*Release, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -488,6 +899,270 @@ func (_c *ReleaseCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *ReleaseCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Release.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ReleaseUpsert) {
+//			SetLang(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ReleaseCreateBulk) OnConflict(opts ...sql.ConflictOption) *ReleaseUpsertBulk {
+	_c.conflict = opts
+	return &ReleaseUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Release.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ReleaseCreateBulk) OnConflictColumns(columns ...string) *ReleaseUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ReleaseUpsertBulk{
+		create: _c,
+	}
+}
+
+// ReleaseUpsertBulk is the builder for "upsert"-ing
+// a bulk of Release nodes.
+type ReleaseUpsertBulk struct {
+	create *ReleaseCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Release.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(release.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ReleaseUpsertBulk) UpdateNewValues() *ReleaseUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(release.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(release.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Release.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *ReleaseUpsertBulk) Ignore() *ReleaseUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ReleaseUpsertBulk) DoNothing() *ReleaseUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ReleaseCreateBulk.OnConflict
+// documentation for more info.
+func (u *ReleaseUpsertBulk) Update(set func(*ReleaseUpsert)) *ReleaseUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ReleaseUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetLang sets the "lang" field.
+func (u *ReleaseUpsertBulk) SetLang(v string) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetLang(v)
+	})
+}
+
+// UpdateLang sets the "lang" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateLang() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateLang()
+	})
+}
+
+// SetEditionKind sets the "edition_kind" field.
+func (u *ReleaseUpsertBulk) SetEditionKind(v string) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetEditionKind(v)
+	})
+}
+
+// UpdateEditionKind sets the "edition_kind" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateEditionKind() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateEditionKind()
+	})
+}
+
+// SetFormat sets the "format" field.
+func (u *ReleaseUpsertBulk) SetFormat(v string) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetFormat(v)
+	})
+}
+
+// UpdateFormat sets the "format" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateFormat() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateFormat()
+	})
+}
+
+// SetReleased sets the "released" field.
+func (u *ReleaseUpsertBulk) SetReleased(v string) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetReleased(v)
+	})
+}
+
+// UpdateReleased sets the "released" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateReleased() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateReleased()
+	})
+}
+
+// ClearReleased clears the value of the "released" field.
+func (u *ReleaseUpsertBulk) ClearReleased() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.ClearReleased()
+	})
+}
+
+// SetReleaseStatus sets the "release_status" field.
+func (u *ReleaseUpsertBulk) SetReleaseStatus(v string) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetReleaseStatus(v)
+	})
+}
+
+// UpdateReleaseStatus sets the "release_status" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateReleaseStatus() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateReleaseStatus()
+	})
+}
+
+// SetOfficialURL sets the "official_url" field.
+func (u *ReleaseUpsertBulk) SetOfficialURL(v string) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetOfficialURL(v)
+	})
+}
+
+// UpdateOfficialURL sets the "official_url" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateOfficialURL() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateOfficialURL()
+	})
+}
+
+// ClearOfficialURL clears the value of the "official_url" field.
+func (u *ReleaseUpsertBulk) ClearOfficialURL() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.ClearOfficialURL()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *ReleaseUpsertBulk) SetFieldState(v map[string]interface{}) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateFieldState() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *ReleaseUpsertBulk) SetVersion(v int) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *ReleaseUpsertBulk) AddVersion(v int) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateVersion() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ReleaseUpsertBulk) SetUpdatedAt(v time.Time) *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ReleaseUpsertBulk) UpdateUpdatedAt() *ReleaseUpsertBulk {
+	return u.Update(func(s *ReleaseUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ReleaseUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ReleaseCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ReleaseCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ReleaseUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

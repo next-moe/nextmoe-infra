@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -23,6 +24,7 @@ type CreditCreate struct {
 	config
 	mutation *CreditMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetWorkID sets the "work_id" field.
@@ -299,6 +301,7 @@ func (_c *CreditCreate) createSpec() (*Credit, *sqlgraph.CreateSpec) {
 		_node = &Credit{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(credit.Table, sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -415,11 +418,496 @@ func (_c *CreditCreate) createSpec() (*Credit, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Credit.Create().
+//		SetWorkID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.CreditUpsert) {
+//			SetWorkID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *CreditCreate) OnConflict(opts ...sql.ConflictOption) *CreditUpsertOne {
+	_c.conflict = opts
+	return &CreditUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Credit.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *CreditCreate) OnConflictColumns(columns ...string) *CreditUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &CreditUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// CreditUpsertOne is the builder for "upsert"-ing
+	//  one Credit node.
+	CreditUpsertOne struct {
+		create *CreditCreate
+	}
+
+	// CreditUpsert is the "OnConflict" setter.
+	CreditUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetWorkID sets the "work_id" field.
+func (u *CreditUpsert) SetWorkID(v int64) *CreditUpsert {
+	u.Set(credit.FieldWorkID, v)
+	return u
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *CreditUpsert) UpdateWorkID() *CreditUpsert {
+	u.SetExcluded(credit.FieldWorkID)
+	return u
+}
+
+// ClearWorkID clears the value of the "work_id" field.
+func (u *CreditUpsert) ClearWorkID() *CreditUpsert {
+	u.SetNull(credit.FieldWorkID)
+	return u
+}
+
+// SetPartID sets the "part_id" field.
+func (u *CreditUpsert) SetPartID(v int64) *CreditUpsert {
+	u.Set(credit.FieldPartID, v)
+	return u
+}
+
+// UpdatePartID sets the "part_id" field to the value that was provided on create.
+func (u *CreditUpsert) UpdatePartID() *CreditUpsert {
+	u.SetExcluded(credit.FieldPartID)
+	return u
+}
+
+// ClearPartID clears the value of the "part_id" field.
+func (u *CreditUpsert) ClearPartID() *CreditUpsert {
+	u.SetNull(credit.FieldPartID)
+	return u
+}
+
+// SetReleaseID sets the "release_id" field.
+func (u *CreditUpsert) SetReleaseID(v int64) *CreditUpsert {
+	u.Set(credit.FieldReleaseID, v)
+	return u
+}
+
+// UpdateReleaseID sets the "release_id" field to the value that was provided on create.
+func (u *CreditUpsert) UpdateReleaseID() *CreditUpsert {
+	u.SetExcluded(credit.FieldReleaseID)
+	return u
+}
+
+// ClearReleaseID clears the value of the "release_id" field.
+func (u *CreditUpsert) ClearReleaseID() *CreditUpsert {
+	u.SetNull(credit.FieldReleaseID)
+	return u
+}
+
+// SetAliasID sets the "alias_id" field.
+func (u *CreditUpsert) SetAliasID(v int64) *CreditUpsert {
+	u.Set(credit.FieldAliasID, v)
+	return u
+}
+
+// UpdateAliasID sets the "alias_id" field to the value that was provided on create.
+func (u *CreditUpsert) UpdateAliasID() *CreditUpsert {
+	u.SetExcluded(credit.FieldAliasID)
+	return u
+}
+
+// ClearAliasID clears the value of the "alias_id" field.
+func (u *CreditUpsert) ClearAliasID() *CreditUpsert {
+	u.SetNull(credit.FieldAliasID)
+	return u
+}
+
+// SetOrgID sets the "org_id" field.
+func (u *CreditUpsert) SetOrgID(v int64) *CreditUpsert {
+	u.Set(credit.FieldOrgID, v)
+	return u
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *CreditUpsert) UpdateOrgID() *CreditUpsert {
+	u.SetExcluded(credit.FieldOrgID)
+	return u
+}
+
+// ClearOrgID clears the value of the "org_id" field.
+func (u *CreditUpsert) ClearOrgID() *CreditUpsert {
+	u.SetNull(credit.FieldOrgID)
+	return u
+}
+
+// SetRole sets the "role" field.
+func (u *CreditUpsert) SetRole(v string) *CreditUpsert {
+	u.Set(credit.FieldRole, v)
+	return u
+}
+
+// UpdateRole sets the "role" field to the value that was provided on create.
+func (u *CreditUpsert) UpdateRole() *CreditUpsert {
+	u.SetExcluded(credit.FieldRole)
+	return u
+}
+
+// SetPosition sets the "position" field.
+func (u *CreditUpsert) SetPosition(v int) *CreditUpsert {
+	u.Set(credit.FieldPosition, v)
+	return u
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *CreditUpsert) UpdatePosition() *CreditUpsert {
+	u.SetExcluded(credit.FieldPosition)
+	return u
+}
+
+// AddPosition adds v to the "position" field.
+func (u *CreditUpsert) AddPosition(v int) *CreditUpsert {
+	u.Add(credit.FieldPosition, v)
+	return u
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *CreditUpsert) SetFieldState(v map[string]interface{}) *CreditUpsert {
+	u.Set(credit.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *CreditUpsert) UpdateFieldState() *CreditUpsert {
+	u.SetExcluded(credit.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *CreditUpsert) SetVersion(v int) *CreditUpsert {
+	u.Set(credit.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *CreditUpsert) UpdateVersion() *CreditUpsert {
+	u.SetExcluded(credit.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *CreditUpsert) AddVersion(v int) *CreditUpsert {
+	u.Add(credit.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CreditUpsert) SetUpdatedAt(v time.Time) *CreditUpsert {
+	u.Set(credit.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CreditUpsert) UpdateUpdatedAt() *CreditUpsert {
+	u.SetExcluded(credit.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Credit.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(credit.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *CreditUpsertOne) UpdateNewValues() *CreditUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(credit.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(credit.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Credit.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *CreditUpsertOne) Ignore() *CreditUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *CreditUpsertOne) DoNothing() *CreditUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the CreditCreate.OnConflict
+// documentation for more info.
+func (u *CreditUpsertOne) Update(set func(*CreditUpsert)) *CreditUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&CreditUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *CreditUpsertOne) SetWorkID(v int64) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdateWorkID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// ClearWorkID clears the value of the "work_id" field.
+func (u *CreditUpsertOne) ClearWorkID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearWorkID()
+	})
+}
+
+// SetPartID sets the "part_id" field.
+func (u *CreditUpsertOne) SetPartID(v int64) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetPartID(v)
+	})
+}
+
+// UpdatePartID sets the "part_id" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdatePartID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdatePartID()
+	})
+}
+
+// ClearPartID clears the value of the "part_id" field.
+func (u *CreditUpsertOne) ClearPartID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearPartID()
+	})
+}
+
+// SetReleaseID sets the "release_id" field.
+func (u *CreditUpsertOne) SetReleaseID(v int64) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetReleaseID(v)
+	})
+}
+
+// UpdateReleaseID sets the "release_id" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdateReleaseID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateReleaseID()
+	})
+}
+
+// ClearReleaseID clears the value of the "release_id" field.
+func (u *CreditUpsertOne) ClearReleaseID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearReleaseID()
+	})
+}
+
+// SetAliasID sets the "alias_id" field.
+func (u *CreditUpsertOne) SetAliasID(v int64) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetAliasID(v)
+	})
+}
+
+// UpdateAliasID sets the "alias_id" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdateAliasID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateAliasID()
+	})
+}
+
+// ClearAliasID clears the value of the "alias_id" field.
+func (u *CreditUpsertOne) ClearAliasID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearAliasID()
+	})
+}
+
+// SetOrgID sets the "org_id" field.
+func (u *CreditUpsertOne) SetOrgID(v int64) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetOrgID(v)
+	})
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdateOrgID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateOrgID()
+	})
+}
+
+// ClearOrgID clears the value of the "org_id" field.
+func (u *CreditUpsertOne) ClearOrgID() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearOrgID()
+	})
+}
+
+// SetRole sets the "role" field.
+func (u *CreditUpsertOne) SetRole(v string) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetRole(v)
+	})
+}
+
+// UpdateRole sets the "role" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdateRole() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateRole()
+	})
+}
+
+// SetPosition sets the "position" field.
+func (u *CreditUpsertOne) SetPosition(v int) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetPosition(v)
+	})
+}
+
+// AddPosition adds v to the "position" field.
+func (u *CreditUpsertOne) AddPosition(v int) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.AddPosition(v)
+	})
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdatePosition() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdatePosition()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *CreditUpsertOne) SetFieldState(v map[string]interface{}) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdateFieldState() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *CreditUpsertOne) SetVersion(v int) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *CreditUpsertOne) AddVersion(v int) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdateVersion() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CreditUpsertOne) SetUpdatedAt(v time.Time) *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CreditUpsertOne) UpdateUpdatedAt() *CreditUpsertOne {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *CreditUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for CreditCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *CreditUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *CreditUpsertOne) ID(ctx context.Context) (id int64, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *CreditUpsertOne) IDX(ctx context.Context) int64 {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // CreditCreateBulk is the builder for creating many Credit entities in bulk.
 type CreditCreateBulk struct {
 	config
 	err      error
 	builders []*CreditCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Credit entities in the database.
@@ -449,6 +937,7 @@ func (_c *CreditCreateBulk) Save(ctx context.Context) ([]*Credit, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -499,6 +988,312 @@ func (_c *CreditCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *CreditCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Credit.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.CreditUpsert) {
+//			SetWorkID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *CreditCreateBulk) OnConflict(opts ...sql.ConflictOption) *CreditUpsertBulk {
+	_c.conflict = opts
+	return &CreditUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Credit.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *CreditCreateBulk) OnConflictColumns(columns ...string) *CreditUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &CreditUpsertBulk{
+		create: _c,
+	}
+}
+
+// CreditUpsertBulk is the builder for "upsert"-ing
+// a bulk of Credit nodes.
+type CreditUpsertBulk struct {
+	create *CreditCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Credit.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(credit.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *CreditUpsertBulk) UpdateNewValues() *CreditUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(credit.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(credit.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Credit.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *CreditUpsertBulk) Ignore() *CreditUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *CreditUpsertBulk) DoNothing() *CreditUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the CreditCreateBulk.OnConflict
+// documentation for more info.
+func (u *CreditUpsertBulk) Update(set func(*CreditUpsert)) *CreditUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&CreditUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *CreditUpsertBulk) SetWorkID(v int64) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdateWorkID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// ClearWorkID clears the value of the "work_id" field.
+func (u *CreditUpsertBulk) ClearWorkID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearWorkID()
+	})
+}
+
+// SetPartID sets the "part_id" field.
+func (u *CreditUpsertBulk) SetPartID(v int64) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetPartID(v)
+	})
+}
+
+// UpdatePartID sets the "part_id" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdatePartID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdatePartID()
+	})
+}
+
+// ClearPartID clears the value of the "part_id" field.
+func (u *CreditUpsertBulk) ClearPartID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearPartID()
+	})
+}
+
+// SetReleaseID sets the "release_id" field.
+func (u *CreditUpsertBulk) SetReleaseID(v int64) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetReleaseID(v)
+	})
+}
+
+// UpdateReleaseID sets the "release_id" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdateReleaseID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateReleaseID()
+	})
+}
+
+// ClearReleaseID clears the value of the "release_id" field.
+func (u *CreditUpsertBulk) ClearReleaseID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearReleaseID()
+	})
+}
+
+// SetAliasID sets the "alias_id" field.
+func (u *CreditUpsertBulk) SetAliasID(v int64) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetAliasID(v)
+	})
+}
+
+// UpdateAliasID sets the "alias_id" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdateAliasID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateAliasID()
+	})
+}
+
+// ClearAliasID clears the value of the "alias_id" field.
+func (u *CreditUpsertBulk) ClearAliasID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearAliasID()
+	})
+}
+
+// SetOrgID sets the "org_id" field.
+func (u *CreditUpsertBulk) SetOrgID(v int64) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetOrgID(v)
+	})
+}
+
+// UpdateOrgID sets the "org_id" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdateOrgID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateOrgID()
+	})
+}
+
+// ClearOrgID clears the value of the "org_id" field.
+func (u *CreditUpsertBulk) ClearOrgID() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.ClearOrgID()
+	})
+}
+
+// SetRole sets the "role" field.
+func (u *CreditUpsertBulk) SetRole(v string) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetRole(v)
+	})
+}
+
+// UpdateRole sets the "role" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdateRole() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateRole()
+	})
+}
+
+// SetPosition sets the "position" field.
+func (u *CreditUpsertBulk) SetPosition(v int) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetPosition(v)
+	})
+}
+
+// AddPosition adds v to the "position" field.
+func (u *CreditUpsertBulk) AddPosition(v int) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.AddPosition(v)
+	})
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdatePosition() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdatePosition()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *CreditUpsertBulk) SetFieldState(v map[string]interface{}) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdateFieldState() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *CreditUpsertBulk) SetVersion(v int) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *CreditUpsertBulk) AddVersion(v int) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdateVersion() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CreditUpsertBulk) SetUpdatedAt(v time.Time) *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CreditUpsertBulk) UpdateUpdatedAt() *CreditUpsertBulk {
+	return u.Update(func(s *CreditUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *CreditUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the CreditCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for CreditCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *CreditUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -19,6 +20,7 @@ type PersonCreate struct {
 	config
 	mutation *PersonMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetPrimaryAliasID sets the "primary_alias_id" field.
@@ -199,6 +201,7 @@ func (_c *PersonCreate) createSpec() (*Person, *sqlgraph.CreateSpec) {
 		_node = &Person{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(person.Table, sqlgraph.NewFieldSpec(person.FieldID, field.TypeInt64))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -242,11 +245,288 @@ func (_c *PersonCreate) createSpec() (*Person, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Person.Create().
+//		SetPrimaryAliasID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.PersonUpsert) {
+//			SetPrimaryAliasID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *PersonCreate) OnConflict(opts ...sql.ConflictOption) *PersonUpsertOne {
+	_c.conflict = opts
+	return &PersonUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Person.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *PersonCreate) OnConflictColumns(columns ...string) *PersonUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &PersonUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// PersonUpsertOne is the builder for "upsert"-ing
+	//  one Person node.
+	PersonUpsertOne struct {
+		create *PersonCreate
+	}
+
+	// PersonUpsert is the "OnConflict" setter.
+	PersonUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetPrimaryAliasID sets the "primary_alias_id" field.
+func (u *PersonUpsert) SetPrimaryAliasID(v int64) *PersonUpsert {
+	u.Set(person.FieldPrimaryAliasID, v)
+	return u
+}
+
+// UpdatePrimaryAliasID sets the "primary_alias_id" field to the value that was provided on create.
+func (u *PersonUpsert) UpdatePrimaryAliasID() *PersonUpsert {
+	u.SetExcluded(person.FieldPrimaryAliasID)
+	return u
+}
+
+// AddPrimaryAliasID adds v to the "primary_alias_id" field.
+func (u *PersonUpsert) AddPrimaryAliasID(v int64) *PersonUpsert {
+	u.Add(person.FieldPrimaryAliasID, v)
+	return u
+}
+
+// ClearPrimaryAliasID clears the value of the "primary_alias_id" field.
+func (u *PersonUpsert) ClearPrimaryAliasID() *PersonUpsert {
+	u.SetNull(person.FieldPrimaryAliasID)
+	return u
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *PersonUpsert) SetFieldState(v map[string]interface{}) *PersonUpsert {
+	u.Set(person.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *PersonUpsert) UpdateFieldState() *PersonUpsert {
+	u.SetExcluded(person.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *PersonUpsert) SetVersion(v int) *PersonUpsert {
+	u.Set(person.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *PersonUpsert) UpdateVersion() *PersonUpsert {
+	u.SetExcluded(person.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *PersonUpsert) AddVersion(v int) *PersonUpsert {
+	u.Add(person.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *PersonUpsert) SetUpdatedAt(v time.Time) *PersonUpsert {
+	u.Set(person.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *PersonUpsert) UpdateUpdatedAt() *PersonUpsert {
+	u.SetExcluded(person.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Person.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(person.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *PersonUpsertOne) UpdateNewValues() *PersonUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(person.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(person.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Person.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *PersonUpsertOne) Ignore() *PersonUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *PersonUpsertOne) DoNothing() *PersonUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the PersonCreate.OnConflict
+// documentation for more info.
+func (u *PersonUpsertOne) Update(set func(*PersonUpsert)) *PersonUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&PersonUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetPrimaryAliasID sets the "primary_alias_id" field.
+func (u *PersonUpsertOne) SetPrimaryAliasID(v int64) *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.SetPrimaryAliasID(v)
+	})
+}
+
+// AddPrimaryAliasID adds v to the "primary_alias_id" field.
+func (u *PersonUpsertOne) AddPrimaryAliasID(v int64) *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.AddPrimaryAliasID(v)
+	})
+}
+
+// UpdatePrimaryAliasID sets the "primary_alias_id" field to the value that was provided on create.
+func (u *PersonUpsertOne) UpdatePrimaryAliasID() *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.UpdatePrimaryAliasID()
+	})
+}
+
+// ClearPrimaryAliasID clears the value of the "primary_alias_id" field.
+func (u *PersonUpsertOne) ClearPrimaryAliasID() *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.ClearPrimaryAliasID()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *PersonUpsertOne) SetFieldState(v map[string]interface{}) *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *PersonUpsertOne) UpdateFieldState() *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *PersonUpsertOne) SetVersion(v int) *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *PersonUpsertOne) AddVersion(v int) *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *PersonUpsertOne) UpdateVersion() *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *PersonUpsertOne) SetUpdatedAt(v time.Time) *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *PersonUpsertOne) UpdateUpdatedAt() *PersonUpsertOne {
+	return u.Update(func(s *PersonUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *PersonUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for PersonCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *PersonUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *PersonUpsertOne) ID(ctx context.Context) (id int64, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *PersonUpsertOne) IDX(ctx context.Context) int64 {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // PersonCreateBulk is the builder for creating many Person entities in bulk.
 type PersonCreateBulk struct {
 	config
 	err      error
 	builders []*PersonCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Person entities in the database.
@@ -276,6 +556,7 @@ func (_c *PersonCreateBulk) Save(ctx context.Context) ([]*Person, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -326,6 +607,200 @@ func (_c *PersonCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *PersonCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Person.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.PersonUpsert) {
+//			SetPrimaryAliasID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *PersonCreateBulk) OnConflict(opts ...sql.ConflictOption) *PersonUpsertBulk {
+	_c.conflict = opts
+	return &PersonUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Person.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *PersonCreateBulk) OnConflictColumns(columns ...string) *PersonUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &PersonUpsertBulk{
+		create: _c,
+	}
+}
+
+// PersonUpsertBulk is the builder for "upsert"-ing
+// a bulk of Person nodes.
+type PersonUpsertBulk struct {
+	create *PersonCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Person.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(person.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *PersonUpsertBulk) UpdateNewValues() *PersonUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(person.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(person.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Person.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *PersonUpsertBulk) Ignore() *PersonUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *PersonUpsertBulk) DoNothing() *PersonUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the PersonCreateBulk.OnConflict
+// documentation for more info.
+func (u *PersonUpsertBulk) Update(set func(*PersonUpsert)) *PersonUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&PersonUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetPrimaryAliasID sets the "primary_alias_id" field.
+func (u *PersonUpsertBulk) SetPrimaryAliasID(v int64) *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.SetPrimaryAliasID(v)
+	})
+}
+
+// AddPrimaryAliasID adds v to the "primary_alias_id" field.
+func (u *PersonUpsertBulk) AddPrimaryAliasID(v int64) *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.AddPrimaryAliasID(v)
+	})
+}
+
+// UpdatePrimaryAliasID sets the "primary_alias_id" field to the value that was provided on create.
+func (u *PersonUpsertBulk) UpdatePrimaryAliasID() *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.UpdatePrimaryAliasID()
+	})
+}
+
+// ClearPrimaryAliasID clears the value of the "primary_alias_id" field.
+func (u *PersonUpsertBulk) ClearPrimaryAliasID() *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.ClearPrimaryAliasID()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *PersonUpsertBulk) SetFieldState(v map[string]interface{}) *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *PersonUpsertBulk) UpdateFieldState() *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *PersonUpsertBulk) SetVersion(v int) *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *PersonUpsertBulk) AddVersion(v int) *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *PersonUpsertBulk) UpdateVersion() *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *PersonUpsertBulk) SetUpdatedAt(v time.Time) *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *PersonUpsertBulk) UpdateUpdatedAt() *PersonUpsertBulk {
+	return u.Update(func(s *PersonUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *PersonUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the PersonCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for PersonCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *PersonUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

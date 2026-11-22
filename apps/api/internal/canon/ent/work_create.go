@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -23,6 +24,7 @@ type WorkCreate struct {
 	config
 	mutation *WorkMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetMedium sets the "medium" field.
@@ -339,6 +341,7 @@ func (_c *WorkCreate) createSpec() (*Work, *sqlgraph.CreateSpec) {
 		_node = &Work{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(work.Table, sqlgraph.NewFieldSpec(work.FieldID, field.TypeInt64))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -462,11 +465,379 @@ func (_c *WorkCreate) createSpec() (*Work, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Work.Create().
+//		SetMedium(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.WorkUpsert) {
+//			SetMedium(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *WorkCreate) OnConflict(opts ...sql.ConflictOption) *WorkUpsertOne {
+	_c.conflict = opts
+	return &WorkUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Work.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *WorkCreate) OnConflictColumns(columns ...string) *WorkUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &WorkUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// WorkUpsertOne is the builder for "upsert"-ing
+	//  one Work node.
+	WorkUpsertOne struct {
+		create *WorkCreate
+	}
+
+	// WorkUpsert is the "OnConflict" setter.
+	WorkUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetMedium sets the "medium" field.
+func (u *WorkUpsert) SetMedium(v string) *WorkUpsert {
+	u.Set(work.FieldMedium, v)
+	return u
+}
+
+// UpdateMedium sets the "medium" field to the value that was provided on create.
+func (u *WorkUpsert) UpdateMedium() *WorkUpsert {
+	u.SetExcluded(work.FieldMedium)
+	return u
+}
+
+// SetOlang sets the "olang" field.
+func (u *WorkUpsert) SetOlang(v string) *WorkUpsert {
+	u.Set(work.FieldOlang, v)
+	return u
+}
+
+// UpdateOlang sets the "olang" field to the value that was provided on create.
+func (u *WorkUpsert) UpdateOlang() *WorkUpsert {
+	u.SetExcluded(work.FieldOlang)
+	return u
+}
+
+// ClearOlang clears the value of the "olang" field.
+func (u *WorkUpsert) ClearOlang() *WorkUpsert {
+	u.SetNull(work.FieldOlang)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *WorkUpsert) SetStatus(v string) *WorkUpsert {
+	u.Set(work.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *WorkUpsert) UpdateStatus() *WorkUpsert {
+	u.SetExcluded(work.FieldStatus)
+	return u
+}
+
+// SetContentRating sets the "content_rating" field.
+func (u *WorkUpsert) SetContentRating(v string) *WorkUpsert {
+	u.Set(work.FieldContentRating, v)
+	return u
+}
+
+// UpdateContentRating sets the "content_rating" field to the value that was provided on create.
+func (u *WorkUpsert) UpdateContentRating() *WorkUpsert {
+	u.SetExcluded(work.FieldContentRating)
+	return u
+}
+
+// SetDisplaySafety sets the "display_safety" field.
+func (u *WorkUpsert) SetDisplaySafety(v string) *WorkUpsert {
+	u.Set(work.FieldDisplaySafety, v)
+	return u
+}
+
+// UpdateDisplaySafety sets the "display_safety" field to the value that was provided on create.
+func (u *WorkUpsert) UpdateDisplaySafety() *WorkUpsert {
+	u.SetExcluded(work.FieldDisplaySafety)
+	return u
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *WorkUpsert) SetFieldState(v map[string]interface{}) *WorkUpsert {
+	u.Set(work.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkUpsert) UpdateFieldState() *WorkUpsert {
+	u.SetExcluded(work.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkUpsert) SetVersion(v int) *WorkUpsert {
+	u.Set(work.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkUpsert) UpdateVersion() *WorkUpsert {
+	u.SetExcluded(work.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkUpsert) AddVersion(v int) *WorkUpsert {
+	u.Add(work.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkUpsert) SetUpdatedAt(v time.Time) *WorkUpsert {
+	u.Set(work.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkUpsert) UpdateUpdatedAt() *WorkUpsert {
+	u.SetExcluded(work.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Work.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(work.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *WorkUpsertOne) UpdateNewValues() *WorkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(work.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(work.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Work.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *WorkUpsertOne) Ignore() *WorkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *WorkUpsertOne) DoNothing() *WorkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the WorkCreate.OnConflict
+// documentation for more info.
+func (u *WorkUpsertOne) Update(set func(*WorkUpsert)) *WorkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&WorkUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetMedium sets the "medium" field.
+func (u *WorkUpsertOne) SetMedium(v string) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetMedium(v)
+	})
+}
+
+// UpdateMedium sets the "medium" field to the value that was provided on create.
+func (u *WorkUpsertOne) UpdateMedium() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateMedium()
+	})
+}
+
+// SetOlang sets the "olang" field.
+func (u *WorkUpsertOne) SetOlang(v string) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetOlang(v)
+	})
+}
+
+// UpdateOlang sets the "olang" field to the value that was provided on create.
+func (u *WorkUpsertOne) UpdateOlang() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateOlang()
+	})
+}
+
+// ClearOlang clears the value of the "olang" field.
+func (u *WorkUpsertOne) ClearOlang() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.ClearOlang()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *WorkUpsertOne) SetStatus(v string) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *WorkUpsertOne) UpdateStatus() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetContentRating sets the "content_rating" field.
+func (u *WorkUpsertOne) SetContentRating(v string) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetContentRating(v)
+	})
+}
+
+// UpdateContentRating sets the "content_rating" field to the value that was provided on create.
+func (u *WorkUpsertOne) UpdateContentRating() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateContentRating()
+	})
+}
+
+// SetDisplaySafety sets the "display_safety" field.
+func (u *WorkUpsertOne) SetDisplaySafety(v string) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetDisplaySafety(v)
+	})
+}
+
+// UpdateDisplaySafety sets the "display_safety" field to the value that was provided on create.
+func (u *WorkUpsertOne) UpdateDisplaySafety() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateDisplaySafety()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *WorkUpsertOne) SetFieldState(v map[string]interface{}) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkUpsertOne) UpdateFieldState() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkUpsertOne) SetVersion(v int) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkUpsertOne) AddVersion(v int) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkUpsertOne) UpdateVersion() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkUpsertOne) SetUpdatedAt(v time.Time) *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkUpsertOne) UpdateUpdatedAt() *WorkUpsertOne {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *WorkUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for WorkCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *WorkUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *WorkUpsertOne) ID(ctx context.Context) (id int64, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *WorkUpsertOne) IDX(ctx context.Context) int64 {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // WorkCreateBulk is the builder for creating many Work entities in bulk.
 type WorkCreateBulk struct {
 	config
 	err      error
 	builders []*WorkCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Work entities in the database.
@@ -496,6 +867,7 @@ func (_c *WorkCreateBulk) Save(ctx context.Context) ([]*Work, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -546,6 +918,249 @@ func (_c *WorkCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *WorkCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Work.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.WorkUpsert) {
+//			SetMedium(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *WorkCreateBulk) OnConflict(opts ...sql.ConflictOption) *WorkUpsertBulk {
+	_c.conflict = opts
+	return &WorkUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Work.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *WorkCreateBulk) OnConflictColumns(columns ...string) *WorkUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &WorkUpsertBulk{
+		create: _c,
+	}
+}
+
+// WorkUpsertBulk is the builder for "upsert"-ing
+// a bulk of Work nodes.
+type WorkUpsertBulk struct {
+	create *WorkCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Work.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(work.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *WorkUpsertBulk) UpdateNewValues() *WorkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(work.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(work.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Work.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *WorkUpsertBulk) Ignore() *WorkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *WorkUpsertBulk) DoNothing() *WorkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the WorkCreateBulk.OnConflict
+// documentation for more info.
+func (u *WorkUpsertBulk) Update(set func(*WorkUpsert)) *WorkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&WorkUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetMedium sets the "medium" field.
+func (u *WorkUpsertBulk) SetMedium(v string) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetMedium(v)
+	})
+}
+
+// UpdateMedium sets the "medium" field to the value that was provided on create.
+func (u *WorkUpsertBulk) UpdateMedium() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateMedium()
+	})
+}
+
+// SetOlang sets the "olang" field.
+func (u *WorkUpsertBulk) SetOlang(v string) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetOlang(v)
+	})
+}
+
+// UpdateOlang sets the "olang" field to the value that was provided on create.
+func (u *WorkUpsertBulk) UpdateOlang() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateOlang()
+	})
+}
+
+// ClearOlang clears the value of the "olang" field.
+func (u *WorkUpsertBulk) ClearOlang() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.ClearOlang()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *WorkUpsertBulk) SetStatus(v string) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *WorkUpsertBulk) UpdateStatus() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetContentRating sets the "content_rating" field.
+func (u *WorkUpsertBulk) SetContentRating(v string) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetContentRating(v)
+	})
+}
+
+// UpdateContentRating sets the "content_rating" field to the value that was provided on create.
+func (u *WorkUpsertBulk) UpdateContentRating() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateContentRating()
+	})
+}
+
+// SetDisplaySafety sets the "display_safety" field.
+func (u *WorkUpsertBulk) SetDisplaySafety(v string) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetDisplaySafety(v)
+	})
+}
+
+// UpdateDisplaySafety sets the "display_safety" field to the value that was provided on create.
+func (u *WorkUpsertBulk) UpdateDisplaySafety() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateDisplaySafety()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *WorkUpsertBulk) SetFieldState(v map[string]interface{}) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkUpsertBulk) UpdateFieldState() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkUpsertBulk) SetVersion(v int) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkUpsertBulk) AddVersion(v int) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkUpsertBulk) UpdateVersion() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkUpsertBulk) SetUpdatedAt(v time.Time) *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkUpsertBulk) UpdateUpdatedAt() *WorkUpsertBulk {
+	return u.Update(func(s *WorkUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *WorkUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the WorkCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for WorkCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *WorkUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -21,6 +22,7 @@ type WorkPartCreate struct {
 	config
 	mutation *WorkPartMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetWorkID sets the "work_id" field.
@@ -304,6 +306,7 @@ func (_c *WorkPartCreate) createSpec() (*WorkPart, *sqlgraph.CreateSpec) {
 		_node = &WorkPart{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(workpart.Table, sqlgraph.NewFieldSpec(workpart.FieldID, field.TypeInt64))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -425,11 +428,457 @@ func (_c *WorkPartCreate) createSpec() (*WorkPart, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.WorkPart.Create().
+//		SetWorkID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.WorkPartUpsert) {
+//			SetWorkID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *WorkPartCreate) OnConflict(opts ...sql.ConflictOption) *WorkPartUpsertOne {
+	_c.conflict = opts
+	return &WorkPartUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.WorkPart.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *WorkPartCreate) OnConflictColumns(columns ...string) *WorkPartUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &WorkPartUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// WorkPartUpsertOne is the builder for "upsert"-ing
+	//  one WorkPart node.
+	WorkPartUpsertOne struct {
+		create *WorkPartCreate
+	}
+
+	// WorkPartUpsert is the "OnConflict" setter.
+	WorkPartUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetWorkID sets the "work_id" field.
+func (u *WorkPartUpsert) SetWorkID(v int64) *WorkPartUpsert {
+	u.Set(workpart.FieldWorkID, v)
+	return u
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateWorkID() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldWorkID)
+	return u
+}
+
+// SetParentID sets the "parent_id" field.
+func (u *WorkPartUpsert) SetParentID(v int64) *WorkPartUpsert {
+	u.Set(workpart.FieldParentID, v)
+	return u
+}
+
+// UpdateParentID sets the "parent_id" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateParentID() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldParentID)
+	return u
+}
+
+// ClearParentID clears the value of the "parent_id" field.
+func (u *WorkPartUpsert) ClearParentID() *WorkPartUpsert {
+	u.SetNull(workpart.FieldParentID)
+	return u
+}
+
+// SetKind sets the "kind" field.
+func (u *WorkPartUpsert) SetKind(v string) *WorkPartUpsert {
+	u.Set(workpart.FieldKind, v)
+	return u
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateKind() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldKind)
+	return u
+}
+
+// SetOrdinal sets the "ordinal" field.
+func (u *WorkPartUpsert) SetOrdinal(v float64) *WorkPartUpsert {
+	u.Set(workpart.FieldOrdinal, v)
+	return u
+}
+
+// UpdateOrdinal sets the "ordinal" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateOrdinal() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldOrdinal)
+	return u
+}
+
+// AddOrdinal adds v to the "ordinal" field.
+func (u *WorkPartUpsert) AddOrdinal(v float64) *WorkPartUpsert {
+	u.Add(workpart.FieldOrdinal, v)
+	return u
+}
+
+// ClearOrdinal clears the value of the "ordinal" field.
+func (u *WorkPartUpsert) ClearOrdinal() *WorkPartUpsert {
+	u.SetNull(workpart.FieldOrdinal)
+	return u
+}
+
+// SetLabel sets the "label" field.
+func (u *WorkPartUpsert) SetLabel(v string) *WorkPartUpsert {
+	u.Set(workpart.FieldLabel, v)
+	return u
+}
+
+// UpdateLabel sets the "label" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateLabel() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldLabel)
+	return u
+}
+
+// ClearLabel clears the value of the "label" field.
+func (u *WorkPartUpsert) ClearLabel() *WorkPartUpsert {
+	u.SetNull(workpart.FieldLabel)
+	return u
+}
+
+// SetReleased sets the "released" field.
+func (u *WorkPartUpsert) SetReleased(v string) *WorkPartUpsert {
+	u.Set(workpart.FieldReleased, v)
+	return u
+}
+
+// UpdateReleased sets the "released" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateReleased() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldReleased)
+	return u
+}
+
+// ClearReleased clears the value of the "released" field.
+func (u *WorkPartUpsert) ClearReleased() *WorkPartUpsert {
+	u.SetNull(workpart.FieldReleased)
+	return u
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *WorkPartUpsert) SetFieldState(v map[string]interface{}) *WorkPartUpsert {
+	u.Set(workpart.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateFieldState() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkPartUpsert) SetVersion(v int) *WorkPartUpsert {
+	u.Set(workpart.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateVersion() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkPartUpsert) AddVersion(v int) *WorkPartUpsert {
+	u.Add(workpart.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkPartUpsert) SetUpdatedAt(v time.Time) *WorkPartUpsert {
+	u.Set(workpart.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkPartUpsert) UpdateUpdatedAt() *WorkPartUpsert {
+	u.SetExcluded(workpart.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.WorkPart.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(workpart.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *WorkPartUpsertOne) UpdateNewValues() *WorkPartUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(workpart.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(workpart.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.WorkPart.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *WorkPartUpsertOne) Ignore() *WorkPartUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *WorkPartUpsertOne) DoNothing() *WorkPartUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the WorkPartCreate.OnConflict
+// documentation for more info.
+func (u *WorkPartUpsertOne) Update(set func(*WorkPartUpsert)) *WorkPartUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&WorkPartUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *WorkPartUpsertOne) SetWorkID(v int64) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateWorkID() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// SetParentID sets the "parent_id" field.
+func (u *WorkPartUpsertOne) SetParentID(v int64) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetParentID(v)
+	})
+}
+
+// UpdateParentID sets the "parent_id" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateParentID() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateParentID()
+	})
+}
+
+// ClearParentID clears the value of the "parent_id" field.
+func (u *WorkPartUpsertOne) ClearParentID() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.ClearParentID()
+	})
+}
+
+// SetKind sets the "kind" field.
+func (u *WorkPartUpsertOne) SetKind(v string) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateKind() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetOrdinal sets the "ordinal" field.
+func (u *WorkPartUpsertOne) SetOrdinal(v float64) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetOrdinal(v)
+	})
+}
+
+// AddOrdinal adds v to the "ordinal" field.
+func (u *WorkPartUpsertOne) AddOrdinal(v float64) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.AddOrdinal(v)
+	})
+}
+
+// UpdateOrdinal sets the "ordinal" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateOrdinal() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateOrdinal()
+	})
+}
+
+// ClearOrdinal clears the value of the "ordinal" field.
+func (u *WorkPartUpsertOne) ClearOrdinal() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.ClearOrdinal()
+	})
+}
+
+// SetLabel sets the "label" field.
+func (u *WorkPartUpsertOne) SetLabel(v string) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetLabel(v)
+	})
+}
+
+// UpdateLabel sets the "label" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateLabel() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateLabel()
+	})
+}
+
+// ClearLabel clears the value of the "label" field.
+func (u *WorkPartUpsertOne) ClearLabel() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.ClearLabel()
+	})
+}
+
+// SetReleased sets the "released" field.
+func (u *WorkPartUpsertOne) SetReleased(v string) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetReleased(v)
+	})
+}
+
+// UpdateReleased sets the "released" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateReleased() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateReleased()
+	})
+}
+
+// ClearReleased clears the value of the "released" field.
+func (u *WorkPartUpsertOne) ClearReleased() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.ClearReleased()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *WorkPartUpsertOne) SetFieldState(v map[string]interface{}) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateFieldState() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkPartUpsertOne) SetVersion(v int) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkPartUpsertOne) AddVersion(v int) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateVersion() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkPartUpsertOne) SetUpdatedAt(v time.Time) *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkPartUpsertOne) UpdateUpdatedAt() *WorkPartUpsertOne {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *WorkPartUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for WorkPartCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *WorkPartUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *WorkPartUpsertOne) ID(ctx context.Context) (id int64, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *WorkPartUpsertOne) IDX(ctx context.Context) int64 {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // WorkPartCreateBulk is the builder for creating many WorkPart entities in bulk.
 type WorkPartCreateBulk struct {
 	config
 	err      error
 	builders []*WorkPartCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the WorkPart entities in the database.
@@ -459,6 +908,7 @@ func (_c *WorkPartCreateBulk) Save(ctx context.Context) ([]*WorkPart, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -509,6 +959,291 @@ func (_c *WorkPartCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *WorkPartCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.WorkPart.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.WorkPartUpsert) {
+//			SetWorkID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *WorkPartCreateBulk) OnConflict(opts ...sql.ConflictOption) *WorkPartUpsertBulk {
+	_c.conflict = opts
+	return &WorkPartUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.WorkPart.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *WorkPartCreateBulk) OnConflictColumns(columns ...string) *WorkPartUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &WorkPartUpsertBulk{
+		create: _c,
+	}
+}
+
+// WorkPartUpsertBulk is the builder for "upsert"-ing
+// a bulk of WorkPart nodes.
+type WorkPartUpsertBulk struct {
+	create *WorkPartCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.WorkPart.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(workpart.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *WorkPartUpsertBulk) UpdateNewValues() *WorkPartUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(workpart.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(workpart.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.WorkPart.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *WorkPartUpsertBulk) Ignore() *WorkPartUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *WorkPartUpsertBulk) DoNothing() *WorkPartUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the WorkPartCreateBulk.OnConflict
+// documentation for more info.
+func (u *WorkPartUpsertBulk) Update(set func(*WorkPartUpsert)) *WorkPartUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&WorkPartUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *WorkPartUpsertBulk) SetWorkID(v int64) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateWorkID() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// SetParentID sets the "parent_id" field.
+func (u *WorkPartUpsertBulk) SetParentID(v int64) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetParentID(v)
+	})
+}
+
+// UpdateParentID sets the "parent_id" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateParentID() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateParentID()
+	})
+}
+
+// ClearParentID clears the value of the "parent_id" field.
+func (u *WorkPartUpsertBulk) ClearParentID() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.ClearParentID()
+	})
+}
+
+// SetKind sets the "kind" field.
+func (u *WorkPartUpsertBulk) SetKind(v string) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetKind(v)
+	})
+}
+
+// UpdateKind sets the "kind" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateKind() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateKind()
+	})
+}
+
+// SetOrdinal sets the "ordinal" field.
+func (u *WorkPartUpsertBulk) SetOrdinal(v float64) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetOrdinal(v)
+	})
+}
+
+// AddOrdinal adds v to the "ordinal" field.
+func (u *WorkPartUpsertBulk) AddOrdinal(v float64) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.AddOrdinal(v)
+	})
+}
+
+// UpdateOrdinal sets the "ordinal" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateOrdinal() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateOrdinal()
+	})
+}
+
+// ClearOrdinal clears the value of the "ordinal" field.
+func (u *WorkPartUpsertBulk) ClearOrdinal() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.ClearOrdinal()
+	})
+}
+
+// SetLabel sets the "label" field.
+func (u *WorkPartUpsertBulk) SetLabel(v string) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetLabel(v)
+	})
+}
+
+// UpdateLabel sets the "label" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateLabel() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateLabel()
+	})
+}
+
+// ClearLabel clears the value of the "label" field.
+func (u *WorkPartUpsertBulk) ClearLabel() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.ClearLabel()
+	})
+}
+
+// SetReleased sets the "released" field.
+func (u *WorkPartUpsertBulk) SetReleased(v string) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetReleased(v)
+	})
+}
+
+// UpdateReleased sets the "released" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateReleased() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateReleased()
+	})
+}
+
+// ClearReleased clears the value of the "released" field.
+func (u *WorkPartUpsertBulk) ClearReleased() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.ClearReleased()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *WorkPartUpsertBulk) SetFieldState(v map[string]interface{}) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateFieldState() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkPartUpsertBulk) SetVersion(v int) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkPartUpsertBulk) AddVersion(v int) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateVersion() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkPartUpsertBulk) SetUpdatedAt(v time.Time) *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkPartUpsertBulk) UpdateUpdatedAt() *WorkPartUpsertBulk {
+	return u.Update(func(s *WorkPartUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *WorkPartUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the WorkPartCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for WorkPartCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *WorkPartUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

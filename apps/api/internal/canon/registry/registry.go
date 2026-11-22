@@ -34,6 +34,18 @@ const (
 	TierMachine   Tier = "machine"
 )
 
+var tierOrder = []Tier{TierOfficial, TierRegistry, TierRetailer, TierCommunity, TierLegacy, TierMachine}
+
+// Rank orders tiers, 0 strongest; an unknown tier ranks last.
+func Rank(t Tier) int {
+	for i, x := range tierOrder {
+		if x == t {
+			return i
+		}
+	}
+	return len(tierOrder)
+}
+
 type Unique string
 
 const (
@@ -51,7 +63,10 @@ type Property struct {
 	Unique  Unique   `json:"unique,omitempty"`
 	Agent   bool     `json:"agent"`
 	Clauses []string `json:"clauses,omitempty"`
-	Doc     string   `json:"doc"`
+	// ScopedByProgram: the value is the writing program's medium, not a fact
+	// read off a page, so it carries no evidence.
+	ScopedByProgram bool   `json:"scoped_by_program,omitempty"`
+	Doc             string `json:"doc"`
 }
 
 func (Property) Name() string { return AnnotationName }
@@ -65,6 +80,12 @@ func Fact(shape Shape, doc string, clauses ...string) Property {
 func VocabFact(vocab, doc string, clauses ...string) Property {
 	p := Fact(ShapeVocab, doc, clauses...)
 	p.Vocab = vocab
+	return p
+}
+
+func ProgramScoped(vocab, doc string, clauses ...string) Property {
+	p := VocabFact(vocab, doc, clauses...)
+	p.ScopedByProgram = true
 	return p
 }
 

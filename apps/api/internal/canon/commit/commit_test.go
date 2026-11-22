@@ -116,6 +116,11 @@ func TestApplyRefusesWhatTheActorMayNotWrite(t *testing.T) {
 		}
 	}
 
+	_, err = s.Apply(ctx, Changeset{Actor: agent, Changes: []Change{{Entity: "work", ID: w, Values: map[string]Value{"status": {Raw: raw("complete"), Tier: registry.TierRetailer}}}}})
+	if r := refusal(t, err); r.Code != "STRONGER_VALUE_EXISTS" {
+		t.Errorf("retailer over official: %+v", r)
+	}
+
 	human := Changeset{Actor: Actor{Kind: ActorHuman, Key: "user:1"}, Changes: []Change{{Entity: "work", ID: w, Values: map[string]Value{"status": {Raw: raw("complete")}}}}}
 	if _, err := s.Apply(ctx, human); err != nil {
 		t.Fatalf("human edit: %v", err)

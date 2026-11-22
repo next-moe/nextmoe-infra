@@ -645,7 +645,8 @@
           "clauses": [
             "R1.1"
           ],
-          "doc": "Medium by form (D15); fixed when the work is created."
+          "scoped_by_program": true,
+          "doc": "Medium by form (D15); the writing program's medium, fixed when the work is created."
         },
         {
           "key": "olang",
@@ -1243,6 +1244,10 @@
       "doc": "a person wrote this field; agents do not overwrite it"
     },
     {
+      "code": "STRONGER_VALUE_EXISTS",
+      "doc": "the current value rests on a stronger tier than this evidence"
+    },
+    {
       "code": "ENTITY_HELD",
       "doc": "the entity is held (takedown, dispute or review)"
     },
@@ -1263,23 +1268,168 @@
       "doc": "the evidence comes from an excluded host"
     }
   ],
+  "sources": [
+    {
+      "key": "ndl",
+      "kind": "record",
+      "tier": "registry",
+      "note": "NDL Search, NDL bibliographic data; credit 出典：国立国会図書館書誌データ"
+    },
+    {
+      "key": "jpro",
+      "kind": "record",
+      "tier": "registry",
+      "note": "JPRO data relayed by NDL Search; non-commercial use (D25)"
+    },
+    {
+      "key": "kadokawa",
+      "kind": "host",
+      "hosts": [
+        "kadokawa.co.jp"
+      ],
+      "tier": "official",
+      "note": "facts only; Crawl-delay 20"
+    },
+    {
+      "key": "shogakukan",
+      "kind": "host",
+      "hosts": [
+        "shogakukan.co.jp",
+        "gagagabunko.jp"
+      ],
+      "tier": "official",
+      "note": "facts only; Crawl-delay 10"
+    },
+    {
+      "key": "shueisha_dash",
+      "kind": "host",
+      "hosts": [
+        "dash.shueisha.co.jp"
+      ],
+      "tier": "official",
+      "note": "facts only; low rate; terms not found"
+    },
+    {
+      "key": "overlap",
+      "kind": "host",
+      "hosts": [
+        "over-lap.co.jp"
+      ],
+      "tier": "official",
+      "note": "facts only; low rate; terms not found"
+    },
+    {
+      "key": "kadokawa_tw",
+      "kind": "host",
+      "hosts": [
+        "kadokawa.com.tw"
+      ],
+      "tier": "official",
+      "note": "facts only; Crawl-delay 5; no ISBN on the page"
+    },
+    {
+      "key": "chingwin",
+      "kind": "host",
+      "hosts": [
+        "ching-win.com.tw"
+      ],
+      "tier": "official",
+      "note": "non-commercial with credit 資料提供：青文出版社"
+    },
+    {
+      "key": "tongli",
+      "kind": "host",
+      "hosts": [
+        "tongli.com.tw"
+      ],
+      "tier": "official",
+      "note": "facts only; terms not found"
+    },
+    {
+      "key": "kodansha",
+      "kind": "host",
+      "hosts": [
+        "kodansha.co.jp"
+      ],
+      "excluded": true,
+      "note": "terms forbid automated collection"
+    },
+    {
+      "key": "hobbyjapan",
+      "kind": "host",
+      "hosts": [
+        "firecross.jp",
+        "hobbyjapan.co.jp"
+      ],
+      "excluded": true,
+      "note": "WAF challenge; never bypassed"
+    },
+    {
+      "key": "stores",
+      "kind": "host",
+      "hosts": [
+        "bookwalker.jp",
+        "amazon.co.jp",
+        "books.rakuten.co.jp",
+        "books.com.tw"
+      ],
+      "excluded": true,
+      "note": "store terms forbid scraping or storage"
+    },
+    {
+      "key": "hanmoto",
+      "kind": "host",
+      "hosts": [
+        "hanmoto.com",
+        "books.or.jp"
+      ],
+      "excluded": true,
+      "note": "robots or terms forbid"
+    }
+  ],
+  "programs": [
+    {
+      "key": "ln-pilot",
+      "medium": "novel",
+      "doc": "Japanese bunko light novels of the pilot labels and their official Chinese editions (D4)."
+    }
+  ],
   "pool": {
     "inbox": {
       "$ref": "#/$defs/InboxRow"
     },
+    "inbox_batch": {
+      "$ref": "#/$defs/InboxBatch"
+    },
     "outbox": {
       "$ref": "#/$defs/OutboxRow"
+    },
+    "outbox_page": {
+      "$ref": "#/$defs/OutboxPage"
+    },
+    "record": {
+      "$ref": "#/$defs/Record"
+    },
+    "snapshot": {
+      "$ref": "#/$defs/Snapshot"
     }
+  },
+  "pool_api": {
+    "auth": "Authorization: Bearer \u003cpool token\u003e",
+    "inbox": "POST /pool/v0/inbox",
+    "outbox": "GET /pool/v0/outbox?after=\u003cid\u003e\u0026limit=\u003cn\u003e",
+    "record": "GET /pool/v0/records/{id}",
+    "snapshot": "GET /pool/v0/snapshots/{hash}"
   },
   "$defs": {
     "Candidate": {
       "additionalProperties": false,
       "properties": {
         "evidence": {
+          "description": "At least one item, except for a ref property, which is structural.",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
-          "minItems": 1,
           "type": [
             "array",
             "null"
@@ -1361,6 +1511,24 @@
       },
       "type": "object"
     },
+    "InboxBatch": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/InboxRow"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "type": "object"
+    },
     "InboxRow": {
       "additionalProperties": false,
       "properties": {
@@ -1375,6 +1543,7 @@
             "PROPERTY_UNKNOWN",
             "VOCAB_TERM_UNKNOWN",
             "HUMAN_LOCKED",
+            "STRONGER_VALUE_EXISTS",
             "ENTITY_HELD",
             "ENTITY_MERGED",
             "UNIQUE_CONFLICT",
@@ -1458,6 +1627,51 @@
       ],
       "type": "object"
     },
+    "OutboxEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "row": {
+          "$ref": "#/$defs/OutboxRow"
+        }
+      },
+      "required": [
+        "id",
+        "created_at",
+        "row"
+      ],
+      "type": "object"
+    },
+    "OutboxPage": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/OutboxEntry"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "next_after": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "next_after"
+      ],
+      "type": "object"
+    },
     "OutboxRow": {
       "additionalProperties": false,
       "properties": {
@@ -1497,6 +1711,83 @@
         "contract_version",
         "kind",
         "program"
+      ],
+      "type": "object"
+    },
+    "Record": {
+      "additionalProperties": false,
+      "properties": {
+        "fetched_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "fields": {},
+        "hash": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "description": "The source's own key, e.g. an ISBN or a JP-e number.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Registered source key, e.g. ndl or jpro.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "key",
+        "hash",
+        "fetched_at",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "Snapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "cut": {
+          "type": "boolean"
+        },
+        "fetched_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "final_url": {
+          "type": "string"
+        },
+        "hash": {
+          "description": "sha256 of the lines joined by newline, hex.",
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "loaded": {
+          "type": "boolean"
+        },
+        "requested_url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "hash",
+        "requested_url",
+        "final_url",
+        "fetched_at",
+        "loaded",
+        "cut",
+        "lines"
       ],
       "type": "object"
     },

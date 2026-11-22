@@ -17,7 +17,7 @@ func (Work) Annotations() []schema.Annotation { return []schema.Annotation{entsq
 func (Work) Fields() []ent.Field {
 	return append([]ent.Field{
 		publicID("work"),
-		with(field.String("medium"), r.VocabFact("medium", "Medium by form (D15); fixed when the work is created.", "R1.1")),
+		with(field.String("medium"), r.ProgramScoped("medium", "Medium by form (D15); the writing program's medium, fixed when the work is created.", "R1.1")),
 		with(field.String("olang").Optional(), r.Fact(r.ShapeLang, "BCP-47 language of the original edition.", "R4.1")),
 		with(field.String("status").Default("unknown"), r.VocabFact("work_status", "Publication status of the whole work.", "R4.3")),
 		with(field.String("content_rating").Default("all_ages"), r.VocabFact("content_rating", "Age rating of the work itself.", "R1.3")),

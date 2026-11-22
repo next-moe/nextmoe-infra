@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -18,6 +19,7 @@ type RevisionCreate struct {
 	config
 	mutation *RevisionMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetEntity sets the "entity" field.
@@ -182,6 +184,7 @@ func (_c *RevisionCreate) createSpec() (*Revision, *sqlgraph.CreateSpec) {
 		_node = &Revision{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(revision.Table, sqlgraph.NewFieldSpec(revision.FieldID, field.TypeInt64))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
@@ -221,11 +224,353 @@ func (_c *RevisionCreate) createSpec() (*Revision, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Revision.Create().
+//		SetEntity(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.RevisionUpsert) {
+//			SetEntity(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *RevisionCreate) OnConflict(opts ...sql.ConflictOption) *RevisionUpsertOne {
+	_c.conflict = opts
+	return &RevisionUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Revision.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *RevisionCreate) OnConflictColumns(columns ...string) *RevisionUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &RevisionUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// RevisionUpsertOne is the builder for "upsert"-ing
+	//  one Revision node.
+	RevisionUpsertOne struct {
+		create *RevisionCreate
+	}
+
+	// RevisionUpsert is the "OnConflict" setter.
+	RevisionUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetEntity sets the "entity" field.
+func (u *RevisionUpsert) SetEntity(v string) *RevisionUpsert {
+	u.Set(revision.FieldEntity, v)
+	return u
+}
+
+// UpdateEntity sets the "entity" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateEntity() *RevisionUpsert {
+	u.SetExcluded(revision.FieldEntity)
+	return u
+}
+
+// SetEntityID sets the "entity_id" field.
+func (u *RevisionUpsert) SetEntityID(v int64) *RevisionUpsert {
+	u.Set(revision.FieldEntityID, v)
+	return u
+}
+
+// UpdateEntityID sets the "entity_id" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateEntityID() *RevisionUpsert {
+	u.SetExcluded(revision.FieldEntityID)
+	return u
+}
+
+// AddEntityID adds v to the "entity_id" field.
+func (u *RevisionUpsert) AddEntityID(v int64) *RevisionUpsert {
+	u.Add(revision.FieldEntityID, v)
+	return u
+}
+
+// SetAction sets the "action" field.
+func (u *RevisionUpsert) SetAction(v string) *RevisionUpsert {
+	u.Set(revision.FieldAction, v)
+	return u
+}
+
+// UpdateAction sets the "action" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateAction() *RevisionUpsert {
+	u.SetExcluded(revision.FieldAction)
+	return u
+}
+
+// SetActorKind sets the "actor_kind" field.
+func (u *RevisionUpsert) SetActorKind(v string) *RevisionUpsert {
+	u.Set(revision.FieldActorKind, v)
+	return u
+}
+
+// UpdateActorKind sets the "actor_kind" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateActorKind() *RevisionUpsert {
+	u.SetExcluded(revision.FieldActorKind)
+	return u
+}
+
+// SetActorKey sets the "actor_key" field.
+func (u *RevisionUpsert) SetActorKey(v string) *RevisionUpsert {
+	u.Set(revision.FieldActorKey, v)
+	return u
+}
+
+// UpdateActorKey sets the "actor_key" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateActorKey() *RevisionUpsert {
+	u.SetExcluded(revision.FieldActorKey)
+	return u
+}
+
+// SetNote sets the "note" field.
+func (u *RevisionUpsert) SetNote(v string) *RevisionUpsert {
+	u.Set(revision.FieldNote, v)
+	return u
+}
+
+// UpdateNote sets the "note" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateNote() *RevisionUpsert {
+	u.SetExcluded(revision.FieldNote)
+	return u
+}
+
+// ClearNote clears the value of the "note" field.
+func (u *RevisionUpsert) ClearNote() *RevisionUpsert {
+	u.SetNull(revision.FieldNote)
+	return u
+}
+
+// SetChanges sets the "changes" field.
+func (u *RevisionUpsert) SetChanges(v map[string]interface{}) *RevisionUpsert {
+	u.Set(revision.FieldChanges, v)
+	return u
+}
+
+// UpdateChanges sets the "changes" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateChanges() *RevisionUpsert {
+	u.SetExcluded(revision.FieldChanges)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Revision.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(revision.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *RevisionUpsertOne) UpdateNewValues() *RevisionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(revision.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(revision.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Revision.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *RevisionUpsertOne) Ignore() *RevisionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *RevisionUpsertOne) DoNothing() *RevisionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the RevisionCreate.OnConflict
+// documentation for more info.
+func (u *RevisionUpsertOne) Update(set func(*RevisionUpsert)) *RevisionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&RevisionUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetEntity sets the "entity" field.
+func (u *RevisionUpsertOne) SetEntity(v string) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetEntity(v)
+	})
+}
+
+// UpdateEntity sets the "entity" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateEntity() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateEntity()
+	})
+}
+
+// SetEntityID sets the "entity_id" field.
+func (u *RevisionUpsertOne) SetEntityID(v int64) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetEntityID(v)
+	})
+}
+
+// AddEntityID adds v to the "entity_id" field.
+func (u *RevisionUpsertOne) AddEntityID(v int64) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.AddEntityID(v)
+	})
+}
+
+// UpdateEntityID sets the "entity_id" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateEntityID() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateEntityID()
+	})
+}
+
+// SetAction sets the "action" field.
+func (u *RevisionUpsertOne) SetAction(v string) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetAction(v)
+	})
+}
+
+// UpdateAction sets the "action" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateAction() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateAction()
+	})
+}
+
+// SetActorKind sets the "actor_kind" field.
+func (u *RevisionUpsertOne) SetActorKind(v string) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetActorKind(v)
+	})
+}
+
+// UpdateActorKind sets the "actor_kind" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateActorKind() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateActorKind()
+	})
+}
+
+// SetActorKey sets the "actor_key" field.
+func (u *RevisionUpsertOne) SetActorKey(v string) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetActorKey(v)
+	})
+}
+
+// UpdateActorKey sets the "actor_key" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateActorKey() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateActorKey()
+	})
+}
+
+// SetNote sets the "note" field.
+func (u *RevisionUpsertOne) SetNote(v string) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetNote(v)
+	})
+}
+
+// UpdateNote sets the "note" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateNote() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateNote()
+	})
+}
+
+// ClearNote clears the value of the "note" field.
+func (u *RevisionUpsertOne) ClearNote() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.ClearNote()
+	})
+}
+
+// SetChanges sets the "changes" field.
+func (u *RevisionUpsertOne) SetChanges(v map[string]interface{}) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetChanges(v)
+	})
+}
+
+// UpdateChanges sets the "changes" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateChanges() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateChanges()
+	})
+}
+
+// Exec executes the query.
+func (u *RevisionUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for RevisionCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *RevisionUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *RevisionUpsertOne) ID(ctx context.Context) (id int64, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *RevisionUpsertOne) IDX(ctx context.Context) int64 {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // RevisionCreateBulk is the builder for creating many Revision entities in bulk.
 type RevisionCreateBulk struct {
 	config
 	err      error
 	builders []*RevisionCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Revision entities in the database.
@@ -255,6 +600,7 @@ func (_c *RevisionCreateBulk) Save(ctx context.Context) ([]*Revision, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -305,6 +651,235 @@ func (_c *RevisionCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *RevisionCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Revision.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.RevisionUpsert) {
+//			SetEntity(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *RevisionCreateBulk) OnConflict(opts ...sql.ConflictOption) *RevisionUpsertBulk {
+	_c.conflict = opts
+	return &RevisionUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Revision.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *RevisionCreateBulk) OnConflictColumns(columns ...string) *RevisionUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &RevisionUpsertBulk{
+		create: _c,
+	}
+}
+
+// RevisionUpsertBulk is the builder for "upsert"-ing
+// a bulk of Revision nodes.
+type RevisionUpsertBulk struct {
+	create *RevisionCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Revision.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(revision.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *RevisionUpsertBulk) UpdateNewValues() *RevisionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(revision.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(revision.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Revision.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *RevisionUpsertBulk) Ignore() *RevisionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *RevisionUpsertBulk) DoNothing() *RevisionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the RevisionCreateBulk.OnConflict
+// documentation for more info.
+func (u *RevisionUpsertBulk) Update(set func(*RevisionUpsert)) *RevisionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&RevisionUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetEntity sets the "entity" field.
+func (u *RevisionUpsertBulk) SetEntity(v string) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetEntity(v)
+	})
+}
+
+// UpdateEntity sets the "entity" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateEntity() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateEntity()
+	})
+}
+
+// SetEntityID sets the "entity_id" field.
+func (u *RevisionUpsertBulk) SetEntityID(v int64) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetEntityID(v)
+	})
+}
+
+// AddEntityID adds v to the "entity_id" field.
+func (u *RevisionUpsertBulk) AddEntityID(v int64) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.AddEntityID(v)
+	})
+}
+
+// UpdateEntityID sets the "entity_id" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateEntityID() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateEntityID()
+	})
+}
+
+// SetAction sets the "action" field.
+func (u *RevisionUpsertBulk) SetAction(v string) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetAction(v)
+	})
+}
+
+// UpdateAction sets the "action" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateAction() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateAction()
+	})
+}
+
+// SetActorKind sets the "actor_kind" field.
+func (u *RevisionUpsertBulk) SetActorKind(v string) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetActorKind(v)
+	})
+}
+
+// UpdateActorKind sets the "actor_kind" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateActorKind() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateActorKind()
+	})
+}
+
+// SetActorKey sets the "actor_key" field.
+func (u *RevisionUpsertBulk) SetActorKey(v string) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetActorKey(v)
+	})
+}
+
+// UpdateActorKey sets the "actor_key" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateActorKey() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateActorKey()
+	})
+}
+
+// SetNote sets the "note" field.
+func (u *RevisionUpsertBulk) SetNote(v string) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetNote(v)
+	})
+}
+
+// UpdateNote sets the "note" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateNote() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateNote()
+	})
+}
+
+// ClearNote clears the value of the "note" field.
+func (u *RevisionUpsertBulk) ClearNote() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.ClearNote()
+	})
+}
+
+// SetChanges sets the "changes" field.
+func (u *RevisionUpsertBulk) SetChanges(v map[string]interface{}) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetChanges(v)
+	})
+}
+
+// UpdateChanges sets the "changes" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateChanges() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateChanges()
+	})
+}
+
+// Exec executes the query.
+func (u *RevisionUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the RevisionCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for RevisionCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *RevisionUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

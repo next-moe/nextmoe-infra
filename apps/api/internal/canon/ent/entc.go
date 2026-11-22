@@ -11,7 +11,7 @@ import (
 
 func main() {
 	if err := entc.Generate("./schema", &gen.Config{
-		Features: []gen.Feature{gen.FeatureVersionedMigration, gen.FeatureLock, gen.FeatureExecQuery},
+		Features: []gen.Feature{gen.FeatureVersionedMigration, gen.FeatureLock, gen.FeatureExecQuery, gen.FeatureUpsert},
 	}); err != nil {
 		log.Fatal(err)
 	}

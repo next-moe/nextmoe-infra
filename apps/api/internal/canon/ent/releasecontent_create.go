@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -20,6 +21,7 @@ type ReleaseContentCreate struct {
 	config
 	mutation *ReleaseContentMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetReleaseID sets the "release_id" field.
@@ -182,6 +184,7 @@ func (_c *ReleaseContentCreate) createSpec() (*ReleaseContent, *sqlgraph.CreateS
 		_node = &ReleaseContent{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(releasecontent.Table, sqlgraph.NewFieldSpec(releasecontent.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if value, ok := _c.mutation.Portion(); ok {
 		_spec.SetField(releasecontent.FieldPortion, field.TypeString, value)
 		_node.Portion = value
@@ -244,11 +247,290 @@ func (_c *ReleaseContentCreate) createSpec() (*ReleaseContent, *sqlgraph.CreateS
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ReleaseContent.Create().
+//		SetReleaseID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ReleaseContentUpsert) {
+//			SetReleaseID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ReleaseContentCreate) OnConflict(opts ...sql.ConflictOption) *ReleaseContentUpsertOne {
+	_c.conflict = opts
+	return &ReleaseContentUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ReleaseContent.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ReleaseContentCreate) OnConflictColumns(columns ...string) *ReleaseContentUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ReleaseContentUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// ReleaseContentUpsertOne is the builder for "upsert"-ing
+	//  one ReleaseContent node.
+	ReleaseContentUpsertOne struct {
+		create *ReleaseContentCreate
+	}
+
+	// ReleaseContentUpsert is the "OnConflict" setter.
+	ReleaseContentUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetReleaseID sets the "release_id" field.
+func (u *ReleaseContentUpsert) SetReleaseID(v int64) *ReleaseContentUpsert {
+	u.Set(releasecontent.FieldReleaseID, v)
+	return u
+}
+
+// UpdateReleaseID sets the "release_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsert) UpdateReleaseID() *ReleaseContentUpsert {
+	u.SetExcluded(releasecontent.FieldReleaseID)
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *ReleaseContentUpsert) SetWorkID(v int64) *ReleaseContentUpsert {
+	u.Set(releasecontent.FieldWorkID, v)
+	return u
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsert) UpdateWorkID() *ReleaseContentUpsert {
+	u.SetExcluded(releasecontent.FieldWorkID)
+	return u
+}
+
+// SetPartID sets the "part_id" field.
+func (u *ReleaseContentUpsert) SetPartID(v int64) *ReleaseContentUpsert {
+	u.Set(releasecontent.FieldPartID, v)
+	return u
+}
+
+// UpdatePartID sets the "part_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsert) UpdatePartID() *ReleaseContentUpsert {
+	u.SetExcluded(releasecontent.FieldPartID)
+	return u
+}
+
+// ClearPartID clears the value of the "part_id" field.
+func (u *ReleaseContentUpsert) ClearPartID() *ReleaseContentUpsert {
+	u.SetNull(releasecontent.FieldPartID)
+	return u
+}
+
+// SetPortion sets the "portion" field.
+func (u *ReleaseContentUpsert) SetPortion(v string) *ReleaseContentUpsert {
+	u.Set(releasecontent.FieldPortion, v)
+	return u
+}
+
+// UpdatePortion sets the "portion" field to the value that was provided on create.
+func (u *ReleaseContentUpsert) UpdatePortion() *ReleaseContentUpsert {
+	u.SetExcluded(releasecontent.FieldPortion)
+	return u
+}
+
+// SetPosition sets the "position" field.
+func (u *ReleaseContentUpsert) SetPosition(v int) *ReleaseContentUpsert {
+	u.Set(releasecontent.FieldPosition, v)
+	return u
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *ReleaseContentUpsert) UpdatePosition() *ReleaseContentUpsert {
+	u.SetExcluded(releasecontent.FieldPosition)
+	return u
+}
+
+// AddPosition adds v to the "position" field.
+func (u *ReleaseContentUpsert) AddPosition(v int) *ReleaseContentUpsert {
+	u.Add(releasecontent.FieldPosition, v)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create.
+// Using this option is equivalent to using:
+//
+//	client.ReleaseContent.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//		).
+//		Exec(ctx)
+func (u *ReleaseContentUpsertOne) UpdateNewValues() *ReleaseContentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ReleaseContent.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *ReleaseContentUpsertOne) Ignore() *ReleaseContentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ReleaseContentUpsertOne) DoNothing() *ReleaseContentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ReleaseContentCreate.OnConflict
+// documentation for more info.
+func (u *ReleaseContentUpsertOne) Update(set func(*ReleaseContentUpsert)) *ReleaseContentUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ReleaseContentUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetReleaseID sets the "release_id" field.
+func (u *ReleaseContentUpsertOne) SetReleaseID(v int64) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetReleaseID(v)
+	})
+}
+
+// UpdateReleaseID sets the "release_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsertOne) UpdateReleaseID() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateReleaseID()
+	})
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *ReleaseContentUpsertOne) SetWorkID(v int64) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsertOne) UpdateWorkID() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// SetPartID sets the "part_id" field.
+func (u *ReleaseContentUpsertOne) SetPartID(v int64) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetPartID(v)
+	})
+}
+
+// UpdatePartID sets the "part_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsertOne) UpdatePartID() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdatePartID()
+	})
+}
+
+// ClearPartID clears the value of the "part_id" field.
+func (u *ReleaseContentUpsertOne) ClearPartID() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.ClearPartID()
+	})
+}
+
+// SetPortion sets the "portion" field.
+func (u *ReleaseContentUpsertOne) SetPortion(v string) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetPortion(v)
+	})
+}
+
+// UpdatePortion sets the "portion" field to the value that was provided on create.
+func (u *ReleaseContentUpsertOne) UpdatePortion() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdatePortion()
+	})
+}
+
+// SetPosition sets the "position" field.
+func (u *ReleaseContentUpsertOne) SetPosition(v int) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetPosition(v)
+	})
+}
+
+// AddPosition adds v to the "position" field.
+func (u *ReleaseContentUpsertOne) AddPosition(v int) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.AddPosition(v)
+	})
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *ReleaseContentUpsertOne) UpdatePosition() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdatePosition()
+	})
+}
+
+// Exec executes the query.
+func (u *ReleaseContentUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ReleaseContentCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ReleaseContentUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *ReleaseContentUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *ReleaseContentUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // ReleaseContentCreateBulk is the builder for creating many ReleaseContent entities in bulk.
 type ReleaseContentCreateBulk struct {
 	config
 	err      error
 	builders []*ReleaseContentCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the ReleaseContent entities in the database.
@@ -278,6 +560,7 @@ func (_c *ReleaseContentCreateBulk) Save(ctx context.Context) ([]*ReleaseContent
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -328,6 +611,194 @@ func (_c *ReleaseContentCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *ReleaseContentCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ReleaseContent.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ReleaseContentUpsert) {
+//			SetReleaseID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ReleaseContentCreateBulk) OnConflict(opts ...sql.ConflictOption) *ReleaseContentUpsertBulk {
+	_c.conflict = opts
+	return &ReleaseContentUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ReleaseContent.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ReleaseContentCreateBulk) OnConflictColumns(columns ...string) *ReleaseContentUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ReleaseContentUpsertBulk{
+		create: _c,
+	}
+}
+
+// ReleaseContentUpsertBulk is the builder for "upsert"-ing
+// a bulk of ReleaseContent nodes.
+type ReleaseContentUpsertBulk struct {
+	create *ReleaseContentCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.ReleaseContent.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//		).
+//		Exec(ctx)
+func (u *ReleaseContentUpsertBulk) UpdateNewValues() *ReleaseContentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ReleaseContent.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *ReleaseContentUpsertBulk) Ignore() *ReleaseContentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ReleaseContentUpsertBulk) DoNothing() *ReleaseContentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ReleaseContentCreateBulk.OnConflict
+// documentation for more info.
+func (u *ReleaseContentUpsertBulk) Update(set func(*ReleaseContentUpsert)) *ReleaseContentUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ReleaseContentUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetReleaseID sets the "release_id" field.
+func (u *ReleaseContentUpsertBulk) SetReleaseID(v int64) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetReleaseID(v)
+	})
+}
+
+// UpdateReleaseID sets the "release_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsertBulk) UpdateReleaseID() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateReleaseID()
+	})
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *ReleaseContentUpsertBulk) SetWorkID(v int64) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsertBulk) UpdateWorkID() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// SetPartID sets the "part_id" field.
+func (u *ReleaseContentUpsertBulk) SetPartID(v int64) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetPartID(v)
+	})
+}
+
+// UpdatePartID sets the "part_id" field to the value that was provided on create.
+func (u *ReleaseContentUpsertBulk) UpdatePartID() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdatePartID()
+	})
+}
+
+// ClearPartID clears the value of the "part_id" field.
+func (u *ReleaseContentUpsertBulk) ClearPartID() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.ClearPartID()
+	})
+}
+
+// SetPortion sets the "portion" field.
+func (u *ReleaseContentUpsertBulk) SetPortion(v string) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetPortion(v)
+	})
+}
+
+// UpdatePortion sets the "portion" field to the value that was provided on create.
+func (u *ReleaseContentUpsertBulk) UpdatePortion() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdatePortion()
+	})
+}
+
+// SetPosition sets the "position" field.
+func (u *ReleaseContentUpsertBulk) SetPosition(v int) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetPosition(v)
+	})
+}
+
+// AddPosition adds v to the "position" field.
+func (u *ReleaseContentUpsertBulk) AddPosition(v int) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.AddPosition(v)
+	})
+}
+
+// UpdatePosition sets the "position" field to the value that was provided on create.
+func (u *ReleaseContentUpsertBulk) UpdatePosition() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdatePosition()
+	})
+}
+
+// Exec executes the query.
+func (u *ReleaseContentUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ReleaseContentCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ReleaseContentCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ReleaseContentUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

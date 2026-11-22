@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 )
@@ -18,6 +19,7 @@ type BookWorkCreate struct {
 	config
 	mutation *BookWorkMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetWorkID sets the "work_id" field.
@@ -106,6 +108,7 @@ func (_c *BookWorkCreate) createSpec() (*BookWork, *sqlgraph.CreateSpec) {
 		_node = &BookWork{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(bookwork.Table, sqlgraph.NewFieldSpec(bookwork.FieldID, field.TypeInt))
 	)
+	_spec.OnConflict = _c.conflict
 	if value, ok := _c.mutation.Category(); ok {
 		_spec.SetField(bookwork.FieldCategory, field.TypeString, value)
 		_node.Category = value
@@ -130,11 +133,186 @@ func (_c *BookWorkCreate) createSpec() (*BookWork, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.BookWork.Create().
+//		SetWorkID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.BookWorkUpsert) {
+//			SetWorkID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *BookWorkCreate) OnConflict(opts ...sql.ConflictOption) *BookWorkUpsertOne {
+	_c.conflict = opts
+	return &BookWorkUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.BookWork.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *BookWorkCreate) OnConflictColumns(columns ...string) *BookWorkUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &BookWorkUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// BookWorkUpsertOne is the builder for "upsert"-ing
+	//  one BookWork node.
+	BookWorkUpsertOne struct {
+		create *BookWorkCreate
+	}
+
+	// BookWorkUpsert is the "OnConflict" setter.
+	BookWorkUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetWorkID sets the "work_id" field.
+func (u *BookWorkUpsert) SetWorkID(v int64) *BookWorkUpsert {
+	u.Set(bookwork.FieldWorkID, v)
+	return u
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *BookWorkUpsert) UpdateWorkID() *BookWorkUpsert {
+	u.SetExcluded(bookwork.FieldWorkID)
+	return u
+}
+
+// SetCategory sets the "category" field.
+func (u *BookWorkUpsert) SetCategory(v string) *BookWorkUpsert {
+	u.Set(bookwork.FieldCategory, v)
+	return u
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *BookWorkUpsert) UpdateCategory() *BookWorkUpsert {
+	u.SetExcluded(bookwork.FieldCategory)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create.
+// Using this option is equivalent to using:
+//
+//	client.BookWork.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//		).
+//		Exec(ctx)
+func (u *BookWorkUpsertOne) UpdateNewValues() *BookWorkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.BookWork.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *BookWorkUpsertOne) Ignore() *BookWorkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *BookWorkUpsertOne) DoNothing() *BookWorkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the BookWorkCreate.OnConflict
+// documentation for more info.
+func (u *BookWorkUpsertOne) Update(set func(*BookWorkUpsert)) *BookWorkUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&BookWorkUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *BookWorkUpsertOne) SetWorkID(v int64) *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *BookWorkUpsertOne) UpdateWorkID() *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// SetCategory sets the "category" field.
+func (u *BookWorkUpsertOne) SetCategory(v string) *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetCategory(v)
+	})
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *BookWorkUpsertOne) UpdateCategory() *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateCategory()
+	})
+}
+
+// Exec executes the query.
+func (u *BookWorkUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for BookWorkCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *BookWorkUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *BookWorkUpsertOne) ID(ctx context.Context) (id int, err error) {
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *BookWorkUpsertOne) IDX(ctx context.Context) int {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // BookWorkCreateBulk is the builder for creating many BookWork entities in bulk.
 type BookWorkCreateBulk struct {
 	config
 	err      error
 	builders []*BookWorkCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the BookWork entities in the database.
@@ -163,6 +341,7 @@ func (_c *BookWorkCreateBulk) Save(ctx context.Context) ([]*BookWork, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -213,6 +392,138 @@ func (_c *BookWorkCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *BookWorkCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.BookWork.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.BookWorkUpsert) {
+//			SetWorkID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *BookWorkCreateBulk) OnConflict(opts ...sql.ConflictOption) *BookWorkUpsertBulk {
+	_c.conflict = opts
+	return &BookWorkUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.BookWork.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *BookWorkCreateBulk) OnConflictColumns(columns ...string) *BookWorkUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &BookWorkUpsertBulk{
+		create: _c,
+	}
+}
+
+// BookWorkUpsertBulk is the builder for "upsert"-ing
+// a bulk of BookWork nodes.
+type BookWorkUpsertBulk struct {
+	create *BookWorkCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.BookWork.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//		).
+//		Exec(ctx)
+func (u *BookWorkUpsertBulk) UpdateNewValues() *BookWorkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.BookWork.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *BookWorkUpsertBulk) Ignore() *BookWorkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *BookWorkUpsertBulk) DoNothing() *BookWorkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the BookWorkCreateBulk.OnConflict
+// documentation for more info.
+func (u *BookWorkUpsertBulk) Update(set func(*BookWorkUpsert)) *BookWorkUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&BookWorkUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetWorkID sets the "work_id" field.
+func (u *BookWorkUpsertBulk) SetWorkID(v int64) *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetWorkID(v)
+	})
+}
+
+// UpdateWorkID sets the "work_id" field to the value that was provided on create.
+func (u *BookWorkUpsertBulk) UpdateWorkID() *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateWorkID()
+	})
+}
+
+// SetCategory sets the "category" field.
+func (u *BookWorkUpsertBulk) SetCategory(v string) *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetCategory(v)
+	})
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *BookWorkUpsertBulk) UpdateCategory() *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateCategory()
+	})
+}
+
+// Exec executes the query.
+func (u *BookWorkUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the BookWorkCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for BookWorkCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *BookWorkUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

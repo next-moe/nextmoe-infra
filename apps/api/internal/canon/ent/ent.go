@@ -5,7 +5,11 @@ package ent
 import (
 	"api/internal/canon/ent/bookrelease"
 	"api/internal/canon/ent/bookwork"
+	"api/internal/canon/ent/commitkey"
 	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/evidencerecord"
+	"api/internal/canon/ent/evidencesnapshot"
+	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
@@ -85,19 +89,23 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			bookrelease.Table:    bookrelease.ValidColumn,
-			bookwork.Table:       bookwork.ValidColumn,
-			credit.Table:         credit.ValidColumn,
-			org.Table:            org.ValidColumn,
-			orgname.Table:        orgname.ValidColumn,
-			person.Table:         person.ValidColumn,
-			personalias.Table:    personalias.ValidColumn,
-			release.Table:        release.ValidColumn,
-			releasecontent.Table: releasecontent.ValidColumn,
-			revision.Table:       revision.ValidColumn,
-			work.Table:           work.ValidColumn,
-			workpart.Table:       workpart.ValidColumn,
-			worktitle.Table:      worktitle.ValidColumn,
+			bookrelease.Table:      bookrelease.ValidColumn,
+			bookwork.Table:         bookwork.ValidColumn,
+			commitkey.Table:        commitkey.ValidColumn,
+			credit.Table:           credit.ValidColumn,
+			evidencerecord.Table:   evidencerecord.ValidColumn,
+			evidencesnapshot.Table: evidencesnapshot.ValidColumn,
+			fanincursor.Table:      fanincursor.ValidColumn,
+			org.Table:              org.ValidColumn,
+			orgname.Table:          orgname.ValidColumn,
+			person.Table:           person.ValidColumn,
+			personalias.Table:      personalias.ValidColumn,
+			release.Table:          release.ValidColumn,
+			releasecontent.Table:   releasecontent.ValidColumn,
+			revision.Table:         revision.ValidColumn,
+			work.Table:             work.ValidColumn,
+			workpart.Table:         workpart.ValidColumn,
+			worktitle.Table:        worktitle.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

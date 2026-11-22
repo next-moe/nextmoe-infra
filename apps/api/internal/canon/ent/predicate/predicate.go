@@ -12,8 +12,20 @@ type BookRelease func(*sql.Selector)
 // BookWork is the predicate function for bookwork builders.
 type BookWork func(*sql.Selector)
 
+// CommitKey is the predicate function for commitkey builders.
+type CommitKey func(*sql.Selector)
+
 // Credit is the predicate function for credit builders.
 type Credit func(*sql.Selector)
+
+// EvidenceRecord is the predicate function for evidencerecord builders.
+type EvidenceRecord func(*sql.Selector)
+
+// EvidenceSnapshot is the predicate function for evidencesnapshot builders.
+type EvidenceSnapshot func(*sql.Selector)
+
+// FaninCursor is the predicate function for fanincursor builders.
+type FaninCursor func(*sql.Selector)
 
 // Org is the predicate function for org builders.
 type Org func(*sql.Selector)

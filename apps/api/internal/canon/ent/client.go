@@ -13,7 +13,11 @@ import (
 
 	"api/internal/canon/ent/bookrelease"
 	"api/internal/canon/ent/bookwork"
+	"api/internal/canon/ent/commitkey"
 	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/evidencerecord"
+	"api/internal/canon/ent/evidencesnapshot"
+	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
@@ -42,8 +46,16 @@ type Client struct {
 	BookRelease *BookReleaseClient
 	// BookWork is the client for interacting with the BookWork builders.
 	BookWork *BookWorkClient
+	// CommitKey is the client for interacting with the CommitKey builders.
+	CommitKey *CommitKeyClient
 	// Credit is the client for interacting with the Credit builders.
 	Credit *CreditClient
+	// EvidenceRecord is the client for interacting with the EvidenceRecord builders.
+	EvidenceRecord *EvidenceRecordClient
+	// EvidenceSnapshot is the client for interacting with the EvidenceSnapshot builders.
+	EvidenceSnapshot *EvidenceSnapshotClient
+	// FaninCursor is the client for interacting with the FaninCursor builders.
+	FaninCursor *FaninCursorClient
 	// Org is the client for interacting with the Org builders.
 	Org *OrgClient
 	// OrgName is the client for interacting with the OrgName builders.
@@ -77,7 +89,11 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.BookRelease = NewBookReleaseClient(c.config)
 	c.BookWork = NewBookWorkClient(c.config)
+	c.CommitKey = NewCommitKeyClient(c.config)
 	c.Credit = NewCreditClient(c.config)
+	c.EvidenceRecord = NewEvidenceRecordClient(c.config)
+	c.EvidenceSnapshot = NewEvidenceSnapshotClient(c.config)
+	c.FaninCursor = NewFaninCursorClient(c.config)
 	c.Org = NewOrgClient(c.config)
 	c.OrgName = NewOrgNameClient(c.config)
 	c.Person = NewPersonClient(c.config)
@@ -178,21 +194,25 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:            ctx,
-		config:         cfg,
-		BookRelease:    NewBookReleaseClient(cfg),
-		BookWork:       NewBookWorkClient(cfg),
-		Credit:         NewCreditClient(cfg),
-		Org:            NewOrgClient(cfg),
-		OrgName:        NewOrgNameClient(cfg),
-		Person:         NewPersonClient(cfg),
-		PersonAlias:    NewPersonAliasClient(cfg),
-		Release:        NewReleaseClient(cfg),
-		ReleaseContent: NewReleaseContentClient(cfg),
-		Revision:       NewRevisionClient(cfg),
-		Work:           NewWorkClient(cfg),
-		WorkPart:       NewWorkPartClient(cfg),
-		WorkTitle:      NewWorkTitleClient(cfg),
+		ctx:              ctx,
+		config:           cfg,
+		BookRelease:      NewBookReleaseClient(cfg),
+		BookWork:         NewBookWorkClient(cfg),
+		CommitKey:        NewCommitKeyClient(cfg),
+		Credit:           NewCreditClient(cfg),
+		EvidenceRecord:   NewEvidenceRecordClient(cfg),
+		EvidenceSnapshot: NewEvidenceSnapshotClient(cfg),
+		FaninCursor:      NewFaninCursorClient(cfg),
+		Org:              NewOrgClient(cfg),
+		OrgName:          NewOrgNameClient(cfg),
+		Person:           NewPersonClient(cfg),
+		PersonAlias:      NewPersonAliasClient(cfg),
+		Release:          NewReleaseClient(cfg),
+		ReleaseContent:   NewReleaseContentClient(cfg),
+		Revision:         NewRevisionClient(cfg),
+		Work:             NewWorkClient(cfg),
+		WorkPart:         NewWorkPartClient(cfg),
+		WorkTitle:        NewWorkTitleClient(cfg),
 	}, nil
 }
 
@@ -210,21 +230,25 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:            ctx,
-		config:         cfg,
-		BookRelease:    NewBookReleaseClient(cfg),
-		BookWork:       NewBookWorkClient(cfg),
-		Credit:         NewCreditClient(cfg),
-		Org:            NewOrgClient(cfg),
-		OrgName:        NewOrgNameClient(cfg),
-		Person:         NewPersonClient(cfg),
-		PersonAlias:    NewPersonAliasClient(cfg),
-		Release:        NewReleaseClient(cfg),
-		ReleaseContent: NewReleaseContentClient(cfg),
-		Revision:       NewRevisionClient(cfg),
-		Work:           NewWorkClient(cfg),
-		WorkPart:       NewWorkPartClient(cfg),
-		WorkTitle:      NewWorkTitleClient(cfg),
+		ctx:              ctx,
+		config:           cfg,
+		BookRelease:      NewBookReleaseClient(cfg),
+		BookWork:         NewBookWorkClient(cfg),
+		CommitKey:        NewCommitKeyClient(cfg),
+		Credit:           NewCreditClient(cfg),
+		EvidenceRecord:   NewEvidenceRecordClient(cfg),
+		EvidenceSnapshot: NewEvidenceSnapshotClient(cfg),
+		FaninCursor:      NewFaninCursorClient(cfg),
+		Org:              NewOrgClient(cfg),
+		OrgName:          NewOrgNameClient(cfg),
+		Person:           NewPersonClient(cfg),
+		PersonAlias:      NewPersonAliasClient(cfg),
+		Release:          NewReleaseClient(cfg),
+		ReleaseContent:   NewReleaseContentClient(cfg),
+		Revision:         NewRevisionClient(cfg),
+		Work:             NewWorkClient(cfg),
+		WorkPart:         NewWorkPartClient(cfg),
+		WorkTitle:        NewWorkTitleClient(cfg),
 	}, nil
 }
 
@@ -254,7 +278,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.BookRelease, c.BookWork, c.Credit, c.Org, c.OrgName, c.Person, c.PersonAlias,
+		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
+		c.EvidenceSnapshot, c.FaninCursor, c.Org, c.OrgName, c.Person, c.PersonAlias,
 		c.Release, c.ReleaseContent, c.Revision, c.Work, c.WorkPart, c.WorkTitle,
 	} {
 		n.Use(hooks...)
@@ -265,7 +290,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.BookRelease, c.BookWork, c.Credit, c.Org, c.OrgName, c.Person, c.PersonAlias,
+		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
+		c.EvidenceSnapshot, c.FaninCursor, c.Org, c.OrgName, c.Person, c.PersonAlias,
 		c.Release, c.ReleaseContent, c.Revision, c.Work, c.WorkPart, c.WorkTitle,
 	} {
 		n.Intercept(interceptors...)
@@ -279,8 +305,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.BookRelease.mutate(ctx, m)
 	case *BookWorkMutation:
 		return c.BookWork.mutate(ctx, m)
+	case *CommitKeyMutation:
+		return c.CommitKey.mutate(ctx, m)
 	case *CreditMutation:
 		return c.Credit.mutate(ctx, m)
+	case *EvidenceRecordMutation:
+		return c.EvidenceRecord.mutate(ctx, m)
+	case *EvidenceSnapshotMutation:
+		return c.EvidenceSnapshot.mutate(ctx, m)
+	case *FaninCursorMutation:
+		return c.FaninCursor.mutate(ctx, m)
 	case *OrgMutation:
 		return c.Org.mutate(ctx, m)
 	case *OrgNameMutation:
@@ -636,6 +670,139 @@ func (c *BookWorkClient) mutate(ctx context.Context, m *BookWorkMutation) (Value
 	}
 }
 
+// CommitKeyClient is a client for the CommitKey schema.
+type CommitKeyClient struct {
+	config
+}
+
+// NewCommitKeyClient returns a client for the CommitKey from the given config.
+func NewCommitKeyClient(c config) *CommitKeyClient {
+	return &CommitKeyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `commitkey.Hooks(f(g(h())))`.
+func (c *CommitKeyClient) Use(hooks ...Hook) {
+	c.hooks.CommitKey = append(c.hooks.CommitKey, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `commitkey.Intercept(f(g(h())))`.
+func (c *CommitKeyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CommitKey = append(c.inters.CommitKey, interceptors...)
+}
+
+// Create returns a builder for creating a CommitKey entity.
+func (c *CommitKeyClient) Create() *CommitKeyCreate {
+	mutation := newCommitKeyMutation(c.config, OpCreate)
+	return &CommitKeyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CommitKey entities.
+func (c *CommitKeyClient) CreateBulk(builders ...*CommitKeyCreate) *CommitKeyCreateBulk {
+	return &CommitKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CommitKeyClient) MapCreateBulk(slice any, setFunc func(*CommitKeyCreate, int)) *CommitKeyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CommitKeyCreateBulk{err: fmt.Errorf("calling to CommitKeyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CommitKeyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CommitKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CommitKey.
+func (c *CommitKeyClient) Update() *CommitKeyUpdate {
+	mutation := newCommitKeyMutation(c.config, OpUpdate)
+	return &CommitKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CommitKeyClient) UpdateOne(_m *CommitKey) *CommitKeyUpdateOne {
+	mutation := newCommitKeyMutation(c.config, OpUpdateOne, withCommitKey(_m))
+	return &CommitKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CommitKeyClient) UpdateOneID(id string) *CommitKeyUpdateOne {
+	mutation := newCommitKeyMutation(c.config, OpUpdateOne, withCommitKeyID(id))
+	return &CommitKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CommitKey.
+func (c *CommitKeyClient) Delete() *CommitKeyDelete {
+	mutation := newCommitKeyMutation(c.config, OpDelete)
+	return &CommitKeyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CommitKeyClient) DeleteOne(_m *CommitKey) *CommitKeyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CommitKeyClient) DeleteOneID(id string) *CommitKeyDeleteOne {
+	builder := c.Delete().Where(commitkey.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CommitKeyDeleteOne{builder}
+}
+
+// Query returns a query builder for CommitKey.
+func (c *CommitKeyClient) Query() *CommitKeyQuery {
+	return &CommitKeyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCommitKey},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CommitKey entity by its id.
+func (c *CommitKeyClient) Get(ctx context.Context, id string) (*CommitKey, error) {
+	return c.Query().Where(commitkey.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CommitKeyClient) GetX(ctx context.Context, id string) *CommitKey {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CommitKeyClient) Hooks() []Hook {
+	return c.hooks.CommitKey
+}
+
+// Interceptors returns the client interceptors.
+func (c *CommitKeyClient) Interceptors() []Interceptor {
+	return c.inters.CommitKey
+}
+
+func (c *CommitKeyClient) mutate(ctx context.Context, m *CommitKeyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CommitKeyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CommitKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CommitKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CommitKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CommitKey mutation op: %q", m.Op())
+	}
+}
+
 // CreditClient is a client for the Credit schema.
 type CreditClient struct {
 	config
@@ -846,6 +1013,405 @@ func (c *CreditClient) mutate(ctx context.Context, m *CreditMutation) (Value, er
 		return (&CreditDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Credit mutation op: %q", m.Op())
+	}
+}
+
+// EvidenceRecordClient is a client for the EvidenceRecord schema.
+type EvidenceRecordClient struct {
+	config
+}
+
+// NewEvidenceRecordClient returns a client for the EvidenceRecord from the given config.
+func NewEvidenceRecordClient(c config) *EvidenceRecordClient {
+	return &EvidenceRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `evidencerecord.Hooks(f(g(h())))`.
+func (c *EvidenceRecordClient) Use(hooks ...Hook) {
+	c.hooks.EvidenceRecord = append(c.hooks.EvidenceRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `evidencerecord.Intercept(f(g(h())))`.
+func (c *EvidenceRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EvidenceRecord = append(c.inters.EvidenceRecord, interceptors...)
+}
+
+// Create returns a builder for creating a EvidenceRecord entity.
+func (c *EvidenceRecordClient) Create() *EvidenceRecordCreate {
+	mutation := newEvidenceRecordMutation(c.config, OpCreate)
+	return &EvidenceRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EvidenceRecord entities.
+func (c *EvidenceRecordClient) CreateBulk(builders ...*EvidenceRecordCreate) *EvidenceRecordCreateBulk {
+	return &EvidenceRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EvidenceRecordClient) MapCreateBulk(slice any, setFunc func(*EvidenceRecordCreate, int)) *EvidenceRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EvidenceRecordCreateBulk{err: fmt.Errorf("calling to EvidenceRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EvidenceRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EvidenceRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EvidenceRecord.
+func (c *EvidenceRecordClient) Update() *EvidenceRecordUpdate {
+	mutation := newEvidenceRecordMutation(c.config, OpUpdate)
+	return &EvidenceRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EvidenceRecordClient) UpdateOne(_m *EvidenceRecord) *EvidenceRecordUpdateOne {
+	mutation := newEvidenceRecordMutation(c.config, OpUpdateOne, withEvidenceRecord(_m))
+	return &EvidenceRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EvidenceRecordClient) UpdateOneID(id string) *EvidenceRecordUpdateOne {
+	mutation := newEvidenceRecordMutation(c.config, OpUpdateOne, withEvidenceRecordID(id))
+	return &EvidenceRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EvidenceRecord.
+func (c *EvidenceRecordClient) Delete() *EvidenceRecordDelete {
+	mutation := newEvidenceRecordMutation(c.config, OpDelete)
+	return &EvidenceRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EvidenceRecordClient) DeleteOne(_m *EvidenceRecord) *EvidenceRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EvidenceRecordClient) DeleteOneID(id string) *EvidenceRecordDeleteOne {
+	builder := c.Delete().Where(evidencerecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EvidenceRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for EvidenceRecord.
+func (c *EvidenceRecordClient) Query() *EvidenceRecordQuery {
+	return &EvidenceRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEvidenceRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EvidenceRecord entity by its id.
+func (c *EvidenceRecordClient) Get(ctx context.Context, id string) (*EvidenceRecord, error) {
+	return c.Query().Where(evidencerecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EvidenceRecordClient) GetX(ctx context.Context, id string) *EvidenceRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EvidenceRecordClient) Hooks() []Hook {
+	return c.hooks.EvidenceRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *EvidenceRecordClient) Interceptors() []Interceptor {
+	return c.inters.EvidenceRecord
+}
+
+func (c *EvidenceRecordClient) mutate(ctx context.Context, m *EvidenceRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EvidenceRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EvidenceRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EvidenceRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EvidenceRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EvidenceRecord mutation op: %q", m.Op())
+	}
+}
+
+// EvidenceSnapshotClient is a client for the EvidenceSnapshot schema.
+type EvidenceSnapshotClient struct {
+	config
+}
+
+// NewEvidenceSnapshotClient returns a client for the EvidenceSnapshot from the given config.
+func NewEvidenceSnapshotClient(c config) *EvidenceSnapshotClient {
+	return &EvidenceSnapshotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `evidencesnapshot.Hooks(f(g(h())))`.
+func (c *EvidenceSnapshotClient) Use(hooks ...Hook) {
+	c.hooks.EvidenceSnapshot = append(c.hooks.EvidenceSnapshot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `evidencesnapshot.Intercept(f(g(h())))`.
+func (c *EvidenceSnapshotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EvidenceSnapshot = append(c.inters.EvidenceSnapshot, interceptors...)
+}
+
+// Create returns a builder for creating a EvidenceSnapshot entity.
+func (c *EvidenceSnapshotClient) Create() *EvidenceSnapshotCreate {
+	mutation := newEvidenceSnapshotMutation(c.config, OpCreate)
+	return &EvidenceSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EvidenceSnapshot entities.
+func (c *EvidenceSnapshotClient) CreateBulk(builders ...*EvidenceSnapshotCreate) *EvidenceSnapshotCreateBulk {
+	return &EvidenceSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EvidenceSnapshotClient) MapCreateBulk(slice any, setFunc func(*EvidenceSnapshotCreate, int)) *EvidenceSnapshotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EvidenceSnapshotCreateBulk{err: fmt.Errorf("calling to EvidenceSnapshotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EvidenceSnapshotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EvidenceSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EvidenceSnapshot.
+func (c *EvidenceSnapshotClient) Update() *EvidenceSnapshotUpdate {
+	mutation := newEvidenceSnapshotMutation(c.config, OpUpdate)
+	return &EvidenceSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EvidenceSnapshotClient) UpdateOne(_m *EvidenceSnapshot) *EvidenceSnapshotUpdateOne {
+	mutation := newEvidenceSnapshotMutation(c.config, OpUpdateOne, withEvidenceSnapshot(_m))
+	return &EvidenceSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EvidenceSnapshotClient) UpdateOneID(id string) *EvidenceSnapshotUpdateOne {
+	mutation := newEvidenceSnapshotMutation(c.config, OpUpdateOne, withEvidenceSnapshotID(id))
+	return &EvidenceSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EvidenceSnapshot.
+func (c *EvidenceSnapshotClient) Delete() *EvidenceSnapshotDelete {
+	mutation := newEvidenceSnapshotMutation(c.config, OpDelete)
+	return &EvidenceSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EvidenceSnapshotClient) DeleteOne(_m *EvidenceSnapshot) *EvidenceSnapshotDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EvidenceSnapshotClient) DeleteOneID(id string) *EvidenceSnapshotDeleteOne {
+	builder := c.Delete().Where(evidencesnapshot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EvidenceSnapshotDeleteOne{builder}
+}
+
+// Query returns a query builder for EvidenceSnapshot.
+func (c *EvidenceSnapshotClient) Query() *EvidenceSnapshotQuery {
+	return &EvidenceSnapshotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEvidenceSnapshot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EvidenceSnapshot entity by its id.
+func (c *EvidenceSnapshotClient) Get(ctx context.Context, id string) (*EvidenceSnapshot, error) {
+	return c.Query().Where(evidencesnapshot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EvidenceSnapshotClient) GetX(ctx context.Context, id string) *EvidenceSnapshot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EvidenceSnapshotClient) Hooks() []Hook {
+	return c.hooks.EvidenceSnapshot
+}
+
+// Interceptors returns the client interceptors.
+func (c *EvidenceSnapshotClient) Interceptors() []Interceptor {
+	return c.inters.EvidenceSnapshot
+}
+
+func (c *EvidenceSnapshotClient) mutate(ctx context.Context, m *EvidenceSnapshotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EvidenceSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EvidenceSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EvidenceSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EvidenceSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EvidenceSnapshot mutation op: %q", m.Op())
+	}
+}
+
+// FaninCursorClient is a client for the FaninCursor schema.
+type FaninCursorClient struct {
+	config
+}
+
+// NewFaninCursorClient returns a client for the FaninCursor from the given config.
+func NewFaninCursorClient(c config) *FaninCursorClient {
+	return &FaninCursorClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `fanincursor.Hooks(f(g(h())))`.
+func (c *FaninCursorClient) Use(hooks ...Hook) {
+	c.hooks.FaninCursor = append(c.hooks.FaninCursor, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `fanincursor.Intercept(f(g(h())))`.
+func (c *FaninCursorClient) Intercept(interceptors ...Interceptor) {
+	c.inters.FaninCursor = append(c.inters.FaninCursor, interceptors...)
+}
+
+// Create returns a builder for creating a FaninCursor entity.
+func (c *FaninCursorClient) Create() *FaninCursorCreate {
+	mutation := newFaninCursorMutation(c.config, OpCreate)
+	return &FaninCursorCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of FaninCursor entities.
+func (c *FaninCursorClient) CreateBulk(builders ...*FaninCursorCreate) *FaninCursorCreateBulk {
+	return &FaninCursorCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *FaninCursorClient) MapCreateBulk(slice any, setFunc func(*FaninCursorCreate, int)) *FaninCursorCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &FaninCursorCreateBulk{err: fmt.Errorf("calling to FaninCursorClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*FaninCursorCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &FaninCursorCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for FaninCursor.
+func (c *FaninCursorClient) Update() *FaninCursorUpdate {
+	mutation := newFaninCursorMutation(c.config, OpUpdate)
+	return &FaninCursorUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *FaninCursorClient) UpdateOne(_m *FaninCursor) *FaninCursorUpdateOne {
+	mutation := newFaninCursorMutation(c.config, OpUpdateOne, withFaninCursor(_m))
+	return &FaninCursorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *FaninCursorClient) UpdateOneID(id string) *FaninCursorUpdateOne {
+	mutation := newFaninCursorMutation(c.config, OpUpdateOne, withFaninCursorID(id))
+	return &FaninCursorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for FaninCursor.
+func (c *FaninCursorClient) Delete() *FaninCursorDelete {
+	mutation := newFaninCursorMutation(c.config, OpDelete)
+	return &FaninCursorDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *FaninCursorClient) DeleteOne(_m *FaninCursor) *FaninCursorDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *FaninCursorClient) DeleteOneID(id string) *FaninCursorDeleteOne {
+	builder := c.Delete().Where(fanincursor.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &FaninCursorDeleteOne{builder}
+}
+
+// Query returns a query builder for FaninCursor.
+func (c *FaninCursorClient) Query() *FaninCursorQuery {
+	return &FaninCursorQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeFaninCursor},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a FaninCursor entity by its id.
+func (c *FaninCursorClient) Get(ctx context.Context, id string) (*FaninCursor, error) {
+	return c.Query().Where(fanincursor.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *FaninCursorClient) GetX(ctx context.Context, id string) *FaninCursor {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *FaninCursorClient) Hooks() []Hook {
+	return c.hooks.FaninCursor
+}
+
+// Interceptors returns the client interceptors.
+func (c *FaninCursorClient) Interceptors() []Interceptor {
+	return c.inters.FaninCursor
+}
+
+func (c *FaninCursorClient) mutate(ctx context.Context, m *FaninCursorMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&FaninCursorCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&FaninCursorUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&FaninCursorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&FaninCursorDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown FaninCursor mutation op: %q", m.Op())
 	}
 }
 
@@ -2614,12 +3180,14 @@ func (c *WorkTitleClient) mutate(ctx context.Context, m *WorkTitleMutation) (Val
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		BookRelease, BookWork, Credit, Org, OrgName, Person, PersonAlias, Release,
-		ReleaseContent, Revision, Work, WorkPart, WorkTitle []ent.Hook
+		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
+		FaninCursor, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
+		Revision, Work, WorkPart, WorkTitle []ent.Hook
 	}
 	inters struct {
-		BookRelease, BookWork, Credit, Org, OrgName, Person, PersonAlias, Release,
-		ReleaseContent, Revision, Work, WorkPart, WorkTitle []ent.Interceptor
+		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
+		FaninCursor, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
+		Revision, Work, WorkPart, WorkTitle []ent.Interceptor
 	}
 )
 
