@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/image/cdn"
 	"api/internal/platform/image/repository"
 	"api/internal/platform/image/service"
 	"api/internal/platform/image/storage"
@@ -58,7 +59,7 @@ func RunImageGC(ctx context.Context, cfg *config.Config, opts ImageGCOpts) (Summ
 	}
 
 	imgRepo := repository.NewImageRepository(db.DB())
-	gc := service.NewGCService(db.DB(), s3, imgRepo)
+	gc := service.NewGCService(db.DB(), s3, imgRepo).WithPurger(cdn.FromConfig(), cdn.Bases(cfg.ImageService.CDNBase))
 
 	summary, err := gc.Run(ctx, service.GCConfig{
 		ColdAfter:    time.Duration(o.ColdDays) * 24 * time.Hour,
