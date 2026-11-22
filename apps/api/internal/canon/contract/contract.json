@@ -1273,12 +1273,14 @@
       "key": "ndl",
       "kind": "record",
       "tier": "registry",
+      "min_delay_seconds": 3,
       "note": "NDL Search, NDL bibliographic data; credit 出典：国立国会図書館書誌データ"
     },
     {
       "key": "jpro",
       "kind": "record",
       "tier": "registry",
+      "min_delay_seconds": 3,
       "note": "JPRO data relayed by NDL Search; non-commercial use (D25)"
     },
     {
@@ -1288,6 +1290,7 @@
         "kadokawa.co.jp"
       ],
       "tier": "official",
+      "min_delay_seconds": 20,
       "note": "facts only; Crawl-delay 20"
     },
     {
@@ -1298,6 +1301,7 @@
         "gagagabunko.jp"
       ],
       "tier": "official",
+      "min_delay_seconds": 10,
       "note": "facts only; Crawl-delay 10"
     },
     {
@@ -1307,6 +1311,7 @@
         "dash.shueisha.co.jp"
       ],
       "tier": "official",
+      "min_delay_seconds": 30,
       "note": "facts only; low rate; terms not found"
     },
     {
@@ -1316,6 +1321,7 @@
         "over-lap.co.jp"
       ],
       "tier": "official",
+      "min_delay_seconds": 30,
       "note": "facts only; low rate; terms not found"
     },
     {
@@ -1325,6 +1331,7 @@
         "kadokawa.com.tw"
       ],
       "tier": "official",
+      "min_delay_seconds": 5,
       "note": "facts only; Crawl-delay 5; no ISBN on the page"
     },
     {
@@ -1334,6 +1341,7 @@
         "ching-win.com.tw"
       ],
       "tier": "official",
+      "min_delay_seconds": 15,
       "note": "non-commercial with credit 資料提供：青文出版社"
     },
     {
@@ -1343,6 +1351,7 @@
         "tongli.com.tw"
       ],
       "tier": "official",
+      "min_delay_seconds": 30,
       "note": "facts only; terms not found"
     },
     {
@@ -1558,6 +1567,13 @@
         "entity_id": {
           "format": "int64",
           "type": "integer"
+        },
+        "ids": {
+          "additionalProperties": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "type": "object"
         },
         "outbox_id": {
           "format": "int64",

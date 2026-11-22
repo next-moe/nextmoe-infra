@@ -151,6 +151,7 @@ func (f *Fanin) process(ctx context.Context, r *run, e contract.OutboxEntry) (co
 	ans.Result = "written"
 	if row.Kind == "changeset" {
 		ans.EntityID = res.IDs[row.Changeset.Entities[0].Ref]
+		ans.IDs = res.IDs
 	}
 	return ans, nil
 }

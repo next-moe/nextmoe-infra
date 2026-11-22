@@ -59,6 +59,8 @@ type InboxRow struct {
 	Code     string `json:"code,omitempty"`
 	Detail   string `json:"detail,omitempty"`
 	EntityID int64  `json:"entity_id,omitempty"`
+	// IDs maps every ref of a written changeset to its canon id.
+	IDs map[string]int64 `json:"ids,omitempty"`
 }
 
 // The pool API ingest serves on its private network and fanin calls; the
