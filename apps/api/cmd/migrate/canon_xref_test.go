@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"math/rand/v2"
 	"testing"
 
 	"api/internal/canon/xref"
@@ -52,15 +54,17 @@ func TestXrefImportCopiesExactLiveWorkAnchors(t *testing.T) {
 		return id
 	}
 	live, gone := work(false), work(true)
+	n := rand.IntN(900_000_000) + 100_000_000
+	vLive, bLive, vGone := fmt.Sprintf("v%d", n), fmt.Sprintf("%d", n), fmt.Sprintf("v%d", n+1)
 	ref := func(entity int64, source, ext string, kind int) {
 		if _, err := sdb.Exec(`INSERT INTO public.catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by, created_at)
 			VALUES (5, $1, (SELECT id FROM catalog_source WHERE key = $2), $3, $4, 'test', now())`, entity, source, ext, kind); err != nil {
 			t.Fatalf("ref %s:%s: %v", source, ext, err)
 		}
 	}
-	ref(live, "vndb", "v900001", 0)
-	ref(live, "bangumi", "900001", 1)
-	ref(gone, "vndb", "v900002", 0)
+	ref(live, "vndb", vLive, 0)
+	ref(live, "bangumi", bLive, 1)
+	ref(gone, "vndb", vGone, 0)
 
 	if _, err := xref.ImportLegacy(ctx, sdb); err != nil {
 		t.Fatal(err)
@@ -69,7 +73,7 @@ func TestXrefImportCopiesExactLiveWorkAnchors(t *testing.T) {
 		t.Fatalf("a second import: %v", err)
 	}
 	var got []string
-	rows, err := sdb.Query(`SELECT source || ':' || external_id FROM canon.xref_link WHERE external_id IN ('v900001', '900001', 'v900002') ORDER BY 1`)
+	rows, err := sdb.Query(`SELECT source || ':' || external_id FROM canon.xref_link WHERE external_id IN ($1, $2, $3) ORDER BY 1`, vLive, bLive, vGone)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +83,7 @@ func TestXrefImportCopiesExactLiveWorkAnchors(t *testing.T) {
 		got = append(got, s)
 	}
 	rows.Close()
-	if len(got) != 1 || got[0] != "vndb:v900001" {
+	if len(got) != 1 || got[0] != "vndb:"+vLive {
 		t.Errorf("imported %v; want only the exact anchor of the live work", got)
 	}
 }

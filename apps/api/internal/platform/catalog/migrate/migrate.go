@@ -826,19 +826,37 @@ func rawSQL(db *gorm.DB) error {
 		}
 	}
 
-	// (7c) user work state → work FK, same reasoning and same CASCADE as 7b.
-	workStateFK, err := constraintExists(db, "catalog_user_work_state", "fk_catalog_user_work_state_work")
-	if err != nil {
+	// (7c) 2026-11-22, owned catalog (plan 23 D1 / 10 §3): user work state and
+	// browsing history must also hold canon work ids, which live in
+	// canon.work and share the work sequence, so their FKs to catalog_work
+	// go. A trigger keeps exactly the old ON DELETE CASCADE for legacy works:
+	// deleting a catalog_work row still deletes its state and history rows,
+	// as the 2026-11-21 scope purge relied on. Existing rows are untouched.
+	// When P4 has moved every work into canon, an FK to canon.work replaces
+	// the trigger.
+	for _, fk := range []struct{ table, name string }{
+		{"catalog_user_work_state", "fk_catalog_user_work_state_work"},
+		{"catalog_user_work_view", "fk_catalog_user_work_view_work"},
+	} {
+		if err := db.Exec(`ALTER TABLE ` + fk.table + ` DROP CONSTRAINT IF EXISTS ` + fk.name).Error; err != nil {
+			return fmt.Errorf("drop %s: %w", fk.name, err)
+		}
+	}
+	if err := db.Exec(`
+		CREATE OR REPLACE FUNCTION catalog_work_user_rows_cascade() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN
+			DELETE FROM catalog_user_work_state WHERE work_id = OLD.id;
+			DELETE FROM catalog_user_work_view WHERE work_id = OLD.id;
+			RETURN OLD;
+		END $$`).Error; err != nil {
+		return fmt.Errorf("user rows cascade function: %w", err)
+	}
+	if err := db.Exec(`DROP TRIGGER IF EXISTS catalog_work_user_rows_cascade ON catalog_work`).Error; err != nil {
 		return err
 	}
-	if !workStateFK {
-		if err := db.Exec(`
-			ALTER TABLE catalog_user_work_state
-			    ADD CONSTRAINT fk_catalog_user_work_state_work
-			    FOREIGN KEY (work_id) REFERENCES catalog_work(id) ON DELETE CASCADE
-		`).Error; err != nil {
-			return fmt.Errorf("add user work state FK: %w", err)
-		}
+	if err := db.Exec(`CREATE TRIGGER catalog_work_user_rows_cascade AFTER DELETE ON catalog_work
+		FOR EACH ROW EXECUTE FUNCTION catalog_work_user_rows_cascade()`).Error; err != nil {
+		return fmt.Errorf("user rows cascade trigger: %w", err)
 	}
 
 	// (7d) 2026-10-24, new empty tables: a walkthrough belongs to its work and
@@ -859,11 +877,6 @@ func rawSQL(db *gorm.DB) error {
 		// Losing the release only loses that note, not the walkthrough.
 		{"catalog_walkthrough", "fk_catalog_walkthrough_release",
 			`FOREIGN KEY (release_id) REFERENCES catalog_release(id) ON DELETE SET NULL`},
-		// 2026-10-27: a deleted work takes its browsing history rows with it.
-		// A merge does not move them (mergeRefExclusions), so a merged-away work
-		// keeps its rows until the 90-day sweep.
-		{"catalog_user_work_view", "fk_catalog_user_work_view_work",
-			`FOREIGN KEY (work_id) REFERENCES catalog_work(id) ON DELETE CASCADE`},
 	} {
 		exists, err := constraintExists(db, fk.table, fk.name)
 		if err != nil {
