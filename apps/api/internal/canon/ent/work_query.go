@@ -3,9 +3,15 @@
 package ent
 
 import (
+	"api/internal/canon/ent/bookwork"
+	"api/internal/canon/ent/credit"
 	"api/internal/canon/ent/predicate"
+	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/work"
+	"api/internal/canon/ent/workpart"
+	"api/internal/canon/ent/worktitle"
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -19,11 +25,16 @@ import (
 // WorkQuery is the builder for querying Work entities.
 type WorkQuery struct {
 	config
-	ctx        *QueryContext
-	order      []work.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Work
-	modifiers  []func(*sql.Selector)
+	ctx          *QueryContext
+	order        []work.OrderOption
+	inters       []Interceptor
+	predicates   []predicate.Work
+	withTitles   *WorkTitleQuery
+	withParts    *WorkPartQuery
+	withContents *ReleaseContentQuery
+	withBook     *BookWorkQuery
+	withCredits  *CreditQuery
+	modifiers    []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -58,6 +69,116 @@ func (_q *WorkQuery) Unique(unique bool) *WorkQuery {
 func (_q *WorkQuery) Order(o ...work.OrderOption) *WorkQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryTitles chains the current query on the "titles" edge.
+func (_q *WorkQuery) QueryTitles() *WorkTitleQuery {
+	query := (&WorkTitleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(work.Table, work.FieldID, selector),
+			sqlgraph.To(worktitle.Table, worktitle.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, work.TitlesTable, work.TitlesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryParts chains the current query on the "parts" edge.
+func (_q *WorkQuery) QueryParts() *WorkPartQuery {
+	query := (&WorkPartClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(work.Table, work.FieldID, selector),
+			sqlgraph.To(workpart.Table, workpart.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, work.PartsTable, work.PartsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryContents chains the current query on the "contents" edge.
+func (_q *WorkQuery) QueryContents() *ReleaseContentQuery {
+	query := (&ReleaseContentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(work.Table, work.FieldID, selector),
+			sqlgraph.To(releasecontent.Table, releasecontent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, work.ContentsTable, work.ContentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryBook chains the current query on the "book" edge.
+func (_q *WorkQuery) QueryBook() *BookWorkQuery {
+	query := (&BookWorkClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(work.Table, work.FieldID, selector),
+			sqlgraph.To(bookwork.Table, bookwork.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, work.BookTable, work.BookColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCredits chains the current query on the "credits" edge.
+func (_q *WorkQuery) QueryCredits() *CreditQuery {
+	query := (&CreditClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(work.Table, work.FieldID, selector),
+			sqlgraph.To(credit.Table, credit.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, work.CreditsTable, work.CreditsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Work entity from the query.
@@ -247,15 +368,75 @@ func (_q *WorkQuery) Clone() *WorkQuery {
 		return nil
 	}
 	return &WorkQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]work.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.Work{}, _q.predicates...),
+		config:       _q.config,
+		ctx:          _q.ctx.Clone(),
+		order:        append([]work.OrderOption{}, _q.order...),
+		inters:       append([]Interceptor{}, _q.inters...),
+		predicates:   append([]predicate.Work{}, _q.predicates...),
+		withTitles:   _q.withTitles.Clone(),
+		withParts:    _q.withParts.Clone(),
+		withContents: _q.withContents.Clone(),
+		withBook:     _q.withBook.Clone(),
+		withCredits:  _q.withCredits.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithTitles tells the query-builder to eager-load the nodes that are connected to
+// the "titles" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *WorkQuery) WithTitles(opts ...func(*WorkTitleQuery)) *WorkQuery {
+	query := (&WorkTitleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTitles = query
+	return _q
+}
+
+// WithParts tells the query-builder to eager-load the nodes that are connected to
+// the "parts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *WorkQuery) WithParts(opts ...func(*WorkPartQuery)) *WorkQuery {
+	query := (&WorkPartClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withParts = query
+	return _q
+}
+
+// WithContents tells the query-builder to eager-load the nodes that are connected to
+// the "contents" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *WorkQuery) WithContents(opts ...func(*ReleaseContentQuery)) *WorkQuery {
+	query := (&ReleaseContentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withContents = query
+	return _q
+}
+
+// WithBook tells the query-builder to eager-load the nodes that are connected to
+// the "book" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *WorkQuery) WithBook(opts ...func(*BookWorkQuery)) *WorkQuery {
+	query := (&BookWorkClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBook = query
+	return _q
+}
+
+// WithCredits tells the query-builder to eager-load the nodes that are connected to
+// the "credits" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *WorkQuery) WithCredits(opts ...func(*CreditQuery)) *WorkQuery {
+	query := (&CreditClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCredits = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -334,8 +515,15 @@ func (_q *WorkQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *WorkQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Work, error) {
 	var (
-		nodes = []*Work{}
-		_spec = _q.querySpec()
+		nodes       = []*Work{}
+		_spec       = _q.querySpec()
+		loadedTypes = [5]bool{
+			_q.withTitles != nil,
+			_q.withParts != nil,
+			_q.withContents != nil,
+			_q.withBook != nil,
+			_q.withCredits != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Work).scanValues(nil, columns)
@@ -343,6 +531,7 @@ func (_q *WorkQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Work, e
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Work{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if len(_q.modifiers) > 0 {
@@ -357,7 +546,192 @@ func (_q *WorkQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Work, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withTitles; query != nil {
+		if err := _q.loadTitles(ctx, query, nodes,
+			func(n *Work) { n.Edges.Titles = []*WorkTitle{} },
+			func(n *Work, e *WorkTitle) { n.Edges.Titles = append(n.Edges.Titles, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withParts; query != nil {
+		if err := _q.loadParts(ctx, query, nodes,
+			func(n *Work) { n.Edges.Parts = []*WorkPart{} },
+			func(n *Work, e *WorkPart) { n.Edges.Parts = append(n.Edges.Parts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withContents; query != nil {
+		if err := _q.loadContents(ctx, query, nodes,
+			func(n *Work) { n.Edges.Contents = []*ReleaseContent{} },
+			func(n *Work, e *ReleaseContent) { n.Edges.Contents = append(n.Edges.Contents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withBook; query != nil {
+		if err := _q.loadBook(ctx, query, nodes, nil,
+			func(n *Work, e *BookWork) { n.Edges.Book = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCredits; query != nil {
+		if err := _q.loadCredits(ctx, query, nodes,
+			func(n *Work) { n.Edges.Credits = []*Credit{} },
+			func(n *Work, e *Credit) { n.Edges.Credits = append(n.Edges.Credits, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *WorkQuery) loadTitles(ctx context.Context, query *WorkTitleQuery, nodes []*Work, init func(*Work), assign func(*Work, *WorkTitle)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*Work)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(worktitle.FieldWorkID)
+	}
+	query.Where(predicate.WorkTitle(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(work.TitlesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.WorkID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "work_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *WorkQuery) loadParts(ctx context.Context, query *WorkPartQuery, nodes []*Work, init func(*Work), assign func(*Work, *WorkPart)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*Work)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(workpart.FieldWorkID)
+	}
+	query.Where(predicate.WorkPart(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(work.PartsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.WorkID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "work_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *WorkQuery) loadContents(ctx context.Context, query *ReleaseContentQuery, nodes []*Work, init func(*Work), assign func(*Work, *ReleaseContent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*Work)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(releasecontent.FieldWorkID)
+	}
+	query.Where(predicate.ReleaseContent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(work.ContentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.WorkID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "work_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *WorkQuery) loadBook(ctx context.Context, query *BookWorkQuery, nodes []*Work, init func(*Work), assign func(*Work, *BookWork)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*Work)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(bookwork.FieldWorkID)
+	}
+	query.Where(predicate.BookWork(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(work.BookColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.WorkID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "work_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *WorkQuery) loadCredits(ctx context.Context, query *CreditQuery, nodes []*Work, init func(*Work), assign func(*Work, *Credit)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*Work)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(credit.FieldWorkID)
+	}
+	query.Where(predicate.Credit(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(work.CreditsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.WorkID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "work_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "work_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (_q *WorkQuery) sqlCount(ctx context.Context) (int, error) {

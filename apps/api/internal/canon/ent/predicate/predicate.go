@@ -6,5 +6,38 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// BookRelease is the predicate function for bookrelease builders.
+type BookRelease func(*sql.Selector)
+
+// BookWork is the predicate function for bookwork builders.
+type BookWork func(*sql.Selector)
+
+// Credit is the predicate function for credit builders.
+type Credit func(*sql.Selector)
+
+// Org is the predicate function for org builders.
+type Org func(*sql.Selector)
+
+// OrgName is the predicate function for orgname builders.
+type OrgName func(*sql.Selector)
+
+// Person is the predicate function for person builders.
+type Person func(*sql.Selector)
+
+// PersonAlias is the predicate function for personalias builders.
+type PersonAlias func(*sql.Selector)
+
+// Release is the predicate function for release builders.
+type Release func(*sql.Selector)
+
+// ReleaseContent is the predicate function for releasecontent builders.
+type ReleaseContent func(*sql.Selector)
+
 // Work is the predicate function for work builders.
 type Work func(*sql.Selector)
+
+// WorkPart is the predicate function for workpart builders.
+type WorkPart func(*sql.Selector)
+
+// WorkTitle is the predicate function for worktitle builders.
+type WorkTitle func(*sql.Selector)

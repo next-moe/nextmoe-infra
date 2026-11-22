@@ -64,6 +64,9 @@ func TestCanonOwnsTheLegacyIDSequencesAcrossLegacyMigrations(t *testing.T) {
 	}
 
 	for _, f := range idseq.Families {
+		if f.Legacy == "" {
+			continue
+		}
 		var identity string
 		if err := sdb.QueryRow(`SELECT is_identity FROM information_schema.columns
 			WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'id'`, f.Legacy).Scan(&identity); err != nil {

@@ -3,8 +3,13 @@
 package ent
 
 import (
+	"api/internal/canon/ent/bookwork"
+	"api/internal/canon/ent/credit"
 	"api/internal/canon/ent/predicate"
+	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/work"
+	"api/internal/canon/ent/workpart"
+	"api/internal/canon/ent/worktitle"
 	"context"
 	"errors"
 	"fmt"
@@ -42,15 +47,273 @@ func (_u *WorkUpdate) SetNillableMedium(v *string) *WorkUpdate {
 	return _u
 }
 
+// SetOlang sets the "olang" field.
+func (_u *WorkUpdate) SetOlang(v string) *WorkUpdate {
+	_u.mutation.SetOlang(v)
+	return _u
+}
+
+// SetNillableOlang sets the "olang" field if the given value is not nil.
+func (_u *WorkUpdate) SetNillableOlang(v *string) *WorkUpdate {
+	if v != nil {
+		_u.SetOlang(*v)
+	}
+	return _u
+}
+
+// ClearOlang clears the value of the "olang" field.
+func (_u *WorkUpdate) ClearOlang() *WorkUpdate {
+	_u.mutation.ClearOlang()
+	return _u
+}
+
+// SetStatus sets the "status" field.
+func (_u *WorkUpdate) SetStatus(v string) *WorkUpdate {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *WorkUpdate) SetNillableStatus(v *string) *WorkUpdate {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetContentRating sets the "content_rating" field.
+func (_u *WorkUpdate) SetContentRating(v string) *WorkUpdate {
+	_u.mutation.SetContentRating(v)
+	return _u
+}
+
+// SetNillableContentRating sets the "content_rating" field if the given value is not nil.
+func (_u *WorkUpdate) SetNillableContentRating(v *string) *WorkUpdate {
+	if v != nil {
+		_u.SetContentRating(*v)
+	}
+	return _u
+}
+
+// SetDisplaySafety sets the "display_safety" field.
+func (_u *WorkUpdate) SetDisplaySafety(v string) *WorkUpdate {
+	_u.mutation.SetDisplaySafety(v)
+	return _u
+}
+
+// SetNillableDisplaySafety sets the "display_safety" field if the given value is not nil.
+func (_u *WorkUpdate) SetNillableDisplaySafety(v *string) *WorkUpdate {
+	if v != nil {
+		_u.SetDisplaySafety(*v)
+	}
+	return _u
+}
+
+// SetFieldState sets the "field_state" field.
+func (_u *WorkUpdate) SetFieldState(v map[string]interface{}) *WorkUpdate {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *WorkUpdate) SetVersion(v int) *WorkUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *WorkUpdate) SetNillableVersion(v *int) *WorkUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *WorkUpdate) AddVersion(v int) *WorkUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *WorkUpdate) SetUpdatedAt(v time.Time) *WorkUpdate {
 	_u.mutation.SetUpdatedAt(v)
 	return _u
 }
 
+// AddTitleIDs adds the "titles" edge to the WorkTitle entity by IDs.
+func (_u *WorkUpdate) AddTitleIDs(ids ...int) *WorkUpdate {
+	_u.mutation.AddTitleIDs(ids...)
+	return _u
+}
+
+// AddTitles adds the "titles" edges to the WorkTitle entity.
+func (_u *WorkUpdate) AddTitles(v ...*WorkTitle) *WorkUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTitleIDs(ids...)
+}
+
+// AddPartIDs adds the "parts" edge to the WorkPart entity by IDs.
+func (_u *WorkUpdate) AddPartIDs(ids ...int64) *WorkUpdate {
+	_u.mutation.AddPartIDs(ids...)
+	return _u
+}
+
+// AddParts adds the "parts" edges to the WorkPart entity.
+func (_u *WorkUpdate) AddParts(v ...*WorkPart) *WorkUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPartIDs(ids...)
+}
+
+// AddContentIDs adds the "contents" edge to the ReleaseContent entity by IDs.
+func (_u *WorkUpdate) AddContentIDs(ids ...int) *WorkUpdate {
+	_u.mutation.AddContentIDs(ids...)
+	return _u
+}
+
+// AddContents adds the "contents" edges to the ReleaseContent entity.
+func (_u *WorkUpdate) AddContents(v ...*ReleaseContent) *WorkUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddContentIDs(ids...)
+}
+
+// SetBookID sets the "book" edge to the BookWork entity by ID.
+func (_u *WorkUpdate) SetBookID(id int) *WorkUpdate {
+	_u.mutation.SetBookID(id)
+	return _u
+}
+
+// SetNillableBookID sets the "book" edge to the BookWork entity by ID if the given value is not nil.
+func (_u *WorkUpdate) SetNillableBookID(id *int) *WorkUpdate {
+	if id != nil {
+		_u = _u.SetBookID(*id)
+	}
+	return _u
+}
+
+// SetBook sets the "book" edge to the BookWork entity.
+func (_u *WorkUpdate) SetBook(v *BookWork) *WorkUpdate {
+	return _u.SetBookID(v.ID)
+}
+
+// AddCreditIDs adds the "credits" edge to the Credit entity by IDs.
+func (_u *WorkUpdate) AddCreditIDs(ids ...int64) *WorkUpdate {
+	_u.mutation.AddCreditIDs(ids...)
+	return _u
+}
+
+// AddCredits adds the "credits" edges to the Credit entity.
+func (_u *WorkUpdate) AddCredits(v ...*Credit) *WorkUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCreditIDs(ids...)
+}
+
 // Mutation returns the WorkMutation object of the builder.
 func (_u *WorkUpdate) Mutation() *WorkMutation {
 	return _u.mutation
+}
+
+// ClearTitles clears all "titles" edges to the WorkTitle entity.
+func (_u *WorkUpdate) ClearTitles() *WorkUpdate {
+	_u.mutation.ClearTitles()
+	return _u
+}
+
+// RemoveTitleIDs removes the "titles" edge to WorkTitle entities by IDs.
+func (_u *WorkUpdate) RemoveTitleIDs(ids ...int) *WorkUpdate {
+	_u.mutation.RemoveTitleIDs(ids...)
+	return _u
+}
+
+// RemoveTitles removes "titles" edges to WorkTitle entities.
+func (_u *WorkUpdate) RemoveTitles(v ...*WorkTitle) *WorkUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTitleIDs(ids...)
+}
+
+// ClearParts clears all "parts" edges to the WorkPart entity.
+func (_u *WorkUpdate) ClearParts() *WorkUpdate {
+	_u.mutation.ClearParts()
+	return _u
+}
+
+// RemovePartIDs removes the "parts" edge to WorkPart entities by IDs.
+func (_u *WorkUpdate) RemovePartIDs(ids ...int64) *WorkUpdate {
+	_u.mutation.RemovePartIDs(ids...)
+	return _u
+}
+
+// RemoveParts removes "parts" edges to WorkPart entities.
+func (_u *WorkUpdate) RemoveParts(v ...*WorkPart) *WorkUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePartIDs(ids...)
+}
+
+// ClearContents clears all "contents" edges to the ReleaseContent entity.
+func (_u *WorkUpdate) ClearContents() *WorkUpdate {
+	_u.mutation.ClearContents()
+	return _u
+}
+
+// RemoveContentIDs removes the "contents" edge to ReleaseContent entities by IDs.
+func (_u *WorkUpdate) RemoveContentIDs(ids ...int) *WorkUpdate {
+	_u.mutation.RemoveContentIDs(ids...)
+	return _u
+}
+
+// RemoveContents removes "contents" edges to ReleaseContent entities.
+func (_u *WorkUpdate) RemoveContents(v ...*ReleaseContent) *WorkUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveContentIDs(ids...)
+}
+
+// ClearBook clears the "book" edge to the BookWork entity.
+func (_u *WorkUpdate) ClearBook() *WorkUpdate {
+	_u.mutation.ClearBook()
+	return _u
+}
+
+// ClearCredits clears all "credits" edges to the Credit entity.
+func (_u *WorkUpdate) ClearCredits() *WorkUpdate {
+	_u.mutation.ClearCredits()
+	return _u
+}
+
+// RemoveCreditIDs removes the "credits" edge to Credit entities by IDs.
+func (_u *WorkUpdate) RemoveCreditIDs(ids ...int64) *WorkUpdate {
+	_u.mutation.RemoveCreditIDs(ids...)
+	return _u
+}
+
+// RemoveCredits removes "credits" edges to Credit entities.
+func (_u *WorkUpdate) RemoveCredits(v ...*Credit) *WorkUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCreditIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -89,20 +352,7 @@ func (_u *WorkUpdate) defaults() {
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *WorkUpdate) check() error {
-	if v, ok := _u.mutation.Medium(); ok {
-		if err := work.MediumValidator(v); err != nil {
-			return &ValidationError{Name: "medium", err: fmt.Errorf(`ent: validator failed for field "Work.medium": %w`, err)}
-		}
-	}
-	return nil
-}
-
 func (_u *WorkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(work.Table, work.Columns, sqlgraph.NewFieldSpec(work.FieldID, field.TypeInt64))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -114,8 +364,241 @@ func (_u *WorkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Medium(); ok {
 		_spec.SetField(work.FieldMedium, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Olang(); ok {
+		_spec.SetField(work.FieldOlang, field.TypeString, value)
+	}
+	if _u.mutation.OlangCleared() {
+		_spec.ClearField(work.FieldOlang, field.TypeString)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(work.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ContentRating(); ok {
+		_spec.SetField(work.FieldContentRating, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DisplaySafety(); ok {
+		_spec.SetField(work.FieldDisplaySafety, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(work.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(work.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(work.FieldVersion, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(work.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TitlesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.TitlesTable,
+			Columns: []string{work.TitlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(worktitle.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTitlesIDs(); len(nodes) > 0 && !_u.mutation.TitlesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.TitlesTable,
+			Columns: []string{work.TitlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(worktitle.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TitlesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.TitlesTable,
+			Columns: []string{work.TitlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(worktitle.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PartsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.PartsTable,
+			Columns: []string{work.PartsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workpart.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPartsIDs(); len(nodes) > 0 && !_u.mutation.PartsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.PartsTable,
+			Columns: []string{work.PartsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workpart.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PartsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.PartsTable,
+			Columns: []string{work.PartsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workpart.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ContentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.ContentsTable,
+			Columns: []string{work.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(releasecontent.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedContentsIDs(); len(nodes) > 0 && !_u.mutation.ContentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.ContentsTable,
+			Columns: []string{work.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(releasecontent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ContentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.ContentsTable,
+			Columns: []string{work.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(releasecontent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BookCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   work.BookTable,
+			Columns: []string{work.BookColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(bookwork.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BookIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   work.BookTable,
+			Columns: []string{work.BookColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(bookwork.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CreditsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.CreditsTable,
+			Columns: []string{work.CreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCreditsIDs(); len(nodes) > 0 && !_u.mutation.CreditsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.CreditsTable,
+			Columns: []string{work.CreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CreditsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.CreditsTable,
+			Columns: []string{work.CreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -151,15 +634,273 @@ func (_u *WorkUpdateOne) SetNillableMedium(v *string) *WorkUpdateOne {
 	return _u
 }
 
+// SetOlang sets the "olang" field.
+func (_u *WorkUpdateOne) SetOlang(v string) *WorkUpdateOne {
+	_u.mutation.SetOlang(v)
+	return _u
+}
+
+// SetNillableOlang sets the "olang" field if the given value is not nil.
+func (_u *WorkUpdateOne) SetNillableOlang(v *string) *WorkUpdateOne {
+	if v != nil {
+		_u.SetOlang(*v)
+	}
+	return _u
+}
+
+// ClearOlang clears the value of the "olang" field.
+func (_u *WorkUpdateOne) ClearOlang() *WorkUpdateOne {
+	_u.mutation.ClearOlang()
+	return _u
+}
+
+// SetStatus sets the "status" field.
+func (_u *WorkUpdateOne) SetStatus(v string) *WorkUpdateOne {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *WorkUpdateOne) SetNillableStatus(v *string) *WorkUpdateOne {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetContentRating sets the "content_rating" field.
+func (_u *WorkUpdateOne) SetContentRating(v string) *WorkUpdateOne {
+	_u.mutation.SetContentRating(v)
+	return _u
+}
+
+// SetNillableContentRating sets the "content_rating" field if the given value is not nil.
+func (_u *WorkUpdateOne) SetNillableContentRating(v *string) *WorkUpdateOne {
+	if v != nil {
+		_u.SetContentRating(*v)
+	}
+	return _u
+}
+
+// SetDisplaySafety sets the "display_safety" field.
+func (_u *WorkUpdateOne) SetDisplaySafety(v string) *WorkUpdateOne {
+	_u.mutation.SetDisplaySafety(v)
+	return _u
+}
+
+// SetNillableDisplaySafety sets the "display_safety" field if the given value is not nil.
+func (_u *WorkUpdateOne) SetNillableDisplaySafety(v *string) *WorkUpdateOne {
+	if v != nil {
+		_u.SetDisplaySafety(*v)
+	}
+	return _u
+}
+
+// SetFieldState sets the "field_state" field.
+func (_u *WorkUpdateOne) SetFieldState(v map[string]interface{}) *WorkUpdateOne {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *WorkUpdateOne) SetVersion(v int) *WorkUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *WorkUpdateOne) SetNillableVersion(v *int) *WorkUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *WorkUpdateOne) AddVersion(v int) *WorkUpdateOne {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *WorkUpdateOne) SetUpdatedAt(v time.Time) *WorkUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
 	return _u
 }
 
+// AddTitleIDs adds the "titles" edge to the WorkTitle entity by IDs.
+func (_u *WorkUpdateOne) AddTitleIDs(ids ...int) *WorkUpdateOne {
+	_u.mutation.AddTitleIDs(ids...)
+	return _u
+}
+
+// AddTitles adds the "titles" edges to the WorkTitle entity.
+func (_u *WorkUpdateOne) AddTitles(v ...*WorkTitle) *WorkUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTitleIDs(ids...)
+}
+
+// AddPartIDs adds the "parts" edge to the WorkPart entity by IDs.
+func (_u *WorkUpdateOne) AddPartIDs(ids ...int64) *WorkUpdateOne {
+	_u.mutation.AddPartIDs(ids...)
+	return _u
+}
+
+// AddParts adds the "parts" edges to the WorkPart entity.
+func (_u *WorkUpdateOne) AddParts(v ...*WorkPart) *WorkUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPartIDs(ids...)
+}
+
+// AddContentIDs adds the "contents" edge to the ReleaseContent entity by IDs.
+func (_u *WorkUpdateOne) AddContentIDs(ids ...int) *WorkUpdateOne {
+	_u.mutation.AddContentIDs(ids...)
+	return _u
+}
+
+// AddContents adds the "contents" edges to the ReleaseContent entity.
+func (_u *WorkUpdateOne) AddContents(v ...*ReleaseContent) *WorkUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddContentIDs(ids...)
+}
+
+// SetBookID sets the "book" edge to the BookWork entity by ID.
+func (_u *WorkUpdateOne) SetBookID(id int) *WorkUpdateOne {
+	_u.mutation.SetBookID(id)
+	return _u
+}
+
+// SetNillableBookID sets the "book" edge to the BookWork entity by ID if the given value is not nil.
+func (_u *WorkUpdateOne) SetNillableBookID(id *int) *WorkUpdateOne {
+	if id != nil {
+		_u = _u.SetBookID(*id)
+	}
+	return _u
+}
+
+// SetBook sets the "book" edge to the BookWork entity.
+func (_u *WorkUpdateOne) SetBook(v *BookWork) *WorkUpdateOne {
+	return _u.SetBookID(v.ID)
+}
+
+// AddCreditIDs adds the "credits" edge to the Credit entity by IDs.
+func (_u *WorkUpdateOne) AddCreditIDs(ids ...int64) *WorkUpdateOne {
+	_u.mutation.AddCreditIDs(ids...)
+	return _u
+}
+
+// AddCredits adds the "credits" edges to the Credit entity.
+func (_u *WorkUpdateOne) AddCredits(v ...*Credit) *WorkUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCreditIDs(ids...)
+}
+
 // Mutation returns the WorkMutation object of the builder.
 func (_u *WorkUpdateOne) Mutation() *WorkMutation {
 	return _u.mutation
+}
+
+// ClearTitles clears all "titles" edges to the WorkTitle entity.
+func (_u *WorkUpdateOne) ClearTitles() *WorkUpdateOne {
+	_u.mutation.ClearTitles()
+	return _u
+}
+
+// RemoveTitleIDs removes the "titles" edge to WorkTitle entities by IDs.
+func (_u *WorkUpdateOne) RemoveTitleIDs(ids ...int) *WorkUpdateOne {
+	_u.mutation.RemoveTitleIDs(ids...)
+	return _u
+}
+
+// RemoveTitles removes "titles" edges to WorkTitle entities.
+func (_u *WorkUpdateOne) RemoveTitles(v ...*WorkTitle) *WorkUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTitleIDs(ids...)
+}
+
+// ClearParts clears all "parts" edges to the WorkPart entity.
+func (_u *WorkUpdateOne) ClearParts() *WorkUpdateOne {
+	_u.mutation.ClearParts()
+	return _u
+}
+
+// RemovePartIDs removes the "parts" edge to WorkPart entities by IDs.
+func (_u *WorkUpdateOne) RemovePartIDs(ids ...int64) *WorkUpdateOne {
+	_u.mutation.RemovePartIDs(ids...)
+	return _u
+}
+
+// RemoveParts removes "parts" edges to WorkPart entities.
+func (_u *WorkUpdateOne) RemoveParts(v ...*WorkPart) *WorkUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePartIDs(ids...)
+}
+
+// ClearContents clears all "contents" edges to the ReleaseContent entity.
+func (_u *WorkUpdateOne) ClearContents() *WorkUpdateOne {
+	_u.mutation.ClearContents()
+	return _u
+}
+
+// RemoveContentIDs removes the "contents" edge to ReleaseContent entities by IDs.
+func (_u *WorkUpdateOne) RemoveContentIDs(ids ...int) *WorkUpdateOne {
+	_u.mutation.RemoveContentIDs(ids...)
+	return _u
+}
+
+// RemoveContents removes "contents" edges to ReleaseContent entities.
+func (_u *WorkUpdateOne) RemoveContents(v ...*ReleaseContent) *WorkUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveContentIDs(ids...)
+}
+
+// ClearBook clears the "book" edge to the BookWork entity.
+func (_u *WorkUpdateOne) ClearBook() *WorkUpdateOne {
+	_u.mutation.ClearBook()
+	return _u
+}
+
+// ClearCredits clears all "credits" edges to the Credit entity.
+func (_u *WorkUpdateOne) ClearCredits() *WorkUpdateOne {
+	_u.mutation.ClearCredits()
+	return _u
+}
+
+// RemoveCreditIDs removes the "credits" edge to Credit entities by IDs.
+func (_u *WorkUpdateOne) RemoveCreditIDs(ids ...int64) *WorkUpdateOne {
+	_u.mutation.RemoveCreditIDs(ids...)
+	return _u
+}
+
+// RemoveCredits removes "credits" edges to Credit entities.
+func (_u *WorkUpdateOne) RemoveCredits(v ...*Credit) *WorkUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCreditIDs(ids...)
 }
 
 // Where appends a list predicates to the WorkUpdate builder.
@@ -211,20 +952,7 @@ func (_u *WorkUpdateOne) defaults() {
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *WorkUpdateOne) check() error {
-	if v, ok := _u.mutation.Medium(); ok {
-		if err := work.MediumValidator(v); err != nil {
-			return &ValidationError{Name: "medium", err: fmt.Errorf(`ent: validator failed for field "Work.medium": %w`, err)}
-		}
-	}
-	return nil
-}
-
 func (_u *WorkUpdateOne) sqlSave(ctx context.Context) (_node *Work, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(work.Table, work.Columns, sqlgraph.NewFieldSpec(work.FieldID, field.TypeInt64))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -253,8 +981,241 @@ func (_u *WorkUpdateOne) sqlSave(ctx context.Context) (_node *Work, err error) {
 	if value, ok := _u.mutation.Medium(); ok {
 		_spec.SetField(work.FieldMedium, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Olang(); ok {
+		_spec.SetField(work.FieldOlang, field.TypeString, value)
+	}
+	if _u.mutation.OlangCleared() {
+		_spec.ClearField(work.FieldOlang, field.TypeString)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(work.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ContentRating(); ok {
+		_spec.SetField(work.FieldContentRating, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DisplaySafety(); ok {
+		_spec.SetField(work.FieldDisplaySafety, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(work.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(work.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(work.FieldVersion, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(work.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TitlesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.TitlesTable,
+			Columns: []string{work.TitlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(worktitle.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTitlesIDs(); len(nodes) > 0 && !_u.mutation.TitlesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.TitlesTable,
+			Columns: []string{work.TitlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(worktitle.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TitlesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.TitlesTable,
+			Columns: []string{work.TitlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(worktitle.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PartsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.PartsTable,
+			Columns: []string{work.PartsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workpart.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPartsIDs(); len(nodes) > 0 && !_u.mutation.PartsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.PartsTable,
+			Columns: []string{work.PartsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workpart.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PartsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.PartsTable,
+			Columns: []string{work.PartsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workpart.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ContentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.ContentsTable,
+			Columns: []string{work.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(releasecontent.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedContentsIDs(); len(nodes) > 0 && !_u.mutation.ContentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.ContentsTable,
+			Columns: []string{work.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(releasecontent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ContentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.ContentsTable,
+			Columns: []string{work.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(releasecontent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BookCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   work.BookTable,
+			Columns: []string{work.BookColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(bookwork.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BookIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   work.BookTable,
+			Columns: []string{work.BookColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(bookwork.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CreditsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.CreditsTable,
+			Columns: []string{work.CreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCreditsIDs(); len(nodes) > 0 && !_u.mutation.CreditsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.CreditsTable,
+			Columns: []string{work.CreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CreditsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.CreditsTable,
+			Columns: []string{work.CreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Work{config: _u.config}
 	_spec.Assign = _node.assignValues

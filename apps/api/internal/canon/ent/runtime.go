@@ -3,8 +3,17 @@
 package ent
 
 import (
+	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/org"
+	"api/internal/canon/ent/orgname"
+	"api/internal/canon/ent/person"
+	"api/internal/canon/ent/personalias"
+	"api/internal/canon/ent/release"
+	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/schema"
 	"api/internal/canon/ent/work"
+	"api/internal/canon/ent/workpart"
+	"api/internal/canon/ent/worktitle"
 	"time"
 )
 
@@ -12,20 +21,206 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	creditFields := schema.Credit{}.Fields()
+	_ = creditFields
+	// creditDescPosition is the schema descriptor for position field.
+	creditDescPosition := creditFields[7].Descriptor()
+	// credit.DefaultPosition holds the default value on creation for the position field.
+	credit.DefaultPosition = creditDescPosition.Default.(int)
+	// creditDescFieldState is the schema descriptor for field_state field.
+	creditDescFieldState := creditFields[8].Descriptor()
+	// credit.DefaultFieldState holds the default value on creation for the field_state field.
+	credit.DefaultFieldState = creditDescFieldState.Default.(map[string]interface{})
+	// creditDescVersion is the schema descriptor for version field.
+	creditDescVersion := creditFields[9].Descriptor()
+	// credit.DefaultVersion holds the default value on creation for the version field.
+	credit.DefaultVersion = creditDescVersion.Default.(int)
+	// creditDescCreatedAt is the schema descriptor for created_at field.
+	creditDescCreatedAt := creditFields[10].Descriptor()
+	// credit.DefaultCreatedAt holds the default value on creation for the created_at field.
+	credit.DefaultCreatedAt = creditDescCreatedAt.Default.(func() time.Time)
+	// creditDescUpdatedAt is the schema descriptor for updated_at field.
+	creditDescUpdatedAt := creditFields[11].Descriptor()
+	// credit.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	credit.DefaultUpdatedAt = creditDescUpdatedAt.Default.(func() time.Time)
+	// credit.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	credit.UpdateDefaultUpdatedAt = creditDescUpdatedAt.UpdateDefault.(func() time.Time)
+	orgFields := schema.Org{}.Fields()
+	_ = orgFields
+	// orgDescFieldState is the schema descriptor for field_state field.
+	orgDescFieldState := orgFields[3].Descriptor()
+	// org.DefaultFieldState holds the default value on creation for the field_state field.
+	org.DefaultFieldState = orgDescFieldState.Default.(map[string]interface{})
+	// orgDescVersion is the schema descriptor for version field.
+	orgDescVersion := orgFields[4].Descriptor()
+	// org.DefaultVersion holds the default value on creation for the version field.
+	org.DefaultVersion = orgDescVersion.Default.(int)
+	// orgDescCreatedAt is the schema descriptor for created_at field.
+	orgDescCreatedAt := orgFields[5].Descriptor()
+	// org.DefaultCreatedAt holds the default value on creation for the created_at field.
+	org.DefaultCreatedAt = orgDescCreatedAt.Default.(func() time.Time)
+	// orgDescUpdatedAt is the schema descriptor for updated_at field.
+	orgDescUpdatedAt := orgFields[6].Descriptor()
+	// org.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	org.DefaultUpdatedAt = orgDescUpdatedAt.Default.(func() time.Time)
+	// org.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	org.UpdateDefaultUpdatedAt = orgDescUpdatedAt.UpdateDefault.(func() time.Time)
+	orgnameFields := schema.OrgName{}.Fields()
+	_ = orgnameFields
+	// orgnameDescText is the schema descriptor for text field.
+	orgnameDescText := orgnameFields[1].Descriptor()
+	// orgname.TextValidator is a validator for the "text" field. It is called by the builders before save.
+	orgname.TextValidator = orgnameDescText.Validators[0].(func(string) error)
+	// orgnameDescPosition is the schema descriptor for position field.
+	orgnameDescPosition := orgnameFields[3].Descriptor()
+	// orgname.DefaultPosition holds the default value on creation for the position field.
+	orgname.DefaultPosition = orgnameDescPosition.Default.(int)
+	personFields := schema.Person{}.Fields()
+	_ = personFields
+	// personDescFieldState is the schema descriptor for field_state field.
+	personDescFieldState := personFields[2].Descriptor()
+	// person.DefaultFieldState holds the default value on creation for the field_state field.
+	person.DefaultFieldState = personDescFieldState.Default.(map[string]interface{})
+	// personDescVersion is the schema descriptor for version field.
+	personDescVersion := personFields[3].Descriptor()
+	// person.DefaultVersion holds the default value on creation for the version field.
+	person.DefaultVersion = personDescVersion.Default.(int)
+	// personDescCreatedAt is the schema descriptor for created_at field.
+	personDescCreatedAt := personFields[4].Descriptor()
+	// person.DefaultCreatedAt holds the default value on creation for the created_at field.
+	person.DefaultCreatedAt = personDescCreatedAt.Default.(func() time.Time)
+	// personDescUpdatedAt is the schema descriptor for updated_at field.
+	personDescUpdatedAt := personFields[5].Descriptor()
+	// person.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	person.DefaultUpdatedAt = personDescUpdatedAt.Default.(func() time.Time)
+	// person.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	person.UpdateDefaultUpdatedAt = personDescUpdatedAt.UpdateDefault.(func() time.Time)
+	personaliasFields := schema.PersonAlias{}.Fields()
+	_ = personaliasFields
+	// personaliasDescName is the schema descriptor for name field.
+	personaliasDescName := personaliasFields[2].Descriptor()
+	// personalias.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	personalias.NameValidator = personaliasDescName.Validators[0].(func(string) error)
+	// personaliasDescFieldState is the schema descriptor for field_state field.
+	personaliasDescFieldState := personaliasFields[5].Descriptor()
+	// personalias.DefaultFieldState holds the default value on creation for the field_state field.
+	personalias.DefaultFieldState = personaliasDescFieldState.Default.(map[string]interface{})
+	// personaliasDescVersion is the schema descriptor for version field.
+	personaliasDescVersion := personaliasFields[6].Descriptor()
+	// personalias.DefaultVersion holds the default value on creation for the version field.
+	personalias.DefaultVersion = personaliasDescVersion.Default.(int)
+	// personaliasDescCreatedAt is the schema descriptor for created_at field.
+	personaliasDescCreatedAt := personaliasFields[7].Descriptor()
+	// personalias.DefaultCreatedAt holds the default value on creation for the created_at field.
+	personalias.DefaultCreatedAt = personaliasDescCreatedAt.Default.(func() time.Time)
+	// personaliasDescUpdatedAt is the schema descriptor for updated_at field.
+	personaliasDescUpdatedAt := personaliasFields[8].Descriptor()
+	// personalias.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	personalias.DefaultUpdatedAt = personaliasDescUpdatedAt.Default.(func() time.Time)
+	// personalias.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	personalias.UpdateDefaultUpdatedAt = personaliasDescUpdatedAt.UpdateDefault.(func() time.Time)
+	releaseFields := schema.Release{}.Fields()
+	_ = releaseFields
+	// releaseDescEditionKind is the schema descriptor for edition_kind field.
+	releaseDescEditionKind := releaseFields[2].Descriptor()
+	// release.DefaultEditionKind holds the default value on creation for the edition_kind field.
+	release.DefaultEditionKind = releaseDescEditionKind.Default.(string)
+	// releaseDescReleaseStatus is the schema descriptor for release_status field.
+	releaseDescReleaseStatus := releaseFields[5].Descriptor()
+	// release.DefaultReleaseStatus holds the default value on creation for the release_status field.
+	release.DefaultReleaseStatus = releaseDescReleaseStatus.Default.(string)
+	// releaseDescFieldState is the schema descriptor for field_state field.
+	releaseDescFieldState := releaseFields[7].Descriptor()
+	// release.DefaultFieldState holds the default value on creation for the field_state field.
+	release.DefaultFieldState = releaseDescFieldState.Default.(map[string]interface{})
+	// releaseDescVersion is the schema descriptor for version field.
+	releaseDescVersion := releaseFields[8].Descriptor()
+	// release.DefaultVersion holds the default value on creation for the version field.
+	release.DefaultVersion = releaseDescVersion.Default.(int)
+	// releaseDescCreatedAt is the schema descriptor for created_at field.
+	releaseDescCreatedAt := releaseFields[9].Descriptor()
+	// release.DefaultCreatedAt holds the default value on creation for the created_at field.
+	release.DefaultCreatedAt = releaseDescCreatedAt.Default.(func() time.Time)
+	// releaseDescUpdatedAt is the schema descriptor for updated_at field.
+	releaseDescUpdatedAt := releaseFields[10].Descriptor()
+	// release.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	release.DefaultUpdatedAt = releaseDescUpdatedAt.Default.(func() time.Time)
+	// release.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	release.UpdateDefaultUpdatedAt = releaseDescUpdatedAt.UpdateDefault.(func() time.Time)
+	releasecontentFields := schema.ReleaseContent{}.Fields()
+	_ = releasecontentFields
+	// releasecontentDescPortion is the schema descriptor for portion field.
+	releasecontentDescPortion := releasecontentFields[3].Descriptor()
+	// releasecontent.DefaultPortion holds the default value on creation for the portion field.
+	releasecontent.DefaultPortion = releasecontentDescPortion.Default.(string)
+	// releasecontentDescPosition is the schema descriptor for position field.
+	releasecontentDescPosition := releasecontentFields[4].Descriptor()
+	// releasecontent.DefaultPosition holds the default value on creation for the position field.
+	releasecontent.DefaultPosition = releasecontentDescPosition.Default.(int)
 	workFields := schema.Work{}.Fields()
 	_ = workFields
-	// workDescMedium is the schema descriptor for medium field.
-	workDescMedium := workFields[1].Descriptor()
-	// work.MediumValidator is a validator for the "medium" field. It is called by the builders before save.
-	work.MediumValidator = workDescMedium.Validators[0].(func(string) error)
+	// workDescStatus is the schema descriptor for status field.
+	workDescStatus := workFields[3].Descriptor()
+	// work.DefaultStatus holds the default value on creation for the status field.
+	work.DefaultStatus = workDescStatus.Default.(string)
+	// workDescContentRating is the schema descriptor for content_rating field.
+	workDescContentRating := workFields[4].Descriptor()
+	// work.DefaultContentRating holds the default value on creation for the content_rating field.
+	work.DefaultContentRating = workDescContentRating.Default.(string)
+	// workDescDisplaySafety is the schema descriptor for display_safety field.
+	workDescDisplaySafety := workFields[5].Descriptor()
+	// work.DefaultDisplaySafety holds the default value on creation for the display_safety field.
+	work.DefaultDisplaySafety = workDescDisplaySafety.Default.(string)
+	// workDescFieldState is the schema descriptor for field_state field.
+	workDescFieldState := workFields[6].Descriptor()
+	// work.DefaultFieldState holds the default value on creation for the field_state field.
+	work.DefaultFieldState = workDescFieldState.Default.(map[string]interface{})
+	// workDescVersion is the schema descriptor for version field.
+	workDescVersion := workFields[7].Descriptor()
+	// work.DefaultVersion holds the default value on creation for the version field.
+	work.DefaultVersion = workDescVersion.Default.(int)
 	// workDescCreatedAt is the schema descriptor for created_at field.
-	workDescCreatedAt := workFields[2].Descriptor()
+	workDescCreatedAt := workFields[8].Descriptor()
 	// work.DefaultCreatedAt holds the default value on creation for the created_at field.
 	work.DefaultCreatedAt = workDescCreatedAt.Default.(func() time.Time)
 	// workDescUpdatedAt is the schema descriptor for updated_at field.
-	workDescUpdatedAt := workFields[3].Descriptor()
+	workDescUpdatedAt := workFields[9].Descriptor()
 	// work.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	work.DefaultUpdatedAt = workDescUpdatedAt.Default.(func() time.Time)
 	// work.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	work.UpdateDefaultUpdatedAt = workDescUpdatedAt.UpdateDefault.(func() time.Time)
+	workpartFields := schema.WorkPart{}.Fields()
+	_ = workpartFields
+	// workpartDescFieldState is the schema descriptor for field_state field.
+	workpartDescFieldState := workpartFields[7].Descriptor()
+	// workpart.DefaultFieldState holds the default value on creation for the field_state field.
+	workpart.DefaultFieldState = workpartDescFieldState.Default.(map[string]interface{})
+	// workpartDescVersion is the schema descriptor for version field.
+	workpartDescVersion := workpartFields[8].Descriptor()
+	// workpart.DefaultVersion holds the default value on creation for the version field.
+	workpart.DefaultVersion = workpartDescVersion.Default.(int)
+	// workpartDescCreatedAt is the schema descriptor for created_at field.
+	workpartDescCreatedAt := workpartFields[9].Descriptor()
+	// workpart.DefaultCreatedAt holds the default value on creation for the created_at field.
+	workpart.DefaultCreatedAt = workpartDescCreatedAt.Default.(func() time.Time)
+	// workpartDescUpdatedAt is the schema descriptor for updated_at field.
+	workpartDescUpdatedAt := workpartFields[10].Descriptor()
+	// workpart.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	workpart.DefaultUpdatedAt = workpartDescUpdatedAt.Default.(func() time.Time)
+	// workpart.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	workpart.UpdateDefaultUpdatedAt = workpartDescUpdatedAt.UpdateDefault.(func() time.Time)
+	worktitleFields := schema.WorkTitle{}.Fields()
+	_ = worktitleFields
+	// worktitleDescText is the schema descriptor for text field.
+	worktitleDescText := worktitleFields[1].Descriptor()
+	// worktitle.TextValidator is a validator for the "text" field. It is called by the builders before save.
+	worktitle.TextValidator = worktitleDescText.Validators[0].(func(string) error)
+	// worktitleDescMachine is the schema descriptor for machine field.
+	worktitleDescMachine := worktitleFields[4].Descriptor()
+	// worktitle.DefaultMachine holds the default value on creation for the machine field.
+	worktitle.DefaultMachine = worktitleDescMachine.Default.(bool)
+	// worktitleDescPosition is the schema descriptor for position field.
+	worktitleDescPosition := worktitleFields[5].Descriptor()
+	// worktitle.DefaultPosition holds the default value on creation for the position field.
+	worktitle.DefaultPosition = worktitleDescPosition.Default.(int)
 }

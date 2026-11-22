@@ -8,6 +8,114 @@ import (
 	"fmt"
 )
 
+// The BookReleaseFunc type is an adapter to allow the use of ordinary
+// function as BookRelease mutator.
+type BookReleaseFunc func(context.Context, *ent.BookReleaseMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BookReleaseFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BookReleaseMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BookReleaseMutation", m)
+}
+
+// The BookWorkFunc type is an adapter to allow the use of ordinary
+// function as BookWork mutator.
+type BookWorkFunc func(context.Context, *ent.BookWorkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BookWorkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BookWorkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BookWorkMutation", m)
+}
+
+// The CreditFunc type is an adapter to allow the use of ordinary
+// function as Credit mutator.
+type CreditFunc func(context.Context, *ent.CreditMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreditFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CreditMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreditMutation", m)
+}
+
+// The OrgFunc type is an adapter to allow the use of ordinary
+// function as Org mutator.
+type OrgFunc func(context.Context, *ent.OrgMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OrgFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OrgMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OrgMutation", m)
+}
+
+// The OrgNameFunc type is an adapter to allow the use of ordinary
+// function as OrgName mutator.
+type OrgNameFunc func(context.Context, *ent.OrgNameMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OrgNameFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OrgNameMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OrgNameMutation", m)
+}
+
+// The PersonFunc type is an adapter to allow the use of ordinary
+// function as Person mutator.
+type PersonFunc func(context.Context, *ent.PersonMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PersonFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PersonMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PersonMutation", m)
+}
+
+// The PersonAliasFunc type is an adapter to allow the use of ordinary
+// function as PersonAlias mutator.
+type PersonAliasFunc func(context.Context, *ent.PersonAliasMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PersonAliasFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PersonAliasMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PersonAliasMutation", m)
+}
+
+// The ReleaseFunc type is an adapter to allow the use of ordinary
+// function as Release mutator.
+type ReleaseFunc func(context.Context, *ent.ReleaseMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReleaseFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReleaseMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReleaseMutation", m)
+}
+
+// The ReleaseContentFunc type is an adapter to allow the use of ordinary
+// function as ReleaseContent mutator.
+type ReleaseContentFunc func(context.Context, *ent.ReleaseContentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReleaseContentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReleaseContentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReleaseContentMutation", m)
+}
+
 // The WorkFunc type is an adapter to allow the use of ordinary
 // function as Work mutator.
 type WorkFunc func(context.Context, *ent.WorkMutation) (ent.Value, error)
@@ -18,6 +126,30 @@ func (f WorkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WorkMutation", m)
+}
+
+// The WorkPartFunc type is an adapter to allow the use of ordinary
+// function as WorkPart mutator.
+type WorkPartFunc func(context.Context, *ent.WorkPartMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WorkPartFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WorkPartMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WorkPartMutation", m)
+}
+
+// The WorkTitleFunc type is an adapter to allow the use of ordinary
+// function as WorkTitle mutator.
+type WorkTitleFunc func(context.Context, *ent.WorkTitleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WorkTitleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WorkTitleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WorkTitleMutation", m)
 }
 
 // Condition is a hook condition function.

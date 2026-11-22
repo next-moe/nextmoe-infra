@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 // ID filters vertices based on their ID field.
@@ -57,6 +58,31 @@ func IDLTE(id int64) predicate.Work {
 // Medium applies equality check predicate on the "medium" field. It's identical to MediumEQ.
 func Medium(v string) predicate.Work {
 	return predicate.Work(sql.FieldEQ(FieldMedium, v))
+}
+
+// Olang applies equality check predicate on the "olang" field. It's identical to OlangEQ.
+func Olang(v string) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldOlang, v))
+}
+
+// Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
+func Status(v string) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldStatus, v))
+}
+
+// ContentRating applies equality check predicate on the "content_rating" field. It's identical to ContentRatingEQ.
+func ContentRating(v string) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldContentRating, v))
+}
+
+// DisplaySafety applies equality check predicate on the "display_safety" field. It's identical to DisplaySafetyEQ.
+func DisplaySafety(v string) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldDisplaySafety, v))
+}
+
+// Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
+func Version(v int) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldVersion, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -132,6 +158,316 @@ func MediumEqualFold(v string) predicate.Work {
 // MediumContainsFold applies the ContainsFold predicate on the "medium" field.
 func MediumContainsFold(v string) predicate.Work {
 	return predicate.Work(sql.FieldContainsFold(FieldMedium, v))
+}
+
+// OlangEQ applies the EQ predicate on the "olang" field.
+func OlangEQ(v string) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldOlang, v))
+}
+
+// OlangNEQ applies the NEQ predicate on the "olang" field.
+func OlangNEQ(v string) predicate.Work {
+	return predicate.Work(sql.FieldNEQ(FieldOlang, v))
+}
+
+// OlangIn applies the In predicate on the "olang" field.
+func OlangIn(vs ...string) predicate.Work {
+	return predicate.Work(sql.FieldIn(FieldOlang, vs...))
+}
+
+// OlangNotIn applies the NotIn predicate on the "olang" field.
+func OlangNotIn(vs ...string) predicate.Work {
+	return predicate.Work(sql.FieldNotIn(FieldOlang, vs...))
+}
+
+// OlangGT applies the GT predicate on the "olang" field.
+func OlangGT(v string) predicate.Work {
+	return predicate.Work(sql.FieldGT(FieldOlang, v))
+}
+
+// OlangGTE applies the GTE predicate on the "olang" field.
+func OlangGTE(v string) predicate.Work {
+	return predicate.Work(sql.FieldGTE(FieldOlang, v))
+}
+
+// OlangLT applies the LT predicate on the "olang" field.
+func OlangLT(v string) predicate.Work {
+	return predicate.Work(sql.FieldLT(FieldOlang, v))
+}
+
+// OlangLTE applies the LTE predicate on the "olang" field.
+func OlangLTE(v string) predicate.Work {
+	return predicate.Work(sql.FieldLTE(FieldOlang, v))
+}
+
+// OlangContains applies the Contains predicate on the "olang" field.
+func OlangContains(v string) predicate.Work {
+	return predicate.Work(sql.FieldContains(FieldOlang, v))
+}
+
+// OlangHasPrefix applies the HasPrefix predicate on the "olang" field.
+func OlangHasPrefix(v string) predicate.Work {
+	return predicate.Work(sql.FieldHasPrefix(FieldOlang, v))
+}
+
+// OlangHasSuffix applies the HasSuffix predicate on the "olang" field.
+func OlangHasSuffix(v string) predicate.Work {
+	return predicate.Work(sql.FieldHasSuffix(FieldOlang, v))
+}
+
+// OlangIsNil applies the IsNil predicate on the "olang" field.
+func OlangIsNil() predicate.Work {
+	return predicate.Work(sql.FieldIsNull(FieldOlang))
+}
+
+// OlangNotNil applies the NotNil predicate on the "olang" field.
+func OlangNotNil() predicate.Work {
+	return predicate.Work(sql.FieldNotNull(FieldOlang))
+}
+
+// OlangEqualFold applies the EqualFold predicate on the "olang" field.
+func OlangEqualFold(v string) predicate.Work {
+	return predicate.Work(sql.FieldEqualFold(FieldOlang, v))
+}
+
+// OlangContainsFold applies the ContainsFold predicate on the "olang" field.
+func OlangContainsFold(v string) predicate.Work {
+	return predicate.Work(sql.FieldContainsFold(FieldOlang, v))
+}
+
+// StatusEQ applies the EQ predicate on the "status" field.
+func StatusEQ(v string) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldStatus, v))
+}
+
+// StatusNEQ applies the NEQ predicate on the "status" field.
+func StatusNEQ(v string) predicate.Work {
+	return predicate.Work(sql.FieldNEQ(FieldStatus, v))
+}
+
+// StatusIn applies the In predicate on the "status" field.
+func StatusIn(vs ...string) predicate.Work {
+	return predicate.Work(sql.FieldIn(FieldStatus, vs...))
+}
+
+// StatusNotIn applies the NotIn predicate on the "status" field.
+func StatusNotIn(vs ...string) predicate.Work {
+	return predicate.Work(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// StatusGT applies the GT predicate on the "status" field.
+func StatusGT(v string) predicate.Work {
+	return predicate.Work(sql.FieldGT(FieldStatus, v))
+}
+
+// StatusGTE applies the GTE predicate on the "status" field.
+func StatusGTE(v string) predicate.Work {
+	return predicate.Work(sql.FieldGTE(FieldStatus, v))
+}
+
+// StatusLT applies the LT predicate on the "status" field.
+func StatusLT(v string) predicate.Work {
+	return predicate.Work(sql.FieldLT(FieldStatus, v))
+}
+
+// StatusLTE applies the LTE predicate on the "status" field.
+func StatusLTE(v string) predicate.Work {
+	return predicate.Work(sql.FieldLTE(FieldStatus, v))
+}
+
+// StatusContains applies the Contains predicate on the "status" field.
+func StatusContains(v string) predicate.Work {
+	return predicate.Work(sql.FieldContains(FieldStatus, v))
+}
+
+// StatusHasPrefix applies the HasPrefix predicate on the "status" field.
+func StatusHasPrefix(v string) predicate.Work {
+	return predicate.Work(sql.FieldHasPrefix(FieldStatus, v))
+}
+
+// StatusHasSuffix applies the HasSuffix predicate on the "status" field.
+func StatusHasSuffix(v string) predicate.Work {
+	return predicate.Work(sql.FieldHasSuffix(FieldStatus, v))
+}
+
+// StatusEqualFold applies the EqualFold predicate on the "status" field.
+func StatusEqualFold(v string) predicate.Work {
+	return predicate.Work(sql.FieldEqualFold(FieldStatus, v))
+}
+
+// StatusContainsFold applies the ContainsFold predicate on the "status" field.
+func StatusContainsFold(v string) predicate.Work {
+	return predicate.Work(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// ContentRatingEQ applies the EQ predicate on the "content_rating" field.
+func ContentRatingEQ(v string) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldContentRating, v))
+}
+
+// ContentRatingNEQ applies the NEQ predicate on the "content_rating" field.
+func ContentRatingNEQ(v string) predicate.Work {
+	return predicate.Work(sql.FieldNEQ(FieldContentRating, v))
+}
+
+// ContentRatingIn applies the In predicate on the "content_rating" field.
+func ContentRatingIn(vs ...string) predicate.Work {
+	return predicate.Work(sql.FieldIn(FieldContentRating, vs...))
+}
+
+// ContentRatingNotIn applies the NotIn predicate on the "content_rating" field.
+func ContentRatingNotIn(vs ...string) predicate.Work {
+	return predicate.Work(sql.FieldNotIn(FieldContentRating, vs...))
+}
+
+// ContentRatingGT applies the GT predicate on the "content_rating" field.
+func ContentRatingGT(v string) predicate.Work {
+	return predicate.Work(sql.FieldGT(FieldContentRating, v))
+}
+
+// ContentRatingGTE applies the GTE predicate on the "content_rating" field.
+func ContentRatingGTE(v string) predicate.Work {
+	return predicate.Work(sql.FieldGTE(FieldContentRating, v))
+}
+
+// ContentRatingLT applies the LT predicate on the "content_rating" field.
+func ContentRatingLT(v string) predicate.Work {
+	return predicate.Work(sql.FieldLT(FieldContentRating, v))
+}
+
+// ContentRatingLTE applies the LTE predicate on the "content_rating" field.
+func ContentRatingLTE(v string) predicate.Work {
+	return predicate.Work(sql.FieldLTE(FieldContentRating, v))
+}
+
+// ContentRatingContains applies the Contains predicate on the "content_rating" field.
+func ContentRatingContains(v string) predicate.Work {
+	return predicate.Work(sql.FieldContains(FieldContentRating, v))
+}
+
+// ContentRatingHasPrefix applies the HasPrefix predicate on the "content_rating" field.
+func ContentRatingHasPrefix(v string) predicate.Work {
+	return predicate.Work(sql.FieldHasPrefix(FieldContentRating, v))
+}
+
+// ContentRatingHasSuffix applies the HasSuffix predicate on the "content_rating" field.
+func ContentRatingHasSuffix(v string) predicate.Work {
+	return predicate.Work(sql.FieldHasSuffix(FieldContentRating, v))
+}
+
+// ContentRatingEqualFold applies the EqualFold predicate on the "content_rating" field.
+func ContentRatingEqualFold(v string) predicate.Work {
+	return predicate.Work(sql.FieldEqualFold(FieldContentRating, v))
+}
+
+// ContentRatingContainsFold applies the ContainsFold predicate on the "content_rating" field.
+func ContentRatingContainsFold(v string) predicate.Work {
+	return predicate.Work(sql.FieldContainsFold(FieldContentRating, v))
+}
+
+// DisplaySafetyEQ applies the EQ predicate on the "display_safety" field.
+func DisplaySafetyEQ(v string) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyNEQ applies the NEQ predicate on the "display_safety" field.
+func DisplaySafetyNEQ(v string) predicate.Work {
+	return predicate.Work(sql.FieldNEQ(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyIn applies the In predicate on the "display_safety" field.
+func DisplaySafetyIn(vs ...string) predicate.Work {
+	return predicate.Work(sql.FieldIn(FieldDisplaySafety, vs...))
+}
+
+// DisplaySafetyNotIn applies the NotIn predicate on the "display_safety" field.
+func DisplaySafetyNotIn(vs ...string) predicate.Work {
+	return predicate.Work(sql.FieldNotIn(FieldDisplaySafety, vs...))
+}
+
+// DisplaySafetyGT applies the GT predicate on the "display_safety" field.
+func DisplaySafetyGT(v string) predicate.Work {
+	return predicate.Work(sql.FieldGT(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyGTE applies the GTE predicate on the "display_safety" field.
+func DisplaySafetyGTE(v string) predicate.Work {
+	return predicate.Work(sql.FieldGTE(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyLT applies the LT predicate on the "display_safety" field.
+func DisplaySafetyLT(v string) predicate.Work {
+	return predicate.Work(sql.FieldLT(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyLTE applies the LTE predicate on the "display_safety" field.
+func DisplaySafetyLTE(v string) predicate.Work {
+	return predicate.Work(sql.FieldLTE(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyContains applies the Contains predicate on the "display_safety" field.
+func DisplaySafetyContains(v string) predicate.Work {
+	return predicate.Work(sql.FieldContains(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyHasPrefix applies the HasPrefix predicate on the "display_safety" field.
+func DisplaySafetyHasPrefix(v string) predicate.Work {
+	return predicate.Work(sql.FieldHasPrefix(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyHasSuffix applies the HasSuffix predicate on the "display_safety" field.
+func DisplaySafetyHasSuffix(v string) predicate.Work {
+	return predicate.Work(sql.FieldHasSuffix(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyEqualFold applies the EqualFold predicate on the "display_safety" field.
+func DisplaySafetyEqualFold(v string) predicate.Work {
+	return predicate.Work(sql.FieldEqualFold(FieldDisplaySafety, v))
+}
+
+// DisplaySafetyContainsFold applies the ContainsFold predicate on the "display_safety" field.
+func DisplaySafetyContainsFold(v string) predicate.Work {
+	return predicate.Work(sql.FieldContainsFold(FieldDisplaySafety, v))
+}
+
+// VersionEQ applies the EQ predicate on the "version" field.
+func VersionEQ(v int) predicate.Work {
+	return predicate.Work(sql.FieldEQ(FieldVersion, v))
+}
+
+// VersionNEQ applies the NEQ predicate on the "version" field.
+func VersionNEQ(v int) predicate.Work {
+	return predicate.Work(sql.FieldNEQ(FieldVersion, v))
+}
+
+// VersionIn applies the In predicate on the "version" field.
+func VersionIn(vs ...int) predicate.Work {
+	return predicate.Work(sql.FieldIn(FieldVersion, vs...))
+}
+
+// VersionNotIn applies the NotIn predicate on the "version" field.
+func VersionNotIn(vs ...int) predicate.Work {
+	return predicate.Work(sql.FieldNotIn(FieldVersion, vs...))
+}
+
+// VersionGT applies the GT predicate on the "version" field.
+func VersionGT(v int) predicate.Work {
+	return predicate.Work(sql.FieldGT(FieldVersion, v))
+}
+
+// VersionGTE applies the GTE predicate on the "version" field.
+func VersionGTE(v int) predicate.Work {
+	return predicate.Work(sql.FieldGTE(FieldVersion, v))
+}
+
+// VersionLT applies the LT predicate on the "version" field.
+func VersionLT(v int) predicate.Work {
+	return predicate.Work(sql.FieldLT(FieldVersion, v))
+}
+
+// VersionLTE applies the LTE predicate on the "version" field.
+func VersionLTE(v int) predicate.Work {
+	return predicate.Work(sql.FieldLTE(FieldVersion, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -212,6 +548,121 @@ func UpdatedAtLT(v time.Time) predicate.Work {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.Work {
 	return predicate.Work(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasTitles applies the HasEdge predicate on the "titles" edge.
+func HasTitles() predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, TitlesTable, TitlesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTitlesWith applies the HasEdge predicate on the "titles" edge with a given conditions (other predicates).
+func HasTitlesWith(preds ...predicate.WorkTitle) predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := newTitlesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasParts applies the HasEdge predicate on the "parts" edge.
+func HasParts() predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PartsTable, PartsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPartsWith applies the HasEdge predicate on the "parts" edge with a given conditions (other predicates).
+func HasPartsWith(preds ...predicate.WorkPart) predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := newPartsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasContents applies the HasEdge predicate on the "contents" edge.
+func HasContents() predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ContentsTable, ContentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasContentsWith applies the HasEdge predicate on the "contents" edge with a given conditions (other predicates).
+func HasContentsWith(preds ...predicate.ReleaseContent) predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := newContentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasBook applies the HasEdge predicate on the "book" edge.
+func HasBook() predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, BookTable, BookColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasBookWith applies the HasEdge predicate on the "book" edge with a given conditions (other predicates).
+func HasBookWith(preds ...predicate.BookWork) predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := newBookStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCredits applies the HasEdge predicate on the "credits" edge.
+func HasCredits() predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CreditsTable, CreditsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCreditsWith applies the HasEdge predicate on the "credits" edge with a given conditions (other predicates).
+func HasCreditsWith(preds ...predicate.Credit) predicate.Work {
+	return predicate.Work(func(s *sql.Selector) {
+		step := newCreditsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

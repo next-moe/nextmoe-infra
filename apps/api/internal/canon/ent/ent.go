@@ -3,7 +3,18 @@
 package ent
 
 import (
+	"api/internal/canon/ent/bookrelease"
+	"api/internal/canon/ent/bookwork"
+	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/org"
+	"api/internal/canon/ent/orgname"
+	"api/internal/canon/ent/person"
+	"api/internal/canon/ent/personalias"
+	"api/internal/canon/ent/release"
+	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/work"
+	"api/internal/canon/ent/workpart"
+	"api/internal/canon/ent/worktitle"
 	"context"
 	"errors"
 	"fmt"
@@ -73,7 +84,18 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			work.Table: work.ValidColumn,
+			bookrelease.Table:    bookrelease.ValidColumn,
+			bookwork.Table:       bookwork.ValidColumn,
+			credit.Table:         credit.ValidColumn,
+			org.Table:            org.ValidColumn,
+			orgname.Table:        orgname.ValidColumn,
+			person.Table:         person.ValidColumn,
+			personalias.Table:    personalias.ValidColumn,
+			release.Table:        release.ValidColumn,
+			releasecontent.Table: releasecontent.ValidColumn,
+			work.Table:           work.ValidColumn,
+			workpart.Table:       workpart.ValidColumn,
+			worktitle.Table:      worktitle.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

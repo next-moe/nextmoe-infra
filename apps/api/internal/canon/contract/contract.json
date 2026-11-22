@@ -1,0 +1,1371 @@
+{
+  "version": "0.1.0",
+  "entities": [
+    {
+      "name": "book_release",
+      "properties": [
+        {
+          "key": "isbn13",
+          "optional": true,
+          "shape": "isbn13",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "unique": "global",
+          "agent": true,
+          "clauses": [
+            "R4.2",
+            "R8.2"
+          ],
+          "doc": "ISBN-13 of this edition; the check digit must hold."
+        },
+        {
+          "key": "jan",
+          "optional": true,
+          "shape": "jan",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "unique": "global",
+          "agent": true,
+          "clauses": [
+            "R4.2",
+            "R8.2"
+          ],
+          "doc": "JAN of this edition; a set's JAN stands for the set only."
+        },
+        {
+          "key": "publisher_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "org",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.2"
+          ],
+          "doc": "Publisher of record."
+        },
+        {
+          "key": "label_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "org",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.2"
+          ],
+          "doc": "The label (レーベル) the edition is published under."
+        },
+        {
+          "key": "label_number",
+          "optional": true,
+          "shape": "text",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "The label's own serial, e.g. 4347 in 「電撃文庫 ; 4347」."
+        },
+        {
+          "key": "pages",
+          "optional": true,
+          "shape": "integer",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R8.2"
+          ],
+          "doc": "Page count."
+        },
+        {
+          "key": "price_amount",
+          "optional": true,
+          "shape": "money",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R8.2"
+          ],
+          "doc": "List price, as printed."
+        },
+        {
+          "key": "price_currency",
+          "optional": true,
+          "shape": "currency",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R8.2"
+          ],
+          "doc": "ISO 4217 currency of the price."
+        },
+        {
+          "key": "price_tax_included",
+          "optional": true,
+          "shape": "bool",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R8.2"
+          ],
+          "doc": "Whether the printed price includes tax."
+        }
+      ]
+    },
+    {
+      "name": "book_work",
+      "properties": [
+        {
+          "key": "category",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "book_category",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R1.4"
+          ],
+          "doc": "Light novel, light bungei, shin bungei or general."
+        }
+      ]
+    },
+    {
+      "name": "credit",
+      "properties": [
+        {
+          "key": "work_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "work",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "Credited on the whole work."
+        },
+        {
+          "key": "part_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "work_part",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "Credited on one part."
+        },
+        {
+          "key": "release_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "release",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "Credited on one edition, e.g. a translator."
+        },
+        {
+          "key": "alias_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "person_alias",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "The name as credited."
+        },
+        {
+          "key": "org_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "org",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.2"
+          ],
+          "doc": "An organization credited instead of a person."
+        },
+        {
+          "key": "role",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "book_role",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "Role in the medium module's vocabulary."
+        }
+      ]
+    },
+    {
+      "name": "org",
+      "properties": [
+        {
+          "key": "kind",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "org_kind",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.2"
+          ],
+          "doc": "Company, brand, label, magazine, platform, circle or translation group."
+        },
+        {
+          "key": "parent_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "org",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.2"
+          ],
+          "doc": "The publisher a label belongs to."
+        }
+      ]
+    },
+    {
+      "name": "org_name",
+      "properties": [
+        {
+          "key": "text",
+          "optional": false,
+          "shape": "title",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.2"
+          ],
+          "doc": "A name of the organization as it presents itself."
+        },
+        {
+          "key": "lang",
+          "optional": false,
+          "shape": "lang",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.2"
+          ],
+          "doc": "BCP-47 language of the name."
+        }
+      ]
+    },
+    {
+      "name": "person_alias",
+      "properties": [
+        {
+          "key": "name",
+          "optional": false,
+          "shape": "person_name",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "The name exactly as credited."
+        },
+        {
+          "key": "latin",
+          "optional": true,
+          "shape": "text",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "Romanization of the name."
+        },
+        {
+          "key": "lang",
+          "optional": true,
+          "shape": "lang",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "BCP-47 language of the name."
+        }
+      ]
+    },
+    {
+      "name": "release",
+      "properties": [
+        {
+          "key": "lang",
+          "optional": false,
+          "shape": "lang",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.4"
+          ],
+          "doc": "BCP-47 language of this edition's text."
+        },
+        {
+          "key": "edition_kind",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "edition_kind",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "Standard, limited or reprint."
+        },
+        {
+          "key": "format",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "format",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "Physical or digital form."
+        },
+        {
+          "key": "released",
+          "optional": true,
+          "shape": "partial_date",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R8.1"
+          ],
+          "doc": "Release date; precision as stated, never completed."
+        },
+        {
+          "key": "release_status",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "release_status",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R8.1"
+          ],
+          "doc": "Announced, released or cancelled."
+        },
+        {
+          "key": "official_url",
+          "optional": true,
+          "shape": "url",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R2.2"
+          ],
+          "doc": "The publisher's own page for this edition."
+        }
+      ]
+    },
+    {
+      "name": "release_content",
+      "properties": [
+        {
+          "key": "work_id",
+          "optional": false,
+          "shape": "ref",
+          "ref": "work",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2",
+            "R5"
+          ],
+          "doc": "A work this edition contains."
+        },
+        {
+          "key": "part_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "work_part",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "The volume or episode it contains, when it is one part."
+        },
+        {
+          "key": "portion",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "portion",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "Whether the whole part is contained."
+        }
+      ]
+    },
+    {
+      "name": "work",
+      "properties": [
+        {
+          "key": "medium",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "medium",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R1.1"
+          ],
+          "doc": "Medium by form (D15); fixed when the work is created."
+        },
+        {
+          "key": "olang",
+          "optional": true,
+          "shape": "lang",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.1"
+          ],
+          "doc": "BCP-47 language of the original edition."
+        },
+        {
+          "key": "status",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "work_status",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.3"
+          ],
+          "doc": "Publication status of the whole work."
+        },
+        {
+          "key": "content_rating",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "content_rating",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R1.3"
+          ],
+          "doc": "Age rating of the work itself."
+        }
+      ]
+    },
+    {
+      "name": "work_part",
+      "properties": [
+        {
+          "key": "kind",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "part_kind",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "Volume, chapter, season, episode or disc."
+        },
+        {
+          "key": "ordinal",
+          "optional": true,
+          "shape": "ordinal",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "Sort position within the parent; 8.5 is allowed."
+        },
+        {
+          "key": "label",
+          "optional": true,
+          "shape": "text",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "Volume or episode label exactly as printed, e.g. 「上」 or 「第3巻」."
+        },
+        {
+          "key": "released",
+          "optional": true,
+          "shape": "partial_date",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R8.1"
+          ],
+          "doc": "First release of this part; precision as stated, never completed."
+        }
+      ]
+    },
+    {
+      "name": "work_title",
+      "properties": [
+        {
+          "key": "text",
+          "optional": false,
+          "shape": "title",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R3.1"
+          ],
+          "doc": "A title exactly as printed."
+        },
+        {
+          "key": "lang",
+          "optional": false,
+          "shape": "lang",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R3.1"
+          ],
+          "doc": "BCP-47 language of the title."
+        },
+        {
+          "key": "kind",
+          "optional": false,
+          "shape": "vocab",
+          "vocab": "title_kind",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R3.2"
+          ],
+          "doc": "Official, alternative, romanized or translated."
+        }
+      ]
+    }
+  ],
+  "vocabularies": [
+    {
+      "name": "medium",
+      "terms": [
+        {
+          "key": "game"
+        },
+        {
+          "key": "novel"
+        },
+        {
+          "key": "manga"
+        },
+        {
+          "key": "anime"
+        },
+        {
+          "key": "audio"
+        }
+      ]
+    },
+    {
+      "name": "work_status",
+      "terms": [
+        {
+          "key": "ongoing",
+          "entailed_by": [
+            "続刊",
+            "以下続刊",
+            "連載中"
+          ]
+        },
+        {
+          "key": "complete",
+          "entailed_by": [
+            "完結",
+            "最終巻"
+          ]
+        },
+        {
+          "key": "hiatus",
+          "entailed_by": [
+            "休載",
+            "刊行停止"
+          ]
+        },
+        {
+          "key": "unknown"
+        }
+      ]
+    },
+    {
+      "name": "content_rating",
+      "terms": [
+        {
+          "key": "all_ages"
+        },
+        {
+          "key": "r15",
+          "entailed_by": [
+            "R15",
+            "R-15"
+          ]
+        },
+        {
+          "key": "r18",
+          "entailed_by": [
+            "18禁",
+            "R18",
+            "R-18",
+            "成人向け"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "display_safety",
+      "terms": [
+        {
+          "key": "safe"
+        },
+        {
+          "key": "suggestive"
+        },
+        {
+          "key": "explicit"
+        }
+      ]
+    },
+    {
+      "name": "title_kind",
+      "terms": [
+        {
+          "key": "official"
+        },
+        {
+          "key": "alternative"
+        },
+        {
+          "key": "romanized"
+        },
+        {
+          "key": "translated"
+        }
+      ]
+    },
+    {
+      "name": "part_kind",
+      "terms": [
+        {
+          "key": "volume",
+          "entailed_by": [
+            "巻",
+            "卷",
+            "集"
+          ]
+        },
+        {
+          "key": "chapter",
+          "entailed_by": [
+            "話",
+            "章"
+          ]
+        },
+        {
+          "key": "season"
+        },
+        {
+          "key": "episode"
+        },
+        {
+          "key": "disc"
+        }
+      ]
+    },
+    {
+      "name": "edition_kind",
+      "terms": [
+        {
+          "key": "standard"
+        },
+        {
+          "key": "limited",
+          "entailed_by": [
+            "限定版",
+            "特装版",
+            "特裝版"
+          ]
+        },
+        {
+          "key": "reprint",
+          "entailed_by": [
+            "新装版",
+            "新裝版",
+            "復刻"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "format",
+      "terms": [
+        {
+          "key": "paperback",
+          "entailed_by": [
+            "文庫",
+            "文庫判",
+            "新書"
+          ]
+        },
+        {
+          "key": "hardcover",
+          "entailed_by": [
+            "単行本",
+            "四六判",
+            "B6判"
+          ]
+        },
+        {
+          "key": "digital",
+          "entailed_by": [
+            "電子書籍",
+            "電子版",
+            "電子書"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "release_status",
+      "terms": [
+        {
+          "key": "announced",
+          "entailed_by": [
+            "近刊",
+            "予約",
+            "発売予定"
+          ]
+        },
+        {
+          "key": "released"
+        },
+        {
+          "key": "cancelled",
+          "entailed_by": [
+            "発売中止",
+            "刊行中止"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "portion",
+      "terms": [
+        {
+          "key": "full"
+        },
+        {
+          "key": "partial"
+        }
+      ]
+    },
+    {
+      "name": "org_kind",
+      "terms": [
+        {
+          "key": "company"
+        },
+        {
+          "key": "brand"
+        },
+        {
+          "key": "label"
+        },
+        {
+          "key": "magazine"
+        },
+        {
+          "key": "platform"
+        },
+        {
+          "key": "circle"
+        },
+        {
+          "key": "translation_group"
+        }
+      ]
+    },
+    {
+      "name": "book_role",
+      "terms": [
+        {
+          "key": "author",
+          "entailed_by": [
+            "著",
+            "著者",
+            "作",
+            "作者",
+            "文"
+          ]
+        },
+        {
+          "key": "illustrator",
+          "entailed_by": [
+            "イラスト",
+            "絵",
+            "画",
+            "插畫",
+            "插画",
+            "繪者"
+          ]
+        },
+        {
+          "key": "original_work",
+          "entailed_by": [
+            "原作"
+          ]
+        },
+        {
+          "key": "character_design",
+          "entailed_by": [
+            "キャラクター原案",
+            "キャラクターデザイン"
+          ]
+        },
+        {
+          "key": "translator",
+          "entailed_by": [
+            "翻訳",
+            "訳",
+            "譯者",
+            "译者"
+          ]
+        },
+        {
+          "key": "publisher",
+          "entailed_by": [
+            "発行",
+            "出版"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "book_category",
+      "terms": [
+        {
+          "key": "light_novel"
+        },
+        {
+          "key": "light_bungei"
+        },
+        {
+          "key": "shin_bungei"
+        },
+        {
+          "key": "general"
+        }
+      ]
+    }
+  ],
+  "refusal_codes": [
+    {
+      "code": "CONTRACT_VERSION_UNSUPPORTED",
+      "doc": "the row names a contract version fanin does not accept"
+    },
+    {
+      "code": "SNAPSHOT_MISSING",
+      "doc": "an evidence snapshot is absent from object storage or its hash differs"
+    },
+    {
+      "code": "EXCERPT_NOT_ON_PAGE",
+      "doc": "the cited lines are out of range or not in this lookup's snapshots"
+    },
+    {
+      "code": "VALUE_NOT_ENTAILED",
+      "doc": "the excerpt does not support the value for its shape"
+    },
+    {
+      "code": "TIER_NOT_ALLOWED",
+      "doc": "the source's grade is not allowed for this property"
+    },
+    {
+      "code": "PROPERTY_OUT_OF_SCOPE",
+      "doc": "the program is not registered to write this property"
+    },
+    {
+      "code": "PROPERTY_UNKNOWN",
+      "doc": "the property is not in the registry"
+    },
+    {
+      "code": "VOCAB_TERM_UNKNOWN",
+      "doc": "the value is not a term of the property's vocabulary"
+    },
+    {
+      "code": "HUMAN_LOCKED",
+      "doc": "a person wrote this field; agents do not overwrite it"
+    },
+    {
+      "code": "ENTITY_HELD",
+      "doc": "the entity is held (takedown, dispute or review)"
+    },
+    {
+      "code": "ENTITY_MERGED",
+      "doc": "the entity was merged; resubmit against its survivor"
+    },
+    {
+      "code": "UNIQUE_CONFLICT",
+      "doc": "another entity already holds this unique key"
+    },
+    {
+      "code": "IDENTITY_UNSURE",
+      "doc": "identity could not be decided; a todo was opened"
+    },
+    {
+      "code": "HOST_EXCLUDED",
+      "doc": "the evidence comes from an excluded host"
+    }
+  ],
+  "pool": {
+    "inbox": {
+      "$ref": "#/$defs/InboxRow"
+    },
+    "outbox": {
+      "$ref": "#/$defs/OutboxRow"
+    }
+  },
+  "$defs": {
+    "Candidate": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "minItems": 1,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "property": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/Target"
+        },
+        "tier": {
+          "enum": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "type": "string"
+        },
+        "value": {}
+      },
+      "required": [
+        "target",
+        "property",
+        "value",
+        "tier",
+        "evidence"
+      ],
+      "type": "object"
+    },
+    "Changeset": {
+      "additionalProperties": false,
+      "properties": {
+        "entities": {
+          "items": {
+            "$ref": "#/$defs/NewEntity"
+          },
+          "minItems": 1,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "lead_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lead_id",
+        "entities"
+      ],
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "line_from": {
+          "format": "int64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "line_to": {
+          "format": "int64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "path": {
+          "description": "Field path inside the record.",
+          "type": "string"
+        },
+        "record_id": {
+          "description": "A registry record, instead of a snapshot.",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "description": "Content hash of the snapshot.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "InboxRow": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "CONTRACT_VERSION_UNSUPPORTED",
+            "SNAPSHOT_MISSING",
+            "EXCERPT_NOT_ON_PAGE",
+            "VALUE_NOT_ENTAILED",
+            "TIER_NOT_ALLOWED",
+            "PROPERTY_OUT_OF_SCOPE",
+            "PROPERTY_UNKNOWN",
+            "VOCAB_TERM_UNKNOWN",
+            "HUMAN_LOCKED",
+            "ENTITY_HELD",
+            "ENTITY_MERGED",
+            "UNIQUE_CONFLICT",
+            "IDENTITY_UNSURE",
+            "HOST_EXCLUDED"
+          ],
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "entity_id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "outbox_id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "result": {
+          "enum": [
+            "written",
+            "todo",
+            "refused"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "outbox_id",
+        "result"
+      ],
+      "type": "object"
+    },
+    "LeadResult": {
+      "additionalProperties": false,
+      "properties": {
+        "lead_id": {
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "verified",
+            "not_eligible",
+            "unsure",
+            "blocked"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lead_id",
+        "outcome"
+      ],
+      "type": "object"
+    },
+    "NewEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "description": "Keyed by property; each value carries its own evidence.",
+          "type": "object"
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "entity",
+        "properties"
+      ],
+      "type": "object"
+    },
+    "OutboxRow": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate": {
+          "$ref": "#/$defs/Candidate"
+        },
+        "changeset": {
+          "$ref": "#/$defs/Changeset"
+        },
+        "contract_version": {
+          "enum": [
+            "0.1.0"
+          ],
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "candidate",
+            "changeset",
+            "lead_result"
+          ],
+          "type": "string"
+        },
+        "lead_result": {
+          "$ref": "#/$defs/LeadResult"
+        },
+        "lookup_id": {
+          "description": "The lookup session that produced the row.",
+          "type": "string"
+        },
+        "program": {
+          "description": "Registered program key (plan 05 §9).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_version",
+        "kind",
+        "program"
+      ],
+      "type": "object"
+    },
+    "Target": {
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "description": "Entity name from this contract.",
+          "type": "string"
+        },
+        "id": {
+          "description": "An existing canon id.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "ref": {
+          "description": "A ref of an entity created in the same changeset.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity"
+      ],
+      "type": "object"
+    }
+  }
+}

@@ -3,7 +3,9 @@
 package ent
 
 import (
+	"api/internal/canon/ent/bookwork"
 	"api/internal/canon/ent/work"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -19,11 +21,90 @@ type Work struct {
 	ID int64 `json:"id,omitempty"`
 	// Medium holds the value of the "medium" field.
 	Medium string `json:"medium,omitempty"`
+	// Olang holds the value of the "olang" field.
+	Olang string `json:"olang,omitempty"`
+	// Status holds the value of the "status" field.
+	Status string `json:"status,omitempty"`
+	// ContentRating holds the value of the "content_rating" field.
+	ContentRating string `json:"content_rating,omitempty"`
+	// DisplaySafety holds the value of the "display_safety" field.
+	DisplaySafety string `json:"display_safety,omitempty"`
+	// FieldState holds the value of the "field_state" field.
+	FieldState map[string]interface{} `json:"field_state,omitempty"`
+	// Version holds the value of the "version" field.
+	Version int `json:"version,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the WorkQuery when eager-loading is set.
+	Edges        WorkEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// WorkEdges holds the relations/edges for other nodes in the graph.
+type WorkEdges struct {
+	// Titles holds the value of the titles edge.
+	Titles []*WorkTitle `json:"titles,omitempty"`
+	// Parts holds the value of the parts edge.
+	Parts []*WorkPart `json:"parts,omitempty"`
+	// Contents holds the value of the contents edge.
+	Contents []*ReleaseContent `json:"contents,omitempty"`
+	// Book holds the value of the book edge.
+	Book *BookWork `json:"book,omitempty"`
+	// Credits holds the value of the credits edge.
+	Credits []*Credit `json:"credits,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [5]bool
+}
+
+// TitlesOrErr returns the Titles value or an error if the edge
+// was not loaded in eager-loading.
+func (e WorkEdges) TitlesOrErr() ([]*WorkTitle, error) {
+	if e.loadedTypes[0] {
+		return e.Titles, nil
+	}
+	return nil, &NotLoadedError{edge: "titles"}
+}
+
+// PartsOrErr returns the Parts value or an error if the edge
+// was not loaded in eager-loading.
+func (e WorkEdges) PartsOrErr() ([]*WorkPart, error) {
+	if e.loadedTypes[1] {
+		return e.Parts, nil
+	}
+	return nil, &NotLoadedError{edge: "parts"}
+}
+
+// ContentsOrErr returns the Contents value or an error if the edge
+// was not loaded in eager-loading.
+func (e WorkEdges) ContentsOrErr() ([]*ReleaseContent, error) {
+	if e.loadedTypes[2] {
+		return e.Contents, nil
+	}
+	return nil, &NotLoadedError{edge: "contents"}
+}
+
+// BookOrErr returns the Book value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e WorkEdges) BookOrErr() (*BookWork, error) {
+	if e.Book != nil {
+		return e.Book, nil
+	} else if e.loadedTypes[3] {
+		return nil, &NotFoundError{label: bookwork.Label}
+	}
+	return nil, &NotLoadedError{edge: "book"}
+}
+
+// CreditsOrErr returns the Credits value or an error if the edge
+// was not loaded in eager-loading.
+func (e WorkEdges) CreditsOrErr() ([]*Credit, error) {
+	if e.loadedTypes[4] {
+		return e.Credits, nil
+	}
+	return nil, &NotLoadedError{edge: "credits"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -31,9 +112,11 @@ func (*Work) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case work.FieldID:
+		case work.FieldFieldState:
+			values[i] = new([]byte)
+		case work.FieldID, work.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case work.FieldMedium:
+		case work.FieldMedium, work.FieldOlang, work.FieldStatus, work.FieldContentRating, work.FieldDisplaySafety:
 			values[i] = new(sql.NullString)
 		case work.FieldCreatedAt, work.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -64,6 +147,44 @@ func (_m *Work) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Medium = value.String
 			}
+		case work.FieldOlang:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field olang", values[i])
+			} else if value.Valid {
+				_m.Olang = value.String
+			}
+		case work.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = value.String
+			}
+		case work.FieldContentRating:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field content_rating", values[i])
+			} else if value.Valid {
+				_m.ContentRating = value.String
+			}
+		case work.FieldDisplaySafety:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field display_safety", values[i])
+			} else if value.Valid {
+				_m.DisplaySafety = value.String
+			}
+		case work.FieldFieldState:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field field_state", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.FieldState); err != nil {
+					return fmt.Errorf("unmarshal field field_state: %w", err)
+				}
+			}
+		case work.FieldVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field version", values[i])
+			} else if value.Valid {
+				_m.Version = int(value.Int64)
+			}
 		case work.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -87,6 +208,31 @@ func (_m *Work) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Work) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryTitles queries the "titles" edge of the Work entity.
+func (_m *Work) QueryTitles() *WorkTitleQuery {
+	return NewWorkClient(_m.config).QueryTitles(_m)
+}
+
+// QueryParts queries the "parts" edge of the Work entity.
+func (_m *Work) QueryParts() *WorkPartQuery {
+	return NewWorkClient(_m.config).QueryParts(_m)
+}
+
+// QueryContents queries the "contents" edge of the Work entity.
+func (_m *Work) QueryContents() *ReleaseContentQuery {
+	return NewWorkClient(_m.config).QueryContents(_m)
+}
+
+// QueryBook queries the "book" edge of the Work entity.
+func (_m *Work) QueryBook() *BookWorkQuery {
+	return NewWorkClient(_m.config).QueryBook(_m)
+}
+
+// QueryCredits queries the "credits" edge of the Work entity.
+func (_m *Work) QueryCredits() *CreditQuery {
+	return NewWorkClient(_m.config).QueryCredits(_m)
 }
 
 // Update returns a builder for updating this Work.
@@ -114,6 +260,24 @@ func (_m *Work) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("medium=")
 	builder.WriteString(_m.Medium)
+	builder.WriteString(", ")
+	builder.WriteString("olang=")
+	builder.WriteString(_m.Olang)
+	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("content_rating=")
+	builder.WriteString(_m.ContentRating)
+	builder.WriteString(", ")
+	builder.WriteString("display_safety=")
+	builder.WriteString(_m.DisplaySafety)
+	builder.WriteString(", ")
+	builder.WriteString("field_state=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FieldState))
+	builder.WriteString(", ")
+	builder.WriteString("version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Version))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

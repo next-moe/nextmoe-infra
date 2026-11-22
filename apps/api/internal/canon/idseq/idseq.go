@@ -14,8 +14,9 @@ type Family struct {
 	Sequence string
 }
 
-// Families is every entity family whose ids canon continues. A family missing
-// here would get a canon sequence of its own and collide with legacy ids.
+// Families is every public entity family; Legacy is the table whose ids it
+// continues, empty for a family new in canon. A legacy family missing here
+// would get a sequence of its own and collide with legacy ids.
 var Families = []Family{
 	{"catalog_work", "work"},
 	{"catalog_release", "release"},
@@ -28,6 +29,7 @@ var Families = []Family{
 	{"catalog_tag", "tag"},
 	{"catalog_series", "franchise"},
 	{"catalog_engine", "engine"},
+	{"", "work_part"},
 }
 
 const Schema = "canon_ids"
@@ -55,9 +57,11 @@ func adopt(ctx context.Context, db *sql.DB, f Family) error {
 
 	table := "public." + f.Legacy
 	seq := QualifiedSequence(f)
-	var present bool
-	if err := tx.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, table).Scan(&present); err != nil {
-		return err
+	present := false
+	if f.Legacy != "" {
+		if err := tx.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, table).Scan(&present); err != nil {
+			return err
+		}
 	}
 	if !present {
 		if _, err := tx.ExecContext(ctx, `CREATE SEQUENCE IF NOT EXISTS `+seq+` AS bigint`); err != nil {

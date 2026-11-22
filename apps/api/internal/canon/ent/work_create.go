@@ -3,7 +3,12 @@
 package ent
 
 import (
+	"api/internal/canon/ent/bookwork"
+	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/work"
+	"api/internal/canon/ent/workpart"
+	"api/internal/canon/ent/worktitle"
 	"context"
 	"errors"
 	"fmt"
@@ -23,6 +28,82 @@ type WorkCreate struct {
 // SetMedium sets the "medium" field.
 func (_c *WorkCreate) SetMedium(v string) *WorkCreate {
 	_c.mutation.SetMedium(v)
+	return _c
+}
+
+// SetOlang sets the "olang" field.
+func (_c *WorkCreate) SetOlang(v string) *WorkCreate {
+	_c.mutation.SetOlang(v)
+	return _c
+}
+
+// SetNillableOlang sets the "olang" field if the given value is not nil.
+func (_c *WorkCreate) SetNillableOlang(v *string) *WorkCreate {
+	if v != nil {
+		_c.SetOlang(*v)
+	}
+	return _c
+}
+
+// SetStatus sets the "status" field.
+func (_c *WorkCreate) SetStatus(v string) *WorkCreate {
+	_c.mutation.SetStatus(v)
+	return _c
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_c *WorkCreate) SetNillableStatus(v *string) *WorkCreate {
+	if v != nil {
+		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetContentRating sets the "content_rating" field.
+func (_c *WorkCreate) SetContentRating(v string) *WorkCreate {
+	_c.mutation.SetContentRating(v)
+	return _c
+}
+
+// SetNillableContentRating sets the "content_rating" field if the given value is not nil.
+func (_c *WorkCreate) SetNillableContentRating(v *string) *WorkCreate {
+	if v != nil {
+		_c.SetContentRating(*v)
+	}
+	return _c
+}
+
+// SetDisplaySafety sets the "display_safety" field.
+func (_c *WorkCreate) SetDisplaySafety(v string) *WorkCreate {
+	_c.mutation.SetDisplaySafety(v)
+	return _c
+}
+
+// SetNillableDisplaySafety sets the "display_safety" field if the given value is not nil.
+func (_c *WorkCreate) SetNillableDisplaySafety(v *string) *WorkCreate {
+	if v != nil {
+		_c.SetDisplaySafety(*v)
+	}
+	return _c
+}
+
+// SetFieldState sets the "field_state" field.
+func (_c *WorkCreate) SetFieldState(v map[string]interface{}) *WorkCreate {
+	_c.mutation.SetFieldState(v)
+	return _c
+}
+
+// SetVersion sets the "version" field.
+func (_c *WorkCreate) SetVersion(v int) *WorkCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *WorkCreate) SetNillableVersion(v *int) *WorkCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
 	return _c
 }
 
@@ -60,6 +141,85 @@ func (_c *WorkCreate) SetID(v int64) *WorkCreate {
 	return _c
 }
 
+// AddTitleIDs adds the "titles" edge to the WorkTitle entity by IDs.
+func (_c *WorkCreate) AddTitleIDs(ids ...int) *WorkCreate {
+	_c.mutation.AddTitleIDs(ids...)
+	return _c
+}
+
+// AddTitles adds the "titles" edges to the WorkTitle entity.
+func (_c *WorkCreate) AddTitles(v ...*WorkTitle) *WorkCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTitleIDs(ids...)
+}
+
+// AddPartIDs adds the "parts" edge to the WorkPart entity by IDs.
+func (_c *WorkCreate) AddPartIDs(ids ...int64) *WorkCreate {
+	_c.mutation.AddPartIDs(ids...)
+	return _c
+}
+
+// AddParts adds the "parts" edges to the WorkPart entity.
+func (_c *WorkCreate) AddParts(v ...*WorkPart) *WorkCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddPartIDs(ids...)
+}
+
+// AddContentIDs adds the "contents" edge to the ReleaseContent entity by IDs.
+func (_c *WorkCreate) AddContentIDs(ids ...int) *WorkCreate {
+	_c.mutation.AddContentIDs(ids...)
+	return _c
+}
+
+// AddContents adds the "contents" edges to the ReleaseContent entity.
+func (_c *WorkCreate) AddContents(v ...*ReleaseContent) *WorkCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddContentIDs(ids...)
+}
+
+// SetBookID sets the "book" edge to the BookWork entity by ID.
+func (_c *WorkCreate) SetBookID(id int) *WorkCreate {
+	_c.mutation.SetBookID(id)
+	return _c
+}
+
+// SetNillableBookID sets the "book" edge to the BookWork entity by ID if the given value is not nil.
+func (_c *WorkCreate) SetNillableBookID(id *int) *WorkCreate {
+	if id != nil {
+		_c = _c.SetBookID(*id)
+	}
+	return _c
+}
+
+// SetBook sets the "book" edge to the BookWork entity.
+func (_c *WorkCreate) SetBook(v *BookWork) *WorkCreate {
+	return _c.SetBookID(v.ID)
+}
+
+// AddCreditIDs adds the "credits" edge to the Credit entity by IDs.
+func (_c *WorkCreate) AddCreditIDs(ids ...int64) *WorkCreate {
+	_c.mutation.AddCreditIDs(ids...)
+	return _c
+}
+
+// AddCredits adds the "credits" edges to the Credit entity.
+func (_c *WorkCreate) AddCredits(v ...*Credit) *WorkCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCreditIDs(ids...)
+}
+
 // Mutation returns the WorkMutation object of the builder.
 func (_c *WorkCreate) Mutation() *WorkMutation {
 	return _c.mutation
@@ -95,6 +255,26 @@ func (_c *WorkCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *WorkCreate) defaults() {
+	if _, ok := _c.mutation.Status(); !ok {
+		v := work.DefaultStatus
+		_c.mutation.SetStatus(v)
+	}
+	if _, ok := _c.mutation.ContentRating(); !ok {
+		v := work.DefaultContentRating
+		_c.mutation.SetContentRating(v)
+	}
+	if _, ok := _c.mutation.DisplaySafety(); !ok {
+		v := work.DefaultDisplaySafety
+		_c.mutation.SetDisplaySafety(v)
+	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		v := work.DefaultFieldState
+		_c.mutation.SetFieldState(v)
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := work.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := work.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -110,10 +290,20 @@ func (_c *WorkCreate) check() error {
 	if _, ok := _c.mutation.Medium(); !ok {
 		return &ValidationError{Name: "medium", err: errors.New(`ent: missing required field "Work.medium"`)}
 	}
-	if v, ok := _c.mutation.Medium(); ok {
-		if err := work.MediumValidator(v); err != nil {
-			return &ValidationError{Name: "medium", err: fmt.Errorf(`ent: validator failed for field "Work.medium": %w`, err)}
-		}
+	if _, ok := _c.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Work.status"`)}
+	}
+	if _, ok := _c.mutation.ContentRating(); !ok {
+		return &ValidationError{Name: "content_rating", err: errors.New(`ent: missing required field "Work.content_rating"`)}
+	}
+	if _, ok := _c.mutation.DisplaySafety(); !ok {
+		return &ValidationError{Name: "display_safety", err: errors.New(`ent: missing required field "Work.display_safety"`)}
+	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		return &ValidationError{Name: "field_state", err: errors.New(`ent: missing required field "Work.field_state"`)}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "Work.version"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Work.created_at"`)}
@@ -157,6 +347,30 @@ func (_c *WorkCreate) createSpec() (*Work, *sqlgraph.CreateSpec) {
 		_spec.SetField(work.FieldMedium, field.TypeString, value)
 		_node.Medium = value
 	}
+	if value, ok := _c.mutation.Olang(); ok {
+		_spec.SetField(work.FieldOlang, field.TypeString, value)
+		_node.Olang = value
+	}
+	if value, ok := _c.mutation.Status(); ok {
+		_spec.SetField(work.FieldStatus, field.TypeString, value)
+		_node.Status = value
+	}
+	if value, ok := _c.mutation.ContentRating(); ok {
+		_spec.SetField(work.FieldContentRating, field.TypeString, value)
+		_node.ContentRating = value
+	}
+	if value, ok := _c.mutation.DisplaySafety(); ok {
+		_spec.SetField(work.FieldDisplaySafety, field.TypeString, value)
+		_node.DisplaySafety = value
+	}
+	if value, ok := _c.mutation.FieldState(); ok {
+		_spec.SetField(work.FieldFieldState, field.TypeJSON, value)
+		_node.FieldState = value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(work.FieldVersion, field.TypeInt, value)
+		_node.Version = value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(work.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -164,6 +378,86 @@ func (_c *WorkCreate) createSpec() (*Work, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(work.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.TitlesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.TitlesTable,
+			Columns: []string{work.TitlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(worktitle.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PartsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.PartsTable,
+			Columns: []string{work.PartsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workpart.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ContentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.ContentsTable,
+			Columns: []string{work.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(releasecontent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.BookIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   work.BookTable,
+			Columns: []string{work.BookColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(bookwork.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CreditsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   work.CreditsTable,
+			Columns: []string{work.CreditsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

@@ -14,8 +14,30 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// BookRelease is the client for interacting with the BookRelease builders.
+	BookRelease *BookReleaseClient
+	// BookWork is the client for interacting with the BookWork builders.
+	BookWork *BookWorkClient
+	// Credit is the client for interacting with the Credit builders.
+	Credit *CreditClient
+	// Org is the client for interacting with the Org builders.
+	Org *OrgClient
+	// OrgName is the client for interacting with the OrgName builders.
+	OrgName *OrgNameClient
+	// Person is the client for interacting with the Person builders.
+	Person *PersonClient
+	// PersonAlias is the client for interacting with the PersonAlias builders.
+	PersonAlias *PersonAliasClient
+	// Release is the client for interacting with the Release builders.
+	Release *ReleaseClient
+	// ReleaseContent is the client for interacting with the ReleaseContent builders.
+	ReleaseContent *ReleaseContentClient
 	// Work is the client for interacting with the Work builders.
 	Work *WorkClient
+	// WorkPart is the client for interacting with the WorkPart builders.
+	WorkPart *WorkPartClient
+	// WorkTitle is the client for interacting with the WorkTitle builders.
+	WorkTitle *WorkTitleClient
 
 	// lazily loaded.
 	client     *Client
@@ -147,7 +169,18 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.BookRelease = NewBookReleaseClient(tx.config)
+	tx.BookWork = NewBookWorkClient(tx.config)
+	tx.Credit = NewCreditClient(tx.config)
+	tx.Org = NewOrgClient(tx.config)
+	tx.OrgName = NewOrgNameClient(tx.config)
+	tx.Person = NewPersonClient(tx.config)
+	tx.PersonAlias = NewPersonAliasClient(tx.config)
+	tx.Release = NewReleaseClient(tx.config)
+	tx.ReleaseContent = NewReleaseContentClient(tx.config)
 	tx.Work = NewWorkClient(tx.config)
+	tx.WorkPart = NewWorkPartClient(tx.config)
+	tx.WorkTitle = NewWorkTitleClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.
@@ -157,7 +190,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: Work.QueryXXX(), the query will be executed
+// applies a query, for example: BookRelease.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

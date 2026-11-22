@@ -9,10 +9,283 @@ import (
 )
 
 var (
+	// BookReleaseColumns holds the columns for the "book_release" table.
+	BookReleaseColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "isbn13", Type: field.TypeString, Nullable: true},
+		{Name: "jan", Type: field.TypeString, Nullable: true},
+		{Name: "label_number", Type: field.TypeString, Nullable: true},
+		{Name: "pages", Type: field.TypeInt, Nullable: true},
+		{Name: "price_amount", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "numeric(12,2)"}},
+		{Name: "price_currency", Type: field.TypeString, Nullable: true},
+		{Name: "price_tax_included", Type: field.TypeBool, Nullable: true},
+		{Name: "publisher_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "label_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "release_id", Type: field.TypeInt64, Unique: true},
+	}
+	// BookReleaseTable holds the schema information for the "book_release" table.
+	BookReleaseTable = &schema.Table{
+		Name:       "book_release",
+		Columns:    BookReleaseColumns,
+		PrimaryKey: []*schema.Column{BookReleaseColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "book_release_org_published",
+				Columns:    []*schema.Column{BookReleaseColumns[8]},
+				RefColumns: []*schema.Column{OrgColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "book_release_org_labelled",
+				Columns:    []*schema.Column{BookReleaseColumns[9]},
+				RefColumns: []*schema.Column{OrgColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "book_release_release_book",
+				Columns:    []*schema.Column{BookReleaseColumns[10]},
+				RefColumns: []*schema.Column{ReleaseColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "bookrelease_isbn13",
+				Unique:  true,
+				Columns: []*schema.Column{BookReleaseColumns[1]},
+			},
+			{
+				Name:    "bookrelease_jan",
+				Unique:  true,
+				Columns: []*schema.Column{BookReleaseColumns[2]},
+			},
+		},
+	}
+	// BookWorkColumns holds the columns for the "book_work" table.
+	BookWorkColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "category", Type: field.TypeString},
+		{Name: "work_id", Type: field.TypeInt64, Unique: true},
+	}
+	// BookWorkTable holds the schema information for the "book_work" table.
+	BookWorkTable = &schema.Table{
+		Name:       "book_work",
+		Columns:    BookWorkColumns,
+		PrimaryKey: []*schema.Column{BookWorkColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "book_work_work_book",
+				Columns:    []*schema.Column{BookWorkColumns[2]},
+				RefColumns: []*schema.Column{WorkColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// CreditColumns holds the columns for the "credit" table.
+	CreditColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.credit')")},
+		{Name: "role", Type: field.TypeString},
+		{Name: "position", Type: field.TypeInt, Default: 0},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "org_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "alias_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "release_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "work_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "part_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// CreditTable holds the schema information for the "credit" table.
+	CreditTable = &schema.Table{
+		Name:       "credit",
+		Columns:    CreditColumns,
+		PrimaryKey: []*schema.Column{CreditColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "credit_org_credits",
+				Columns:    []*schema.Column{CreditColumns[7]},
+				RefColumns: []*schema.Column{OrgColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "credit_person_alias_credits",
+				Columns:    []*schema.Column{CreditColumns[8]},
+				RefColumns: []*schema.Column{PersonAliasColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "credit_release_credits",
+				Columns:    []*schema.Column{CreditColumns[9]},
+				RefColumns: []*schema.Column{ReleaseColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "credit_work_credits",
+				Columns:    []*schema.Column{CreditColumns[10]},
+				RefColumns: []*schema.Column{WorkColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "credit_work_part_credits",
+				Columns:    []*schema.Column{CreditColumns[11]},
+				RefColumns: []*schema.Column{WorkPartColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// OrgColumns holds the columns for the "org" table.
+	OrgColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.org')")},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "parent_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// OrgTable holds the schema information for the "org" table.
+	OrgTable = &schema.Table{
+		Name:       "org",
+		Columns:    OrgColumns,
+		PrimaryKey: []*schema.Column{OrgColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "org_org_children",
+				Columns:    []*schema.Column{OrgColumns[6]},
+				RefColumns: []*schema.Column{OrgColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// OrgNameColumns holds the columns for the "org_name" table.
+	OrgNameColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "text", Type: field.TypeString},
+		{Name: "lang", Type: field.TypeString},
+		{Name: "position", Type: field.TypeInt, Default: 0},
+		{Name: "org_id", Type: field.TypeInt64},
+	}
+	// OrgNameTable holds the schema information for the "org_name" table.
+	OrgNameTable = &schema.Table{
+		Name:       "org_name",
+		Columns:    OrgNameColumns,
+		PrimaryKey: []*schema.Column{OrgNameColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "org_name_org_names",
+				Columns:    []*schema.Column{OrgNameColumns[4]},
+				RefColumns: []*schema.Column{OrgColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// PersonColumns holds the columns for the "person" table.
+	PersonColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.person')")},
+		{Name: "primary_alias_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PersonTable holds the schema information for the "person" table.
+	PersonTable = &schema.Table{
+		Name:       "person",
+		Columns:    PersonColumns,
+		PrimaryKey: []*schema.Column{PersonColumns[0]},
+	}
+	// PersonAliasColumns holds the columns for the "person_alias" table.
+	PersonAliasColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.person_alias')")},
+		{Name: "name", Type: field.TypeString},
+		{Name: "latin", Type: field.TypeString, Nullable: true},
+		{Name: "lang", Type: field.TypeString, Nullable: true},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "person_id", Type: field.TypeInt64},
+	}
+	// PersonAliasTable holds the schema information for the "person_alias" table.
+	PersonAliasTable = &schema.Table{
+		Name:       "person_alias",
+		Columns:    PersonAliasColumns,
+		PrimaryKey: []*schema.Column{PersonAliasColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "person_alias_person_aliases",
+				Columns:    []*schema.Column{PersonAliasColumns[8]},
+				RefColumns: []*schema.Column{PersonColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// ReleaseColumns holds the columns for the "release" table.
+	ReleaseColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.release')")},
+		{Name: "lang", Type: field.TypeString},
+		{Name: "edition_kind", Type: field.TypeString, Default: "standard"},
+		{Name: "format", Type: field.TypeString},
+		{Name: "released", Type: field.TypeString, Nullable: true},
+		{Name: "release_status", Type: field.TypeString, Default: "released"},
+		{Name: "official_url", Type: field.TypeString, Nullable: true},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ReleaseTable holds the schema information for the "release" table.
+	ReleaseTable = &schema.Table{
+		Name:       "release",
+		Columns:    ReleaseColumns,
+		PrimaryKey: []*schema.Column{ReleaseColumns[0]},
+	}
+	// ReleaseContentColumns holds the columns for the "release_content" table.
+	ReleaseContentColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "portion", Type: field.TypeString, Default: "full"},
+		{Name: "position", Type: field.TypeInt, Default: 0},
+		{Name: "release_id", Type: field.TypeInt64},
+		{Name: "work_id", Type: field.TypeInt64},
+		{Name: "part_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// ReleaseContentTable holds the schema information for the "release_content" table.
+	ReleaseContentTable = &schema.Table{
+		Name:       "release_content",
+		Columns:    ReleaseContentColumns,
+		PrimaryKey: []*schema.Column{ReleaseContentColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "release_content_release_contents",
+				Columns:    []*schema.Column{ReleaseContentColumns[3]},
+				RefColumns: []*schema.Column{ReleaseColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "release_content_work_contents",
+				Columns:    []*schema.Column{ReleaseContentColumns[4]},
+				RefColumns: []*schema.Column{WorkColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "release_content_work_part_contents",
+				Columns:    []*schema.Column{ReleaseContentColumns[5]},
+				RefColumns: []*schema.Column{WorkPartColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// WorkColumns holds the columns for the "work" table.
 	WorkColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.work')")},
 		{Name: "medium", Type: field.TypeString},
+		{Name: "olang", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "unknown"},
+		{Name: "content_rating", Type: field.TypeString, Default: "all_ages"},
+		{Name: "display_safety", Type: field.TypeString, Default: "safe"},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -22,14 +295,144 @@ var (
 		Columns:    WorkColumns,
 		PrimaryKey: []*schema.Column{WorkColumns[0]},
 	}
+	// WorkPartColumns holds the columns for the "work_part" table.
+	WorkPartColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.work_part')")},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "ordinal", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "numeric(10,2)"}},
+		{Name: "label", Type: field.TypeString, Nullable: true},
+		{Name: "released", Type: field.TypeString, Nullable: true},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "work_id", Type: field.TypeInt64},
+		{Name: "parent_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// WorkPartTable holds the schema information for the "work_part" table.
+	WorkPartTable = &schema.Table{
+		Name:       "work_part",
+		Columns:    WorkPartColumns,
+		PrimaryKey: []*schema.Column{WorkPartColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "work_part_work_parts",
+				Columns:    []*schema.Column{WorkPartColumns[9]},
+				RefColumns: []*schema.Column{WorkColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "work_part_work_part_children",
+				Columns:    []*schema.Column{WorkPartColumns[10]},
+				RefColumns: []*schema.Column{WorkPartColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// WorkTitleColumns holds the columns for the "work_title" table.
+	WorkTitleColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "text", Type: field.TypeString},
+		{Name: "lang", Type: field.TypeString},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "machine", Type: field.TypeBool, Default: false},
+		{Name: "position", Type: field.TypeInt, Default: 0},
+		{Name: "work_id", Type: field.TypeInt64},
+	}
+	// WorkTitleTable holds the schema information for the "work_title" table.
+	WorkTitleTable = &schema.Table{
+		Name:       "work_title",
+		Columns:    WorkTitleColumns,
+		PrimaryKey: []*schema.Column{WorkTitleColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "work_title_work_titles",
+				Columns:    []*schema.Column{WorkTitleColumns[6]},
+				RefColumns: []*schema.Column{WorkColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		BookReleaseTable,
+		BookWorkTable,
+		CreditTable,
+		OrgTable,
+		OrgNameTable,
+		PersonTable,
+		PersonAliasTable,
+		ReleaseTable,
+		ReleaseContentTable,
 		WorkTable,
+		WorkPartTable,
+		WorkTitleTable,
 	}
 )
 
 func init() {
+	BookReleaseTable.ForeignKeys[0].RefTable = OrgTable
+	BookReleaseTable.ForeignKeys[1].RefTable = OrgTable
+	BookReleaseTable.ForeignKeys[2].RefTable = ReleaseTable
+	BookReleaseTable.Annotation = &entsql.Annotation{
+		Table: "book_release",
+	}
+	BookWorkTable.ForeignKeys[0].RefTable = WorkTable
+	BookWorkTable.Annotation = &entsql.Annotation{
+		Table: "book_work",
+	}
+	CreditTable.ForeignKeys[0].RefTable = OrgTable
+	CreditTable.ForeignKeys[1].RefTable = PersonAliasTable
+	CreditTable.ForeignKeys[2].RefTable = ReleaseTable
+	CreditTable.ForeignKeys[3].RefTable = WorkTable
+	CreditTable.ForeignKeys[4].RefTable = WorkPartTable
+	CreditTable.Annotation = &entsql.Annotation{
+		Table: "credit",
+	}
+	CreditTable.Annotation.Checks = map[string]string{
+		"credit_one_holder": "num_nonnulls(alias_id, org_id) = 1",
+		"credit_one_target": "num_nonnulls(work_id, part_id, release_id) = 1",
+	}
+	OrgTable.ForeignKeys[0].RefTable = OrgTable
+	OrgTable.Annotation = &entsql.Annotation{
+		Table: "org",
+	}
+	OrgNameTable.ForeignKeys[0].RefTable = OrgTable
+	OrgNameTable.Annotation = &entsql.Annotation{
+		Table: "org_name",
+	}
+	PersonTable.Annotation = &entsql.Annotation{
+		Table: "person",
+	}
+	PersonAliasTable.ForeignKeys[0].RefTable = PersonTable
+	PersonAliasTable.Annotation = &entsql.Annotation{
+		Table: "person_alias",
+	}
+	ReleaseTable.Annotation = &entsql.Annotation{
+		Table: "release",
+	}
+	ReleaseTable.Annotation.Checks = map[string]string{
+		"release_released_shape": "released ~ '^([0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?|unknown)$'",
+	}
+	ReleaseContentTable.ForeignKeys[0].RefTable = ReleaseTable
+	ReleaseContentTable.ForeignKeys[1].RefTable = WorkTable
+	ReleaseContentTable.ForeignKeys[2].RefTable = WorkPartTable
+	ReleaseContentTable.Annotation = &entsql.Annotation{
+		Table: "release_content",
+	}
 	WorkTable.Annotation = &entsql.Annotation{
 		Table: "work",
+	}
+	WorkPartTable.ForeignKeys[0].RefTable = WorkTable
+	WorkPartTable.ForeignKeys[1].RefTable = WorkPartTable
+	WorkPartTable.Annotation = &entsql.Annotation{
+		Table: "work_part",
+	}
+	WorkPartTable.Annotation.Checks = map[string]string{
+		"work_part_released_shape": "released ~ '^([0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?|unknown)$'",
+	}
+	WorkTitleTable.ForeignKeys[0].RefTable = WorkTable
+	WorkTitleTable.Annotation = &entsql.Annotation{
+		Table: "work_title",
 	}
 }

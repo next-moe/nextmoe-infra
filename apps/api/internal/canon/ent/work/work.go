@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -15,18 +16,81 @@ const (
 	FieldID = "id"
 	// FieldMedium holds the string denoting the medium field in the database.
 	FieldMedium = "medium"
+	// FieldOlang holds the string denoting the olang field in the database.
+	FieldOlang = "olang"
+	// FieldStatus holds the string denoting the status field in the database.
+	FieldStatus = "status"
+	// FieldContentRating holds the string denoting the content_rating field in the database.
+	FieldContentRating = "content_rating"
+	// FieldDisplaySafety holds the string denoting the display_safety field in the database.
+	FieldDisplaySafety = "display_safety"
+	// FieldFieldState holds the string denoting the field_state field in the database.
+	FieldFieldState = "field_state"
+	// FieldVersion holds the string denoting the version field in the database.
+	FieldVersion = "version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeTitles holds the string denoting the titles edge name in mutations.
+	EdgeTitles = "titles"
+	// EdgeParts holds the string denoting the parts edge name in mutations.
+	EdgeParts = "parts"
+	// EdgeContents holds the string denoting the contents edge name in mutations.
+	EdgeContents = "contents"
+	// EdgeBook holds the string denoting the book edge name in mutations.
+	EdgeBook = "book"
+	// EdgeCredits holds the string denoting the credits edge name in mutations.
+	EdgeCredits = "credits"
 	// Table holds the table name of the work in the database.
 	Table = "work"
+	// TitlesTable is the table that holds the titles relation/edge.
+	TitlesTable = "work_title"
+	// TitlesInverseTable is the table name for the WorkTitle entity.
+	// It exists in this package in order to avoid circular dependency with the "worktitle" package.
+	TitlesInverseTable = "work_title"
+	// TitlesColumn is the table column denoting the titles relation/edge.
+	TitlesColumn = "work_id"
+	// PartsTable is the table that holds the parts relation/edge.
+	PartsTable = "work_part"
+	// PartsInverseTable is the table name for the WorkPart entity.
+	// It exists in this package in order to avoid circular dependency with the "workpart" package.
+	PartsInverseTable = "work_part"
+	// PartsColumn is the table column denoting the parts relation/edge.
+	PartsColumn = "work_id"
+	// ContentsTable is the table that holds the contents relation/edge.
+	ContentsTable = "release_content"
+	// ContentsInverseTable is the table name for the ReleaseContent entity.
+	// It exists in this package in order to avoid circular dependency with the "releasecontent" package.
+	ContentsInverseTable = "release_content"
+	// ContentsColumn is the table column denoting the contents relation/edge.
+	ContentsColumn = "work_id"
+	// BookTable is the table that holds the book relation/edge.
+	BookTable = "book_work"
+	// BookInverseTable is the table name for the BookWork entity.
+	// It exists in this package in order to avoid circular dependency with the "bookwork" package.
+	BookInverseTable = "book_work"
+	// BookColumn is the table column denoting the book relation/edge.
+	BookColumn = "work_id"
+	// CreditsTable is the table that holds the credits relation/edge.
+	CreditsTable = "credit"
+	// CreditsInverseTable is the table name for the Credit entity.
+	// It exists in this package in order to avoid circular dependency with the "credit" package.
+	CreditsInverseTable = "credit"
+	// CreditsColumn is the table column denoting the credits relation/edge.
+	CreditsColumn = "work_id"
 )
 
 // Columns holds all SQL columns for work fields.
 var Columns = []string{
 	FieldID,
 	FieldMedium,
+	FieldOlang,
+	FieldStatus,
+	FieldContentRating,
+	FieldDisplaySafety,
+	FieldFieldState,
+	FieldVersion,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -42,8 +106,16 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// MediumValidator is a validator for the "medium" field. It is called by the builders before save.
-	MediumValidator func(string) error
+	// DefaultStatus holds the default value on creation for the "status" field.
+	DefaultStatus string
+	// DefaultContentRating holds the default value on creation for the "content_rating" field.
+	DefaultContentRating string
+	// DefaultDisplaySafety holds the default value on creation for the "display_safety" field.
+	DefaultDisplaySafety string
+	// DefaultFieldState holds the default value on creation for the "field_state" field.
+	DefaultFieldState map[string]interface{}
+	// DefaultVersion holds the default value on creation for the "version" field.
+	DefaultVersion int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -65,6 +137,31 @@ func ByMedium(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMedium, opts...).ToFunc()
 }
 
+// ByOlang orders the results by the olang field.
+func ByOlang(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOlang, opts...).ToFunc()
+}
+
+// ByStatus orders the results by the status field.
+func ByStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByContentRating orders the results by the content_rating field.
+func ByContentRating(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContentRating, opts...).ToFunc()
+}
+
+// ByDisplaySafety orders the results by the display_safety field.
+func ByDisplaySafety(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisplaySafety, opts...).ToFunc()
+}
+
+// ByVersion orders the results by the version field.
+func ByVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
@@ -73,4 +170,102 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByTitlesCount orders the results by titles count.
+func ByTitlesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTitlesStep(), opts...)
+	}
+}
+
+// ByTitles orders the results by titles terms.
+func ByTitles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTitlesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByPartsCount orders the results by parts count.
+func ByPartsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPartsStep(), opts...)
+	}
+}
+
+// ByParts orders the results by parts terms.
+func ByParts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPartsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByContentsCount orders the results by contents count.
+func ByContentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newContentsStep(), opts...)
+	}
+}
+
+// ByContents orders the results by contents terms.
+func ByContents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newContentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByBookField orders the results by book field.
+func ByBookField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBookStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByCreditsCount orders the results by credits count.
+func ByCreditsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCreditsStep(), opts...)
+	}
+}
+
+// ByCredits orders the results by credits terms.
+func ByCredits(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCreditsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newTitlesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TitlesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TitlesTable, TitlesColumn),
+	)
+}
+func newPartsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PartsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PartsTable, PartsColumn),
+	)
+}
+func newContentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ContentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ContentsTable, ContentsColumn),
+	)
+}
+func newBookStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BookInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, BookTable, BookColumn),
+	)
+}
+func newCreditsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CreditsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CreditsTable, CreditsColumn),
+	)
 }
