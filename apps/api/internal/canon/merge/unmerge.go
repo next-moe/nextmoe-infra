@@ -15,7 +15,8 @@ var ErrUndone = errors.New("merge already undone")
 
 // Unmerge puts a merge back from its record: the loser row returns with its
 // id, every moved row points at it again, every dropped row is reinserted, and
-// the redirect is revoked. Rows written to the survivor since stay there.
+// the redirect is revoked. Rows written to the survivor since stay there, and
+// a survivor's user row that took the loser's later intent keeps it.
 func Unmerge(ctx context.Context, client *ent.Client, mergeID int, by string) error {
 	tx, err := client.Tx(ctx)
 	if err != nil {
@@ -48,9 +49,9 @@ func Unmerge(ctx context.Context, client *ent.Client, mergeID int, by string) er
 		switch action {
 		case "moved":
 			to := rec.LoserID
-			q, args = `UPDATE canon.`+table+` SET `+column+` = $1 WHERE id = $2 AND `+column+` = $3`, []any{to, r.ID, rec.SurvivorID}
+			q, args = `UPDATE `+table+` SET `+column+` = $1 WHERE id = $2 AND `+column+` = $3`, []any{to, r.ID, rec.SurvivorID}
 		case "dropped":
-			q, args = `INSERT INTO canon.`+table+` SELECT * FROM jsonb_populate_record(NULL::canon.`+table+`, $1) ON CONFLICT DO NOTHING`, []any{snap}
+			q, args = `INSERT INTO `+table+` SELECT * FROM jsonb_populate_record(NULL::`+table+`, $1) ON CONFLICT DO NOTHING`, []any{snap}
 		default:
 			continue
 		}

@@ -132,7 +132,7 @@ func Merge(ctx context.Context, client *ent.Client, entity string, loser, surviv
 			return 0, fmt.Errorf("%s.%s: %w", r.table, r.column, err2)
 		}
 		for _, b := range snaps {
-			moves = append(moves, Movement{Table: r.table, Column: r.column, Action: action, Row: b})
+			moves = append(moves, Movement{Table: "canon." + r.table, Column: r.column, Action: action, Row: b})
 		}
 	}
 	for _, t := range polymorphic {
@@ -141,7 +141,7 @@ func Merge(ctx context.Context, client *ent.Client, entity string, loser, surviv
 			return 0, err
 		}
 		for _, id := range ids {
-			moves = append(moves, Movement{Table: t, Column: "entity_id", Action: "moved", Row: json.RawMessage(fmt.Sprintf(`{"id":%d}`, id))})
+			moves = append(moves, Movement{Table: "canon." + t, Column: "entity_id", Action: "moved", Row: json.RawMessage(fmt.Sprintf(`{"id":%d}`, id))})
 		}
 	}
 	flattened, err := ids(ctx, tx, `UPDATE canon.redirect SET new_id = $3 WHERE entity = $1 AND new_id = $2 AND revoked_at IS NULL RETURNING id`, entity, loser, survivor)
@@ -149,7 +149,14 @@ func Merge(ctx context.Context, client *ent.Client, entity string, loser, surviv
 		return 0, err
 	}
 	for _, id := range flattened {
-		moves = append(moves, Movement{Table: "redirect", Column: "new_id", Action: "moved", Row: json.RawMessage(fmt.Sprintf(`{"id":%d}`, id))})
+		moves = append(moves, Movement{Table: "canon.redirect", Column: "new_id", Action: "moved", Row: json.RawMessage(fmt.Sprintf(`{"id":%d}`, id))})
+	}
+	if entity == "work" {
+		lib, err := rehangLibrary(ctx, tx, loser, survivor)
+		if err != nil {
+			return 0, err
+		}
+		moves = append(moves, lib...)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM canon.`+entity+` WHERE id = $1`, loser); err != nil {
 		return 0, fmt.Errorf("delete loser: %w", err)
