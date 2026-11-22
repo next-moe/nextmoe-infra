@@ -33,6 +33,9 @@ type Release func(*sql.Selector)
 // ReleaseContent is the predicate function for releasecontent builders.
 type ReleaseContent func(*sql.Selector)
 
+// Revision is the predicate function for revision builders.
+type Revision func(*sql.Selector)
+
 // Work is the predicate function for work builders.
 type Work func(*sql.Selector)
 

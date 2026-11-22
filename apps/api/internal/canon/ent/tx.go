@@ -32,6 +32,8 @@ type Tx struct {
 	Release *ReleaseClient
 	// ReleaseContent is the client for interacting with the ReleaseContent builders.
 	ReleaseContent *ReleaseContentClient
+	// Revision is the client for interacting with the Revision builders.
+	Revision *RevisionClient
 	// Work is the client for interacting with the Work builders.
 	Work *WorkClient
 	// WorkPart is the client for interacting with the WorkPart builders.
@@ -178,6 +180,7 @@ func (tx *Tx) init() {
 	tx.PersonAlias = NewPersonAliasClient(tx.config)
 	tx.Release = NewReleaseClient(tx.config)
 	tx.ReleaseContent = NewReleaseContentClient(tx.config)
+	tx.Revision = NewRevisionClient(tx.config)
 	tx.Work = NewWorkClient(tx.config)
 	tx.WorkPart = NewWorkPartClient(tx.config)
 	tx.WorkTitle = NewWorkTitleClient(tx.config)

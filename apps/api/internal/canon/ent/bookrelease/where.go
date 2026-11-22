@@ -99,9 +99,9 @@ func PriceCurrency(v string) predicate.BookRelease {
 	return predicate.BookRelease(sql.FieldEQ(FieldPriceCurrency, v))
 }
 
-// PriceTaxIncluded applies equality check predicate on the "price_tax_included" field. It's identical to PriceTaxIncludedEQ.
-func PriceTaxIncluded(v bool) predicate.BookRelease {
-	return predicate.BookRelease(sql.FieldEQ(FieldPriceTaxIncluded, v))
+// PriceBasis applies equality check predicate on the "price_basis" field. It's identical to PriceBasisEQ.
+func PriceBasis(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldEQ(FieldPriceBasis, v))
 }
 
 // ReleaseIDEQ applies the EQ predicate on the "release_id" field.
@@ -609,24 +609,79 @@ func PriceCurrencyContainsFold(v string) predicate.BookRelease {
 	return predicate.BookRelease(sql.FieldContainsFold(FieldPriceCurrency, v))
 }
 
-// PriceTaxIncludedEQ applies the EQ predicate on the "price_tax_included" field.
-func PriceTaxIncludedEQ(v bool) predicate.BookRelease {
-	return predicate.BookRelease(sql.FieldEQ(FieldPriceTaxIncluded, v))
+// PriceBasisEQ applies the EQ predicate on the "price_basis" field.
+func PriceBasisEQ(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldEQ(FieldPriceBasis, v))
 }
 
-// PriceTaxIncludedNEQ applies the NEQ predicate on the "price_tax_included" field.
-func PriceTaxIncludedNEQ(v bool) predicate.BookRelease {
-	return predicate.BookRelease(sql.FieldNEQ(FieldPriceTaxIncluded, v))
+// PriceBasisNEQ applies the NEQ predicate on the "price_basis" field.
+func PriceBasisNEQ(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldNEQ(FieldPriceBasis, v))
 }
 
-// PriceTaxIncludedIsNil applies the IsNil predicate on the "price_tax_included" field.
-func PriceTaxIncludedIsNil() predicate.BookRelease {
-	return predicate.BookRelease(sql.FieldIsNull(FieldPriceTaxIncluded))
+// PriceBasisIn applies the In predicate on the "price_basis" field.
+func PriceBasisIn(vs ...string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldIn(FieldPriceBasis, vs...))
 }
 
-// PriceTaxIncludedNotNil applies the NotNil predicate on the "price_tax_included" field.
-func PriceTaxIncludedNotNil() predicate.BookRelease {
-	return predicate.BookRelease(sql.FieldNotNull(FieldPriceTaxIncluded))
+// PriceBasisNotIn applies the NotIn predicate on the "price_basis" field.
+func PriceBasisNotIn(vs ...string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldNotIn(FieldPriceBasis, vs...))
+}
+
+// PriceBasisGT applies the GT predicate on the "price_basis" field.
+func PriceBasisGT(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldGT(FieldPriceBasis, v))
+}
+
+// PriceBasisGTE applies the GTE predicate on the "price_basis" field.
+func PriceBasisGTE(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldGTE(FieldPriceBasis, v))
+}
+
+// PriceBasisLT applies the LT predicate on the "price_basis" field.
+func PriceBasisLT(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldLT(FieldPriceBasis, v))
+}
+
+// PriceBasisLTE applies the LTE predicate on the "price_basis" field.
+func PriceBasisLTE(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldLTE(FieldPriceBasis, v))
+}
+
+// PriceBasisContains applies the Contains predicate on the "price_basis" field.
+func PriceBasisContains(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldContains(FieldPriceBasis, v))
+}
+
+// PriceBasisHasPrefix applies the HasPrefix predicate on the "price_basis" field.
+func PriceBasisHasPrefix(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldHasPrefix(FieldPriceBasis, v))
+}
+
+// PriceBasisHasSuffix applies the HasSuffix predicate on the "price_basis" field.
+func PriceBasisHasSuffix(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldHasSuffix(FieldPriceBasis, v))
+}
+
+// PriceBasisIsNil applies the IsNil predicate on the "price_basis" field.
+func PriceBasisIsNil() predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldIsNull(FieldPriceBasis))
+}
+
+// PriceBasisNotNil applies the NotNil predicate on the "price_basis" field.
+func PriceBasisNotNil() predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldNotNull(FieldPriceBasis))
+}
+
+// PriceBasisEqualFold applies the EqualFold predicate on the "price_basis" field.
+func PriceBasisEqualFold(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldEqualFold(FieldPriceBasis, v))
+}
+
+// PriceBasisContainsFold applies the ContainsFold predicate on the "price_basis" field.
+func PriceBasisContainsFold(v string) predicate.BookRelease {
+	return predicate.BookRelease(sql.FieldContainsFold(FieldPriceBasis, v))
 }
 
 // HasRelease applies the HasEdge predicate on the "release" edge.

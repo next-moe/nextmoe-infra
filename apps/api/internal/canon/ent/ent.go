@@ -12,6 +12,7 @@ import (
 	"api/internal/canon/ent/personalias"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
+	"api/internal/canon/ent/revision"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
@@ -93,6 +94,7 @@ func checkColumn(t, c string) error {
 			personalias.Table:    personalias.ValidColumn,
 			release.Table:        release.ValidColumn,
 			releasecontent.Table: releasecontent.ValidColumn,
+			revision.Table:       revision.ValidColumn,
 			work.Table:           work.ValidColumn,
 			workpart.Table:       workpart.ValidColumn,
 			worktitle.Table:      worktitle.ValidColumn,

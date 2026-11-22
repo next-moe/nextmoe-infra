@@ -43,7 +43,7 @@ func (WorkTitle) Annotations() []schema.Annotation {
 
 func (WorkTitle) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int64("work_id"),
+		with(field.Int64("work_id"), r.RefFact("work", "The work this title names.", "R3.1")),
 		with(field.String("text").NotEmpty(), r.Fact(r.ShapeTitle, "A title exactly as printed.", "R3.1")),
 		with(field.String("lang"), r.Fact(r.ShapeLang, "BCP-47 language of the title.", "R3.1")),
 		with(field.String("kind"), r.VocabFact("title_kind", "Official, alternative, romanized or translated.", "R3.2")),
@@ -65,8 +65,8 @@ func (WorkPart) Annotations() []schema.Annotation {
 func (WorkPart) Fields() []ent.Field {
 	return append([]ent.Field{
 		publicID("work_part"),
-		field.Int64("work_id"),
-		field.Int64("parent_id").Optional().Nillable(),
+		with(field.Int64("work_id"), r.RefFact("work", "The work this part belongs to.", "R4.2")),
+		with(field.Int64("parent_id").Optional().Nillable(), r.RefFact("work_part", "The enclosing part, e.g. the volume of a chapter.", "R4.2")),
 		with(field.String("kind"), r.VocabFact("part_kind", "Volume, chapter, season, episode or disc.", "R4.2")),
 		with(field.Float("ordinal").Optional().Nillable().SchemaType(numeric("10,2")), r.Fact(r.ShapeOrdinal, "Sort position within the parent; 8.5 is allowed.", "R4.2")),
 		with(field.String("label").Optional(), r.Fact(r.ShapeText, "Volume or episode label exactly as printed, e.g. 「上」 or 「第3巻」.", "R4.2")),

@@ -22,6 +22,7 @@ import (
 	telemetrymigrate "api/internal/platform/telemetry/migrate"
 	trustmigrate "api/internal/platform/trust/migrate"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/gorm"
 )
 

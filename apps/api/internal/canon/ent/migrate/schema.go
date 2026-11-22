@@ -18,7 +18,7 @@ var (
 		{Name: "pages", Type: field.TypeInt, Nullable: true},
 		{Name: "price_amount", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "numeric(12,2)"}},
 		{Name: "price_currency", Type: field.TypeString, Nullable: true},
-		{Name: "price_tax_included", Type: field.TypeBool, Nullable: true},
+		{Name: "price_basis", Type: field.TypeString, Nullable: true},
 		{Name: "publisher_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "label_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "release_id", Type: field.TypeInt64, Unique: true},
@@ -276,6 +276,31 @@ var (
 			},
 		},
 	}
+	// RevisionColumns holds the columns for the "revision" table.
+	RevisionColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "entity", Type: field.TypeString},
+		{Name: "entity_id", Type: field.TypeInt64},
+		{Name: "action", Type: field.TypeString},
+		{Name: "actor_kind", Type: field.TypeString},
+		{Name: "actor_key", Type: field.TypeString},
+		{Name: "note", Type: field.TypeString, Nullable: true},
+		{Name: "changes", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// RevisionTable holds the schema information for the "revision" table.
+	RevisionTable = &schema.Table{
+		Name:       "revision",
+		Columns:    RevisionColumns,
+		PrimaryKey: []*schema.Column{RevisionColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "revision_entity_entity_id",
+				Unique:  false,
+				Columns: []*schema.Column{RevisionColumns[1], RevisionColumns[2]},
+			},
+		},
+	}
 	// WorkColumns holds the columns for the "work" table.
 	WorkColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.work')")},
@@ -364,6 +389,7 @@ var (
 		PersonAliasTable,
 		ReleaseTable,
 		ReleaseContentTable,
+		RevisionTable,
 		WorkTable,
 		WorkPartTable,
 		WorkTitleTable,
@@ -419,6 +445,9 @@ func init() {
 	ReleaseContentTable.ForeignKeys[2].RefTable = WorkPartTable
 	ReleaseContentTable.Annotation = &entsql.Annotation{
 		Table: "release_content",
+	}
+	RevisionTable.Annotation = &entsql.Annotation{
+		Table: "revision",
 	}
 	WorkTable.Annotation = &entsql.Annotation{
 		Table: "work",

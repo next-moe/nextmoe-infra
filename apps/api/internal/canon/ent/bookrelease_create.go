@@ -139,16 +139,16 @@ func (_c *BookReleaseCreate) SetNillablePriceCurrency(v *string) *BookReleaseCre
 	return _c
 }
 
-// SetPriceTaxIncluded sets the "price_tax_included" field.
-func (_c *BookReleaseCreate) SetPriceTaxIncluded(v bool) *BookReleaseCreate {
-	_c.mutation.SetPriceTaxIncluded(v)
+// SetPriceBasis sets the "price_basis" field.
+func (_c *BookReleaseCreate) SetPriceBasis(v string) *BookReleaseCreate {
+	_c.mutation.SetPriceBasis(v)
 	return _c
 }
 
-// SetNillablePriceTaxIncluded sets the "price_tax_included" field if the given value is not nil.
-func (_c *BookReleaseCreate) SetNillablePriceTaxIncluded(v *bool) *BookReleaseCreate {
+// SetNillablePriceBasis sets the "price_basis" field if the given value is not nil.
+func (_c *BookReleaseCreate) SetNillablePriceBasis(v *string) *BookReleaseCreate {
 	if v != nil {
-		_c.SetPriceTaxIncluded(*v)
+		_c.SetPriceBasis(*v)
 	}
 	return _c
 }
@@ -258,9 +258,9 @@ func (_c *BookReleaseCreate) createSpec() (*BookRelease, *sqlgraph.CreateSpec) {
 		_spec.SetField(bookrelease.FieldPriceCurrency, field.TypeString, value)
 		_node.PriceCurrency = value
 	}
-	if value, ok := _c.mutation.PriceTaxIncluded(); ok {
-		_spec.SetField(bookrelease.FieldPriceTaxIncluded, field.TypeBool, value)
-		_node.PriceTaxIncluded = &value
+	if value, ok := _c.mutation.PriceBasis(); ok {
+		_spec.SetField(bookrelease.FieldPriceBasis, field.TypeString, value)
+		_node.PriceBasis = value
 	}
 	if nodes := _c.mutation.ReleaseIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

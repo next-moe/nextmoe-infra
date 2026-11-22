@@ -20,6 +20,7 @@ import (
 	"api/internal/canon/ent/personalias"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
+	"api/internal/canon/ent/revision"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
@@ -55,6 +56,8 @@ type Client struct {
 	Release *ReleaseClient
 	// ReleaseContent is the client for interacting with the ReleaseContent builders.
 	ReleaseContent *ReleaseContentClient
+	// Revision is the client for interacting with the Revision builders.
+	Revision *RevisionClient
 	// Work is the client for interacting with the Work builders.
 	Work *WorkClient
 	// WorkPart is the client for interacting with the WorkPart builders.
@@ -81,6 +84,7 @@ func (c *Client) init() {
 	c.PersonAlias = NewPersonAliasClient(c.config)
 	c.Release = NewReleaseClient(c.config)
 	c.ReleaseContent = NewReleaseContentClient(c.config)
+	c.Revision = NewRevisionClient(c.config)
 	c.Work = NewWorkClient(c.config)
 	c.WorkPart = NewWorkPartClient(c.config)
 	c.WorkTitle = NewWorkTitleClient(c.config)
@@ -185,6 +189,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PersonAlias:    NewPersonAliasClient(cfg),
 		Release:        NewReleaseClient(cfg),
 		ReleaseContent: NewReleaseContentClient(cfg),
+		Revision:       NewRevisionClient(cfg),
 		Work:           NewWorkClient(cfg),
 		WorkPart:       NewWorkPartClient(cfg),
 		WorkTitle:      NewWorkTitleClient(cfg),
@@ -216,6 +221,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PersonAlias:    NewPersonAliasClient(cfg),
 		Release:        NewReleaseClient(cfg),
 		ReleaseContent: NewReleaseContentClient(cfg),
+		Revision:       NewRevisionClient(cfg),
 		Work:           NewWorkClient(cfg),
 		WorkPart:       NewWorkPartClient(cfg),
 		WorkTitle:      NewWorkTitleClient(cfg),
@@ -249,7 +255,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.BookRelease, c.BookWork, c.Credit, c.Org, c.OrgName, c.Person, c.PersonAlias,
-		c.Release, c.ReleaseContent, c.Work, c.WorkPart, c.WorkTitle,
+		c.Release, c.ReleaseContent, c.Revision, c.Work, c.WorkPart, c.WorkTitle,
 	} {
 		n.Use(hooks...)
 	}
@@ -260,7 +266,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.BookRelease, c.BookWork, c.Credit, c.Org, c.OrgName, c.Person, c.PersonAlias,
-		c.Release, c.ReleaseContent, c.Work, c.WorkPart, c.WorkTitle,
+		c.Release, c.ReleaseContent, c.Revision, c.Work, c.WorkPart, c.WorkTitle,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -287,6 +293,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Release.mutate(ctx, m)
 	case *ReleaseContentMutation:
 		return c.ReleaseContent.mutate(ctx, m)
+	case *RevisionMutation:
+		return c.Revision.mutate(ctx, m)
 	case *WorkMutation:
 		return c.Work.mutate(ctx, m)
 	case *WorkPartMutation:
@@ -1895,6 +1903,139 @@ func (c *ReleaseContentClient) mutate(ctx context.Context, m *ReleaseContentMuta
 	}
 }
 
+// RevisionClient is a client for the Revision schema.
+type RevisionClient struct {
+	config
+}
+
+// NewRevisionClient returns a client for the Revision from the given config.
+func NewRevisionClient(c config) *RevisionClient {
+	return &RevisionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `revision.Hooks(f(g(h())))`.
+func (c *RevisionClient) Use(hooks ...Hook) {
+	c.hooks.Revision = append(c.hooks.Revision, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `revision.Intercept(f(g(h())))`.
+func (c *RevisionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Revision = append(c.inters.Revision, interceptors...)
+}
+
+// Create returns a builder for creating a Revision entity.
+func (c *RevisionClient) Create() *RevisionCreate {
+	mutation := newRevisionMutation(c.config, OpCreate)
+	return &RevisionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Revision entities.
+func (c *RevisionClient) CreateBulk(builders ...*RevisionCreate) *RevisionCreateBulk {
+	return &RevisionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RevisionClient) MapCreateBulk(slice any, setFunc func(*RevisionCreate, int)) *RevisionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RevisionCreateBulk{err: fmt.Errorf("calling to RevisionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RevisionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RevisionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Revision.
+func (c *RevisionClient) Update() *RevisionUpdate {
+	mutation := newRevisionMutation(c.config, OpUpdate)
+	return &RevisionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RevisionClient) UpdateOne(_m *Revision) *RevisionUpdateOne {
+	mutation := newRevisionMutation(c.config, OpUpdateOne, withRevision(_m))
+	return &RevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RevisionClient) UpdateOneID(id int64) *RevisionUpdateOne {
+	mutation := newRevisionMutation(c.config, OpUpdateOne, withRevisionID(id))
+	return &RevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Revision.
+func (c *RevisionClient) Delete() *RevisionDelete {
+	mutation := newRevisionMutation(c.config, OpDelete)
+	return &RevisionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RevisionClient) DeleteOne(_m *Revision) *RevisionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RevisionClient) DeleteOneID(id int64) *RevisionDeleteOne {
+	builder := c.Delete().Where(revision.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RevisionDeleteOne{builder}
+}
+
+// Query returns a query builder for Revision.
+func (c *RevisionClient) Query() *RevisionQuery {
+	return &RevisionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRevision},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Revision entity by its id.
+func (c *RevisionClient) Get(ctx context.Context, id int64) (*Revision, error) {
+	return c.Query().Where(revision.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RevisionClient) GetX(ctx context.Context, id int64) *Revision {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *RevisionClient) Hooks() []Hook {
+	return c.hooks.Revision
+}
+
+// Interceptors returns the client interceptors.
+func (c *RevisionClient) Interceptors() []Interceptor {
+	return c.inters.Revision
+}
+
+func (c *RevisionClient) mutate(ctx context.Context, m *RevisionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RevisionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RevisionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RevisionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Revision mutation op: %q", m.Op())
+	}
+}
+
 // WorkClient is a client for the Work schema.
 type WorkClient struct {
 	config
@@ -2474,11 +2615,11 @@ func (c *WorkTitleClient) mutate(ctx context.Context, m *WorkTitleMutation) (Val
 type (
 	hooks struct {
 		BookRelease, BookWork, Credit, Org, OrgName, Person, PersonAlias, Release,
-		ReleaseContent, Work, WorkPart, WorkTitle []ent.Hook
+		ReleaseContent, Revision, Work, WorkPart, WorkTitle []ent.Hook
 	}
 	inters struct {
 		BookRelease, BookWork, Credit, Org, OrgName, Person, PersonAlias, Release,
-		ReleaseContent, Work, WorkPart, WorkTitle []ent.Interceptor
+		ReleaseContent, Revision, Work, WorkPart, WorkTitle []ent.Interceptor
 	}
 )
 

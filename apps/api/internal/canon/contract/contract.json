@@ -5,6 +5,22 @@
       "name": "book_release",
       "properties": [
         {
+          "key": "release_id",
+          "optional": false,
+          "shape": "ref",
+          "ref": "release",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "The release this extension describes."
+        },
+        {
           "key": "isbn13",
           "optional": true,
           "shape": "isbn13",
@@ -131,9 +147,10 @@
           "doc": "ISO 4217 currency of the price."
         },
         {
-          "key": "price_tax_included",
+          "key": "price_basis",
           "optional": true,
-          "shape": "bool",
+          "shape": "vocab",
+          "vocab": "price_basis",
           "tiers": [
             "official",
             "registry",
@@ -143,13 +160,29 @@
           "clauses": [
             "R8.2"
           ],
-          "doc": "Whether the printed price includes tax."
+          "doc": "Whether price_amount is the tax-inclusive 定価 or the 本体 price."
         }
       ]
     },
     {
       "name": "book_work",
       "properties": [
+        {
+          "key": "work_id",
+          "optional": false,
+          "shape": "ref",
+          "ref": "work",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R1.4"
+          ],
+          "doc": "The work this extension describes."
+        },
         {
           "key": "category",
           "optional": false,
@@ -310,6 +343,22 @@
       "name": "org_name",
       "properties": [
         {
+          "key": "org_id",
+          "optional": false,
+          "shape": "ref",
+          "ref": "org",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.2"
+          ],
+          "doc": "The organization this name belongs to."
+        },
+        {
           "key": "text",
           "optional": false,
           "shape": "title",
@@ -342,8 +391,28 @@
       ]
     },
     {
+      "name": "person",
+      "properties": null
+    },
+    {
       "name": "person_alias",
       "properties": [
+        {
+          "key": "person_id",
+          "optional": false,
+          "shape": "ref",
+          "ref": "person",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R7.1"
+          ],
+          "doc": "The person this name belongs to."
+        },
         {
           "key": "name",
           "optional": false,
@@ -493,6 +562,22 @@
       "name": "release_content",
       "properties": [
         {
+          "key": "release_id",
+          "optional": false,
+          "shape": "ref",
+          "ref": "release",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "The edition."
+        },
+        {
           "key": "work_id",
           "optional": false,
           "shape": "ref",
@@ -615,6 +700,38 @@
       "name": "work_part",
       "properties": [
         {
+          "key": "work_id",
+          "optional": false,
+          "shape": "ref",
+          "ref": "work",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "The work this part belongs to."
+        },
+        {
+          "key": "parent_id",
+          "optional": true,
+          "shape": "ref",
+          "ref": "work_part",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R4.2"
+          ],
+          "doc": "The enclosing part, e.g. the volume of a chapter."
+        },
+        {
           "key": "kind",
           "optional": false,
           "shape": "vocab",
@@ -680,6 +797,22 @@
     {
       "name": "work_title",
       "properties": [
+        {
+          "key": "work_id",
+          "optional": false,
+          "shape": "ref",
+          "ref": "work",
+          "tiers": [
+            "official",
+            "registry",
+            "retailer"
+          ],
+          "agent": true,
+          "clauses": [
+            "R3.1"
+          ],
+          "doc": "The work this title names."
+        },
         {
           "key": "text",
           "optional": false,
@@ -1028,6 +1161,28 @@
           "entailed_by": [
             "発行",
             "出版"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "price_basis",
+      "terms": [
+        {
+          "key": "tax_included",
+          "entailed_by": [
+            "税込",
+            "含稅",
+            "含税"
+          ]
+        },
+        {
+          "key": "tax_excluded",
+          "entailed_by": [
+            "本体",
+            "税抜",
+            "+税",
+            "未稅"
           ]
         }
       ]

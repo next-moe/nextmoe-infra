@@ -210,23 +210,23 @@ func (_u *BookReleaseUpdate) ClearPriceCurrency() *BookReleaseUpdate {
 	return _u
 }
 
-// SetPriceTaxIncluded sets the "price_tax_included" field.
-func (_u *BookReleaseUpdate) SetPriceTaxIncluded(v bool) *BookReleaseUpdate {
-	_u.mutation.SetPriceTaxIncluded(v)
+// SetPriceBasis sets the "price_basis" field.
+func (_u *BookReleaseUpdate) SetPriceBasis(v string) *BookReleaseUpdate {
+	_u.mutation.SetPriceBasis(v)
 	return _u
 }
 
-// SetNillablePriceTaxIncluded sets the "price_tax_included" field if the given value is not nil.
-func (_u *BookReleaseUpdate) SetNillablePriceTaxIncluded(v *bool) *BookReleaseUpdate {
+// SetNillablePriceBasis sets the "price_basis" field if the given value is not nil.
+func (_u *BookReleaseUpdate) SetNillablePriceBasis(v *string) *BookReleaseUpdate {
 	if v != nil {
-		_u.SetPriceTaxIncluded(*v)
+		_u.SetPriceBasis(*v)
 	}
 	return _u
 }
 
-// ClearPriceTaxIncluded clears the value of the "price_tax_included" field.
-func (_u *BookReleaseUpdate) ClearPriceTaxIncluded() *BookReleaseUpdate {
-	_u.mutation.ClearPriceTaxIncluded()
+// ClearPriceBasis clears the value of the "price_basis" field.
+func (_u *BookReleaseUpdate) ClearPriceBasis() *BookReleaseUpdate {
+	_u.mutation.ClearPriceBasis()
 	return _u
 }
 
@@ -354,11 +354,11 @@ func (_u *BookReleaseUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if _u.mutation.PriceCurrencyCleared() {
 		_spec.ClearField(bookrelease.FieldPriceCurrency, field.TypeString)
 	}
-	if value, ok := _u.mutation.PriceTaxIncluded(); ok {
-		_spec.SetField(bookrelease.FieldPriceTaxIncluded, field.TypeBool, value)
+	if value, ok := _u.mutation.PriceBasis(); ok {
+		_spec.SetField(bookrelease.FieldPriceBasis, field.TypeString, value)
 	}
-	if _u.mutation.PriceTaxIncludedCleared() {
-		_spec.ClearField(bookrelease.FieldPriceTaxIncluded, field.TypeBool)
+	if _u.mutation.PriceBasisCleared() {
+		_spec.ClearField(bookrelease.FieldPriceBasis, field.TypeString)
 	}
 	if _u.mutation.ReleaseCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -648,23 +648,23 @@ func (_u *BookReleaseUpdateOne) ClearPriceCurrency() *BookReleaseUpdateOne {
 	return _u
 }
 
-// SetPriceTaxIncluded sets the "price_tax_included" field.
-func (_u *BookReleaseUpdateOne) SetPriceTaxIncluded(v bool) *BookReleaseUpdateOne {
-	_u.mutation.SetPriceTaxIncluded(v)
+// SetPriceBasis sets the "price_basis" field.
+func (_u *BookReleaseUpdateOne) SetPriceBasis(v string) *BookReleaseUpdateOne {
+	_u.mutation.SetPriceBasis(v)
 	return _u
 }
 
-// SetNillablePriceTaxIncluded sets the "price_tax_included" field if the given value is not nil.
-func (_u *BookReleaseUpdateOne) SetNillablePriceTaxIncluded(v *bool) *BookReleaseUpdateOne {
+// SetNillablePriceBasis sets the "price_basis" field if the given value is not nil.
+func (_u *BookReleaseUpdateOne) SetNillablePriceBasis(v *string) *BookReleaseUpdateOne {
 	if v != nil {
-		_u.SetPriceTaxIncluded(*v)
+		_u.SetPriceBasis(*v)
 	}
 	return _u
 }
 
-// ClearPriceTaxIncluded clears the value of the "price_tax_included" field.
-func (_u *BookReleaseUpdateOne) ClearPriceTaxIncluded() *BookReleaseUpdateOne {
-	_u.mutation.ClearPriceTaxIncluded()
+// ClearPriceBasis clears the value of the "price_basis" field.
+func (_u *BookReleaseUpdateOne) ClearPriceBasis() *BookReleaseUpdateOne {
+	_u.mutation.ClearPriceBasis()
 	return _u
 }
 
@@ -822,11 +822,11 @@ func (_u *BookReleaseUpdateOne) sqlSave(ctx context.Context) (_node *BookRelease
 	if _u.mutation.PriceCurrencyCleared() {
 		_spec.ClearField(bookrelease.FieldPriceCurrency, field.TypeString)
 	}
-	if value, ok := _u.mutation.PriceTaxIncluded(); ok {
-		_spec.SetField(bookrelease.FieldPriceTaxIncluded, field.TypeBool, value)
+	if value, ok := _u.mutation.PriceBasis(); ok {
+		_spec.SetField(bookrelease.FieldPriceBasis, field.TypeString, value)
 	}
-	if _u.mutation.PriceTaxIncludedCleared() {
-		_spec.ClearField(bookrelease.FieldPriceTaxIncluded, field.TypeBool)
+	if _u.mutation.PriceBasisCleared() {
+		_spec.ClearField(bookrelease.FieldPriceBasis, field.TypeString)
 	}
 	if _u.mutation.ReleaseCleared() {
 		edge := &sqlgraph.EdgeSpec{

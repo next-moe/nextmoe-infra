@@ -35,7 +35,7 @@ func (PersonAlias) Annotations() []schema.Annotation {
 func (PersonAlias) Fields() []ent.Field {
 	return append([]ent.Field{
 		publicID("person_alias"),
-		field.Int64("person_id"),
+		with(field.Int64("person_id"), r.RefFact("person", "The person this name belongs to.", "R7.1")),
 		with(field.String("name").NotEmpty(), r.Fact(r.ShapePersonName, "The name exactly as credited.", "R7.1")),
 		with(field.String("latin").Optional(), r.Fact(r.ShapeText, "Romanization of the name.", "R7.1")),
 		with(field.String("lang").Optional(), r.Fact(r.ShapeLang, "BCP-47 language of the name.", "R7.1")),
@@ -79,7 +79,7 @@ func (OrgName) Annotations() []schema.Annotation {
 
 func (OrgName) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int64("org_id"),
+		with(field.Int64("org_id"), r.RefFact("org", "The organization this name belongs to.", "R7.2")),
 		with(field.String("text").NotEmpty(), r.Fact(r.ShapeTitle, "A name of the organization as it presents itself.", "R7.2")),
 		with(field.String("lang"), r.Fact(r.ShapeLang, "BCP-47 language of the name.", "R7.2")),
 		field.Int("position").Default(0),

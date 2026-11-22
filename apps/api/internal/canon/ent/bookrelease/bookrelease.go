@@ -30,8 +30,8 @@ const (
 	FieldPriceAmount = "price_amount"
 	// FieldPriceCurrency holds the string denoting the price_currency field in the database.
 	FieldPriceCurrency = "price_currency"
-	// FieldPriceTaxIncluded holds the string denoting the price_tax_included field in the database.
-	FieldPriceTaxIncluded = "price_tax_included"
+	// FieldPriceBasis holds the string denoting the price_basis field in the database.
+	FieldPriceBasis = "price_basis"
 	// EdgeRelease holds the string denoting the release edge name in mutations.
 	EdgeRelease = "release"
 	// EdgePublisher holds the string denoting the publisher edge name in mutations.
@@ -75,7 +75,7 @@ var Columns = []string{
 	FieldPages,
 	FieldPriceAmount,
 	FieldPriceCurrency,
-	FieldPriceTaxIncluded,
+	FieldPriceBasis,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -141,9 +141,9 @@ func ByPriceCurrency(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPriceCurrency, opts...).ToFunc()
 }
 
-// ByPriceTaxIncluded orders the results by the price_tax_included field.
-func ByPriceTaxIncluded(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPriceTaxIncluded, opts...).ToFunc()
+// ByPriceBasis orders the results by the price_basis field.
+func ByPriceBasis(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceBasis, opts...).ToFunc()
 }
 
 // ByReleaseField orders the results by release field.

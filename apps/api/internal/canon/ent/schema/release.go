@@ -44,7 +44,7 @@ func (ReleaseContent) Annotations() []schema.Annotation {
 
 func (ReleaseContent) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int64("release_id"),
+		with(field.Int64("release_id"), r.RefFact("release", "The edition.", "R4.2")),
 		with(field.Int64("work_id"), r.RefFact("work", "A work this edition contains.", "R4.2", "R5")),
 		with(field.Int64("part_id").Optional().Nillable(), r.RefFact("work_part", "The volume or episode it contains, when it is one part.", "R4.2")),
 		with(field.String("portion").Default("full"), r.VocabFact("portion", "Whether the whole part is contained.", "R4.2")),

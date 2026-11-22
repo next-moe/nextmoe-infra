@@ -50,6 +50,10 @@ var Vocabularies = []Vocabulary{
 		{Key: "translator", EntailedBy: []string{"翻訳", "訳", "譯者", "译者"}},
 		{Key: "publisher", EntailedBy: []string{"発行", "出版"}},
 	}},
+	{Name: "price_basis", Terms: []Term{
+		{Key: "tax_included", EntailedBy: []string{"税込", "含稅", "含税"}},
+		{Key: "tax_excluded", EntailedBy: []string{"本体", "税抜", "+税", "未稅"}},
+	}},
 	{Name: "book_category", Terms: []Term{{Key: "light_novel"}, {Key: "light_bungei"}, {Key: "shin_bungei"}, {Key: "general"}}},
 }
 

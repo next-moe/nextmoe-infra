@@ -10,6 +10,7 @@ import (
 	"api/internal/canon/ent/personalias"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
+	"api/internal/canon/ent/revision"
 	"api/internal/canon/ent/schema"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
@@ -157,6 +158,12 @@ func init() {
 	releasecontentDescPosition := releasecontentFields[4].Descriptor()
 	// releasecontent.DefaultPosition holds the default value on creation for the position field.
 	releasecontent.DefaultPosition = releasecontentDescPosition.Default.(int)
+	revisionFields := schema.Revision{}.Fields()
+	_ = revisionFields
+	// revisionDescCreatedAt is the schema descriptor for created_at field.
+	revisionDescCreatedAt := revisionFields[8].Descriptor()
+	// revision.DefaultCreatedAt holds the default value on creation for the created_at field.
+	revision.DefaultCreatedAt = revisionDescCreatedAt.Default.(func() time.Time)
 	workFields := schema.Work{}.Fields()
 	_ = workFields
 	// workDescStatus is the schema descriptor for status field.

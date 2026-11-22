@@ -36,8 +36,8 @@ type BookRelease struct {
 	PriceAmount *string `json:"price_amount,omitempty"`
 	// PriceCurrency holds the value of the "price_currency" field.
 	PriceCurrency string `json:"price_currency,omitempty"`
-	// PriceTaxIncluded holds the value of the "price_tax_included" field.
-	PriceTaxIncluded *bool `json:"price_tax_included,omitempty"`
+	// PriceBasis holds the value of the "price_basis" field.
+	PriceBasis string `json:"price_basis,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the BookReleaseQuery when eager-loading is set.
 	Edges        BookReleaseEdges `json:"edges"`
@@ -95,11 +95,9 @@ func (*BookRelease) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case bookrelease.FieldPriceTaxIncluded:
-			values[i] = new(sql.NullBool)
 		case bookrelease.FieldID, bookrelease.FieldReleaseID, bookrelease.FieldPublisherID, bookrelease.FieldLabelID, bookrelease.FieldPages:
 			values[i] = new(sql.NullInt64)
-		case bookrelease.FieldIsbn13, bookrelease.FieldJan, bookrelease.FieldLabelNumber, bookrelease.FieldPriceAmount, bookrelease.FieldPriceCurrency:
+		case bookrelease.FieldIsbn13, bookrelease.FieldJan, bookrelease.FieldLabelNumber, bookrelease.FieldPriceAmount, bookrelease.FieldPriceCurrency, bookrelease.FieldPriceBasis:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -182,12 +180,11 @@ func (_m *BookRelease) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PriceCurrency = value.String
 			}
-		case bookrelease.FieldPriceTaxIncluded:
-			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field price_tax_included", values[i])
+		case bookrelease.FieldPriceBasis:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field price_basis", values[i])
 			} else if value.Valid {
-				_m.PriceTaxIncluded = new(bool)
-				*_m.PriceTaxIncluded = value.Bool
+				_m.PriceBasis = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -279,10 +276,8 @@ func (_m *BookRelease) String() string {
 	builder.WriteString("price_currency=")
 	builder.WriteString(_m.PriceCurrency)
 	builder.WriteString(", ")
-	if v := _m.PriceTaxIncluded; v != nil {
-		builder.WriteString("price_tax_included=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
+	builder.WriteString("price_basis=")
+	builder.WriteString(_m.PriceBasis)
 	builder.WriteByte(')')
 	return builder.String()
 }

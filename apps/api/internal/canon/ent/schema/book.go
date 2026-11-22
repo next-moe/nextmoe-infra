@@ -20,7 +20,7 @@ func (BookWork) Annotations() []schema.Annotation {
 
 func (BookWork) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int64("work_id").Unique(),
+		with(field.Int64("work_id").Unique(), r.RefFact("work", "The work this extension describes.", "R1.4")),
 		with(field.String("category"), r.VocabFact("book_category", "Light novel, light bungei, shin bungei or general.", "R1.4")),
 	}
 }
@@ -41,7 +41,7 @@ func (BookRelease) Fields() []ent.Field {
 	jan := r.Fact(r.ShapeJAN, "JAN of this edition; a set's JAN stands for the set only.", "R4.2", "R8.2")
 	jan.Unique = r.UniqueGlobal
 	return []ent.Field{
-		field.Int64("release_id").Unique(),
+		with(field.Int64("release_id").Unique(), r.RefFact("release", "The release this extension describes.", "R4.2")),
 		with(field.String("isbn13").Optional().Nillable(), isbn),
 		with(field.String("jan").Optional().Nillable(), jan),
 		with(field.Int64("publisher_id").Optional().Nillable(), r.RefFact("org", "Publisher of record.", "R7.2")),
@@ -50,7 +50,7 @@ func (BookRelease) Fields() []ent.Field {
 		with(field.Int("pages").Optional().Nillable(), r.Fact(r.ShapeInteger, "Page count.", "R8.2")),
 		with(field.String("price_amount").Optional().Nillable().SchemaType(numeric("12,2")), r.Fact(r.ShapeMoney, "List price, as printed.", "R8.2")),
 		with(field.String("price_currency").Optional(), r.Fact(r.ShapeCurrency, "ISO 4217 currency of the price.", "R8.2")),
-		with(field.Bool("price_tax_included").Optional().Nillable(), r.Fact(r.ShapeBool, "Whether the printed price includes tax.", "R8.2")),
+		with(field.String("price_basis").Optional(), r.VocabFact("price_basis", "Whether price_amount is the tax-inclusive 定価 or the 本体 price.", "R8.2")),
 	}
 }
 

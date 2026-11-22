@@ -116,6 +116,18 @@ func (f ReleaseContentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReleaseContentMutation", m)
 }
 
+// The RevisionFunc type is an adapter to allow the use of ordinary
+// function as Revision mutator.
+type RevisionFunc func(context.Context, *ent.RevisionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RevisionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RevisionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RevisionMutation", m)
+}
+
 // The WorkFunc type is an adapter to allow the use of ordinary
 // function as Work mutator.
 type WorkFunc func(context.Context, *ent.WorkMutation) (ent.Value, error)

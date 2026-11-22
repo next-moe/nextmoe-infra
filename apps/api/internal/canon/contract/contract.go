@@ -46,7 +46,7 @@ func Build() (Contract, error) {
 		if err != nil {
 			return c, err
 		}
-		if len(e.Properties) > 0 {
+		if e.Name != "revision" {
 			c.Entities = append(c.Entities, e)
 		}
 	}
@@ -121,4 +121,22 @@ func Marshal(c Contract) ([]byte, error) {
 		return nil, err
 	}
 	return append(b, '\n'), nil
+}
+
+// Index maps entity → property key → declaration, internal properties
+// included; the commit service validates every write against it.
+func Index() map[string]map[string]registry.Property {
+	out := map[string]map[string]registry.Property{}
+	for _, s := range schema.Entities {
+		props := map[string]registry.Property{}
+		for _, f := range s.Fields() {
+			for _, a := range f.Descriptor().Annotations {
+				if p, ok := a.(registry.Property); ok {
+					props[f.Descriptor().Name] = p
+				}
+			}
+		}
+		out[tableName(s)] = props
+	}
+	return out
 }

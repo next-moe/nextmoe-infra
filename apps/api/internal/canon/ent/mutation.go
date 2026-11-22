@@ -13,6 +13,7 @@ import (
 	"api/internal/canon/ent/predicate"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
+	"api/internal/canon/ent/revision"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
@@ -44,6 +45,7 @@ const (
 	TypePersonAlias    = "PersonAlias"
 	TypeRelease        = "Release"
 	TypeReleaseContent = "ReleaseContent"
+	TypeRevision       = "Revision"
 	TypeWork           = "Work"
 	TypeWorkPart       = "WorkPart"
 	TypeWorkTitle      = "WorkTitle"
@@ -52,27 +54,27 @@ const (
 // BookReleaseMutation represents an operation that mutates the BookRelease nodes in the graph.
 type BookReleaseMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int
-	isbn13             *string
-	jan                *string
-	label_number       *string
-	pages              *int
-	addpages           *int
-	price_amount       *string
-	price_currency     *string
-	price_tax_included *bool
-	clearedFields      map[string]struct{}
-	release            *int64
-	clearedrelease     bool
-	publisher          *int64
-	clearedpublisher   bool
-	label              *int64
-	clearedlabel       bool
-	done               bool
-	oldValue           func(context.Context) (*BookRelease, error)
-	predicates         []predicate.BookRelease
+	op               Op
+	typ              string
+	id               *int
+	isbn13           *string
+	jan              *string
+	label_number     *string
+	pages            *int
+	addpages         *int
+	price_amount     *string
+	price_currency   *string
+	price_basis      *string
+	clearedFields    map[string]struct{}
+	release          *int64
+	clearedrelease   bool
+	publisher        *int64
+	clearedpublisher bool
+	label            *int64
+	clearedlabel     bool
+	done             bool
+	oldValue         func(context.Context) (*BookRelease, error)
+	predicates       []predicate.BookRelease
 }
 
 var _ ent.Mutation = (*BookReleaseMutation)(nil)
@@ -622,53 +624,53 @@ func (m *BookReleaseMutation) ResetPriceCurrency() {
 	delete(m.clearedFields, bookrelease.FieldPriceCurrency)
 }
 
-// SetPriceTaxIncluded sets the "price_tax_included" field.
-func (m *BookReleaseMutation) SetPriceTaxIncluded(b bool) {
-	m.price_tax_included = &b
+// SetPriceBasis sets the "price_basis" field.
+func (m *BookReleaseMutation) SetPriceBasis(s string) {
+	m.price_basis = &s
 }
 
-// PriceTaxIncluded returns the value of the "price_tax_included" field in the mutation.
-func (m *BookReleaseMutation) PriceTaxIncluded() (r bool, exists bool) {
-	v := m.price_tax_included
+// PriceBasis returns the value of the "price_basis" field in the mutation.
+func (m *BookReleaseMutation) PriceBasis() (r string, exists bool) {
+	v := m.price_basis
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldPriceTaxIncluded returns the old "price_tax_included" field's value of the BookRelease entity.
+// OldPriceBasis returns the old "price_basis" field's value of the BookRelease entity.
 // If the BookRelease object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *BookReleaseMutation) OldPriceTaxIncluded(ctx context.Context) (v *bool, err error) {
+func (m *BookReleaseMutation) OldPriceBasis(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPriceTaxIncluded is only allowed on UpdateOne operations")
+		return v, errors.New("OldPriceBasis is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPriceTaxIncluded requires an ID field in the mutation")
+		return v, errors.New("OldPriceBasis requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPriceTaxIncluded: %w", err)
+		return v, fmt.Errorf("querying old value for OldPriceBasis: %w", err)
 	}
-	return oldValue.PriceTaxIncluded, nil
+	return oldValue.PriceBasis, nil
 }
 
-// ClearPriceTaxIncluded clears the value of the "price_tax_included" field.
-func (m *BookReleaseMutation) ClearPriceTaxIncluded() {
-	m.price_tax_included = nil
-	m.clearedFields[bookrelease.FieldPriceTaxIncluded] = struct{}{}
+// ClearPriceBasis clears the value of the "price_basis" field.
+func (m *BookReleaseMutation) ClearPriceBasis() {
+	m.price_basis = nil
+	m.clearedFields[bookrelease.FieldPriceBasis] = struct{}{}
 }
 
-// PriceTaxIncludedCleared returns if the "price_tax_included" field was cleared in this mutation.
-func (m *BookReleaseMutation) PriceTaxIncludedCleared() bool {
-	_, ok := m.clearedFields[bookrelease.FieldPriceTaxIncluded]
+// PriceBasisCleared returns if the "price_basis" field was cleared in this mutation.
+func (m *BookReleaseMutation) PriceBasisCleared() bool {
+	_, ok := m.clearedFields[bookrelease.FieldPriceBasis]
 	return ok
 }
 
-// ResetPriceTaxIncluded resets all changes to the "price_tax_included" field.
-func (m *BookReleaseMutation) ResetPriceTaxIncluded() {
-	m.price_tax_included = nil
-	delete(m.clearedFields, bookrelease.FieldPriceTaxIncluded)
+// ResetPriceBasis resets all changes to the "price_basis" field.
+func (m *BookReleaseMutation) ResetPriceBasis() {
+	m.price_basis = nil
+	delete(m.clearedFields, bookrelease.FieldPriceBasis)
 }
 
 // ClearRelease clears the "release" edge to the Release entity.
@@ -814,8 +816,8 @@ func (m *BookReleaseMutation) Fields() []string {
 	if m.price_currency != nil {
 		fields = append(fields, bookrelease.FieldPriceCurrency)
 	}
-	if m.price_tax_included != nil {
-		fields = append(fields, bookrelease.FieldPriceTaxIncluded)
+	if m.price_basis != nil {
+		fields = append(fields, bookrelease.FieldPriceBasis)
 	}
 	return fields
 }
@@ -843,8 +845,8 @@ func (m *BookReleaseMutation) Field(name string) (ent.Value, bool) {
 		return m.PriceAmount()
 	case bookrelease.FieldPriceCurrency:
 		return m.PriceCurrency()
-	case bookrelease.FieldPriceTaxIncluded:
-		return m.PriceTaxIncluded()
+	case bookrelease.FieldPriceBasis:
+		return m.PriceBasis()
 	}
 	return nil, false
 }
@@ -872,8 +874,8 @@ func (m *BookReleaseMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldPriceAmount(ctx)
 	case bookrelease.FieldPriceCurrency:
 		return m.OldPriceCurrency(ctx)
-	case bookrelease.FieldPriceTaxIncluded:
-		return m.OldPriceTaxIncluded(ctx)
+	case bookrelease.FieldPriceBasis:
+		return m.OldPriceBasis(ctx)
 	}
 	return nil, fmt.Errorf("unknown BookRelease field %s", name)
 }
@@ -946,12 +948,12 @@ func (m *BookReleaseMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPriceCurrency(v)
 		return nil
-	case bookrelease.FieldPriceTaxIncluded:
-		v, ok := value.(bool)
+	case bookrelease.FieldPriceBasis:
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetPriceTaxIncluded(v)
+		m.SetPriceBasis(v)
 		return nil
 	}
 	return fmt.Errorf("unknown BookRelease field %s", name)
@@ -1022,8 +1024,8 @@ func (m *BookReleaseMutation) ClearedFields() []string {
 	if m.FieldCleared(bookrelease.FieldPriceCurrency) {
 		fields = append(fields, bookrelease.FieldPriceCurrency)
 	}
-	if m.FieldCleared(bookrelease.FieldPriceTaxIncluded) {
-		fields = append(fields, bookrelease.FieldPriceTaxIncluded)
+	if m.FieldCleared(bookrelease.FieldPriceBasis) {
+		fields = append(fields, bookrelease.FieldPriceBasis)
 	}
 	return fields
 }
@@ -1063,8 +1065,8 @@ func (m *BookReleaseMutation) ClearField(name string) error {
 	case bookrelease.FieldPriceCurrency:
 		m.ClearPriceCurrency()
 		return nil
-	case bookrelease.FieldPriceTaxIncluded:
-		m.ClearPriceTaxIncluded()
+	case bookrelease.FieldPriceBasis:
+		m.ClearPriceBasis()
 		return nil
 	}
 	return fmt.Errorf("unknown BookRelease nullable field %s", name)
@@ -1101,8 +1103,8 @@ func (m *BookReleaseMutation) ResetField(name string) error {
 	case bookrelease.FieldPriceCurrency:
 		m.ResetPriceCurrency()
 		return nil
-	case bookrelease.FieldPriceTaxIncluded:
-		m.ResetPriceTaxIncluded()
+	case bookrelease.FieldPriceBasis:
+		m.ResetPriceBasis()
 		return nil
 	}
 	return fmt.Errorf("unknown BookRelease field %s", name)
@@ -8174,6 +8176,774 @@ func (m *ReleaseContentMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ReleaseContent edge %s", name)
+}
+
+// RevisionMutation represents an operation that mutates the Revision nodes in the graph.
+type RevisionMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int64
+	entity        *string
+	entity_id     *int64
+	addentity_id  *int64
+	action        *string
+	actor_kind    *string
+	actor_key     *string
+	note          *string
+	changes       *map[string]interface{}
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*Revision, error)
+	predicates    []predicate.Revision
+}
+
+var _ ent.Mutation = (*RevisionMutation)(nil)
+
+// revisionOption allows management of the mutation configuration using functional options.
+type revisionOption func(*RevisionMutation)
+
+// newRevisionMutation creates new mutation for the Revision entity.
+func newRevisionMutation(c config, op Op, opts ...revisionOption) *RevisionMutation {
+	m := &RevisionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRevision,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRevisionID sets the ID field of the mutation.
+func withRevisionID(id int64) revisionOption {
+	return func(m *RevisionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Revision
+		)
+		m.oldValue = func(ctx context.Context) (*Revision, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Revision.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRevision sets the old Revision of the mutation.
+func withRevision(node *Revision) revisionOption {
+	return func(m *RevisionMutation) {
+		m.oldValue = func(context.Context) (*Revision, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RevisionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RevisionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Revision entities.
+func (m *RevisionMutation) SetID(id int64) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RevisionMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RevisionMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Revision.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetEntity sets the "entity" field.
+func (m *RevisionMutation) SetEntity(s string) {
+	m.entity = &s
+}
+
+// Entity returns the value of the "entity" field in the mutation.
+func (m *RevisionMutation) Entity() (r string, exists bool) {
+	v := m.entity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEntity returns the old "entity" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldEntity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEntity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEntity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEntity: %w", err)
+	}
+	return oldValue.Entity, nil
+}
+
+// ResetEntity resets all changes to the "entity" field.
+func (m *RevisionMutation) ResetEntity() {
+	m.entity = nil
+}
+
+// SetEntityID sets the "entity_id" field.
+func (m *RevisionMutation) SetEntityID(i int64) {
+	m.entity_id = &i
+	m.addentity_id = nil
+}
+
+// EntityID returns the value of the "entity_id" field in the mutation.
+func (m *RevisionMutation) EntityID() (r int64, exists bool) {
+	v := m.entity_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEntityID returns the old "entity_id" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldEntityID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEntityID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEntityID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEntityID: %w", err)
+	}
+	return oldValue.EntityID, nil
+}
+
+// AddEntityID adds i to the "entity_id" field.
+func (m *RevisionMutation) AddEntityID(i int64) {
+	if m.addentity_id != nil {
+		*m.addentity_id += i
+	} else {
+		m.addentity_id = &i
+	}
+}
+
+// AddedEntityID returns the value that was added to the "entity_id" field in this mutation.
+func (m *RevisionMutation) AddedEntityID() (r int64, exists bool) {
+	v := m.addentity_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEntityID resets all changes to the "entity_id" field.
+func (m *RevisionMutation) ResetEntityID() {
+	m.entity_id = nil
+	m.addentity_id = nil
+}
+
+// SetAction sets the "action" field.
+func (m *RevisionMutation) SetAction(s string) {
+	m.action = &s
+}
+
+// Action returns the value of the "action" field in the mutation.
+func (m *RevisionMutation) Action() (r string, exists bool) {
+	v := m.action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAction returns the old "action" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldAction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAction: %w", err)
+	}
+	return oldValue.Action, nil
+}
+
+// ResetAction resets all changes to the "action" field.
+func (m *RevisionMutation) ResetAction() {
+	m.action = nil
+}
+
+// SetActorKind sets the "actor_kind" field.
+func (m *RevisionMutation) SetActorKind(s string) {
+	m.actor_kind = &s
+}
+
+// ActorKind returns the value of the "actor_kind" field in the mutation.
+func (m *RevisionMutation) ActorKind() (r string, exists bool) {
+	v := m.actor_kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorKind returns the old "actor_kind" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldActorKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorKind: %w", err)
+	}
+	return oldValue.ActorKind, nil
+}
+
+// ResetActorKind resets all changes to the "actor_kind" field.
+func (m *RevisionMutation) ResetActorKind() {
+	m.actor_kind = nil
+}
+
+// SetActorKey sets the "actor_key" field.
+func (m *RevisionMutation) SetActorKey(s string) {
+	m.actor_key = &s
+}
+
+// ActorKey returns the value of the "actor_key" field in the mutation.
+func (m *RevisionMutation) ActorKey() (r string, exists bool) {
+	v := m.actor_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorKey returns the old "actor_key" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldActorKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorKey: %w", err)
+	}
+	return oldValue.ActorKey, nil
+}
+
+// ResetActorKey resets all changes to the "actor_key" field.
+func (m *RevisionMutation) ResetActorKey() {
+	m.actor_key = nil
+}
+
+// SetNote sets the "note" field.
+func (m *RevisionMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *RevisionMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ClearNote clears the value of the "note" field.
+func (m *RevisionMutation) ClearNote() {
+	m.note = nil
+	m.clearedFields[revision.FieldNote] = struct{}{}
+}
+
+// NoteCleared returns if the "note" field was cleared in this mutation.
+func (m *RevisionMutation) NoteCleared() bool {
+	_, ok := m.clearedFields[revision.FieldNote]
+	return ok
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *RevisionMutation) ResetNote() {
+	m.note = nil
+	delete(m.clearedFields, revision.FieldNote)
+}
+
+// SetChanges sets the "changes" field.
+func (m *RevisionMutation) SetChanges(value map[string]interface{}) {
+	m.changes = &value
+}
+
+// Changes returns the value of the "changes" field in the mutation.
+func (m *RevisionMutation) Changes() (r map[string]interface{}, exists bool) {
+	v := m.changes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChanges returns the old "changes" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldChanges(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChanges is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChanges requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChanges: %w", err)
+	}
+	return oldValue.Changes, nil
+}
+
+// ResetChanges resets all changes to the "changes" field.
+func (m *RevisionMutation) ResetChanges() {
+	m.changes = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RevisionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RevisionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RevisionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the RevisionMutation builder.
+func (m *RevisionMutation) Where(ps ...predicate.Revision) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RevisionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RevisionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Revision, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RevisionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RevisionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Revision).
+func (m *RevisionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RevisionMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.entity != nil {
+		fields = append(fields, revision.FieldEntity)
+	}
+	if m.entity_id != nil {
+		fields = append(fields, revision.FieldEntityID)
+	}
+	if m.action != nil {
+		fields = append(fields, revision.FieldAction)
+	}
+	if m.actor_kind != nil {
+		fields = append(fields, revision.FieldActorKind)
+	}
+	if m.actor_key != nil {
+		fields = append(fields, revision.FieldActorKey)
+	}
+	if m.note != nil {
+		fields = append(fields, revision.FieldNote)
+	}
+	if m.changes != nil {
+		fields = append(fields, revision.FieldChanges)
+	}
+	if m.created_at != nil {
+		fields = append(fields, revision.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RevisionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case revision.FieldEntity:
+		return m.Entity()
+	case revision.FieldEntityID:
+		return m.EntityID()
+	case revision.FieldAction:
+		return m.Action()
+	case revision.FieldActorKind:
+		return m.ActorKind()
+	case revision.FieldActorKey:
+		return m.ActorKey()
+	case revision.FieldNote:
+		return m.Note()
+	case revision.FieldChanges:
+		return m.Changes()
+	case revision.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RevisionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case revision.FieldEntity:
+		return m.OldEntity(ctx)
+	case revision.FieldEntityID:
+		return m.OldEntityID(ctx)
+	case revision.FieldAction:
+		return m.OldAction(ctx)
+	case revision.FieldActorKind:
+		return m.OldActorKind(ctx)
+	case revision.FieldActorKey:
+		return m.OldActorKey(ctx)
+	case revision.FieldNote:
+		return m.OldNote(ctx)
+	case revision.FieldChanges:
+		return m.OldChanges(ctx)
+	case revision.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Revision field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RevisionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case revision.FieldEntity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEntity(v)
+		return nil
+	case revision.FieldEntityID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEntityID(v)
+		return nil
+	case revision.FieldAction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAction(v)
+		return nil
+	case revision.FieldActorKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorKind(v)
+		return nil
+	case revision.FieldActorKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorKey(v)
+		return nil
+	case revision.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case revision.FieldChanges:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChanges(v)
+		return nil
+	case revision.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Revision field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RevisionMutation) AddedFields() []string {
+	var fields []string
+	if m.addentity_id != nil {
+		fields = append(fields, revision.FieldEntityID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RevisionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case revision.FieldEntityID:
+		return m.AddedEntityID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RevisionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case revision.FieldEntityID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEntityID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Revision numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RevisionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(revision.FieldNote) {
+		fields = append(fields, revision.FieldNote)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RevisionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RevisionMutation) ClearField(name string) error {
+	switch name {
+	case revision.FieldNote:
+		m.ClearNote()
+		return nil
+	}
+	return fmt.Errorf("unknown Revision nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RevisionMutation) ResetField(name string) error {
+	switch name {
+	case revision.FieldEntity:
+		m.ResetEntity()
+		return nil
+	case revision.FieldEntityID:
+		m.ResetEntityID()
+		return nil
+	case revision.FieldAction:
+		m.ResetAction()
+		return nil
+	case revision.FieldActorKind:
+		m.ResetActorKind()
+		return nil
+	case revision.FieldActorKey:
+		m.ResetActorKey()
+		return nil
+	case revision.FieldNote:
+		m.ResetNote()
+		return nil
+	case revision.FieldChanges:
+		m.ResetChanges()
+		return nil
+	case revision.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Revision field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RevisionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RevisionMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RevisionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RevisionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RevisionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RevisionMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RevisionMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Revision unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RevisionMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Revision edge %s", name)
 }
 
 // WorkMutation represents an operation that mutates the Work nodes in the graph.
