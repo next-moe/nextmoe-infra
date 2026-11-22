@@ -25,7 +25,7 @@ var Vocabularies = []Vocabulary{
 	{Name: "display_safety", Terms: []Term{{Key: "safe"}, {Key: "suggestive"}, {Key: "explicit"}}},
 	{Name: "title_kind", Terms: []Term{{Key: "official"}, {Key: "alternative"}, {Key: "romanized"}, {Key: "translated"}}},
 	{Name: "part_kind", Terms: []Term{
-		{Key: "volume", EntailedBy: []string{"巻", "卷", "集"}},
+		{Key: "volume", Doc: "A bound volume; the part an ISBN edition contains, so a classification, not a page word."},
 		{Key: "chapter", EntailedBy: []string{"話", "章"}},
 		{Key: "season"}, {Key: "episode"}, {Key: "disc"},
 	}},

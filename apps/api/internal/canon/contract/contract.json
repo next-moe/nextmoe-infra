@@ -974,11 +974,7 @@
       "terms": [
         {
           "key": "volume",
-          "entailed_by": [
-            "巻",
-            "卷",
-            "集"
-          ]
+          "doc": "A bound volume; the part an ISBN edition contains, so a classification, not a page word."
         },
         {
           "key": "chapter",
