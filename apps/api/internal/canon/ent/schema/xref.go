@@ -13,7 +13,9 @@ import (
 // reads it. It keeps refs=vndb: lookups working for moyu and partners.
 type XrefLink struct{ ent.Schema }
 
-func (XrefLink) Annotations() []schema.Annotation { return []schema.Annotation{entsql.Table("xref_link")} }
+func (XrefLink) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Table("xref_link")}
+}
 
 func (XrefLink) Fields() []ent.Field {
 	return []ent.Field{
