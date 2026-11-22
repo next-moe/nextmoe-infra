@@ -22,14 +22,13 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadService("canon")
-	if err != nil {
+	if err := config.LoadScope("canon"); err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)
 	}
-	logger.Init(cfg.Server.Env)
+	logger.Init(config.Env("KUN_ENV", "development"))
 
-	db, err := sql.Open("pgx", cfg.CatalogDatabase.DSN()+" search_path=canon")
+	db, err := sql.Open("pgx", catalogDSN()+" search_path=canon")
 	if err != nil {
 		slog.Error("open database", "error", err)
 		os.Exit(1)

@@ -103,3 +103,8 @@ func fetchStore(db DatabaseConfig) ([]StoredSecret, error) {
 		return s, err
 	})
 }
+
+// LoadScope loads the config store for a service that reads every variable
+// through Env, without the platform-wide Config that LoadService validates:
+// canon needs a database and two pool settings, not JWT_SECRET.
+func LoadScope(service string) error { return loadStore(service) }
