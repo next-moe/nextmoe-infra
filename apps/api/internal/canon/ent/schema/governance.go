@@ -23,6 +23,10 @@ func (Todo) Fields() []ent.Field {
 		field.String("source").Default(""),
 		field.JSON("suggestion", map[string]any{}).Optional(),
 		field.String("resolved_by").Optional(),
+		// answered is set once fanin has told the pool how a person settled
+		// a todo that came from the pool.
+		field.Bool("answered").Default(false),
+		field.JSON("resolution", map[string]any{}).Optional(),
 		field.Time("created_at").Default(timeNow).Immutable(),
 		field.Time("updated_at").Default(timeNow).UpdateDefault(timeNow),
 	}

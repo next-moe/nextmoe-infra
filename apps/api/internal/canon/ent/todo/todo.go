@@ -27,6 +27,10 @@ const (
 	FieldSuggestion = "suggestion"
 	// FieldResolvedBy holds the string denoting the resolved_by field in the database.
 	FieldResolvedBy = "resolved_by"
+	// FieldAnswered holds the string denoting the answered field in the database.
+	FieldAnswered = "answered"
+	// FieldResolution holds the string denoting the resolution field in the database.
+	FieldResolution = "resolution"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -45,6 +49,8 @@ var Columns = []string{
 	FieldSource,
 	FieldSuggestion,
 	FieldResolvedBy,
+	FieldAnswered,
+	FieldResolution,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -66,6 +72,8 @@ var (
 	DefaultDetail string
 	// DefaultSource holds the default value on creation for the "source" field.
 	DefaultSource string
+	// DefaultAnswered holds the default value on creation for the "answered" field.
+	DefaultAnswered bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -110,6 +118,11 @@ func BySource(opts ...sql.OrderTermOption) OrderOption {
 // ByResolvedBy orders the results by the resolved_by field.
 func ByResolvedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResolvedBy, opts...).ToFunc()
+}
+
+// ByAnswered orders the results by the answered field.
+func ByAnswered(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAnswered, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

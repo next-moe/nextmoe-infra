@@ -1260,6 +1260,10 @@
       "doc": "identity could not be decided; a todo was opened"
     },
     {
+      "code": "REJECTED_IN_REVIEW",
+      "doc": "a person reviewed the todo this row opened and rejected it"
+    },
+    {
       "code": "HOST_EXCLUDED",
       "doc": "the evidence comes from an excluded host"
     }
@@ -1553,6 +1557,7 @@
             "ENTITY_MERGED",
             "UNIQUE_CONFLICT",
             "IDENTITY_UNSURE",
+            "REJECTED_IN_REVIEW",
             "HOST_EXCLUDED"
           ],
           "type": "string"

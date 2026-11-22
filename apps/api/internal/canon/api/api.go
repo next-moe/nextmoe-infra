@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"api/internal/canon/commit"
 	"api/internal/canon/ent"
 	"api/internal/canon/merge"
 	"api/internal/canon/takedown"
@@ -20,13 +21,23 @@ import (
 const maxBatch = 100
 
 type API struct {
-	client *ent.Client
+	client   *ent.Client
+	verifier Verifier
+	commit   *commit.Service
 }
 
-func New(client *ent.Client) (http.Handler, huma.API) {
+type Options struct {
+	Verifier Verifier
+}
+
+func New(client *ent.Client, opts ...Options) (http.Handler, huma.API) {
 	mux := http.NewServeMux()
 	h := humago.New(mux, huma.DefaultConfig("NextMoe Catalog v3", "0.1.0"))
-	a := &API{client: client}
+	a := &API{client: client, commit: commit.New(client)}
+	for _, o := range opts {
+		a.verifier = o.Verifier
+	}
+	a.todos(h)
 	a.works(h)
 	a.releases(h)
 	a.people(h)

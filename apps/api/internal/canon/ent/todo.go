@@ -32,6 +32,10 @@ type Todo struct {
 	Suggestion map[string]interface{} `json:"suggestion,omitempty"`
 	// ResolvedBy holds the value of the "resolved_by" field.
 	ResolvedBy string `json:"resolved_by,omitempty"`
+	// Answered holds the value of the "answered" field.
+	Answered bool `json:"answered,omitempty"`
+	// Resolution holds the value of the "resolution" field.
+	Resolution map[string]interface{} `json:"resolution,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -44,8 +48,10 @@ func (*Todo) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case todo.FieldSuggestion:
+		case todo.FieldSuggestion, todo.FieldResolution:
 			values[i] = new([]byte)
+		case todo.FieldAnswered:
+			values[i] = new(sql.NullBool)
 		case todo.FieldID:
 			values[i] = new(sql.NullInt64)
 		case todo.FieldKind, todo.FieldSubjectKey, todo.FieldState, todo.FieldDetail, todo.FieldSource, todo.FieldResolvedBy:
@@ -117,6 +123,20 @@ func (_m *Todo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ResolvedBy = value.String
 			}
+		case todo.FieldAnswered:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field answered", values[i])
+			} else if value.Valid {
+				_m.Answered = value.Bool
+			}
+		case todo.FieldResolution:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field resolution", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Resolution); err != nil {
+					return fmt.Errorf("unmarshal field resolution: %w", err)
+				}
+			}
 		case todo.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -185,6 +205,12 @@ func (_m *Todo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("resolved_by=")
 	builder.WriteString(_m.ResolvedBy)
+	builder.WriteString(", ")
+	builder.WriteString("answered=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Answered))
+	builder.WriteString(", ")
+	builder.WriteString("resolution=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Resolution))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

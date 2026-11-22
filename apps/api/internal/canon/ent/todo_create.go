@@ -96,6 +96,26 @@ func (_c *TodoCreate) SetNillableResolvedBy(v *string) *TodoCreate {
 	return _c
 }
 
+// SetAnswered sets the "answered" field.
+func (_c *TodoCreate) SetAnswered(v bool) *TodoCreate {
+	_c.mutation.SetAnswered(v)
+	return _c
+}
+
+// SetNillableAnswered sets the "answered" field if the given value is not nil.
+func (_c *TodoCreate) SetNillableAnswered(v *bool) *TodoCreate {
+	if v != nil {
+		_c.SetAnswered(*v)
+	}
+	return _c
+}
+
+// SetResolution sets the "resolution" field.
+func (_c *TodoCreate) SetResolution(v map[string]interface{}) *TodoCreate {
+	_c.mutation.SetResolution(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *TodoCreate) SetCreatedAt(v time.Time) *TodoCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -171,6 +191,10 @@ func (_c *TodoCreate) defaults() {
 		v := todo.DefaultSource
 		_c.mutation.SetSource(v)
 	}
+	if _, ok := _c.mutation.Answered(); !ok {
+		v := todo.DefaultAnswered
+		_c.mutation.SetAnswered(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := todo.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -197,6 +221,9 @@ func (_c *TodoCreate) check() error {
 	}
 	if _, ok := _c.mutation.Source(); !ok {
 		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "Todo.source"`)}
+	}
+	if _, ok := _c.mutation.Answered(); !ok {
+		return &ValidationError{Name: "answered", err: errors.New(`ent: missing required field "Todo.answered"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Todo.created_at"`)}
@@ -258,6 +285,14 @@ func (_c *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ResolvedBy(); ok {
 		_spec.SetField(todo.FieldResolvedBy, field.TypeString, value)
 		_node.ResolvedBy = value
+	}
+	if value, ok := _c.mutation.Answered(); ok {
+		_spec.SetField(todo.FieldAnswered, field.TypeBool, value)
+		_node.Answered = value
+	}
+	if value, ok := _c.mutation.Resolution(); ok {
+		_spec.SetField(todo.FieldResolution, field.TypeJSON, value)
+		_node.Resolution = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(todo.FieldCreatedAt, field.TypeTime, value)
@@ -412,6 +447,36 @@ func (u *TodoUpsert) UpdateResolvedBy() *TodoUpsert {
 // ClearResolvedBy clears the value of the "resolved_by" field.
 func (u *TodoUpsert) ClearResolvedBy() *TodoUpsert {
 	u.SetNull(todo.FieldResolvedBy)
+	return u
+}
+
+// SetAnswered sets the "answered" field.
+func (u *TodoUpsert) SetAnswered(v bool) *TodoUpsert {
+	u.Set(todo.FieldAnswered, v)
+	return u
+}
+
+// UpdateAnswered sets the "answered" field to the value that was provided on create.
+func (u *TodoUpsert) UpdateAnswered() *TodoUpsert {
+	u.SetExcluded(todo.FieldAnswered)
+	return u
+}
+
+// SetResolution sets the "resolution" field.
+func (u *TodoUpsert) SetResolution(v map[string]interface{}) *TodoUpsert {
+	u.Set(todo.FieldResolution, v)
+	return u
+}
+
+// UpdateResolution sets the "resolution" field to the value that was provided on create.
+func (u *TodoUpsert) UpdateResolution() *TodoUpsert {
+	u.SetExcluded(todo.FieldResolution)
+	return u
+}
+
+// ClearResolution clears the value of the "resolution" field.
+func (u *TodoUpsert) ClearResolution() *TodoUpsert {
+	u.SetNull(todo.FieldResolution)
 	return u
 }
 
@@ -581,6 +646,41 @@ func (u *TodoUpsertOne) UpdateResolvedBy() *TodoUpsertOne {
 func (u *TodoUpsertOne) ClearResolvedBy() *TodoUpsertOne {
 	return u.Update(func(s *TodoUpsert) {
 		s.ClearResolvedBy()
+	})
+}
+
+// SetAnswered sets the "answered" field.
+func (u *TodoUpsertOne) SetAnswered(v bool) *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetAnswered(v)
+	})
+}
+
+// UpdateAnswered sets the "answered" field to the value that was provided on create.
+func (u *TodoUpsertOne) UpdateAnswered() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateAnswered()
+	})
+}
+
+// SetResolution sets the "resolution" field.
+func (u *TodoUpsertOne) SetResolution(v map[string]interface{}) *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetResolution(v)
+	})
+}
+
+// UpdateResolution sets the "resolution" field to the value that was provided on create.
+func (u *TodoUpsertOne) UpdateResolution() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateResolution()
+	})
+}
+
+// ClearResolution clears the value of the "resolution" field.
+func (u *TodoUpsertOne) ClearResolution() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearResolution()
 	})
 }
 
@@ -918,6 +1018,41 @@ func (u *TodoUpsertBulk) UpdateResolvedBy() *TodoUpsertBulk {
 func (u *TodoUpsertBulk) ClearResolvedBy() *TodoUpsertBulk {
 	return u.Update(func(s *TodoUpsert) {
 		s.ClearResolvedBy()
+	})
+}
+
+// SetAnswered sets the "answered" field.
+func (u *TodoUpsertBulk) SetAnswered(v bool) *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetAnswered(v)
+	})
+}
+
+// UpdateAnswered sets the "answered" field to the value that was provided on create.
+func (u *TodoUpsertBulk) UpdateAnswered() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateAnswered()
+	})
+}
+
+// SetResolution sets the "resolution" field.
+func (u *TodoUpsertBulk) SetResolution(v map[string]interface{}) *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetResolution(v)
+	})
+}
+
+// UpdateResolution sets the "resolution" field to the value that was provided on create.
+func (u *TodoUpsertBulk) UpdateResolution() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateResolution()
+	})
+}
+
+// ClearResolution clears the value of the "resolution" field.
+func (u *TodoUpsertBulk) ClearResolution() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearResolution()
 	})
 }
 

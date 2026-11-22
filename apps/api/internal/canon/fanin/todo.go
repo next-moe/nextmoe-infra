@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"api/internal/canon/contract"
+	entodo "api/internal/canon/ent/todo"
 )
 
 // todoSubject decides which refusals are a person's question rather than a
@@ -39,4 +40,43 @@ func (f *Fanin) fileTodo(ctx context.Context, rf *refusal, subject string, e con
 		return nil
 	}
 	return err
+}
+
+// answerSettled tells the pool how people settled todos its rows opened, by
+// answering the same outbox id again; the pool treats a later answer as final.
+func (f *Fanin) answerSettled(ctx context.Context) error {
+	ts, err := f.Client.Todo.Query().Where(entodo.AnsweredEQ(false), entodo.StateIn("done", "rejected"),
+		entodo.SourceHasPrefix("pool:"+f.Name+":")).All(ctx)
+	if err != nil || len(ts) == 0 {
+		return err
+	}
+	rows := make([]contract.InboxRow, 0, len(ts))
+	for _, t := range ts {
+		n, perr := strconv.ParseInt(strings.TrimPrefix(t.Source, "pool:"+f.Name+":"), 10, 64)
+		if perr != nil {
+			continue
+		}
+		r := contract.InboxRow{OutboxID: n, Result: "refused", Code: "REJECTED_IN_REVIEW"}
+		if res, _ := t.Resolution["result"].(string); res == "written" {
+			r = contract.InboxRow{OutboxID: n, Result: "written", IDs: map[string]int64{}}
+			ids, _ := t.Resolution["ids"].(map[string]any)
+			for k, v := range ids {
+				if x, ok := v.(float64); ok {
+					r.IDs[k] = int64(x)
+				}
+			}
+			r.EntityID = r.IDs["work"]
+		} else if d, _ := t.Resolution["detail"].(string); d != "" {
+			r.Detail = d
+		}
+		rows = append(rows, r)
+	}
+	if err := f.Pool.Answer(ctx, rows); err != nil {
+		return err
+	}
+	ids := make([]int, len(ts))
+	for i, t := range ts {
+		ids[i] = t.ID
+	}
+	return f.Client.Todo.Update().Where(entodo.IDIn(ids...)).SetAnswered(true).Exec(ctx)
 }

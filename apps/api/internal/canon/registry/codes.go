@@ -22,5 +22,6 @@ var RefusalCodes = []Code{
 	{"ENTITY_MERGED", "the entity was merged; resubmit against its survivor"},
 	{"UNIQUE_CONFLICT", "another entity already holds this unique key"},
 	{"IDENTITY_UNSURE", "identity could not be decided; a todo was opened"},
+	{"REJECTED_IN_REVIEW", "a person reviewed the todo this row opened and rejected it"},
 	{"HOST_EXCLUDED", "the evidence comes from an excluded host"},
 }

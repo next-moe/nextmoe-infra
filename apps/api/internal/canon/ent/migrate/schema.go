@@ -467,6 +467,8 @@ var (
 		{Name: "source", Type: field.TypeString, Default: ""},
 		{Name: "suggestion", Type: field.TypeJSON, Nullable: true},
 		{Name: "resolved_by", Type: field.TypeString, Nullable: true},
+		{Name: "answered", Type: field.TypeBool, Default: false},
+		{Name: "resolution", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

@@ -203,3 +203,23 @@ func TestSameNamedPersonBecomesOneTodo(t *testing.T) {
 		t.Errorf("todos for one question: %d %v", n, err)
 	}
 }
+
+func TestSettledTodosAreAnsweredOnce(t *testing.T) {
+	client, _ := canontest.Client(t)
+	ctx := context.Background()
+	name := fmt.Sprintf("settled-%d", rand.Int64())
+	if err := client.Todo.Create().SetKind("identity").SetSubjectKey("identity:x:" + name).SetSource("pool:" + name + ":42").
+		SetState("done").SetResolution(map[string]any{"result": "written", "ids": map[string]any{"work": 9, "alias.ndl.1": 11}}).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	pool := &fakePool{}
+	f := New(name, pool, client)
+	for i := 0; i < 2; i++ {
+		if _, err := f.RunOnce(ctx, 10); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(pool.answers) != 1 || pool.answers[0].OutboxID != 42 || pool.answers[0].Result != "written" || pool.answers[0].IDs["alias.ndl.1"] != 11 {
+		t.Errorf("answers %+v", pool.answers)
+	}
+}

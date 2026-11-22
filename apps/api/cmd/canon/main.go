@@ -16,6 +16,7 @@ import (
 	"api/internal/canon/xref"
 	"api/pkg/config"
 	"api/pkg/logger"
+	"api/pkg/oidctoken"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -60,7 +61,9 @@ func main() {
 		}
 		return
 	}
-	handler, _ := api.New(client)
+	verifier := oidctoken.NewVerifierWithJWKS(config.Env("JWT_SECRET", ""), config.Env("KUN_OIDC_JWKS_URL", "")).
+		RequiringIssuer(config.Env("KUN_SITE_URL", ""))
+	handler, _ := api.New(client, api.Options{Verifier: verifier})
 
 	srv := &http.Server{
 		Addr:              ":" + config.Env("KUN_CANON_PORT", "9288"),

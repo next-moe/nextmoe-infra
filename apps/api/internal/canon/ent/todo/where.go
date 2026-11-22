@@ -84,6 +84,11 @@ func ResolvedBy(v string) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldResolvedBy, v))
 }
 
+// Answered applies equality check predicate on the "answered" field. It's identical to AnsweredEQ.
+func Answered(v bool) predicate.Todo {
+	return predicate.Todo(sql.FieldEQ(FieldAnswered, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldCreatedAt, v))
@@ -502,6 +507,26 @@ func ResolvedByEqualFold(v string) predicate.Todo {
 // ResolvedByContainsFold applies the ContainsFold predicate on the "resolved_by" field.
 func ResolvedByContainsFold(v string) predicate.Todo {
 	return predicate.Todo(sql.FieldContainsFold(FieldResolvedBy, v))
+}
+
+// AnsweredEQ applies the EQ predicate on the "answered" field.
+func AnsweredEQ(v bool) predicate.Todo {
+	return predicate.Todo(sql.FieldEQ(FieldAnswered, v))
+}
+
+// AnsweredNEQ applies the NEQ predicate on the "answered" field.
+func AnsweredNEQ(v bool) predicate.Todo {
+	return predicate.Todo(sql.FieldNEQ(FieldAnswered, v))
+}
+
+// ResolutionIsNil applies the IsNil predicate on the "resolution" field.
+func ResolutionIsNil() predicate.Todo {
+	return predicate.Todo(sql.FieldIsNull(FieldResolution))
+}
+
+// ResolutionNotNil applies the NotNil predicate on the "resolution" field.
+func ResolutionNotNil() predicate.Todo {
+	return predicate.Todo(sql.FieldNotNull(FieldResolution))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

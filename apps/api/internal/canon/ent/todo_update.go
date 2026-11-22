@@ -130,6 +130,32 @@ func (_u *TodoUpdate) ClearResolvedBy() *TodoUpdate {
 	return _u
 }
 
+// SetAnswered sets the "answered" field.
+func (_u *TodoUpdate) SetAnswered(v bool) *TodoUpdate {
+	_u.mutation.SetAnswered(v)
+	return _u
+}
+
+// SetNillableAnswered sets the "answered" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableAnswered(v *bool) *TodoUpdate {
+	if v != nil {
+		_u.SetAnswered(*v)
+	}
+	return _u
+}
+
+// SetResolution sets the "resolution" field.
+func (_u *TodoUpdate) SetResolution(v map[string]interface{}) *TodoUpdate {
+	_u.mutation.SetResolution(v)
+	return _u
+}
+
+// ClearResolution clears the value of the "resolution" field.
+func (_u *TodoUpdate) ClearResolution() *TodoUpdate {
+	_u.mutation.ClearResolution()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *TodoUpdate) SetUpdatedAt(v time.Time) *TodoUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -212,6 +238,15 @@ func (_u *TodoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ResolvedByCleared() {
 		_spec.ClearField(todo.FieldResolvedBy, field.TypeString)
+	}
+	if value, ok := _u.mutation.Answered(); ok {
+		_spec.SetField(todo.FieldAnswered, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Resolution(); ok {
+		_spec.SetField(todo.FieldResolution, field.TypeJSON, value)
+	}
+	if _u.mutation.ResolutionCleared() {
+		_spec.ClearField(todo.FieldResolution, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(todo.FieldUpdatedAt, field.TypeTime, value)
@@ -338,6 +373,32 @@ func (_u *TodoUpdateOne) ClearResolvedBy() *TodoUpdateOne {
 	return _u
 }
 
+// SetAnswered sets the "answered" field.
+func (_u *TodoUpdateOne) SetAnswered(v bool) *TodoUpdateOne {
+	_u.mutation.SetAnswered(v)
+	return _u
+}
+
+// SetNillableAnswered sets the "answered" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableAnswered(v *bool) *TodoUpdateOne {
+	if v != nil {
+		_u.SetAnswered(*v)
+	}
+	return _u
+}
+
+// SetResolution sets the "resolution" field.
+func (_u *TodoUpdateOne) SetResolution(v map[string]interface{}) *TodoUpdateOne {
+	_u.mutation.SetResolution(v)
+	return _u
+}
+
+// ClearResolution clears the value of the "resolution" field.
+func (_u *TodoUpdateOne) ClearResolution() *TodoUpdateOne {
+	_u.mutation.ClearResolution()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *TodoUpdateOne) SetUpdatedAt(v time.Time) *TodoUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -450,6 +511,15 @@ func (_u *TodoUpdateOne) sqlSave(ctx context.Context) (_node *Todo, err error) {
 	}
 	if _u.mutation.ResolvedByCleared() {
 		_spec.ClearField(todo.FieldResolvedBy, field.TypeString)
+	}
+	if value, ok := _u.mutation.Answered(); ok {
+		_spec.SetField(todo.FieldAnswered, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Resolution(); ok {
+		_spec.SetField(todo.FieldResolution, field.TypeJSON, value)
+	}
+	if _u.mutation.ResolutionCleared() {
+		_spec.ClearField(todo.FieldResolution, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(todo.FieldUpdatedAt, field.TypeTime, value)

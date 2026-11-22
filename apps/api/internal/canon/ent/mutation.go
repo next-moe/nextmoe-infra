@@ -14407,6 +14407,8 @@ type TodoMutation struct {
 	source        *string
 	suggestion    *map[string]interface{}
 	resolved_by   *string
+	answered      *bool
+	resolution    *map[string]interface{}
 	created_at    *time.Time
 	updated_at    *time.Time
 	clearedFields map[string]struct{}
@@ -14791,6 +14793,91 @@ func (m *TodoMutation) ResetResolvedBy() {
 	delete(m.clearedFields, todo.FieldResolvedBy)
 }
 
+// SetAnswered sets the "answered" field.
+func (m *TodoMutation) SetAnswered(b bool) {
+	m.answered = &b
+}
+
+// Answered returns the value of the "answered" field in the mutation.
+func (m *TodoMutation) Answered() (r bool, exists bool) {
+	v := m.answered
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAnswered returns the old "answered" field's value of the Todo entity.
+// If the Todo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoMutation) OldAnswered(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAnswered is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAnswered requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAnswered: %w", err)
+	}
+	return oldValue.Answered, nil
+}
+
+// ResetAnswered resets all changes to the "answered" field.
+func (m *TodoMutation) ResetAnswered() {
+	m.answered = nil
+}
+
+// SetResolution sets the "resolution" field.
+func (m *TodoMutation) SetResolution(value map[string]interface{}) {
+	m.resolution = &value
+}
+
+// Resolution returns the value of the "resolution" field in the mutation.
+func (m *TodoMutation) Resolution() (r map[string]interface{}, exists bool) {
+	v := m.resolution
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolution returns the old "resolution" field's value of the Todo entity.
+// If the Todo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoMutation) OldResolution(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolution is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolution requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolution: %w", err)
+	}
+	return oldValue.Resolution, nil
+}
+
+// ClearResolution clears the value of the "resolution" field.
+func (m *TodoMutation) ClearResolution() {
+	m.resolution = nil
+	m.clearedFields[todo.FieldResolution] = struct{}{}
+}
+
+// ResolutionCleared returns if the "resolution" field was cleared in this mutation.
+func (m *TodoMutation) ResolutionCleared() bool {
+	_, ok := m.clearedFields[todo.FieldResolution]
+	return ok
+}
+
+// ResetResolution resets all changes to the "resolution" field.
+func (m *TodoMutation) ResetResolution() {
+	m.resolution = nil
+	delete(m.clearedFields, todo.FieldResolution)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *TodoMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -14897,7 +14984,7 @@ func (m *TodoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TodoMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 11)
 	if m.kind != nil {
 		fields = append(fields, todo.FieldKind)
 	}
@@ -14918,6 +15005,12 @@ func (m *TodoMutation) Fields() []string {
 	}
 	if m.resolved_by != nil {
 		fields = append(fields, todo.FieldResolvedBy)
+	}
+	if m.answered != nil {
+		fields = append(fields, todo.FieldAnswered)
+	}
+	if m.resolution != nil {
+		fields = append(fields, todo.FieldResolution)
 	}
 	if m.created_at != nil {
 		fields = append(fields, todo.FieldCreatedAt)
@@ -14947,6 +15040,10 @@ func (m *TodoMutation) Field(name string) (ent.Value, bool) {
 		return m.Suggestion()
 	case todo.FieldResolvedBy:
 		return m.ResolvedBy()
+	case todo.FieldAnswered:
+		return m.Answered()
+	case todo.FieldResolution:
+		return m.Resolution()
 	case todo.FieldCreatedAt:
 		return m.CreatedAt()
 	case todo.FieldUpdatedAt:
@@ -14974,6 +15071,10 @@ func (m *TodoMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldSuggestion(ctx)
 	case todo.FieldResolvedBy:
 		return m.OldResolvedBy(ctx)
+	case todo.FieldAnswered:
+		return m.OldAnswered(ctx)
+	case todo.FieldResolution:
+		return m.OldResolution(ctx)
 	case todo.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case todo.FieldUpdatedAt:
@@ -15036,6 +15137,20 @@ func (m *TodoMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetResolvedBy(v)
 		return nil
+	case todo.FieldAnswered:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAnswered(v)
+		return nil
+	case todo.FieldResolution:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolution(v)
+		return nil
 	case todo.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -15086,6 +15201,9 @@ func (m *TodoMutation) ClearedFields() []string {
 	if m.FieldCleared(todo.FieldResolvedBy) {
 		fields = append(fields, todo.FieldResolvedBy)
 	}
+	if m.FieldCleared(todo.FieldResolution) {
+		fields = append(fields, todo.FieldResolution)
+	}
 	return fields
 }
 
@@ -15105,6 +15223,9 @@ func (m *TodoMutation) ClearField(name string) error {
 		return nil
 	case todo.FieldResolvedBy:
 		m.ClearResolvedBy()
+		return nil
+	case todo.FieldResolution:
+		m.ClearResolution()
 		return nil
 	}
 	return fmt.Errorf("unknown Todo nullable field %s", name)
@@ -15134,6 +15255,12 @@ func (m *TodoMutation) ResetField(name string) error {
 		return nil
 	case todo.FieldResolvedBy:
 		m.ResetResolvedBy()
+		return nil
+	case todo.FieldAnswered:
+		m.ResetAnswered()
+		return nil
+	case todo.FieldResolution:
+		m.ResetResolution()
 		return nil
 	case todo.FieldCreatedAt:
 		m.ResetCreatedAt()
