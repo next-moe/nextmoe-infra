@@ -51,7 +51,7 @@ func Take(ctx context.Context, client *ent.Client, n Notice) (*ent.Takedown, err
 		SetCreatedBy(n.By).SetTakedownID(td.ID).Exec(ctx); err != nil {
 		return nil, err
 	}
-	if err := tx.Revision.Create().SetEntity(n.Entity).SetEntityID(n.EntityID).SetAction("takedown").
+	if err := tx.Revision.Create().SetEntity(n.Entity).SetEntityID(n.EntityID).SetRootEntity(n.Entity).SetRootID(n.EntityID).SetAction("takedown").
 		SetActorKind("human").SetActorKey(n.By).SetNote(n.Reason).
 		SetChanges(map[string]any{"notice_id": n.NoticeID, "scope": n.Scope, "asset": n.Asset, "takedown_id": td.ID}).Exec(ctx); err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func Restore(ctx context.Context, client *ent.Client, id int, by, note string) e
 	if err := tx.Hold.Update().Where(hold.TakedownID(id), hold.ReleasedAtIsNil()).SetReleasedAt(now).Exec(ctx); err != nil {
 		return err
 	}
-	if err := tx.Revision.Create().SetEntity(td.Entity).SetEntityID(td.EntityID).SetAction("restore").
+	if err := tx.Revision.Create().SetEntity(td.Entity).SetEntityID(td.EntityID).SetRootEntity(td.Entity).SetRootID(td.EntityID).SetAction("restore").
 		SetActorKind("human").SetActorKey(by).SetNote(note).SetChanges(map[string]any{"takedown_id": id}).Exec(ctx); err != nil {
 		return err
 	}

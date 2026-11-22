@@ -414,6 +414,8 @@ var (
 		{Name: "actor_key", Type: field.TypeString},
 		{Name: "note", Type: field.TypeString, Nullable: true},
 		{Name: "changes", Type: field.TypeJSON},
+		{Name: "root_entity", Type: field.TypeString, Default: ""},
+		{Name: "root_id", Type: field.TypeInt64, Default: 0},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// RevisionTable holds the schema information for the "revision" table.
@@ -426,6 +428,11 @@ var (
 				Name:    "revision_entity_entity_id",
 				Unique:  false,
 				Columns: []*schema.Column{RevisionColumns[1], RevisionColumns[2]},
+			},
+			{
+				Name:    "revision_root_entity_root_id",
+				Unique:  false,
+				Columns: []*schema.Column{RevisionColumns[8], RevisionColumns[9]},
 			},
 		},
 	}

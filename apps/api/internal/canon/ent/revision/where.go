@@ -84,6 +84,16 @@ func Note(v string) predicate.Revision {
 	return predicate.Revision(sql.FieldEQ(FieldNote, v))
 }
 
+// RootEntity applies equality check predicate on the "root_entity" field. It's identical to RootEntityEQ.
+func RootEntity(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldRootEntity, v))
+}
+
+// RootID applies equality check predicate on the "root_id" field. It's identical to RootIDEQ.
+func RootID(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldRootID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Revision {
 	return predicate.Revision(sql.FieldEQ(FieldCreatedAt, v))
@@ -462,6 +472,111 @@ func NoteEqualFold(v string) predicate.Revision {
 // NoteContainsFold applies the ContainsFold predicate on the "note" field.
 func NoteContainsFold(v string) predicate.Revision {
 	return predicate.Revision(sql.FieldContainsFold(FieldNote, v))
+}
+
+// RootEntityEQ applies the EQ predicate on the "root_entity" field.
+func RootEntityEQ(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldRootEntity, v))
+}
+
+// RootEntityNEQ applies the NEQ predicate on the "root_entity" field.
+func RootEntityNEQ(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldNEQ(FieldRootEntity, v))
+}
+
+// RootEntityIn applies the In predicate on the "root_entity" field.
+func RootEntityIn(vs ...string) predicate.Revision {
+	return predicate.Revision(sql.FieldIn(FieldRootEntity, vs...))
+}
+
+// RootEntityNotIn applies the NotIn predicate on the "root_entity" field.
+func RootEntityNotIn(vs ...string) predicate.Revision {
+	return predicate.Revision(sql.FieldNotIn(FieldRootEntity, vs...))
+}
+
+// RootEntityGT applies the GT predicate on the "root_entity" field.
+func RootEntityGT(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldGT(FieldRootEntity, v))
+}
+
+// RootEntityGTE applies the GTE predicate on the "root_entity" field.
+func RootEntityGTE(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldGTE(FieldRootEntity, v))
+}
+
+// RootEntityLT applies the LT predicate on the "root_entity" field.
+func RootEntityLT(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldLT(FieldRootEntity, v))
+}
+
+// RootEntityLTE applies the LTE predicate on the "root_entity" field.
+func RootEntityLTE(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldLTE(FieldRootEntity, v))
+}
+
+// RootEntityContains applies the Contains predicate on the "root_entity" field.
+func RootEntityContains(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldContains(FieldRootEntity, v))
+}
+
+// RootEntityHasPrefix applies the HasPrefix predicate on the "root_entity" field.
+func RootEntityHasPrefix(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldHasPrefix(FieldRootEntity, v))
+}
+
+// RootEntityHasSuffix applies the HasSuffix predicate on the "root_entity" field.
+func RootEntityHasSuffix(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldHasSuffix(FieldRootEntity, v))
+}
+
+// RootEntityEqualFold applies the EqualFold predicate on the "root_entity" field.
+func RootEntityEqualFold(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEqualFold(FieldRootEntity, v))
+}
+
+// RootEntityContainsFold applies the ContainsFold predicate on the "root_entity" field.
+func RootEntityContainsFold(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldContainsFold(FieldRootEntity, v))
+}
+
+// RootIDEQ applies the EQ predicate on the "root_id" field.
+func RootIDEQ(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldRootID, v))
+}
+
+// RootIDNEQ applies the NEQ predicate on the "root_id" field.
+func RootIDNEQ(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldNEQ(FieldRootID, v))
+}
+
+// RootIDIn applies the In predicate on the "root_id" field.
+func RootIDIn(vs ...int64) predicate.Revision {
+	return predicate.Revision(sql.FieldIn(FieldRootID, vs...))
+}
+
+// RootIDNotIn applies the NotIn predicate on the "root_id" field.
+func RootIDNotIn(vs ...int64) predicate.Revision {
+	return predicate.Revision(sql.FieldNotIn(FieldRootID, vs...))
+}
+
+// RootIDGT applies the GT predicate on the "root_id" field.
+func RootIDGT(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldGT(FieldRootID, v))
+}
+
+// RootIDGTE applies the GTE predicate on the "root_id" field.
+func RootIDGTE(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldGTE(FieldRootID, v))
+}
+
+// RootIDLT applies the LT predicate on the "root_id" field.
+func RootIDLT(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldLT(FieldRootID, v))
+}
+
+// RootIDLTE applies the LTE predicate on the "root_id" field.
+func RootIDLTE(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldLTE(FieldRootID, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

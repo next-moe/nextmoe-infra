@@ -38,11 +38,12 @@ func New(client *ent.Client, opts ...Options) (http.Handler, huma.API) {
 		a.verifier = o.Verifier
 	}
 	a.todos(h)
+	a.feed(h)
 	a.works(h)
 	a.releases(h)
 	a.people(h)
 	a.xrefs(h)
-	return mux, h
+	return withETag(mux), h
 }
 
 type IDInput struct {

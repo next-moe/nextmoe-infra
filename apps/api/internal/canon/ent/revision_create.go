@@ -72,6 +72,34 @@ func (_c *RevisionCreate) SetChanges(v map[string]interface{}) *RevisionCreate {
 	return _c
 }
 
+// SetRootEntity sets the "root_entity" field.
+func (_c *RevisionCreate) SetRootEntity(v string) *RevisionCreate {
+	_c.mutation.SetRootEntity(v)
+	return _c
+}
+
+// SetNillableRootEntity sets the "root_entity" field if the given value is not nil.
+func (_c *RevisionCreate) SetNillableRootEntity(v *string) *RevisionCreate {
+	if v != nil {
+		_c.SetRootEntity(*v)
+	}
+	return _c
+}
+
+// SetRootID sets the "root_id" field.
+func (_c *RevisionCreate) SetRootID(v int64) *RevisionCreate {
+	_c.mutation.SetRootID(v)
+	return _c
+}
+
+// SetNillableRootID sets the "root_id" field if the given value is not nil.
+func (_c *RevisionCreate) SetNillableRootID(v *int64) *RevisionCreate {
+	if v != nil {
+		_c.SetRootID(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *RevisionCreate) SetCreatedAt(v time.Time) *RevisionCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -127,6 +155,14 @@ func (_c *RevisionCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *RevisionCreate) defaults() {
+	if _, ok := _c.mutation.RootEntity(); !ok {
+		v := revision.DefaultRootEntity
+		_c.mutation.SetRootEntity(v)
+	}
+	if _, ok := _c.mutation.RootID(); !ok {
+		v := revision.DefaultRootID
+		_c.mutation.SetRootID(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := revision.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -152,6 +188,12 @@ func (_c *RevisionCreate) check() error {
 	}
 	if _, ok := _c.mutation.Changes(); !ok {
 		return &ValidationError{Name: "changes", err: errors.New(`ent: missing required field "Revision.changes"`)}
+	}
+	if _, ok := _c.mutation.RootEntity(); !ok {
+		return &ValidationError{Name: "root_entity", err: errors.New(`ent: missing required field "Revision.root_entity"`)}
+	}
+	if _, ok := _c.mutation.RootID(); !ok {
+		return &ValidationError{Name: "root_id", err: errors.New(`ent: missing required field "Revision.root_id"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Revision.created_at"`)}
@@ -216,6 +258,14 @@ func (_c *RevisionCreate) createSpec() (*Revision, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Changes(); ok {
 		_spec.SetField(revision.FieldChanges, field.TypeJSON, value)
 		_node.Changes = value
+	}
+	if value, ok := _c.mutation.RootEntity(); ok {
+		_spec.SetField(revision.FieldRootEntity, field.TypeString, value)
+		_node.RootEntity = value
+	}
+	if value, ok := _c.mutation.RootID(); ok {
+		_spec.SetField(revision.FieldRootID, field.TypeInt64, value)
+		_node.RootID = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(revision.FieldCreatedAt, field.TypeTime, value)
@@ -366,6 +416,36 @@ func (u *RevisionUpsert) SetChanges(v map[string]interface{}) *RevisionUpsert {
 // UpdateChanges sets the "changes" field to the value that was provided on create.
 func (u *RevisionUpsert) UpdateChanges() *RevisionUpsert {
 	u.SetExcluded(revision.FieldChanges)
+	return u
+}
+
+// SetRootEntity sets the "root_entity" field.
+func (u *RevisionUpsert) SetRootEntity(v string) *RevisionUpsert {
+	u.Set(revision.FieldRootEntity, v)
+	return u
+}
+
+// UpdateRootEntity sets the "root_entity" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateRootEntity() *RevisionUpsert {
+	u.SetExcluded(revision.FieldRootEntity)
+	return u
+}
+
+// SetRootID sets the "root_id" field.
+func (u *RevisionUpsert) SetRootID(v int64) *RevisionUpsert {
+	u.Set(revision.FieldRootID, v)
+	return u
+}
+
+// UpdateRootID sets the "root_id" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateRootID() *RevisionUpsert {
+	u.SetExcluded(revision.FieldRootID)
+	return u
+}
+
+// AddRootID adds v to the "root_id" field.
+func (u *RevisionUpsert) AddRootID(v int64) *RevisionUpsert {
+	u.Add(revision.FieldRootID, v)
 	return u
 }
 
@@ -529,6 +609,41 @@ func (u *RevisionUpsertOne) SetChanges(v map[string]interface{}) *RevisionUpsert
 func (u *RevisionUpsertOne) UpdateChanges() *RevisionUpsertOne {
 	return u.Update(func(s *RevisionUpsert) {
 		s.UpdateChanges()
+	})
+}
+
+// SetRootEntity sets the "root_entity" field.
+func (u *RevisionUpsertOne) SetRootEntity(v string) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetRootEntity(v)
+	})
+}
+
+// UpdateRootEntity sets the "root_entity" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateRootEntity() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateRootEntity()
+	})
+}
+
+// SetRootID sets the "root_id" field.
+func (u *RevisionUpsertOne) SetRootID(v int64) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetRootID(v)
+	})
+}
+
+// AddRootID adds v to the "root_id" field.
+func (u *RevisionUpsertOne) AddRootID(v int64) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.AddRootID(v)
+	})
+}
+
+// UpdateRootID sets the "root_id" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateRootID() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateRootID()
 	})
 }
 
@@ -858,6 +973,41 @@ func (u *RevisionUpsertBulk) SetChanges(v map[string]interface{}) *RevisionUpser
 func (u *RevisionUpsertBulk) UpdateChanges() *RevisionUpsertBulk {
 	return u.Update(func(s *RevisionUpsert) {
 		s.UpdateChanges()
+	})
+}
+
+// SetRootEntity sets the "root_entity" field.
+func (u *RevisionUpsertBulk) SetRootEntity(v string) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetRootEntity(v)
+	})
+}
+
+// UpdateRootEntity sets the "root_entity" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateRootEntity() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateRootEntity()
+	})
+}
+
+// SetRootID sets the "root_id" field.
+func (u *RevisionUpsertBulk) SetRootID(v int64) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetRootID(v)
+	})
+}
+
+// AddRootID adds v to the "root_id" field.
+func (u *RevisionUpsertBulk) AddRootID(v int64) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.AddRootID(v)
+	})
+}
+
+// UpdateRootID sets the "root_id" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateRootID() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateRootID()
 	})
 }
 

@@ -172,7 +172,7 @@ func Merge(ctx context.Context, client *ent.Client, entity string, loser, surviv
 		id     int64
 		action string
 	}{{loser, "merged_into"}, {survivor, "absorbed"}} {
-		if err := tx.Revision.Create().SetEntity(entity).SetEntityID(x.id).SetAction(x.action).SetActorKind("human").
+		if err := tx.Revision.Create().SetEntity(entity).SetEntityID(x.id).SetRootEntity(entity).SetRootID(x.id).SetAction(x.action).SetActorKind("human").
 			SetActorKey(by).SetNote(reason).SetChanges(map[string]any{"merge_id": rec.ID, "loser": loser, "survivor": survivor}).Exec(ctx); err != nil {
 			return 0, err
 		}

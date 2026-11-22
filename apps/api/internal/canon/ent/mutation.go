@@ -12659,6 +12659,9 @@ type RevisionMutation struct {
 	actor_key     *string
 	note          *string
 	changes       *map[string]interface{}
+	root_entity   *string
+	root_id       *int64
+	addroot_id    *int64
 	created_at    *time.Time
 	clearedFields map[string]struct{}
 	done          bool
@@ -13055,6 +13058,98 @@ func (m *RevisionMutation) ResetChanges() {
 	m.changes = nil
 }
 
+// SetRootEntity sets the "root_entity" field.
+func (m *RevisionMutation) SetRootEntity(s string) {
+	m.root_entity = &s
+}
+
+// RootEntity returns the value of the "root_entity" field in the mutation.
+func (m *RevisionMutation) RootEntity() (r string, exists bool) {
+	v := m.root_entity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRootEntity returns the old "root_entity" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldRootEntity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRootEntity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRootEntity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRootEntity: %w", err)
+	}
+	return oldValue.RootEntity, nil
+}
+
+// ResetRootEntity resets all changes to the "root_entity" field.
+func (m *RevisionMutation) ResetRootEntity() {
+	m.root_entity = nil
+}
+
+// SetRootID sets the "root_id" field.
+func (m *RevisionMutation) SetRootID(i int64) {
+	m.root_id = &i
+	m.addroot_id = nil
+}
+
+// RootID returns the value of the "root_id" field in the mutation.
+func (m *RevisionMutation) RootID() (r int64, exists bool) {
+	v := m.root_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRootID returns the old "root_id" field's value of the Revision entity.
+// If the Revision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RevisionMutation) OldRootID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRootID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRootID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRootID: %w", err)
+	}
+	return oldValue.RootID, nil
+}
+
+// AddRootID adds i to the "root_id" field.
+func (m *RevisionMutation) AddRootID(i int64) {
+	if m.addroot_id != nil {
+		*m.addroot_id += i
+	} else {
+		m.addroot_id = &i
+	}
+}
+
+// AddedRootID returns the value that was added to the "root_id" field in this mutation.
+func (m *RevisionMutation) AddedRootID() (r int64, exists bool) {
+	v := m.addroot_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRootID resets all changes to the "root_id" field.
+func (m *RevisionMutation) ResetRootID() {
+	m.root_id = nil
+	m.addroot_id = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *RevisionMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -13125,7 +13220,7 @@ func (m *RevisionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RevisionMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 10)
 	if m.entity != nil {
 		fields = append(fields, revision.FieldEntity)
 	}
@@ -13146,6 +13241,12 @@ func (m *RevisionMutation) Fields() []string {
 	}
 	if m.changes != nil {
 		fields = append(fields, revision.FieldChanges)
+	}
+	if m.root_entity != nil {
+		fields = append(fields, revision.FieldRootEntity)
+	}
+	if m.root_id != nil {
+		fields = append(fields, revision.FieldRootID)
 	}
 	if m.created_at != nil {
 		fields = append(fields, revision.FieldCreatedAt)
@@ -13172,6 +13273,10 @@ func (m *RevisionMutation) Field(name string) (ent.Value, bool) {
 		return m.Note()
 	case revision.FieldChanges:
 		return m.Changes()
+	case revision.FieldRootEntity:
+		return m.RootEntity()
+	case revision.FieldRootID:
+		return m.RootID()
 	case revision.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -13197,6 +13302,10 @@ func (m *RevisionMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldNote(ctx)
 	case revision.FieldChanges:
 		return m.OldChanges(ctx)
+	case revision.FieldRootEntity:
+		return m.OldRootEntity(ctx)
+	case revision.FieldRootID:
+		return m.OldRootID(ctx)
 	case revision.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -13257,6 +13366,20 @@ func (m *RevisionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetChanges(v)
 		return nil
+	case revision.FieldRootEntity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRootEntity(v)
+		return nil
+	case revision.FieldRootID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRootID(v)
+		return nil
 	case revision.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -13275,6 +13398,9 @@ func (m *RevisionMutation) AddedFields() []string {
 	if m.addentity_id != nil {
 		fields = append(fields, revision.FieldEntityID)
 	}
+	if m.addroot_id != nil {
+		fields = append(fields, revision.FieldRootID)
+	}
 	return fields
 }
 
@@ -13285,6 +13411,8 @@ func (m *RevisionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case revision.FieldEntityID:
 		return m.AddedEntityID()
+	case revision.FieldRootID:
+		return m.AddedRootID()
 	}
 	return nil, false
 }
@@ -13300,6 +13428,13 @@ func (m *RevisionMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddEntityID(v)
+		return nil
+	case revision.FieldRootID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRootID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Revision numeric field %s", name)
@@ -13357,6 +13492,12 @@ func (m *RevisionMutation) ResetField(name string) error {
 		return nil
 	case revision.FieldChanges:
 		m.ResetChanges()
+		return nil
+	case revision.FieldRootEntity:
+		m.ResetRootEntity()
+		return nil
+	case revision.FieldRootID:
+		m.ResetRootID()
 		return nil
 	case revision.FieldCreatedAt:
 		m.ResetCreatedAt()

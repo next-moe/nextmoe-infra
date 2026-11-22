@@ -264,9 +264,10 @@ func (s *Service) apply(ctx context.Context, tx *ent.Tx, cs Changeset, i int, ch
 	if ch.ID == 0 {
 		action = "create"
 	}
+	root, rootID := rootOf(ch.Entity, id, saved)
 	return tx.Revision.Create().SetEntity(ch.Entity).SetEntityID(id).SetAction(action).
 		SetActorKind(string(cs.Actor.Kind)).SetActorKey(cs.Actor.Key).SetNote(cs.Note).
-		SetChanges(changes).Exec(ctx)
+		SetChanges(changes).SetRootEntity(root).SetRootID(rootID).Exec(ctx)
 }
 
 func (s *Service) permitted(a Actor, p registry.Property, v Value, prior any) string {
@@ -329,6 +330,39 @@ func containsTier(ts []registry.Tier, t registry.Tier) bool {
 		}
 	}
 	return false
+}
+
+// roots names the parent field a child row shows up under; an entity absent
+// here is public on its own.
+var roots = map[string][]struct{ entity, field string }{
+	"work_title":      {{"work", "WorkID"}},
+	"work_part":       {{"work", "WorkID"}},
+	"book_work":       {{"work", "WorkID"}},
+	"release_content": {{"work", "WorkID"}},
+	"book_release":    {{"release", "ReleaseID"}},
+	"person_alias":    {{"person", "PersonID"}},
+	"org_name":        {{"org", "OrgID"}},
+	"credit":          {{"work", "WorkID"}, {"work_part", "PartID"}, {"release", "ReleaseID"}},
+}
+
+func rootOf(entity string, id int64, saved ent.Value) (string, int64) {
+	v := reflect.Indirect(reflect.ValueOf(saved))
+	for _, r := range roots[entity] {
+		f := v.FieldByName(r.field)
+		if !f.IsValid() {
+			continue
+		}
+		if f.Kind() == reflect.Pointer {
+			if f.IsNil() {
+				continue
+			}
+			f = f.Elem()
+		}
+		if f.CanInt() && f.Int() != 0 {
+			return r.entity, f.Int()
+		}
+	}
+	return entity, id
 }
 
 func entityID(v ent.Value) int64 {

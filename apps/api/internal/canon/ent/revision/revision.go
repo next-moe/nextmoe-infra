@@ -27,6 +27,10 @@ const (
 	FieldNote = "note"
 	// FieldChanges holds the string denoting the changes field in the database.
 	FieldChanges = "changes"
+	// FieldRootEntity holds the string denoting the root_entity field in the database.
+	FieldRootEntity = "root_entity"
+	// FieldRootID holds the string denoting the root_id field in the database.
+	FieldRootID = "root_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the revision in the database.
@@ -43,6 +47,8 @@ var Columns = []string{
 	FieldActorKey,
 	FieldNote,
 	FieldChanges,
+	FieldRootEntity,
+	FieldRootID,
 	FieldCreatedAt,
 }
 
@@ -57,6 +63,10 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultRootEntity holds the default value on creation for the "root_entity" field.
+	DefaultRootEntity string
+	// DefaultRootID holds the default value on creation for the "root_id" field.
+	DefaultRootID int64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -97,6 +107,16 @@ func ByActorKey(opts ...sql.OrderTermOption) OrderOption {
 // ByNote orders the results by the note field.
 func ByNote(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNote, opts...).ToFunc()
+}
+
+// ByRootEntity orders the results by the root_entity field.
+func ByRootEntity(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRootEntity, opts...).ToFunc()
+}
+
+// ByRootID orders the results by the root_id field.
+func ByRootID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRootID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

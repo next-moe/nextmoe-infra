@@ -218,8 +218,16 @@ func init() {
 	releasecontent.DefaultPosition = releasecontentDescPosition.Default.(int)
 	revisionFields := schema.Revision{}.Fields()
 	_ = revisionFields
+	// revisionDescRootEntity is the schema descriptor for root_entity field.
+	revisionDescRootEntity := revisionFields[8].Descriptor()
+	// revision.DefaultRootEntity holds the default value on creation for the root_entity field.
+	revision.DefaultRootEntity = revisionDescRootEntity.Default.(string)
+	// revisionDescRootID is the schema descriptor for root_id field.
+	revisionDescRootID := revisionFields[9].Descriptor()
+	// revision.DefaultRootID holds the default value on creation for the root_id field.
+	revision.DefaultRootID = revisionDescRootID.Default.(int64)
 	// revisionDescCreatedAt is the schema descriptor for created_at field.
-	revisionDescCreatedAt := revisionFields[8].Descriptor()
+	revisionDescCreatedAt := revisionFields[10].Descriptor()
 	// revision.DefaultCreatedAt holds the default value on creation for the created_at field.
 	revision.DefaultCreatedAt = revisionDescCreatedAt.Default.(func() time.Time)
 	takedownFields := schema.Takedown{}.Fields()

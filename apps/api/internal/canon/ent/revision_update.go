@@ -130,6 +130,41 @@ func (_u *RevisionUpdate) SetChanges(v map[string]interface{}) *RevisionUpdate {
 	return _u
 }
 
+// SetRootEntity sets the "root_entity" field.
+func (_u *RevisionUpdate) SetRootEntity(v string) *RevisionUpdate {
+	_u.mutation.SetRootEntity(v)
+	return _u
+}
+
+// SetNillableRootEntity sets the "root_entity" field if the given value is not nil.
+func (_u *RevisionUpdate) SetNillableRootEntity(v *string) *RevisionUpdate {
+	if v != nil {
+		_u.SetRootEntity(*v)
+	}
+	return _u
+}
+
+// SetRootID sets the "root_id" field.
+func (_u *RevisionUpdate) SetRootID(v int64) *RevisionUpdate {
+	_u.mutation.ResetRootID()
+	_u.mutation.SetRootID(v)
+	return _u
+}
+
+// SetNillableRootID sets the "root_id" field if the given value is not nil.
+func (_u *RevisionUpdate) SetNillableRootID(v *int64) *RevisionUpdate {
+	if v != nil {
+		_u.SetRootID(*v)
+	}
+	return _u
+}
+
+// AddRootID adds value to the "root_id" field.
+func (_u *RevisionUpdate) AddRootID(v int64) *RevisionUpdate {
+	_u.mutation.AddRootID(v)
+	return _u
+}
+
 // Mutation returns the RevisionMutation object of the builder.
 func (_u *RevisionUpdate) Mutation() *RevisionMutation {
 	return _u.mutation
@@ -197,6 +232,15 @@ func (_u *RevisionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Changes(); ok {
 		_spec.SetField(revision.FieldChanges, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.RootEntity(); ok {
+		_spec.SetField(revision.FieldRootEntity, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RootID(); ok {
+		_spec.SetField(revision.FieldRootID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedRootID(); ok {
+		_spec.AddField(revision.FieldRootID, field.TypeInt64, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -321,6 +365,41 @@ func (_u *RevisionUpdateOne) SetChanges(v map[string]interface{}) *RevisionUpdat
 	return _u
 }
 
+// SetRootEntity sets the "root_entity" field.
+func (_u *RevisionUpdateOne) SetRootEntity(v string) *RevisionUpdateOne {
+	_u.mutation.SetRootEntity(v)
+	return _u
+}
+
+// SetNillableRootEntity sets the "root_entity" field if the given value is not nil.
+func (_u *RevisionUpdateOne) SetNillableRootEntity(v *string) *RevisionUpdateOne {
+	if v != nil {
+		_u.SetRootEntity(*v)
+	}
+	return _u
+}
+
+// SetRootID sets the "root_id" field.
+func (_u *RevisionUpdateOne) SetRootID(v int64) *RevisionUpdateOne {
+	_u.mutation.ResetRootID()
+	_u.mutation.SetRootID(v)
+	return _u
+}
+
+// SetNillableRootID sets the "root_id" field if the given value is not nil.
+func (_u *RevisionUpdateOne) SetNillableRootID(v *int64) *RevisionUpdateOne {
+	if v != nil {
+		_u.SetRootID(*v)
+	}
+	return _u
+}
+
+// AddRootID adds value to the "root_id" field.
+func (_u *RevisionUpdateOne) AddRootID(v int64) *RevisionUpdateOne {
+	_u.mutation.AddRootID(v)
+	return _u
+}
+
 // Mutation returns the RevisionMutation object of the builder.
 func (_u *RevisionUpdateOne) Mutation() *RevisionMutation {
 	return _u.mutation
@@ -418,6 +497,15 @@ func (_u *RevisionUpdateOne) sqlSave(ctx context.Context) (_node *Revision, err 
 	}
 	if value, ok := _u.mutation.Changes(); ok {
 		_spec.SetField(revision.FieldChanges, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.RootEntity(); ok {
+		_spec.SetField(revision.FieldRootEntity, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RootID(); ok {
+		_spec.SetField(revision.FieldRootID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedRootID(); ok {
+		_spec.AddField(revision.FieldRootID, field.TypeInt64, value)
 	}
 	_node = &Revision{config: _u.config}
 	_spec.Assign = _node.assignValues

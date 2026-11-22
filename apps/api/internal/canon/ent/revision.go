@@ -32,6 +32,10 @@ type Revision struct {
 	Note string `json:"note,omitempty"`
 	// Changes holds the value of the "changes" field.
 	Changes map[string]interface{} `json:"changes,omitempty"`
+	// RootEntity holds the value of the "root_entity" field.
+	RootEntity string `json:"root_entity,omitempty"`
+	// RootID holds the value of the "root_id" field.
+	RootID int64 `json:"root_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -44,9 +48,9 @@ func (*Revision) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case revision.FieldChanges:
 			values[i] = new([]byte)
-		case revision.FieldID, revision.FieldEntityID:
+		case revision.FieldID, revision.FieldEntityID, revision.FieldRootID:
 			values[i] = new(sql.NullInt64)
-		case revision.FieldEntity, revision.FieldAction, revision.FieldActorKind, revision.FieldActorKey, revision.FieldNote:
+		case revision.FieldEntity, revision.FieldAction, revision.FieldActorKind, revision.FieldActorKey, revision.FieldNote, revision.FieldRootEntity:
 			values[i] = new(sql.NullString)
 		case revision.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -115,6 +119,18 @@ func (_m *Revision) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field changes: %w", err)
 				}
 			}
+		case revision.FieldRootEntity:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field root_entity", values[i])
+			} else if value.Valid {
+				_m.RootEntity = value.String
+			}
+		case revision.FieldRootID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field root_id", values[i])
+			} else if value.Valid {
+				_m.RootID = value.Int64
+			}
 		case revision.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -177,6 +193,12 @@ func (_m *Revision) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("changes=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Changes))
+	builder.WriteString(", ")
+	builder.WriteString("root_entity=")
+	builder.WriteString(_m.RootEntity)
+	builder.WriteString(", ")
+	builder.WriteString("root_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RootID))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

@@ -24,10 +24,14 @@ func (Revision) Fields() []ent.Field {
 		field.String("actor_key"),
 		field.String("note").Optional(),
 		field.JSON("changes", map[string]any{}),
+		// root is the public entity a change shows up on, so the change feed
+		// names the work for a title or credit edit, not the child row.
+		field.String("root_entity").Default(""),
+		field.Int64("root_id").Default(0),
 		field.Time("created_at").Default(timeNow).Immutable(),
 	}
 }
 
 func (Revision) Indexes() []ent.Index {
-	return []ent.Index{index.Fields("entity", "entity_id")}
+	return []ent.Index{index.Fields("entity", "entity_id"), index.Fields("root_entity", "root_id")}
 }
