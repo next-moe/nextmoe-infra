@@ -20,6 +20,8 @@ type Problem struct {
 	Errors    []string `json:"errors"`
 	Object    string   `json:"object,omitempty"`
 	CurrentID string   `json:"current_id,omitempty"`
+	// Current is the server's state when a client write lost to a newer one.
+	Current any `json:"current,omitempty"`
 }
 
 func (p *Problem) Error() string  { return p.Detail }

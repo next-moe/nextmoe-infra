@@ -214,6 +214,61 @@ var (
 			},
 		},
 	}
+	// LibraryPartProgressColumns holds the columns for the "library_part_progress" table.
+	LibraryPartProgressColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "actor_uid", Type: field.TypeInt64},
+		{Name: "state", Type: field.TypeString},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "part_id", Type: field.TypeInt64},
+	}
+	// LibraryPartProgressTable holds the schema information for the "library_part_progress" table.
+	LibraryPartProgressTable = &schema.Table{
+		Name:       "library_part_progress",
+		Columns:    LibraryPartProgressColumns,
+		PrimaryKey: []*schema.Column{LibraryPartProgressColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "library_part_progress_work_part_progress",
+				Columns:    []*schema.Column{LibraryPartProgressColumns[4]},
+				RefColumns: []*schema.Column{WorkPartColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "librarypartprogress_actor_uid_part_id",
+				Unique:  true,
+				Columns: []*schema.Column{LibraryPartProgressColumns[1], LibraryPartProgressColumns[4]},
+			},
+			{
+				Name:    "librarypartprogress_actor_uid_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{LibraryPartProgressColumns[1], LibraryPartProgressColumns[3]},
+			},
+		},
+	}
+	// LibraryTombstoneColumns holds the columns for the "library_tombstone" table.
+	LibraryTombstoneColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "actor_uid", Type: field.TypeInt64},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "subject_id", Type: field.TypeInt64},
+		{Name: "deleted_at", Type: field.TypeTime},
+	}
+	// LibraryTombstoneTable holds the schema information for the "library_tombstone" table.
+	LibraryTombstoneTable = &schema.Table{
+		Name:       "library_tombstone",
+		Columns:    LibraryTombstoneColumns,
+		PrimaryKey: []*schema.Column{LibraryTombstoneColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "librarytombstone_actor_uid_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{LibraryTombstoneColumns[1], LibraryTombstoneColumns[4]},
+			},
+		},
+	}
 	// MergeRecordColumns holds the columns for the "merge_record" table.
 	MergeRecordColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -610,6 +665,8 @@ var (
 		EvidenceSnapshotTable,
 		FaninCursorTable,
 		HoldTable,
+		LibraryPartProgressTable,
+		LibraryTombstoneTable,
 		MergeRecordTable,
 		OrgTable,
 		OrgNameTable,
@@ -665,6 +722,13 @@ func init() {
 	}
 	HoldTable.Annotation = &entsql.Annotation{
 		Table: "hold",
+	}
+	LibraryPartProgressTable.ForeignKeys[0].RefTable = WorkPartTable
+	LibraryPartProgressTable.Annotation = &entsql.Annotation{
+		Table: "library_part_progress",
+	}
+	LibraryTombstoneTable.Annotation = &entsql.Annotation{
+		Table: "library_tombstone",
 	}
 	MergeRecordTable.Annotation = &entsql.Annotation{
 		Table: "merge_record",

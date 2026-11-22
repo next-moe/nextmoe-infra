@@ -4,6 +4,7 @@ package ent
 
 import (
 	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/librarypartprogress"
 	"api/internal/canon/ent/predicate"
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/work"
@@ -32,6 +33,7 @@ type WorkPartQuery struct {
 	withChildren *WorkPartQuery
 	withContents *ReleaseContentQuery
 	withCredits  *CreditQuery
+	withProgress *LibraryPartProgressQuery
 	modifiers    []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -172,6 +174,28 @@ func (_q *WorkPartQuery) QueryCredits() *CreditQuery {
 			sqlgraph.From(workpart.Table, workpart.FieldID, selector),
 			sqlgraph.To(credit.Table, credit.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, workpart.CreditsTable, workpart.CreditsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProgress chains the current query on the "progress" edge.
+func (_q *WorkPartQuery) QueryProgress() *LibraryPartProgressQuery {
+	query := (&LibraryPartProgressClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(workpart.Table, workpart.FieldID, selector),
+			sqlgraph.To(librarypartprogress.Table, librarypartprogress.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, workpart.ProgressTable, workpart.ProgressColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -376,6 +400,7 @@ func (_q *WorkPartQuery) Clone() *WorkPartQuery {
 		withChildren: _q.withChildren.Clone(),
 		withContents: _q.withContents.Clone(),
 		withCredits:  _q.withCredits.Clone(),
+		withProgress: _q.withProgress.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -434,6 +459,17 @@ func (_q *WorkPartQuery) WithCredits(opts ...func(*CreditQuery)) *WorkPartQuery 
 		opt(query)
 	}
 	_q.withCredits = query
+	return _q
+}
+
+// WithProgress tells the query-builder to eager-load the nodes that are connected to
+// the "progress" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *WorkPartQuery) WithProgress(opts ...func(*LibraryPartProgressQuery)) *WorkPartQuery {
+	query := (&LibraryPartProgressClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProgress = query
 	return _q
 }
 
@@ -515,12 +551,13 @@ func (_q *WorkPartQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Wor
 	var (
 		nodes       = []*WorkPart{}
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			_q.withWork != nil,
 			_q.withParent != nil,
 			_q.withChildren != nil,
 			_q.withContents != nil,
 			_q.withCredits != nil,
+			_q.withProgress != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -574,6 +611,13 @@ func (_q *WorkPartQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Wor
 		if err := _q.loadCredits(ctx, query, nodes,
 			func(n *WorkPart) { n.Edges.Credits = []*Credit{} },
 			func(n *WorkPart, e *Credit) { n.Edges.Credits = append(n.Edges.Credits, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProgress; query != nil {
+		if err := _q.loadProgress(ctx, query, nodes,
+			func(n *WorkPart) { n.Edges.Progress = []*LibraryPartProgress{} },
+			func(n *WorkPart, e *LibraryPartProgress) { n.Edges.Progress = append(n.Edges.Progress, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -735,6 +779,36 @@ func (_q *WorkPartQuery) loadCredits(ctx context.Context, query *CreditQuery, no
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "part_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *WorkPartQuery) loadProgress(ctx context.Context, query *LibraryPartProgressQuery, nodes []*WorkPart, init func(*WorkPart), assign func(*WorkPart, *LibraryPartProgress)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*WorkPart)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(librarypartprogress.FieldPartID)
+	}
+	query.Where(predicate.LibraryPartProgress(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(workpart.ProgressColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.PartID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "part_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}

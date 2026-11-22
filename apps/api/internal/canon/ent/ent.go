@@ -11,6 +11,8 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/librarypartprogress"
+	"api/internal/canon/ent/librarytombstone"
 	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
@@ -95,29 +97,31 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			bookrelease.Table:      bookrelease.ValidColumn,
-			bookwork.Table:         bookwork.ValidColumn,
-			commitkey.Table:        commitkey.ValidColumn,
-			credit.Table:           credit.ValidColumn,
-			evidencerecord.Table:   evidencerecord.ValidColumn,
-			evidencesnapshot.Table: evidencesnapshot.ValidColumn,
-			fanincursor.Table:      fanincursor.ValidColumn,
-			hold.Table:             hold.ValidColumn,
-			mergerecord.Table:      mergerecord.ValidColumn,
-			org.Table:              org.ValidColumn,
-			orgname.Table:          orgname.ValidColumn,
-			person.Table:           person.ValidColumn,
-			personalias.Table:      personalias.ValidColumn,
-			redirect.Table:         redirect.ValidColumn,
-			release.Table:          release.ValidColumn,
-			releasecontent.Table:   releasecontent.ValidColumn,
-			revision.Table:         revision.ValidColumn,
-			takedown.Table:         takedown.ValidColumn,
-			todo.Table:             todo.ValidColumn,
-			work.Table:             work.ValidColumn,
-			workpart.Table:         workpart.ValidColumn,
-			worktitle.Table:        worktitle.ValidColumn,
-			xreflink.Table:         xreflink.ValidColumn,
+			bookrelease.Table:         bookrelease.ValidColumn,
+			bookwork.Table:            bookwork.ValidColumn,
+			commitkey.Table:           commitkey.ValidColumn,
+			credit.Table:              credit.ValidColumn,
+			evidencerecord.Table:      evidencerecord.ValidColumn,
+			evidencesnapshot.Table:    evidencesnapshot.ValidColumn,
+			fanincursor.Table:         fanincursor.ValidColumn,
+			hold.Table:                hold.ValidColumn,
+			librarypartprogress.Table: librarypartprogress.ValidColumn,
+			librarytombstone.Table:    librarytombstone.ValidColumn,
+			mergerecord.Table:         mergerecord.ValidColumn,
+			org.Table:                 org.ValidColumn,
+			orgname.Table:             orgname.ValidColumn,
+			person.Table:              person.ValidColumn,
+			personalias.Table:         personalias.ValidColumn,
+			redirect.Table:            redirect.ValidColumn,
+			release.Table:             release.ValidColumn,
+			releasecontent.Table:      releasecontent.ValidColumn,
+			revision.Table:            revision.ValidColumn,
+			takedown.Table:            takedown.ValidColumn,
+			todo.Table:                todo.ValidColumn,
+			work.Table:                work.ValidColumn,
+			workpart.Table:            workpart.ValidColumn,
+			worktitle.Table:           worktitle.ValidColumn,
+			xreflink.Table:            xreflink.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

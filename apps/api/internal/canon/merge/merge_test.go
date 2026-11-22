@@ -13,6 +13,7 @@ import (
 	"api/internal/canon/canontest"
 	"api/internal/canon/commit"
 	"api/internal/canon/ent/bookwork"
+	"api/internal/canon/ent/librarypartprogress"
 	"api/internal/canon/ent/redirect"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
@@ -97,5 +98,36 @@ func TestMergeAndUnmergeRoundTrip(t *testing.T) {
 	}
 	if n, _ := client.Redirect.Query().Where(redirect.OldID(loser), redirect.RevokedAtIsNil()).Count(ctx); n != 0 {
 		t.Error("the merge redirect is still live")
+	}
+}
+
+func TestPartMergeKeepsOneProgressPerReader(t *testing.T) {
+	client, _ := canontest.Client(t)
+	ctx := context.Background()
+	s := commit.New(client)
+	w := work(t, s, "巻")
+	parts, err := client.WorkPart.Query().Where(workpart.WorkID(w)).IDs(ctx)
+	if err != nil || len(parts) != 1 {
+		t.Fatal(err)
+	}
+	other, err := client.WorkPart.Create().SetWorkID(w).SetKind("volume").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	survivor, loser := parts[0], other.ID
+	for _, p := range []struct {
+		uid  int64
+		part int64
+	}{{1, survivor}, {1, loser}, {2, loser}} {
+		if err := client.LibraryPartProgress.Create().SetActorUID(p.uid).SetPartID(p.part).SetState("done").Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := merge.Merge(ctx, client, "work_part", loser, survivor, "user:1", "same volume"); err != nil {
+		t.Fatal(err)
+	}
+	n, _ := client.LibraryPartProgress.Query().Where(librarypartprogress.PartID(survivor)).Count(ctx)
+	if n != 2 {
+		t.Errorf("survivor progress rows %d, want one per reader (2)", n)
 	}
 }

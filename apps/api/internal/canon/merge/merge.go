@@ -33,6 +33,9 @@ var (
 type ref struct {
 	table, column string
 	unique        bool
+	// peers are the other columns of a composite unique index holding the
+	// column: a loser row whose peers match a survivor row cannot move.
+	peers [][]string
 }
 
 func referencing(entity string) []ref {
@@ -43,7 +46,29 @@ func referencing(entity string) []ref {
 				continue
 			}
 			c := fk.Columns[0]
-			out = append(out, ref{table: t.Name, column: c.Name, unique: c.Unique || uniqueIndex(t, c)})
+			out = append(out, ref{table: t.Name, column: c.Name, unique: c.Unique || uniqueIndex(t, c), peers: compositePeers(t, c)})
+		}
+	}
+	return out
+}
+
+func compositePeers(t *entschema.Table, c *entschema.Column) [][]string {
+	var out [][]string
+	for _, ix := range t.Indexes {
+		if !ix.Unique || len(ix.Columns) < 2 {
+			continue
+		}
+		var peers []string
+		has := false
+		for _, col := range ix.Columns {
+			if col.Name == c.Name {
+				has = true
+			} else {
+				peers = append(peers, col.Name)
+			}
+		}
+		if has {
+			out = append(out, peers)
 		}
 	}
 	return out
@@ -122,6 +147,16 @@ func Merge(ctx context.Context, client *ent.Client, entity string, loser, surviv
 				action = "dropped"
 			}
 		}
+		for _, peers := range r.peers {
+			cond := ""
+			for _, p := range peers {
+				cond += " AND s." + p + " = l." + p
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM canon.`+r.table+` l WHERE l.`+r.column+` = $1
+				AND EXISTS (SELECT 1 FROM canon.`+r.table+` s WHERE s.`+r.column+` = $2`+cond+`)`, loser, survivor); err != nil {
+				return 0, fmt.Errorf("%s.%s peers: %w", r.table, r.column, err)
+			}
+		}
 		var err2 error
 		if action == "dropped" {
 			_, err2 = tx.ExecContext(ctx, `DELETE FROM canon.`+r.table+` WHERE `+r.column+` = $1`, loser)
@@ -132,7 +167,21 @@ func Merge(ctx context.Context, client *ent.Client, entity string, loser, surviv
 			return 0, fmt.Errorf("%s.%s: %w", r.table, r.column, err2)
 		}
 		for _, b := range snaps {
-			moves = append(moves, Movement{Table: "canon." + r.table, Column: r.column, Action: action, Row: b})
+			a := action
+			if len(r.peers) > 0 {
+				var row struct {
+					ID int64 `json:"id"`
+				}
+				_ = json.Unmarshal(b, &row)
+				var n int
+				if err := one(ctx, tx, `SELECT count(*) FROM canon.`+r.table+` WHERE id = $1`, []any{row.ID}, &n); err != nil {
+					return 0, err
+				}
+				if n == 0 {
+					a = "dropped"
+				}
+			}
+			moves = append(moves, Movement{Table: "canon." + r.table, Column: r.column, Action: a, Row: b})
 		}
 	}
 	for _, t := range polymorphic {

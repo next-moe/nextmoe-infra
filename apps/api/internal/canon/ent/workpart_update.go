@@ -4,6 +4,7 @@ package ent
 
 import (
 	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/librarypartprogress"
 	"api/internal/canon/ent/predicate"
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/work"
@@ -234,6 +235,21 @@ func (_u *WorkPartUpdate) AddCredits(v ...*Credit) *WorkPartUpdate {
 	return _u.AddCreditIDs(ids...)
 }
 
+// AddProgresIDs adds the "progress" edge to the LibraryPartProgress entity by IDs.
+func (_u *WorkPartUpdate) AddProgresIDs(ids ...int) *WorkPartUpdate {
+	_u.mutation.AddProgresIDs(ids...)
+	return _u
+}
+
+// AddProgress adds the "progress" edges to the LibraryPartProgress entity.
+func (_u *WorkPartUpdate) AddProgress(v ...*LibraryPartProgress) *WorkPartUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProgresIDs(ids...)
+}
+
 // Mutation returns the WorkPartMutation object of the builder.
 func (_u *WorkPartUpdate) Mutation() *WorkPartMutation {
 	return _u.mutation
@@ -312,6 +328,27 @@ func (_u *WorkPartUpdate) RemoveCredits(v ...*Credit) *WorkPartUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCreditIDs(ids...)
+}
+
+// ClearProgress clears all "progress" edges to the LibraryPartProgress entity.
+func (_u *WorkPartUpdate) ClearProgress() *WorkPartUpdate {
+	_u.mutation.ClearProgress()
+	return _u
+}
+
+// RemoveProgresIDs removes the "progress" edge to LibraryPartProgress entities by IDs.
+func (_u *WorkPartUpdate) RemoveProgresIDs(ids ...int) *WorkPartUpdate {
+	_u.mutation.RemoveProgresIDs(ids...)
+	return _u
+}
+
+// RemoveProgress removes "progress" edges to LibraryPartProgress entities.
+func (_u *WorkPartUpdate) RemoveProgress(v ...*LibraryPartProgress) *WorkPartUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProgresIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -599,6 +636,51 @@ func (_u *WorkPartUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ProgressCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   workpart.ProgressTable,
+			Columns: []string{workpart.ProgressColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarypartprogress.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProgressIDs(); len(nodes) > 0 && !_u.mutation.ProgressCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   workpart.ProgressTable,
+			Columns: []string{workpart.ProgressColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarypartprogress.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProgressIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   workpart.ProgressTable,
+			Columns: []string{workpart.ProgressColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarypartprogress.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{workpart.Label}
@@ -822,6 +904,21 @@ func (_u *WorkPartUpdateOne) AddCredits(v ...*Credit) *WorkPartUpdateOne {
 	return _u.AddCreditIDs(ids...)
 }
 
+// AddProgresIDs adds the "progress" edge to the LibraryPartProgress entity by IDs.
+func (_u *WorkPartUpdateOne) AddProgresIDs(ids ...int) *WorkPartUpdateOne {
+	_u.mutation.AddProgresIDs(ids...)
+	return _u
+}
+
+// AddProgress adds the "progress" edges to the LibraryPartProgress entity.
+func (_u *WorkPartUpdateOne) AddProgress(v ...*LibraryPartProgress) *WorkPartUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProgresIDs(ids...)
+}
+
 // Mutation returns the WorkPartMutation object of the builder.
 func (_u *WorkPartUpdateOne) Mutation() *WorkPartMutation {
 	return _u.mutation
@@ -900,6 +997,27 @@ func (_u *WorkPartUpdateOne) RemoveCredits(v ...*Credit) *WorkPartUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCreditIDs(ids...)
+}
+
+// ClearProgress clears all "progress" edges to the LibraryPartProgress entity.
+func (_u *WorkPartUpdateOne) ClearProgress() *WorkPartUpdateOne {
+	_u.mutation.ClearProgress()
+	return _u
+}
+
+// RemoveProgresIDs removes the "progress" edge to LibraryPartProgress entities by IDs.
+func (_u *WorkPartUpdateOne) RemoveProgresIDs(ids ...int) *WorkPartUpdateOne {
+	_u.mutation.RemoveProgresIDs(ids...)
+	return _u
+}
+
+// RemoveProgress removes "progress" edges to LibraryPartProgress entities.
+func (_u *WorkPartUpdateOne) RemoveProgress(v ...*LibraryPartProgress) *WorkPartUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProgresIDs(ids...)
 }
 
 // Where appends a list predicates to the WorkPartUpdate builder.
@@ -1210,6 +1328,51 @@ func (_u *WorkPartUpdateOne) sqlSave(ctx context.Context) (_node *WorkPart, err 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProgressCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   workpart.ProgressTable,
+			Columns: []string{workpart.ProgressColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarypartprogress.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProgressIDs(); len(nodes) > 0 && !_u.mutation.ProgressCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   workpart.ProgressTable,
+			Columns: []string{workpart.ProgressColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarypartprogress.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProgressIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   workpart.ProgressTable,
+			Columns: []string{workpart.ProgressColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarypartprogress.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

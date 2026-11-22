@@ -30,6 +30,10 @@ type Tx struct {
 	FaninCursor *FaninCursorClient
 	// Hold is the client for interacting with the Hold builders.
 	Hold *HoldClient
+	// LibraryPartProgress is the client for interacting with the LibraryPartProgress builders.
+	LibraryPartProgress *LibraryPartProgressClient
+	// LibraryTombstone is the client for interacting with the LibraryTombstone builders.
+	LibraryTombstone *LibraryTombstoneClient
 	// MergeRecord is the client for interacting with the MergeRecord builders.
 	MergeRecord *MergeRecordClient
 	// Org is the client for interacting with the Org builders.
@@ -199,6 +203,8 @@ func (tx *Tx) init() {
 	tx.EvidenceSnapshot = NewEvidenceSnapshotClient(tx.config)
 	tx.FaninCursor = NewFaninCursorClient(tx.config)
 	tx.Hold = NewHoldClient(tx.config)
+	tx.LibraryPartProgress = NewLibraryPartProgressClient(tx.config)
+	tx.LibraryTombstone = NewLibraryTombstoneClient(tx.config)
 	tx.MergeRecord = NewMergeRecordClient(tx.config)
 	tx.Org = NewOrgClient(tx.config)
 	tx.OrgName = NewOrgNameClient(tx.config)

@@ -11,6 +11,8 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/librarypartprogress"
+	"api/internal/canon/ent/librarytombstone"
 	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
@@ -46,29 +48,31 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeBookRelease      = "BookRelease"
-	TypeBookWork         = "BookWork"
-	TypeCommitKey        = "CommitKey"
-	TypeCredit           = "Credit"
-	TypeEvidenceRecord   = "EvidenceRecord"
-	TypeEvidenceSnapshot = "EvidenceSnapshot"
-	TypeFaninCursor      = "FaninCursor"
-	TypeHold             = "Hold"
-	TypeMergeRecord      = "MergeRecord"
-	TypeOrg              = "Org"
-	TypeOrgName          = "OrgName"
-	TypePerson           = "Person"
-	TypePersonAlias      = "PersonAlias"
-	TypeRedirect         = "Redirect"
-	TypeRelease          = "Release"
-	TypeReleaseContent   = "ReleaseContent"
-	TypeRevision         = "Revision"
-	TypeTakedown         = "Takedown"
-	TypeTodo             = "Todo"
-	TypeWork             = "Work"
-	TypeWorkPart         = "WorkPart"
-	TypeWorkTitle        = "WorkTitle"
-	TypeXrefLink         = "XrefLink"
+	TypeBookRelease         = "BookRelease"
+	TypeBookWork            = "BookWork"
+	TypeCommitKey           = "CommitKey"
+	TypeCredit              = "Credit"
+	TypeEvidenceRecord      = "EvidenceRecord"
+	TypeEvidenceSnapshot    = "EvidenceSnapshot"
+	TypeFaninCursor         = "FaninCursor"
+	TypeHold                = "Hold"
+	TypeLibraryPartProgress = "LibraryPartProgress"
+	TypeLibraryTombstone    = "LibraryTombstone"
+	TypeMergeRecord         = "MergeRecord"
+	TypeOrg                 = "Org"
+	TypeOrgName             = "OrgName"
+	TypePerson              = "Person"
+	TypePersonAlias         = "PersonAlias"
+	TypeRedirect            = "Redirect"
+	TypeRelease             = "Release"
+	TypeReleaseContent      = "ReleaseContent"
+	TypeRevision            = "Revision"
+	TypeTakedown            = "Takedown"
+	TypeTodo                = "Todo"
+	TypeWork                = "Work"
+	TypeWorkPart            = "WorkPart"
+	TypeWorkTitle           = "WorkTitle"
+	TypeXrefLink            = "XrefLink"
 )
 
 // BookReleaseMutation represents an operation that mutates the BookRelease nodes in the graph.
@@ -5741,6 +5745,1141 @@ func (m *HoldMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *HoldMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Hold edge %s", name)
+}
+
+// LibraryPartProgressMutation represents an operation that mutates the LibraryPartProgress nodes in the graph.
+type LibraryPartProgressMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	actor_uid     *int64
+	addactor_uid  *int64
+	state         *string
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	part          *int64
+	clearedpart   bool
+	done          bool
+	oldValue      func(context.Context) (*LibraryPartProgress, error)
+	predicates    []predicate.LibraryPartProgress
+}
+
+var _ ent.Mutation = (*LibraryPartProgressMutation)(nil)
+
+// librarypartprogressOption allows management of the mutation configuration using functional options.
+type librarypartprogressOption func(*LibraryPartProgressMutation)
+
+// newLibraryPartProgressMutation creates new mutation for the LibraryPartProgress entity.
+func newLibraryPartProgressMutation(c config, op Op, opts ...librarypartprogressOption) *LibraryPartProgressMutation {
+	m := &LibraryPartProgressMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLibraryPartProgress,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLibraryPartProgressID sets the ID field of the mutation.
+func withLibraryPartProgressID(id int) librarypartprogressOption {
+	return func(m *LibraryPartProgressMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LibraryPartProgress
+		)
+		m.oldValue = func(ctx context.Context) (*LibraryPartProgress, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LibraryPartProgress.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLibraryPartProgress sets the old LibraryPartProgress of the mutation.
+func withLibraryPartProgress(node *LibraryPartProgress) librarypartprogressOption {
+	return func(m *LibraryPartProgressMutation) {
+		m.oldValue = func(context.Context) (*LibraryPartProgress, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LibraryPartProgressMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LibraryPartProgressMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LibraryPartProgressMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LibraryPartProgressMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LibraryPartProgress.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetActorUID sets the "actor_uid" field.
+func (m *LibraryPartProgressMutation) SetActorUID(i int64) {
+	m.actor_uid = &i
+	m.addactor_uid = nil
+}
+
+// ActorUID returns the value of the "actor_uid" field in the mutation.
+func (m *LibraryPartProgressMutation) ActorUID() (r int64, exists bool) {
+	v := m.actor_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorUID returns the old "actor_uid" field's value of the LibraryPartProgress entity.
+// If the LibraryPartProgress object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryPartProgressMutation) OldActorUID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorUID: %w", err)
+	}
+	return oldValue.ActorUID, nil
+}
+
+// AddActorUID adds i to the "actor_uid" field.
+func (m *LibraryPartProgressMutation) AddActorUID(i int64) {
+	if m.addactor_uid != nil {
+		*m.addactor_uid += i
+	} else {
+		m.addactor_uid = &i
+	}
+}
+
+// AddedActorUID returns the value that was added to the "actor_uid" field in this mutation.
+func (m *LibraryPartProgressMutation) AddedActorUID() (r int64, exists bool) {
+	v := m.addactor_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetActorUID resets all changes to the "actor_uid" field.
+func (m *LibraryPartProgressMutation) ResetActorUID() {
+	m.actor_uid = nil
+	m.addactor_uid = nil
+}
+
+// SetPartID sets the "part_id" field.
+func (m *LibraryPartProgressMutation) SetPartID(i int64) {
+	m.part = &i
+}
+
+// PartID returns the value of the "part_id" field in the mutation.
+func (m *LibraryPartProgressMutation) PartID() (r int64, exists bool) {
+	v := m.part
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPartID returns the old "part_id" field's value of the LibraryPartProgress entity.
+// If the LibraryPartProgress object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryPartProgressMutation) OldPartID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPartID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPartID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPartID: %w", err)
+	}
+	return oldValue.PartID, nil
+}
+
+// ResetPartID resets all changes to the "part_id" field.
+func (m *LibraryPartProgressMutation) ResetPartID() {
+	m.part = nil
+}
+
+// SetState sets the "state" field.
+func (m *LibraryPartProgressMutation) SetState(s string) {
+	m.state = &s
+}
+
+// State returns the value of the "state" field in the mutation.
+func (m *LibraryPartProgressMutation) State() (r string, exists bool) {
+	v := m.state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldState returns the old "state" field's value of the LibraryPartProgress entity.
+// If the LibraryPartProgress object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryPartProgressMutation) OldState(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldState: %w", err)
+	}
+	return oldValue.State, nil
+}
+
+// ResetState resets all changes to the "state" field.
+func (m *LibraryPartProgressMutation) ResetState() {
+	m.state = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LibraryPartProgressMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LibraryPartProgressMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LibraryPartProgress entity.
+// If the LibraryPartProgress object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryPartProgressMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LibraryPartProgressMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearPart clears the "part" edge to the WorkPart entity.
+func (m *LibraryPartProgressMutation) ClearPart() {
+	m.clearedpart = true
+	m.clearedFields[librarypartprogress.FieldPartID] = struct{}{}
+}
+
+// PartCleared reports if the "part" edge to the WorkPart entity was cleared.
+func (m *LibraryPartProgressMutation) PartCleared() bool {
+	return m.clearedpart
+}
+
+// PartIDs returns the "part" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// PartID instead. It exists only for internal usage by the builders.
+func (m *LibraryPartProgressMutation) PartIDs() (ids []int64) {
+	if id := m.part; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetPart resets all changes to the "part" edge.
+func (m *LibraryPartProgressMutation) ResetPart() {
+	m.part = nil
+	m.clearedpart = false
+}
+
+// Where appends a list predicates to the LibraryPartProgressMutation builder.
+func (m *LibraryPartProgressMutation) Where(ps ...predicate.LibraryPartProgress) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LibraryPartProgressMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LibraryPartProgressMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LibraryPartProgress, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LibraryPartProgressMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LibraryPartProgressMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LibraryPartProgress).
+func (m *LibraryPartProgressMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LibraryPartProgressMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.actor_uid != nil {
+		fields = append(fields, librarypartprogress.FieldActorUID)
+	}
+	if m.part != nil {
+		fields = append(fields, librarypartprogress.FieldPartID)
+	}
+	if m.state != nil {
+		fields = append(fields, librarypartprogress.FieldState)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, librarypartprogress.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LibraryPartProgressMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case librarypartprogress.FieldActorUID:
+		return m.ActorUID()
+	case librarypartprogress.FieldPartID:
+		return m.PartID()
+	case librarypartprogress.FieldState:
+		return m.State()
+	case librarypartprogress.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LibraryPartProgressMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case librarypartprogress.FieldActorUID:
+		return m.OldActorUID(ctx)
+	case librarypartprogress.FieldPartID:
+		return m.OldPartID(ctx)
+	case librarypartprogress.FieldState:
+		return m.OldState(ctx)
+	case librarypartprogress.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LibraryPartProgress field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LibraryPartProgressMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case librarypartprogress.FieldActorUID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorUID(v)
+		return nil
+	case librarypartprogress.FieldPartID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPartID(v)
+		return nil
+	case librarypartprogress.FieldState:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetState(v)
+		return nil
+	case librarypartprogress.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LibraryPartProgress field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LibraryPartProgressMutation) AddedFields() []string {
+	var fields []string
+	if m.addactor_uid != nil {
+		fields = append(fields, librarypartprogress.FieldActorUID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LibraryPartProgressMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case librarypartprogress.FieldActorUID:
+		return m.AddedActorUID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LibraryPartProgressMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case librarypartprogress.FieldActorUID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActorUID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LibraryPartProgress numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LibraryPartProgressMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LibraryPartProgressMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LibraryPartProgressMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown LibraryPartProgress nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LibraryPartProgressMutation) ResetField(name string) error {
+	switch name {
+	case librarypartprogress.FieldActorUID:
+		m.ResetActorUID()
+		return nil
+	case librarypartprogress.FieldPartID:
+		m.ResetPartID()
+		return nil
+	case librarypartprogress.FieldState:
+		m.ResetState()
+		return nil
+	case librarypartprogress.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LibraryPartProgress field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LibraryPartProgressMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.part != nil {
+		edges = append(edges, librarypartprogress.EdgePart)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LibraryPartProgressMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case librarypartprogress.EdgePart:
+		if id := m.part; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LibraryPartProgressMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LibraryPartProgressMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LibraryPartProgressMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedpart {
+		edges = append(edges, librarypartprogress.EdgePart)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LibraryPartProgressMutation) EdgeCleared(name string) bool {
+	switch name {
+	case librarypartprogress.EdgePart:
+		return m.clearedpart
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LibraryPartProgressMutation) ClearEdge(name string) error {
+	switch name {
+	case librarypartprogress.EdgePart:
+		m.ClearPart()
+		return nil
+	}
+	return fmt.Errorf("unknown LibraryPartProgress unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LibraryPartProgressMutation) ResetEdge(name string) error {
+	switch name {
+	case librarypartprogress.EdgePart:
+		m.ResetPart()
+		return nil
+	}
+	return fmt.Errorf("unknown LibraryPartProgress edge %s", name)
+}
+
+// LibraryTombstoneMutation represents an operation that mutates the LibraryTombstone nodes in the graph.
+type LibraryTombstoneMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	actor_uid     *int64
+	addactor_uid  *int64
+	kind          *string
+	subject_id    *int64
+	addsubject_id *int64
+	deleted_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*LibraryTombstone, error)
+	predicates    []predicate.LibraryTombstone
+}
+
+var _ ent.Mutation = (*LibraryTombstoneMutation)(nil)
+
+// librarytombstoneOption allows management of the mutation configuration using functional options.
+type librarytombstoneOption func(*LibraryTombstoneMutation)
+
+// newLibraryTombstoneMutation creates new mutation for the LibraryTombstone entity.
+func newLibraryTombstoneMutation(c config, op Op, opts ...librarytombstoneOption) *LibraryTombstoneMutation {
+	m := &LibraryTombstoneMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLibraryTombstone,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLibraryTombstoneID sets the ID field of the mutation.
+func withLibraryTombstoneID(id int) librarytombstoneOption {
+	return func(m *LibraryTombstoneMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LibraryTombstone
+		)
+		m.oldValue = func(ctx context.Context) (*LibraryTombstone, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LibraryTombstone.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLibraryTombstone sets the old LibraryTombstone of the mutation.
+func withLibraryTombstone(node *LibraryTombstone) librarytombstoneOption {
+	return func(m *LibraryTombstoneMutation) {
+		m.oldValue = func(context.Context) (*LibraryTombstone, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LibraryTombstoneMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LibraryTombstoneMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LibraryTombstoneMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LibraryTombstoneMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LibraryTombstone.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetActorUID sets the "actor_uid" field.
+func (m *LibraryTombstoneMutation) SetActorUID(i int64) {
+	m.actor_uid = &i
+	m.addactor_uid = nil
+}
+
+// ActorUID returns the value of the "actor_uid" field in the mutation.
+func (m *LibraryTombstoneMutation) ActorUID() (r int64, exists bool) {
+	v := m.actor_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorUID returns the old "actor_uid" field's value of the LibraryTombstone entity.
+// If the LibraryTombstone object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryTombstoneMutation) OldActorUID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorUID: %w", err)
+	}
+	return oldValue.ActorUID, nil
+}
+
+// AddActorUID adds i to the "actor_uid" field.
+func (m *LibraryTombstoneMutation) AddActorUID(i int64) {
+	if m.addactor_uid != nil {
+		*m.addactor_uid += i
+	} else {
+		m.addactor_uid = &i
+	}
+}
+
+// AddedActorUID returns the value that was added to the "actor_uid" field in this mutation.
+func (m *LibraryTombstoneMutation) AddedActorUID() (r int64, exists bool) {
+	v := m.addactor_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetActorUID resets all changes to the "actor_uid" field.
+func (m *LibraryTombstoneMutation) ResetActorUID() {
+	m.actor_uid = nil
+	m.addactor_uid = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *LibraryTombstoneMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *LibraryTombstoneMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the LibraryTombstone entity.
+// If the LibraryTombstone object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryTombstoneMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *LibraryTombstoneMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetSubjectID sets the "subject_id" field.
+func (m *LibraryTombstoneMutation) SetSubjectID(i int64) {
+	m.subject_id = &i
+	m.addsubject_id = nil
+}
+
+// SubjectID returns the value of the "subject_id" field in the mutation.
+func (m *LibraryTombstoneMutation) SubjectID() (r int64, exists bool) {
+	v := m.subject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectID returns the old "subject_id" field's value of the LibraryTombstone entity.
+// If the LibraryTombstone object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryTombstoneMutation) OldSubjectID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectID: %w", err)
+	}
+	return oldValue.SubjectID, nil
+}
+
+// AddSubjectID adds i to the "subject_id" field.
+func (m *LibraryTombstoneMutation) AddSubjectID(i int64) {
+	if m.addsubject_id != nil {
+		*m.addsubject_id += i
+	} else {
+		m.addsubject_id = &i
+	}
+}
+
+// AddedSubjectID returns the value that was added to the "subject_id" field in this mutation.
+func (m *LibraryTombstoneMutation) AddedSubjectID() (r int64, exists bool) {
+	v := m.addsubject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSubjectID resets all changes to the "subject_id" field.
+func (m *LibraryTombstoneMutation) ResetSubjectID() {
+	m.subject_id = nil
+	m.addsubject_id = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *LibraryTombstoneMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *LibraryTombstoneMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the LibraryTombstone entity.
+// If the LibraryTombstone object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryTombstoneMutation) OldDeletedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *LibraryTombstoneMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+}
+
+// Where appends a list predicates to the LibraryTombstoneMutation builder.
+func (m *LibraryTombstoneMutation) Where(ps ...predicate.LibraryTombstone) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LibraryTombstoneMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LibraryTombstoneMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LibraryTombstone, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LibraryTombstoneMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LibraryTombstoneMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LibraryTombstone).
+func (m *LibraryTombstoneMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LibraryTombstoneMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.actor_uid != nil {
+		fields = append(fields, librarytombstone.FieldActorUID)
+	}
+	if m.kind != nil {
+		fields = append(fields, librarytombstone.FieldKind)
+	}
+	if m.subject_id != nil {
+		fields = append(fields, librarytombstone.FieldSubjectID)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, librarytombstone.FieldDeletedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LibraryTombstoneMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case librarytombstone.FieldActorUID:
+		return m.ActorUID()
+	case librarytombstone.FieldKind:
+		return m.Kind()
+	case librarytombstone.FieldSubjectID:
+		return m.SubjectID()
+	case librarytombstone.FieldDeletedAt:
+		return m.DeletedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LibraryTombstoneMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case librarytombstone.FieldActorUID:
+		return m.OldActorUID(ctx)
+	case librarytombstone.FieldKind:
+		return m.OldKind(ctx)
+	case librarytombstone.FieldSubjectID:
+		return m.OldSubjectID(ctx)
+	case librarytombstone.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LibraryTombstone field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LibraryTombstoneMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case librarytombstone.FieldActorUID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorUID(v)
+		return nil
+	case librarytombstone.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case librarytombstone.FieldSubjectID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectID(v)
+		return nil
+	case librarytombstone.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LibraryTombstone field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LibraryTombstoneMutation) AddedFields() []string {
+	var fields []string
+	if m.addactor_uid != nil {
+		fields = append(fields, librarytombstone.FieldActorUID)
+	}
+	if m.addsubject_id != nil {
+		fields = append(fields, librarytombstone.FieldSubjectID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LibraryTombstoneMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case librarytombstone.FieldActorUID:
+		return m.AddedActorUID()
+	case librarytombstone.FieldSubjectID:
+		return m.AddedSubjectID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LibraryTombstoneMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case librarytombstone.FieldActorUID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActorUID(v)
+		return nil
+	case librarytombstone.FieldSubjectID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubjectID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LibraryTombstone numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LibraryTombstoneMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LibraryTombstoneMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LibraryTombstoneMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown LibraryTombstone nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LibraryTombstoneMutation) ResetField(name string) error {
+	switch name {
+	case librarytombstone.FieldActorUID:
+		m.ResetActorUID()
+		return nil
+	case librarytombstone.FieldKind:
+		m.ResetKind()
+		return nil
+	case librarytombstone.FieldSubjectID:
+		m.ResetSubjectID()
+		return nil
+	case librarytombstone.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LibraryTombstone field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LibraryTombstoneMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LibraryTombstoneMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LibraryTombstoneMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LibraryTombstoneMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LibraryTombstoneMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LibraryTombstoneMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LibraryTombstoneMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LibraryTombstone unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LibraryTombstoneMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LibraryTombstone edge %s", name)
 }
 
 // MergeRecordMutation represents an operation that mutates the MergeRecord nodes in the graph.
@@ -16933,6 +18072,9 @@ type WorkPartMutation struct {
 	credits         map[int64]struct{}
 	removedcredits  map[int64]struct{}
 	clearedcredits  bool
+	progress        map[int]struct{}
+	removedprogress map[int]struct{}
+	clearedprogress bool
 	done            bool
 	oldValue        func(context.Context) (*WorkPart, error)
 	predicates      []predicate.WorkPart
@@ -17711,6 +18853,60 @@ func (m *WorkPartMutation) ResetCredits() {
 	m.removedcredits = nil
 }
 
+// AddProgresIDs adds the "progress" edge to the LibraryPartProgress entity by ids.
+func (m *WorkPartMutation) AddProgresIDs(ids ...int) {
+	if m.progress == nil {
+		m.progress = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.progress[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProgress clears the "progress" edge to the LibraryPartProgress entity.
+func (m *WorkPartMutation) ClearProgress() {
+	m.clearedprogress = true
+}
+
+// ProgressCleared reports if the "progress" edge to the LibraryPartProgress entity was cleared.
+func (m *WorkPartMutation) ProgressCleared() bool {
+	return m.clearedprogress
+}
+
+// RemoveProgresIDs removes the "progress" edge to the LibraryPartProgress entity by IDs.
+func (m *WorkPartMutation) RemoveProgresIDs(ids ...int) {
+	if m.removedprogress == nil {
+		m.removedprogress = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.progress, ids[i])
+		m.removedprogress[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProgress returns the removed IDs of the "progress" edge to the LibraryPartProgress entity.
+func (m *WorkPartMutation) RemovedProgressIDs() (ids []int) {
+	for id := range m.removedprogress {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProgressIDs returns the "progress" edge IDs in the mutation.
+func (m *WorkPartMutation) ProgressIDs() (ids []int) {
+	for id := range m.progress {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProgress resets all changes to the "progress" edge.
+func (m *WorkPartMutation) ResetProgress() {
+	m.progress = nil
+	m.clearedprogress = false
+	m.removedprogress = nil
+}
+
 // Where appends a list predicates to the WorkPartMutation builder.
 func (m *WorkPartMutation) Where(ps ...predicate.WorkPart) {
 	m.predicates = append(m.predicates, ps...)
@@ -18051,7 +19247,7 @@ func (m *WorkPartMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *WorkPartMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.work != nil {
 		edges = append(edges, workpart.EdgeWork)
 	}
@@ -18066,6 +19262,9 @@ func (m *WorkPartMutation) AddedEdges() []string {
 	}
 	if m.credits != nil {
 		edges = append(edges, workpart.EdgeCredits)
+	}
+	if m.progress != nil {
+		edges = append(edges, workpart.EdgeProgress)
 	}
 	return edges
 }
@@ -18100,13 +19299,19 @@ func (m *WorkPartMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case workpart.EdgeProgress:
+		ids := make([]ent.Value, 0, len(m.progress))
+		for id := range m.progress {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *WorkPartMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedchildren != nil {
 		edges = append(edges, workpart.EdgeChildren)
 	}
@@ -18115,6 +19320,9 @@ func (m *WorkPartMutation) RemovedEdges() []string {
 	}
 	if m.removedcredits != nil {
 		edges = append(edges, workpart.EdgeCredits)
+	}
+	if m.removedprogress != nil {
+		edges = append(edges, workpart.EdgeProgress)
 	}
 	return edges
 }
@@ -18141,13 +19349,19 @@ func (m *WorkPartMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case workpart.EdgeProgress:
+		ids := make([]ent.Value, 0, len(m.removedprogress))
+		for id := range m.removedprogress {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *WorkPartMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedwork {
 		edges = append(edges, workpart.EdgeWork)
 	}
@@ -18162,6 +19376,9 @@ func (m *WorkPartMutation) ClearedEdges() []string {
 	}
 	if m.clearedcredits {
 		edges = append(edges, workpart.EdgeCredits)
+	}
+	if m.clearedprogress {
+		edges = append(edges, workpart.EdgeProgress)
 	}
 	return edges
 }
@@ -18180,6 +19397,8 @@ func (m *WorkPartMutation) EdgeCleared(name string) bool {
 		return m.clearedcontents
 	case workpart.EdgeCredits:
 		return m.clearedcredits
+	case workpart.EdgeProgress:
+		return m.clearedprogress
 	}
 	return false
 }
@@ -18216,6 +19435,9 @@ func (m *WorkPartMutation) ResetEdge(name string) error {
 		return nil
 	case workpart.EdgeCredits:
 		m.ResetCredits()
+		return nil
+	case workpart.EdgeProgress:
+		m.ResetProgress()
 		return nil
 	}
 	return fmt.Errorf("unknown WorkPart edge %s", name)

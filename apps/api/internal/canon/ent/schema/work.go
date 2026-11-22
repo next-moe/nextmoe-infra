@@ -80,5 +80,6 @@ func (WorkPart) Edges() []ent.Edge {
 		edge.To("children", WorkPart.Type).Annotations(noAction).From("parent").Field("parent_id").Unique(),
 		edge.To("contents", ReleaseContent.Type).Annotations(noAction),
 		edge.To("credits", Credit.Type).Annotations(noAction),
+		edge.To("progress", LibraryPartProgress.Type).Annotations(noAction),
 	}
 }

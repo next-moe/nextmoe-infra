@@ -645,6 +645,29 @@ func HasCreditsWith(preds ...predicate.Credit) predicate.WorkPart {
 	})
 }
 
+// HasProgress applies the HasEdge predicate on the "progress" edge.
+func HasProgress() predicate.WorkPart {
+	return predicate.WorkPart(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProgressTable, ProgressColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProgressWith applies the HasEdge predicate on the "progress" edge with a given conditions (other predicates).
+func HasProgressWith(preds ...predicate.LibraryPartProgress) predicate.WorkPart {
+	return predicate.WorkPart(func(s *sql.Selector) {
+		step := newProgressStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.WorkPart) predicate.WorkPart {
 	return predicate.WorkPart(sql.AndPredicates(predicates...))

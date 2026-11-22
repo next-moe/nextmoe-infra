@@ -30,6 +30,12 @@ type FaninCursor func(*sql.Selector)
 // Hold is the predicate function for hold builders.
 type Hold func(*sql.Selector)
 
+// LibraryPartProgress is the predicate function for librarypartprogress builders.
+type LibraryPartProgress func(*sql.Selector)
+
+// LibraryTombstone is the predicate function for librarytombstone builders.
+type LibraryTombstone func(*sql.Selector)
+
 // MergeRecord is the predicate function for mergerecord builders.
 type MergeRecord func(*sql.Selector)
 

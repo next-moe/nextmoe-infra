@@ -44,6 +44,8 @@ const (
 	EdgeContents = "contents"
 	// EdgeCredits holds the string denoting the credits edge name in mutations.
 	EdgeCredits = "credits"
+	// EdgeProgress holds the string denoting the progress edge name in mutations.
+	EdgeProgress = "progress"
 	// Table holds the table name of the workpart in the database.
 	Table = "work_part"
 	// WorkTable is the table that holds the work relation/edge.
@@ -75,6 +77,13 @@ const (
 	CreditsInverseTable = "credit"
 	// CreditsColumn is the table column denoting the credits relation/edge.
 	CreditsColumn = "part_id"
+	// ProgressTable is the table that holds the progress relation/edge.
+	ProgressTable = "library_part_progress"
+	// ProgressInverseTable is the table name for the LibraryPartProgress entity.
+	// It exists in this package in order to avoid circular dependency with the "librarypartprogress" package.
+	ProgressInverseTable = "library_part_progress"
+	// ProgressColumn is the table column denoting the progress relation/edge.
+	ProgressColumn = "part_id"
 )
 
 // Columns holds all SQL columns for workpart fields.
@@ -223,6 +232,20 @@ func ByCredits(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newCreditsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByProgressCount orders the results by progress count.
+func ByProgressCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProgressStep(), opts...)
+	}
+}
+
+// ByProgress orders the results by progress terms.
+func ByProgress(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProgressStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newWorkStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -256,5 +279,12 @@ func newCreditsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(CreditsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, CreditsTable, CreditsColumn),
+	)
+}
+func newProgressStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProgressInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProgressTable, ProgressColumn),
 	)
 }

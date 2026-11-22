@@ -9,6 +9,8 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/librarypartprogress"
+	"api/internal/canon/ent/librarytombstone"
 	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
@@ -92,6 +94,20 @@ func init() {
 	holdDescCreatedAt := holdFields[5].Descriptor()
 	// hold.DefaultCreatedAt holds the default value on creation for the created_at field.
 	hold.DefaultCreatedAt = holdDescCreatedAt.Default.(func() time.Time)
+	librarypartprogressFields := schema.LibraryPartProgress{}.Fields()
+	_ = librarypartprogressFields
+	// librarypartprogressDescUpdatedAt is the schema descriptor for updated_at field.
+	librarypartprogressDescUpdatedAt := librarypartprogressFields[3].Descriptor()
+	// librarypartprogress.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	librarypartprogress.DefaultUpdatedAt = librarypartprogressDescUpdatedAt.Default.(func() time.Time)
+	// librarypartprogress.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	librarypartprogress.UpdateDefaultUpdatedAt = librarypartprogressDescUpdatedAt.UpdateDefault.(func() time.Time)
+	librarytombstoneFields := schema.LibraryTombstone{}.Fields()
+	_ = librarytombstoneFields
+	// librarytombstoneDescDeletedAt is the schema descriptor for deleted_at field.
+	librarytombstoneDescDeletedAt := librarytombstoneFields[3].Descriptor()
+	// librarytombstone.DefaultDeletedAt holds the default value on creation for the deleted_at field.
+	librarytombstone.DefaultDeletedAt = librarytombstoneDescDeletedAt.Default.(func() time.Time)
 	mergerecordFields := schema.MergeRecord{}.Fields()
 	_ = mergerecordFields
 	// mergerecordDescCreatedAt is the schema descriptor for created_at field.

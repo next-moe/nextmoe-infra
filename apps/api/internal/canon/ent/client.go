@@ -19,6 +19,8 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/librarypartprogress"
+	"api/internal/canon/ent/librarytombstone"
 	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
@@ -64,6 +66,10 @@ type Client struct {
 	FaninCursor *FaninCursorClient
 	// Hold is the client for interacting with the Hold builders.
 	Hold *HoldClient
+	// LibraryPartProgress is the client for interacting with the LibraryPartProgress builders.
+	LibraryPartProgress *LibraryPartProgressClient
+	// LibraryTombstone is the client for interacting with the LibraryTombstone builders.
+	LibraryTombstone *LibraryTombstoneClient
 	// MergeRecord is the client for interacting with the MergeRecord builders.
 	MergeRecord *MergeRecordClient
 	// Org is the client for interacting with the Org builders.
@@ -113,6 +119,8 @@ func (c *Client) init() {
 	c.EvidenceSnapshot = NewEvidenceSnapshotClient(c.config)
 	c.FaninCursor = NewFaninCursorClient(c.config)
 	c.Hold = NewHoldClient(c.config)
+	c.LibraryPartProgress = NewLibraryPartProgressClient(c.config)
+	c.LibraryTombstone = NewLibraryTombstoneClient(c.config)
 	c.MergeRecord = NewMergeRecordClient(c.config)
 	c.Org = NewOrgClient(c.config)
 	c.OrgName = NewOrgNameClient(c.config)
@@ -218,31 +226,33 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:              ctx,
-		config:           cfg,
-		BookRelease:      NewBookReleaseClient(cfg),
-		BookWork:         NewBookWorkClient(cfg),
-		CommitKey:        NewCommitKeyClient(cfg),
-		Credit:           NewCreditClient(cfg),
-		EvidenceRecord:   NewEvidenceRecordClient(cfg),
-		EvidenceSnapshot: NewEvidenceSnapshotClient(cfg),
-		FaninCursor:      NewFaninCursorClient(cfg),
-		Hold:             NewHoldClient(cfg),
-		MergeRecord:      NewMergeRecordClient(cfg),
-		Org:              NewOrgClient(cfg),
-		OrgName:          NewOrgNameClient(cfg),
-		Person:           NewPersonClient(cfg),
-		PersonAlias:      NewPersonAliasClient(cfg),
-		Redirect:         NewRedirectClient(cfg),
-		Release:          NewReleaseClient(cfg),
-		ReleaseContent:   NewReleaseContentClient(cfg),
-		Revision:         NewRevisionClient(cfg),
-		Takedown:         NewTakedownClient(cfg),
-		Todo:             NewTodoClient(cfg),
-		Work:             NewWorkClient(cfg),
-		WorkPart:         NewWorkPartClient(cfg),
-		WorkTitle:        NewWorkTitleClient(cfg),
-		XrefLink:         NewXrefLinkClient(cfg),
+		ctx:                 ctx,
+		config:              cfg,
+		BookRelease:         NewBookReleaseClient(cfg),
+		BookWork:            NewBookWorkClient(cfg),
+		CommitKey:           NewCommitKeyClient(cfg),
+		Credit:              NewCreditClient(cfg),
+		EvidenceRecord:      NewEvidenceRecordClient(cfg),
+		EvidenceSnapshot:    NewEvidenceSnapshotClient(cfg),
+		FaninCursor:         NewFaninCursorClient(cfg),
+		Hold:                NewHoldClient(cfg),
+		LibraryPartProgress: NewLibraryPartProgressClient(cfg),
+		LibraryTombstone:    NewLibraryTombstoneClient(cfg),
+		MergeRecord:         NewMergeRecordClient(cfg),
+		Org:                 NewOrgClient(cfg),
+		OrgName:             NewOrgNameClient(cfg),
+		Person:              NewPersonClient(cfg),
+		PersonAlias:         NewPersonAliasClient(cfg),
+		Redirect:            NewRedirectClient(cfg),
+		Release:             NewReleaseClient(cfg),
+		ReleaseContent:      NewReleaseContentClient(cfg),
+		Revision:            NewRevisionClient(cfg),
+		Takedown:            NewTakedownClient(cfg),
+		Todo:                NewTodoClient(cfg),
+		Work:                NewWorkClient(cfg),
+		WorkPart:            NewWorkPartClient(cfg),
+		WorkTitle:           NewWorkTitleClient(cfg),
+		XrefLink:            NewXrefLinkClient(cfg),
 	}, nil
 }
 
@@ -260,31 +270,33 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:              ctx,
-		config:           cfg,
-		BookRelease:      NewBookReleaseClient(cfg),
-		BookWork:         NewBookWorkClient(cfg),
-		CommitKey:        NewCommitKeyClient(cfg),
-		Credit:           NewCreditClient(cfg),
-		EvidenceRecord:   NewEvidenceRecordClient(cfg),
-		EvidenceSnapshot: NewEvidenceSnapshotClient(cfg),
-		FaninCursor:      NewFaninCursorClient(cfg),
-		Hold:             NewHoldClient(cfg),
-		MergeRecord:      NewMergeRecordClient(cfg),
-		Org:              NewOrgClient(cfg),
-		OrgName:          NewOrgNameClient(cfg),
-		Person:           NewPersonClient(cfg),
-		PersonAlias:      NewPersonAliasClient(cfg),
-		Redirect:         NewRedirectClient(cfg),
-		Release:          NewReleaseClient(cfg),
-		ReleaseContent:   NewReleaseContentClient(cfg),
-		Revision:         NewRevisionClient(cfg),
-		Takedown:         NewTakedownClient(cfg),
-		Todo:             NewTodoClient(cfg),
-		Work:             NewWorkClient(cfg),
-		WorkPart:         NewWorkPartClient(cfg),
-		WorkTitle:        NewWorkTitleClient(cfg),
-		XrefLink:         NewXrefLinkClient(cfg),
+		ctx:                 ctx,
+		config:              cfg,
+		BookRelease:         NewBookReleaseClient(cfg),
+		BookWork:            NewBookWorkClient(cfg),
+		CommitKey:           NewCommitKeyClient(cfg),
+		Credit:              NewCreditClient(cfg),
+		EvidenceRecord:      NewEvidenceRecordClient(cfg),
+		EvidenceSnapshot:    NewEvidenceSnapshotClient(cfg),
+		FaninCursor:         NewFaninCursorClient(cfg),
+		Hold:                NewHoldClient(cfg),
+		LibraryPartProgress: NewLibraryPartProgressClient(cfg),
+		LibraryTombstone:    NewLibraryTombstoneClient(cfg),
+		MergeRecord:         NewMergeRecordClient(cfg),
+		Org:                 NewOrgClient(cfg),
+		OrgName:             NewOrgNameClient(cfg),
+		Person:              NewPersonClient(cfg),
+		PersonAlias:         NewPersonAliasClient(cfg),
+		Redirect:            NewRedirectClient(cfg),
+		Release:             NewReleaseClient(cfg),
+		ReleaseContent:      NewReleaseContentClient(cfg),
+		Revision:            NewRevisionClient(cfg),
+		Takedown:            NewTakedownClient(cfg),
+		Todo:                NewTodoClient(cfg),
+		Work:                NewWorkClient(cfg),
+		WorkPart:            NewWorkPartClient(cfg),
+		WorkTitle:           NewWorkTitleClient(cfg),
+		XrefLink:            NewXrefLinkClient(cfg),
 	}, nil
 }
 
@@ -315,9 +327,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
-		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.MergeRecord, c.Org, c.OrgName,
-		c.Person, c.PersonAlias, c.Redirect, c.Release, c.ReleaseContent, c.Revision,
-		c.Takedown, c.Todo, c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
+		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.LibraryPartProgress,
+		c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName, c.Person, c.PersonAlias,
+		c.Redirect, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
+		c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
 	} {
 		n.Use(hooks...)
 	}
@@ -328,9 +341,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
-		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.MergeRecord, c.Org, c.OrgName,
-		c.Person, c.PersonAlias, c.Redirect, c.Release, c.ReleaseContent, c.Revision,
-		c.Takedown, c.Todo, c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
+		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.LibraryPartProgress,
+		c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName, c.Person, c.PersonAlias,
+		c.Redirect, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
+		c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -355,6 +369,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.FaninCursor.mutate(ctx, m)
 	case *HoldMutation:
 		return c.Hold.mutate(ctx, m)
+	case *LibraryPartProgressMutation:
+		return c.LibraryPartProgress.mutate(ctx, m)
+	case *LibraryTombstoneMutation:
+		return c.LibraryTombstone.mutate(ctx, m)
 	case *MergeRecordMutation:
 		return c.MergeRecord.mutate(ctx, m)
 	case *OrgMutation:
@@ -1595,6 +1613,288 @@ func (c *HoldClient) mutate(ctx context.Context, m *HoldMutation) (Value, error)
 		return (&HoldDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Hold mutation op: %q", m.Op())
+	}
+}
+
+// LibraryPartProgressClient is a client for the LibraryPartProgress schema.
+type LibraryPartProgressClient struct {
+	config
+}
+
+// NewLibraryPartProgressClient returns a client for the LibraryPartProgress from the given config.
+func NewLibraryPartProgressClient(c config) *LibraryPartProgressClient {
+	return &LibraryPartProgressClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `librarypartprogress.Hooks(f(g(h())))`.
+func (c *LibraryPartProgressClient) Use(hooks ...Hook) {
+	c.hooks.LibraryPartProgress = append(c.hooks.LibraryPartProgress, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `librarypartprogress.Intercept(f(g(h())))`.
+func (c *LibraryPartProgressClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LibraryPartProgress = append(c.inters.LibraryPartProgress, interceptors...)
+}
+
+// Create returns a builder for creating a LibraryPartProgress entity.
+func (c *LibraryPartProgressClient) Create() *LibraryPartProgressCreate {
+	mutation := newLibraryPartProgressMutation(c.config, OpCreate)
+	return &LibraryPartProgressCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LibraryPartProgress entities.
+func (c *LibraryPartProgressClient) CreateBulk(builders ...*LibraryPartProgressCreate) *LibraryPartProgressCreateBulk {
+	return &LibraryPartProgressCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LibraryPartProgressClient) MapCreateBulk(slice any, setFunc func(*LibraryPartProgressCreate, int)) *LibraryPartProgressCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LibraryPartProgressCreateBulk{err: fmt.Errorf("calling to LibraryPartProgressClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LibraryPartProgressCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LibraryPartProgressCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LibraryPartProgress.
+func (c *LibraryPartProgressClient) Update() *LibraryPartProgressUpdate {
+	mutation := newLibraryPartProgressMutation(c.config, OpUpdate)
+	return &LibraryPartProgressUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LibraryPartProgressClient) UpdateOne(_m *LibraryPartProgress) *LibraryPartProgressUpdateOne {
+	mutation := newLibraryPartProgressMutation(c.config, OpUpdateOne, withLibraryPartProgress(_m))
+	return &LibraryPartProgressUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LibraryPartProgressClient) UpdateOneID(id int) *LibraryPartProgressUpdateOne {
+	mutation := newLibraryPartProgressMutation(c.config, OpUpdateOne, withLibraryPartProgressID(id))
+	return &LibraryPartProgressUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LibraryPartProgress.
+func (c *LibraryPartProgressClient) Delete() *LibraryPartProgressDelete {
+	mutation := newLibraryPartProgressMutation(c.config, OpDelete)
+	return &LibraryPartProgressDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LibraryPartProgressClient) DeleteOne(_m *LibraryPartProgress) *LibraryPartProgressDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LibraryPartProgressClient) DeleteOneID(id int) *LibraryPartProgressDeleteOne {
+	builder := c.Delete().Where(librarypartprogress.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LibraryPartProgressDeleteOne{builder}
+}
+
+// Query returns a query builder for LibraryPartProgress.
+func (c *LibraryPartProgressClient) Query() *LibraryPartProgressQuery {
+	return &LibraryPartProgressQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLibraryPartProgress},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LibraryPartProgress entity by its id.
+func (c *LibraryPartProgressClient) Get(ctx context.Context, id int) (*LibraryPartProgress, error) {
+	return c.Query().Where(librarypartprogress.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LibraryPartProgressClient) GetX(ctx context.Context, id int) *LibraryPartProgress {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryPart queries the part edge of a LibraryPartProgress.
+func (c *LibraryPartProgressClient) QueryPart(_m *LibraryPartProgress) *WorkPartQuery {
+	query := (&WorkPartClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(librarypartprogress.Table, librarypartprogress.FieldID, id),
+			sqlgraph.To(workpart.Table, workpart.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, librarypartprogress.PartTable, librarypartprogress.PartColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LibraryPartProgressClient) Hooks() []Hook {
+	return c.hooks.LibraryPartProgress
+}
+
+// Interceptors returns the client interceptors.
+func (c *LibraryPartProgressClient) Interceptors() []Interceptor {
+	return c.inters.LibraryPartProgress
+}
+
+func (c *LibraryPartProgressClient) mutate(ctx context.Context, m *LibraryPartProgressMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LibraryPartProgressCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LibraryPartProgressUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LibraryPartProgressUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LibraryPartProgressDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LibraryPartProgress mutation op: %q", m.Op())
+	}
+}
+
+// LibraryTombstoneClient is a client for the LibraryTombstone schema.
+type LibraryTombstoneClient struct {
+	config
+}
+
+// NewLibraryTombstoneClient returns a client for the LibraryTombstone from the given config.
+func NewLibraryTombstoneClient(c config) *LibraryTombstoneClient {
+	return &LibraryTombstoneClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `librarytombstone.Hooks(f(g(h())))`.
+func (c *LibraryTombstoneClient) Use(hooks ...Hook) {
+	c.hooks.LibraryTombstone = append(c.hooks.LibraryTombstone, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `librarytombstone.Intercept(f(g(h())))`.
+func (c *LibraryTombstoneClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LibraryTombstone = append(c.inters.LibraryTombstone, interceptors...)
+}
+
+// Create returns a builder for creating a LibraryTombstone entity.
+func (c *LibraryTombstoneClient) Create() *LibraryTombstoneCreate {
+	mutation := newLibraryTombstoneMutation(c.config, OpCreate)
+	return &LibraryTombstoneCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LibraryTombstone entities.
+func (c *LibraryTombstoneClient) CreateBulk(builders ...*LibraryTombstoneCreate) *LibraryTombstoneCreateBulk {
+	return &LibraryTombstoneCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LibraryTombstoneClient) MapCreateBulk(slice any, setFunc func(*LibraryTombstoneCreate, int)) *LibraryTombstoneCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LibraryTombstoneCreateBulk{err: fmt.Errorf("calling to LibraryTombstoneClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LibraryTombstoneCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LibraryTombstoneCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LibraryTombstone.
+func (c *LibraryTombstoneClient) Update() *LibraryTombstoneUpdate {
+	mutation := newLibraryTombstoneMutation(c.config, OpUpdate)
+	return &LibraryTombstoneUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LibraryTombstoneClient) UpdateOne(_m *LibraryTombstone) *LibraryTombstoneUpdateOne {
+	mutation := newLibraryTombstoneMutation(c.config, OpUpdateOne, withLibraryTombstone(_m))
+	return &LibraryTombstoneUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LibraryTombstoneClient) UpdateOneID(id int) *LibraryTombstoneUpdateOne {
+	mutation := newLibraryTombstoneMutation(c.config, OpUpdateOne, withLibraryTombstoneID(id))
+	return &LibraryTombstoneUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LibraryTombstone.
+func (c *LibraryTombstoneClient) Delete() *LibraryTombstoneDelete {
+	mutation := newLibraryTombstoneMutation(c.config, OpDelete)
+	return &LibraryTombstoneDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LibraryTombstoneClient) DeleteOne(_m *LibraryTombstone) *LibraryTombstoneDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LibraryTombstoneClient) DeleteOneID(id int) *LibraryTombstoneDeleteOne {
+	builder := c.Delete().Where(librarytombstone.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LibraryTombstoneDeleteOne{builder}
+}
+
+// Query returns a query builder for LibraryTombstone.
+func (c *LibraryTombstoneClient) Query() *LibraryTombstoneQuery {
+	return &LibraryTombstoneQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLibraryTombstone},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LibraryTombstone entity by its id.
+func (c *LibraryTombstoneClient) Get(ctx context.Context, id int) (*LibraryTombstone, error) {
+	return c.Query().Where(librarytombstone.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LibraryTombstoneClient) GetX(ctx context.Context, id int) *LibraryTombstone {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LibraryTombstoneClient) Hooks() []Hook {
+	return c.hooks.LibraryTombstone
+}
+
+// Interceptors returns the client interceptors.
+func (c *LibraryTombstoneClient) Interceptors() []Interceptor {
+	return c.inters.LibraryTombstone
+}
+
+func (c *LibraryTombstoneClient) mutate(ctx context.Context, m *LibraryTombstoneMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LibraryTombstoneCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LibraryTombstoneUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LibraryTombstoneUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LibraryTombstoneDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LibraryTombstone mutation op: %q", m.Op())
 	}
 }
 
@@ -3718,6 +4018,22 @@ func (c *WorkPartClient) QueryCredits(_m *WorkPart) *CreditQuery {
 	return query
 }
 
+// QueryProgress queries the progress edge of a WorkPart.
+func (c *WorkPartClient) QueryProgress(_m *WorkPart) *LibraryPartProgressQuery {
+	query := (&LibraryPartProgressClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(workpart.Table, workpart.FieldID, id),
+			sqlgraph.To(librarypartprogress.Table, librarypartprogress.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, workpart.ProgressTable, workpart.ProgressColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *WorkPartClient) Hooks() []Hook {
 	return c.hooks.WorkPart
@@ -4029,15 +4345,15 @@ func (c *XrefLinkClient) mutate(ctx context.Context, m *XrefLinkMutation) (Value
 type (
 	hooks struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
-		FaninCursor, Hold, MergeRecord, Org, OrgName, Person, PersonAlias, Redirect,
-		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
-		XrefLink []ent.Hook
+		FaninCursor, Hold, LibraryPartProgress, LibraryTombstone, MergeRecord, Org,
+		OrgName, Person, PersonAlias, Redirect, Release, ReleaseContent, Revision,
+		Takedown, Todo, Work, WorkPart, WorkTitle, XrefLink []ent.Hook
 	}
 	inters struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
-		FaninCursor, Hold, MergeRecord, Org, OrgName, Person, PersonAlias, Redirect,
-		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
-		XrefLink []ent.Interceptor
+		FaninCursor, Hold, LibraryPartProgress, LibraryTombstone, MergeRecord, Org,
+		OrgName, Person, PersonAlias, Redirect, Release, ReleaseContent, Revision,
+		Takedown, Todo, Work, WorkPart, WorkTitle, XrefLink []ent.Interceptor
 	}
 )
 

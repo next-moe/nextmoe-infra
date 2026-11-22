@@ -57,9 +57,11 @@ type WorkPartEdges struct {
 	Contents []*ReleaseContent `json:"contents,omitempty"`
 	// Credits holds the value of the credits edge.
 	Credits []*Credit `json:"credits,omitempty"`
+	// Progress holds the value of the progress edge.
+	Progress []*LibraryPartProgress `json:"progress,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // WorkOrErr returns the Work value or an error if the edge
@@ -109,6 +111,15 @@ func (e WorkPartEdges) CreditsOrErr() ([]*Credit, error) {
 		return e.Credits, nil
 	}
 	return nil, &NotLoadedError{edge: "credits"}
+}
+
+// ProgressOrErr returns the Progress value or an error if the edge
+// was not loaded in eager-loading.
+func (e WorkPartEdges) ProgressOrErr() ([]*LibraryPartProgress, error) {
+	if e.loadedTypes[5] {
+		return e.Progress, nil
+	}
+	return nil, &NotLoadedError{edge: "progress"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -248,6 +259,11 @@ func (_m *WorkPart) QueryContents() *ReleaseContentQuery {
 // QueryCredits queries the "credits" edge of the WorkPart entity.
 func (_m *WorkPart) QueryCredits() *CreditQuery {
 	return NewWorkPartClient(_m.config).QueryCredits(_m)
+}
+
+// QueryProgress queries the "progress" edge of the WorkPart entity.
+func (_m *WorkPart) QueryProgress() *LibraryPartProgressQuery {
+	return NewWorkPartClient(_m.config).QueryProgress(_m)
 }
 
 // Update returns a builder for updating this WorkPart.

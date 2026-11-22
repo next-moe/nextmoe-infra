@@ -39,6 +39,7 @@ func New(client *ent.Client, opts ...Options) (http.Handler, huma.API) {
 	}
 	a.todos(h)
 	a.feed(h)
+	a.me(h)
 	a.works(h)
 	a.releases(h)
 	a.people(h)

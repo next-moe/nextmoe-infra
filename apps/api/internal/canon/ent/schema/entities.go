@@ -10,4 +10,5 @@ var Entities = []ent.Interface{
 	Person{}, PersonAlias{}, Org{}, OrgName{}, Credit{},
 	Revision{}, EvidenceSnapshot{}, EvidenceRecord{}, CommitKey{}, FaninCursor{},
 	Todo{}, Hold{}, Takedown{}, XrefLink{}, Redirect{}, MergeRecord{},
+	LibraryPartProgress{}, LibraryTombstone{},
 }

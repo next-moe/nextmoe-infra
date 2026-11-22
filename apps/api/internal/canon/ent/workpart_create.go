@@ -4,6 +4,7 @@ package ent
 
 import (
 	"api/internal/canon/ent/credit"
+	"api/internal/canon/ent/librarypartprogress"
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
@@ -200,6 +201,21 @@ func (_c *WorkPartCreate) AddCredits(v ...*Credit) *WorkPartCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddCreditIDs(ids...)
+}
+
+// AddProgresIDs adds the "progress" edge to the LibraryPartProgress entity by IDs.
+func (_c *WorkPartCreate) AddProgresIDs(ids ...int) *WorkPartCreate {
+	_c.mutation.AddProgresIDs(ids...)
+	return _c
+}
+
+// AddProgress adds the "progress" edges to the LibraryPartProgress entity.
+func (_c *WorkPartCreate) AddProgress(v ...*LibraryPartProgress) *WorkPartCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProgresIDs(ids...)
 }
 
 // Mutation returns the WorkPartMutation object of the builder.
@@ -418,6 +434,22 @@ func (_c *WorkPartCreate) createSpec() (*WorkPart, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(credit.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProgressIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   workpart.ProgressTable,
+			Columns: []string{workpart.ProgressColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarypartprogress.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

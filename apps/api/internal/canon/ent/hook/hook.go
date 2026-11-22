@@ -104,6 +104,30 @@ func (f HoldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HoldMutation", m)
 }
 
+// The LibraryPartProgressFunc type is an adapter to allow the use of ordinary
+// function as LibraryPartProgress mutator.
+type LibraryPartProgressFunc func(context.Context, *ent.LibraryPartProgressMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LibraryPartProgressFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LibraryPartProgressMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LibraryPartProgressMutation", m)
+}
+
+// The LibraryTombstoneFunc type is an adapter to allow the use of ordinary
+// function as LibraryTombstone mutator.
+type LibraryTombstoneFunc func(context.Context, *ent.LibraryTombstoneMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LibraryTombstoneFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LibraryTombstoneMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LibraryTombstoneMutation", m)
+}
+
 // The MergeRecordFunc type is an adapter to allow the use of ordinary
 // function as MergeRecord mutator.
 type MergeRecordFunc func(context.Context, *ent.MergeRecordMutation) (ent.Value, error)
