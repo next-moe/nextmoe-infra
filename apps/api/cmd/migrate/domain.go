@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
 
+	canonmigrations "api/internal/canon/migrations"
 	"api/internal/infrastructure/database"
 	"api/pkg/config"
 
@@ -28,6 +31,7 @@ type domain struct {
 	db   func(*config.Config) config.DatabaseConfig
 	run  func(*gorm.DB) error
 	seed func(*gorm.DB) error // optional
+	sql  func(ctx context.Context, dsn string) error
 }
 
 var domains = map[string]domain{
@@ -46,6 +50,10 @@ var domains = map[string]domain{
 		db:   func(c *config.Config) config.DatabaseConfig { return c.CatalogDatabase },
 		run:  catalogmigrate.Run,
 		seed: catalogseed.Run,
+	},
+	"canon": {
+		db:  func(c *config.Config) config.DatabaseConfig { return c.CatalogDatabase },
+		sql: migrateCanon,
 	},
 	"community": {
 		db:  func(c *config.Config) config.DatabaseConfig { return c.CommunityDatabase },
@@ -94,6 +102,13 @@ func runDomain(name string, cfg *config.Config) error {
 
 	dbCfg := d.db(cfg)
 	slog.Info("connecting to database", "target", name, "dbname", dbCfg.DBName)
+	if d.sql != nil {
+		if err := d.sql(context.Background(), dbCfg.DSN()); err != nil {
+			return fmt.Errorf("migrate %s: %w", name, err)
+		}
+		slog.Info("migration completed successfully", "target", name)
+		return nil
+	}
 	db, err := database.NewPostgresDB(dbCfg)
 	if err != nil {
 		return fmt.Errorf("connect to %s: %w", dbCfg.DBName, err)
@@ -114,4 +129,13 @@ func runDomain(name string, cfg *config.Config) error {
 
 	slog.Info("migration completed successfully", "target", name)
 	return nil
+}
+
+func migrateCanon(ctx context.Context, dsn string) error {
+	db, err := sql.Open("pgx", dsn+" search_path=canon")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	return canonmigrations.Up(ctx, db)
 }
