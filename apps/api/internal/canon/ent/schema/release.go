@@ -48,7 +48,7 @@ func (ReleaseContent) Fields() []ent.Field {
 		with(field.Int64("work_id"), r.RefFact("work", "A work this edition contains.", "R4.2", "R5")),
 		with(field.Int64("part_id").Optional().Nillable(), r.RefFact("work_part", "The volume or episode it contains, when it is one part.", "R4.2")),
 		with(field.String("portion").Default("full"), r.VocabFact("portion", "Whether the whole part is contained.", "R4.2")),
-		field.Int("position").Default(0),
+		with(field.Int("position").Default(0), r.Internal(r.ShapeInteger, "Display order among siblings; set by people and the system, not by agents.")),
 	}
 }
 

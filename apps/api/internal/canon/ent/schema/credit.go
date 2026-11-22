@@ -30,7 +30,7 @@ func (Credit) Fields() []ent.Field {
 		with(field.Int64("alias_id").Optional().Nillable(), r.RefFact("person_alias", "The name as credited.", "R7.1")),
 		with(field.Int64("org_id").Optional().Nillable(), r.RefFact("org", "An organization credited instead of a person.", "R7.2")),
 		with(field.String("role"), r.VocabFact("book_role", "Role in the medium module's vocabulary.", "R7.1")),
-		field.Int("position").Default(0),
+		with(field.Int("position").Default(0), r.Internal(r.ShapeInteger, "Display order among siblings; set by people and the system, not by agents.")),
 	}, stamps()...)
 }
 

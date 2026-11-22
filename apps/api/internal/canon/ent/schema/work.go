@@ -48,7 +48,7 @@ func (WorkTitle) Fields() []ent.Field {
 		with(field.String("lang"), r.Fact(r.ShapeLang, "BCP-47 language of the title.", "R3.1")),
 		with(field.String("kind"), r.VocabFact("title_kind", "Official, alternative, romanized or translated.", "R3.2")),
 		with(field.Bool("machine").Default(false), r.Internal(r.ShapeBool, "True when the title is a machine translation.")),
-		field.Int("position").Default(0),
+		with(field.Int("position").Default(0), r.Internal(r.ShapeInteger, "Display order among siblings; set by people and the system, not by agents.")),
 	}
 }
 
