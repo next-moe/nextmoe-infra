@@ -95,8 +95,17 @@ func adopt(ctx context.Context, db *sql.DB, f Family) error {
 		(SELECT COALESCE(max(id), 0) FROM %s))`, owned, table)).Scan(&next); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `CREATE SEQUENCE IF NOT EXISTS `+seq+` AS bigint`); err != nil {
+		return err
+	}
+	var drawn int64
+	if err := tx.QueryRowContext(ctx, `SELECT CASE WHEN is_called THEN last_value ELSE 0 END FROM `+seq).Scan(&drawn); err != nil {
+		return err
+	}
+	// CI recreated a legacy table with its identity while the canon sequence
+	// already existed; the sequence must never move back below ids it handed out.
+	next = max(next, drawn)
 	for _, stmt := range []string{
-		`CREATE SEQUENCE ` + seq + ` AS bigint`,
 		fmt.Sprintf(`SELECT setval('%s', %d, %t)`, seq, max(next, 1), next >= 1),
 		`ALTER TABLE ` + table + ` ALTER COLUMN id DROP IDENTITY`,
 		`ALTER TABLE ` + table + ` ALTER COLUMN id SET DEFAULT nextval('` + seq + `')`,

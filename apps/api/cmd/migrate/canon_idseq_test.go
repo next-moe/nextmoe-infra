@@ -121,4 +121,14 @@ func TestCanonOwnsTheLegacyIDSequencesAcrossLegacyMigrations(t *testing.T) {
 	if err := sdb.QueryRow(`SELECT to_regclass('canon_ids.engine') IS NOT NULL`).Scan(&survives); err != nil || !survives {
 		t.Errorf("dropping the legacy table took canon_ids.engine with it (err %v)", err)
 	}
+
+	if err := migrate.Run(gdb); err != nil {
+		t.Fatalf("legacy migration recreating catalog_engine: %v", err)
+	}
+	if err := idseq.Adopt(ctx, sdb, idseq.Families); err != nil {
+		t.Fatalf("adopt over a recreated identity table: %v", err)
+	}
+	if again := newEngine("idseq-recreated"); again <= canon {
+		t.Errorf("recreated legacy table drew id %d, at or below canon's earlier %d", again, canon)
+	}
 }

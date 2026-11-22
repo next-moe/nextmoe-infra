@@ -1,14 +1,14 @@
 //go:build ignore
 
-// CANON_DEV_DSN='host=localhost user=postgres dbname=<empty db> sslmode=disable' go run -mod=mod migrategen.go <name>
+// go run -mod=mod migrategen.go -dsn 'host=localhost user=postgres dbname=<empty db> sslmode=disable' <name>
 package main
 
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"log"
 	"net/url"
-	"os"
 	"strings"
 
 	"api/internal/canon/ent/migrate"
@@ -21,12 +21,11 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Fatal("usage: migrategen <name>")
-	}
-	dsn := os.Getenv("CANON_DEV_DSN")
-	if dsn == "" {
-		log.Fatal("CANON_DEV_DSN must name an empty dev database")
+	dsnFlag := flag.String("dsn", "", "an empty dev database")
+	flag.Parse()
+	dsn := *dsnFlag
+	if dsn == "" || flag.NArg() != 1 {
+		log.Fatal("usage: migrategen -dsn <empty dev database> <name>")
 	}
 	ctx := context.Background()
 	sql.Register("postgres", stdlib.GetDefaultDriver())
@@ -49,7 +48,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := migrate.NamedDiff(ctx, devURL(dsn), os.Args[1],
+	if err := migrate.NamedDiff(ctx, devURL(dsn), flag.Arg(0),
 		schema.WithDir(dir),
 		schema.WithMigrationMode(schema.ModeReplay),
 		schema.WithDialect(dialect.Postgres),
