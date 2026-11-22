@@ -9,10 +9,12 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
+	"api/internal/canon/ent/redirect"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/revision"
@@ -90,6 +92,12 @@ func init() {
 	holdDescCreatedAt := holdFields[5].Descriptor()
 	// hold.DefaultCreatedAt holds the default value on creation for the created_at field.
 	hold.DefaultCreatedAt = holdDescCreatedAt.Default.(func() time.Time)
+	mergerecordFields := schema.MergeRecord{}.Fields()
+	_ = mergerecordFields
+	// mergerecordDescCreatedAt is the schema descriptor for created_at field.
+	mergerecordDescCreatedAt := mergerecordFields[7].Descriptor()
+	// mergerecord.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mergerecord.DefaultCreatedAt = mergerecordDescCreatedAt.Default.(func() time.Time)
 	orgFields := schema.Org{}.Fields()
 	_ = orgFields
 	// orgDescFieldState is the schema descriptor for field_state field.
@@ -164,6 +172,12 @@ func init() {
 	personalias.DefaultUpdatedAt = personaliasDescUpdatedAt.Default.(func() time.Time)
 	// personalias.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	personalias.UpdateDefaultUpdatedAt = personaliasDescUpdatedAt.UpdateDefault.(func() time.Time)
+	redirectFields := schema.Redirect{}.Fields()
+	_ = redirectFields
+	// redirectDescCreatedAt is the schema descriptor for created_at field.
+	redirectDescCreatedAt := redirectFields[4].Descriptor()
+	// redirect.DefaultCreatedAt holds the default value on creation for the created_at field.
+	redirect.DefaultCreatedAt = redirectDescCreatedAt.Default.(func() time.Time)
 	releaseFields := schema.Release{}.Fields()
 	_ = releaseFields
 	// releaseDescEditionKind is the schema descriptor for edition_kind field.

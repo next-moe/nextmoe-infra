@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"api/internal/canon/ent"
+	"api/internal/canon/merge"
 	"api/internal/canon/takedown"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -40,6 +41,11 @@ type IDInput struct {
 // gone answers 404 for a missing id and 410 for a whole-entity takedown.
 func (a *API) gone(ctx context.Context, entity string, n int64, err error) error {
 	if ent.IsNotFound(err) {
+		if to, ok, rerr := merge.Resolve(ctx, a.client, entity, n); rerr != nil {
+			return rerr
+		} else if ok {
+			return merged(entity, to)
+		}
 		return huma.Error404NotFound(entity + " " + id(n) + " does not exist")
 	}
 	if err != nil {

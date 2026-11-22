@@ -19,10 +19,12 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
+	"api/internal/canon/ent/redirect"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/revision"
@@ -62,6 +64,8 @@ type Client struct {
 	FaninCursor *FaninCursorClient
 	// Hold is the client for interacting with the Hold builders.
 	Hold *HoldClient
+	// MergeRecord is the client for interacting with the MergeRecord builders.
+	MergeRecord *MergeRecordClient
 	// Org is the client for interacting with the Org builders.
 	Org *OrgClient
 	// OrgName is the client for interacting with the OrgName builders.
@@ -70,6 +74,8 @@ type Client struct {
 	Person *PersonClient
 	// PersonAlias is the client for interacting with the PersonAlias builders.
 	PersonAlias *PersonAliasClient
+	// Redirect is the client for interacting with the Redirect builders.
+	Redirect *RedirectClient
 	// Release is the client for interacting with the Release builders.
 	Release *ReleaseClient
 	// ReleaseContent is the client for interacting with the ReleaseContent builders.
@@ -107,10 +113,12 @@ func (c *Client) init() {
 	c.EvidenceSnapshot = NewEvidenceSnapshotClient(c.config)
 	c.FaninCursor = NewFaninCursorClient(c.config)
 	c.Hold = NewHoldClient(c.config)
+	c.MergeRecord = NewMergeRecordClient(c.config)
 	c.Org = NewOrgClient(c.config)
 	c.OrgName = NewOrgNameClient(c.config)
 	c.Person = NewPersonClient(c.config)
 	c.PersonAlias = NewPersonAliasClient(c.config)
+	c.Redirect = NewRedirectClient(c.config)
 	c.Release = NewReleaseClient(c.config)
 	c.ReleaseContent = NewReleaseContentClient(c.config)
 	c.Revision = NewRevisionClient(c.config)
@@ -220,10 +228,12 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EvidenceSnapshot: NewEvidenceSnapshotClient(cfg),
 		FaninCursor:      NewFaninCursorClient(cfg),
 		Hold:             NewHoldClient(cfg),
+		MergeRecord:      NewMergeRecordClient(cfg),
 		Org:              NewOrgClient(cfg),
 		OrgName:          NewOrgNameClient(cfg),
 		Person:           NewPersonClient(cfg),
 		PersonAlias:      NewPersonAliasClient(cfg),
+		Redirect:         NewRedirectClient(cfg),
 		Release:          NewReleaseClient(cfg),
 		ReleaseContent:   NewReleaseContentClient(cfg),
 		Revision:         NewRevisionClient(cfg),
@@ -260,10 +270,12 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EvidenceSnapshot: NewEvidenceSnapshotClient(cfg),
 		FaninCursor:      NewFaninCursorClient(cfg),
 		Hold:             NewHoldClient(cfg),
+		MergeRecord:      NewMergeRecordClient(cfg),
 		Org:              NewOrgClient(cfg),
 		OrgName:          NewOrgNameClient(cfg),
 		Person:           NewPersonClient(cfg),
 		PersonAlias:      NewPersonAliasClient(cfg),
+		Redirect:         NewRedirectClient(cfg),
 		Release:          NewReleaseClient(cfg),
 		ReleaseContent:   NewReleaseContentClient(cfg),
 		Revision:         NewRevisionClient(cfg),
@@ -303,9 +315,9 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
-		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.Org, c.OrgName, c.Person,
-		c.PersonAlias, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
-		c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
+		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.MergeRecord, c.Org, c.OrgName,
+		c.Person, c.PersonAlias, c.Redirect, c.Release, c.ReleaseContent, c.Revision,
+		c.Takedown, c.Todo, c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
 	} {
 		n.Use(hooks...)
 	}
@@ -316,9 +328,9 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
-		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.Org, c.OrgName, c.Person,
-		c.PersonAlias, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
-		c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
+		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.MergeRecord, c.Org, c.OrgName,
+		c.Person, c.PersonAlias, c.Redirect, c.Release, c.ReleaseContent, c.Revision,
+		c.Takedown, c.Todo, c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -343,6 +355,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.FaninCursor.mutate(ctx, m)
 	case *HoldMutation:
 		return c.Hold.mutate(ctx, m)
+	case *MergeRecordMutation:
+		return c.MergeRecord.mutate(ctx, m)
 	case *OrgMutation:
 		return c.Org.mutate(ctx, m)
 	case *OrgNameMutation:
@@ -351,6 +365,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Person.mutate(ctx, m)
 	case *PersonAliasMutation:
 		return c.PersonAlias.mutate(ctx, m)
+	case *RedirectMutation:
+		return c.Redirect.mutate(ctx, m)
 	case *ReleaseMutation:
 		return c.Release.mutate(ctx, m)
 	case *ReleaseContentMutation:
@@ -1582,6 +1598,139 @@ func (c *HoldClient) mutate(ctx context.Context, m *HoldMutation) (Value, error)
 	}
 }
 
+// MergeRecordClient is a client for the MergeRecord schema.
+type MergeRecordClient struct {
+	config
+}
+
+// NewMergeRecordClient returns a client for the MergeRecord from the given config.
+func NewMergeRecordClient(c config) *MergeRecordClient {
+	return &MergeRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mergerecord.Hooks(f(g(h())))`.
+func (c *MergeRecordClient) Use(hooks ...Hook) {
+	c.hooks.MergeRecord = append(c.hooks.MergeRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mergerecord.Intercept(f(g(h())))`.
+func (c *MergeRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MergeRecord = append(c.inters.MergeRecord, interceptors...)
+}
+
+// Create returns a builder for creating a MergeRecord entity.
+func (c *MergeRecordClient) Create() *MergeRecordCreate {
+	mutation := newMergeRecordMutation(c.config, OpCreate)
+	return &MergeRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MergeRecord entities.
+func (c *MergeRecordClient) CreateBulk(builders ...*MergeRecordCreate) *MergeRecordCreateBulk {
+	return &MergeRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MergeRecordClient) MapCreateBulk(slice any, setFunc func(*MergeRecordCreate, int)) *MergeRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MergeRecordCreateBulk{err: fmt.Errorf("calling to MergeRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MergeRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MergeRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MergeRecord.
+func (c *MergeRecordClient) Update() *MergeRecordUpdate {
+	mutation := newMergeRecordMutation(c.config, OpUpdate)
+	return &MergeRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MergeRecordClient) UpdateOne(_m *MergeRecord) *MergeRecordUpdateOne {
+	mutation := newMergeRecordMutation(c.config, OpUpdateOne, withMergeRecord(_m))
+	return &MergeRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MergeRecordClient) UpdateOneID(id int) *MergeRecordUpdateOne {
+	mutation := newMergeRecordMutation(c.config, OpUpdateOne, withMergeRecordID(id))
+	return &MergeRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MergeRecord.
+func (c *MergeRecordClient) Delete() *MergeRecordDelete {
+	mutation := newMergeRecordMutation(c.config, OpDelete)
+	return &MergeRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MergeRecordClient) DeleteOne(_m *MergeRecord) *MergeRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MergeRecordClient) DeleteOneID(id int) *MergeRecordDeleteOne {
+	builder := c.Delete().Where(mergerecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MergeRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for MergeRecord.
+func (c *MergeRecordClient) Query() *MergeRecordQuery {
+	return &MergeRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMergeRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MergeRecord entity by its id.
+func (c *MergeRecordClient) Get(ctx context.Context, id int) (*MergeRecord, error) {
+	return c.Query().Where(mergerecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MergeRecordClient) GetX(ctx context.Context, id int) *MergeRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MergeRecordClient) Hooks() []Hook {
+	return c.hooks.MergeRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *MergeRecordClient) Interceptors() []Interceptor {
+	return c.inters.MergeRecord
+}
+
+func (c *MergeRecordClient) mutate(ctx context.Context, m *MergeRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MergeRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MergeRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MergeRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MergeRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MergeRecord mutation op: %q", m.Op())
+	}
+}
+
 // OrgClient is a client for the Org schema.
 type OrgClient struct {
 	config
@@ -2271,6 +2420,139 @@ func (c *PersonAliasClient) mutate(ctx context.Context, m *PersonAliasMutation) 
 		return (&PersonAliasDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown PersonAlias mutation op: %q", m.Op())
+	}
+}
+
+// RedirectClient is a client for the Redirect schema.
+type RedirectClient struct {
+	config
+}
+
+// NewRedirectClient returns a client for the Redirect from the given config.
+func NewRedirectClient(c config) *RedirectClient {
+	return &RedirectClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `redirect.Hooks(f(g(h())))`.
+func (c *RedirectClient) Use(hooks ...Hook) {
+	c.hooks.Redirect = append(c.hooks.Redirect, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `redirect.Intercept(f(g(h())))`.
+func (c *RedirectClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Redirect = append(c.inters.Redirect, interceptors...)
+}
+
+// Create returns a builder for creating a Redirect entity.
+func (c *RedirectClient) Create() *RedirectCreate {
+	mutation := newRedirectMutation(c.config, OpCreate)
+	return &RedirectCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Redirect entities.
+func (c *RedirectClient) CreateBulk(builders ...*RedirectCreate) *RedirectCreateBulk {
+	return &RedirectCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RedirectClient) MapCreateBulk(slice any, setFunc func(*RedirectCreate, int)) *RedirectCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RedirectCreateBulk{err: fmt.Errorf("calling to RedirectClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RedirectCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RedirectCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Redirect.
+func (c *RedirectClient) Update() *RedirectUpdate {
+	mutation := newRedirectMutation(c.config, OpUpdate)
+	return &RedirectUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RedirectClient) UpdateOne(_m *Redirect) *RedirectUpdateOne {
+	mutation := newRedirectMutation(c.config, OpUpdateOne, withRedirect(_m))
+	return &RedirectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RedirectClient) UpdateOneID(id int) *RedirectUpdateOne {
+	mutation := newRedirectMutation(c.config, OpUpdateOne, withRedirectID(id))
+	return &RedirectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Redirect.
+func (c *RedirectClient) Delete() *RedirectDelete {
+	mutation := newRedirectMutation(c.config, OpDelete)
+	return &RedirectDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RedirectClient) DeleteOne(_m *Redirect) *RedirectDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RedirectClient) DeleteOneID(id int) *RedirectDeleteOne {
+	builder := c.Delete().Where(redirect.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RedirectDeleteOne{builder}
+}
+
+// Query returns a query builder for Redirect.
+func (c *RedirectClient) Query() *RedirectQuery {
+	return &RedirectQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRedirect},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Redirect entity by its id.
+func (c *RedirectClient) Get(ctx context.Context, id int) (*Redirect, error) {
+	return c.Query().Where(redirect.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RedirectClient) GetX(ctx context.Context, id int) *Redirect {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *RedirectClient) Hooks() []Hook {
+	return c.hooks.Redirect
+}
+
+// Interceptors returns the client interceptors.
+func (c *RedirectClient) Interceptors() []Interceptor {
+	return c.inters.Redirect
+}
+
+func (c *RedirectClient) mutate(ctx context.Context, m *RedirectMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RedirectCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RedirectUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RedirectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RedirectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Redirect mutation op: %q", m.Op())
 	}
 }
 
@@ -3747,13 +4029,15 @@ func (c *XrefLinkClient) mutate(ctx context.Context, m *XrefLinkMutation) (Value
 type (
 	hooks struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
-		FaninCursor, Hold, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
-		Revision, Takedown, Todo, Work, WorkPart, WorkTitle, XrefLink []ent.Hook
+		FaninCursor, Hold, MergeRecord, Org, OrgName, Person, PersonAlias, Redirect,
+		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
+		XrefLink []ent.Hook
 	}
 	inters struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
-		FaninCursor, Hold, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
-		Revision, Takedown, Todo, Work, WorkPart, WorkTitle, XrefLink []ent.Interceptor
+		FaninCursor, Hold, MergeRecord, Org, OrgName, Person, PersonAlias, Redirect,
+		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
+		XrefLink []ent.Interceptor
 	}
 )
 

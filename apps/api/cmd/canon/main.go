@@ -41,6 +41,8 @@ func main() {
 			"fanin":    func(a []string) error { return runFanin(client, a) },
 			"takedown": func(a []string) error { return runTakedown(context.Background(), client, a) },
 			"restore":  func(a []string) error { return runRestore(context.Background(), client, a) },
+			"merge":    func(a []string) error { return runMerge(context.Background(), client, a) },
+			"unmerge":  func(a []string) error { return runUnmerge(context.Background(), client, a) },
 			"xref-import": func([]string) error {
 				n, err := xref.ImportLegacy(context.Background(), db)
 				slog.Info("xref import", "rows", n)
@@ -49,7 +51,7 @@ func main() {
 		}
 		run, ok := commands[os.Args[1]]
 		if !ok {
-			slog.Error("unknown command; want fanin, takedown or restore", "command", os.Args[1])
+			slog.Error("unknown command; want fanin, takedown, restore, merge, unmerge or xref-import", "command", os.Args[1])
 			os.Exit(2)
 		}
 		if err := run(os.Args[2:]); err != nil {

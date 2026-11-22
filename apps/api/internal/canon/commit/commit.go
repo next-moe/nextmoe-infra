@@ -160,7 +160,16 @@ func (s *Service) apply(ctx context.Context, tx *ent.Tx, cs Changeset, i int, ch
 			return err
 		}
 		if !found {
-			return Refused{{Change: i, Code: "ENTITY_MERGED", Detail: fmt.Sprintf("%s %d does not exist", ch.Entity, ch.ID)}}
+			detail := fmt.Sprintf("%s %d does not exist", ch.Entity, ch.ID)
+			if r, err := tx.QueryContext(ctx, `SELECT new_id FROM canon.redirect WHERE entity = $1 AND old_id = $2
+				AND revoked_at IS NULL ORDER BY id DESC LIMIT 1`, ch.Entity, ch.ID); err == nil {
+				var to int64
+				if r.Next() && r.Scan(&to) == nil {
+					detail = fmt.Sprintf("%s %d was merged into %d", ch.Entity, ch.ID, to)
+				}
+				r.Close()
+			}
+			return Refused{{Change: i, Code: "ENTITY_MERGED", Detail: detail}}
 		}
 		if err := json.Unmarshal(raw, &state); err != nil {
 			return err

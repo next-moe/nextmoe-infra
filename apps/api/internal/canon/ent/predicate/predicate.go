@@ -30,6 +30,9 @@ type FaninCursor func(*sql.Selector)
 // Hold is the predicate function for hold builders.
 type Hold func(*sql.Selector)
 
+// MergeRecord is the predicate function for mergerecord builders.
+type MergeRecord func(*sql.Selector)
+
 // Org is the predicate function for org builders.
 type Org func(*sql.Selector)
 
@@ -41,6 +44,9 @@ type Person func(*sql.Selector)
 
 // PersonAlias is the predicate function for personalias builders.
 type PersonAlias func(*sql.Selector)
+
+// Redirect is the predicate function for redirect builders.
+type Redirect func(*sql.Selector)
 
 // Release is the predicate function for release builders.
 type Release func(*sql.Selector)

@@ -214,6 +214,26 @@ var (
 			},
 		},
 	}
+	// MergeRecordColumns holds the columns for the "merge_record" table.
+	MergeRecordColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "entity", Type: field.TypeString},
+		{Name: "loser_id", Type: field.TypeInt64},
+		{Name: "survivor_id", Type: field.TypeInt64},
+		{Name: "by", Type: field.TypeString},
+		{Name: "reason", Type: field.TypeString},
+		{Name: "loser_row", Type: field.TypeJSON},
+		{Name: "movements", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "undone_at", Type: field.TypeTime, Nullable: true},
+		{Name: "undone_by", Type: field.TypeString, Nullable: true},
+	}
+	// MergeRecordTable holds the schema information for the "merge_record" table.
+	MergeRecordTable = &schema.Table{
+		Name:       "merge_record",
+		Columns:    MergeRecordColumns,
+		PrimaryKey: []*schema.Column{MergeRecordColumns[0]},
+	}
 	// OrgColumns holds the columns for the "org" table.
 	OrgColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.org')")},
@@ -298,6 +318,34 @@ var (
 				Columns:    []*schema.Column{PersonAliasColumns[8]},
 				RefColumns: []*schema.Column{PersonColumns[0]},
 				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// RedirectColumns holds the columns for the "redirect" table.
+	RedirectColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "entity", Type: field.TypeString},
+		{Name: "old_id", Type: field.TypeInt64},
+		{Name: "new_id", Type: field.TypeInt64},
+		{Name: "merge_id", Type: field.TypeInt},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+	}
+	// RedirectTable holds the schema information for the "redirect" table.
+	RedirectTable = &schema.Table{
+		Name:       "redirect",
+		Columns:    RedirectColumns,
+		PrimaryKey: []*schema.Column{RedirectColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "redirect_entity_old_id",
+				Unique:  false,
+				Columns: []*schema.Column{RedirectColumns[1], RedirectColumns[2]},
+			},
+			{
+				Name:    "redirect_entity_new_id",
+				Unique:  false,
+				Columns: []*schema.Column{RedirectColumns[1], RedirectColumns[3]},
 			},
 		},
 	}
@@ -550,10 +598,12 @@ var (
 		EvidenceSnapshotTable,
 		FaninCursorTable,
 		HoldTable,
+		MergeRecordTable,
 		OrgTable,
 		OrgNameTable,
 		PersonTable,
 		PersonAliasTable,
+		RedirectTable,
 		ReleaseTable,
 		ReleaseContentTable,
 		RevisionTable,
@@ -604,6 +654,9 @@ func init() {
 	HoldTable.Annotation = &entsql.Annotation{
 		Table: "hold",
 	}
+	MergeRecordTable.Annotation = &entsql.Annotation{
+		Table: "merge_record",
+	}
 	OrgTable.ForeignKeys[0].RefTable = OrgTable
 	OrgTable.Annotation = &entsql.Annotation{
 		Table: "org",
@@ -618,6 +671,9 @@ func init() {
 	PersonAliasTable.ForeignKeys[0].RefTable = PersonTable
 	PersonAliasTable.Annotation = &entsql.Annotation{
 		Table: "person_alias",
+	}
+	RedirectTable.Annotation = &entsql.Annotation{
+		Table: "redirect",
 	}
 	ReleaseTable.Annotation = &entsql.Annotation{
 		Table: "release",

@@ -30,6 +30,8 @@ type Tx struct {
 	FaninCursor *FaninCursorClient
 	// Hold is the client for interacting with the Hold builders.
 	Hold *HoldClient
+	// MergeRecord is the client for interacting with the MergeRecord builders.
+	MergeRecord *MergeRecordClient
 	// Org is the client for interacting with the Org builders.
 	Org *OrgClient
 	// OrgName is the client for interacting with the OrgName builders.
@@ -38,6 +40,8 @@ type Tx struct {
 	Person *PersonClient
 	// PersonAlias is the client for interacting with the PersonAlias builders.
 	PersonAlias *PersonAliasClient
+	// Redirect is the client for interacting with the Redirect builders.
+	Redirect *RedirectClient
 	// Release is the client for interacting with the Release builders.
 	Release *ReleaseClient
 	// ReleaseContent is the client for interacting with the ReleaseContent builders.
@@ -195,10 +199,12 @@ func (tx *Tx) init() {
 	tx.EvidenceSnapshot = NewEvidenceSnapshotClient(tx.config)
 	tx.FaninCursor = NewFaninCursorClient(tx.config)
 	tx.Hold = NewHoldClient(tx.config)
+	tx.MergeRecord = NewMergeRecordClient(tx.config)
 	tx.Org = NewOrgClient(tx.config)
 	tx.OrgName = NewOrgNameClient(tx.config)
 	tx.Person = NewPersonClient(tx.config)
 	tx.PersonAlias = NewPersonAliasClient(tx.config)
+	tx.Redirect = NewRedirectClient(tx.config)
 	tx.Release = NewReleaseClient(tx.config)
 	tx.ReleaseContent = NewReleaseContentClient(tx.config)
 	tx.Revision = NewRevisionClient(tx.config)

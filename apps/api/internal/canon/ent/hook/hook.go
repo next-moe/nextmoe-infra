@@ -104,6 +104,18 @@ func (f HoldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HoldMutation", m)
 }
 
+// The MergeRecordFunc type is an adapter to allow the use of ordinary
+// function as MergeRecord mutator.
+type MergeRecordFunc func(context.Context, *ent.MergeRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MergeRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MergeRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MergeRecordMutation", m)
+}
+
 // The OrgFunc type is an adapter to allow the use of ordinary
 // function as Org mutator.
 type OrgFunc func(context.Context, *ent.OrgMutation) (ent.Value, error)
@@ -150,6 +162,18 @@ func (f PersonAliasFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PersonAliasMutation", m)
+}
+
+// The RedirectFunc type is an adapter to allow the use of ordinary
+// function as Redirect mutator.
+type RedirectFunc func(context.Context, *ent.RedirectMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RedirectFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RedirectMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RedirectMutation", m)
 }
 
 // The ReleaseFunc type is an adapter to allow the use of ordinary

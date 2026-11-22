@@ -11,10 +11,12 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
+	"api/internal/canon/ent/redirect"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/revision"
@@ -101,10 +103,12 @@ func checkColumn(t, c string) error {
 			evidencesnapshot.Table: evidencesnapshot.ValidColumn,
 			fanincursor.Table:      fanincursor.ValidColumn,
 			hold.Table:             hold.ValidColumn,
+			mergerecord.Table:      mergerecord.ValidColumn,
 			org.Table:              org.ValidColumn,
 			orgname.Table:          orgname.ValidColumn,
 			person.Table:           person.ValidColumn,
 			personalias.Table:      personalias.ValidColumn,
+			redirect.Table:         redirect.ValidColumn,
 			release.Table:          release.ValidColumn,
 			releasecontent.Table:   releasecontent.ValidColumn,
 			revision.Table:         revision.ValidColumn,
