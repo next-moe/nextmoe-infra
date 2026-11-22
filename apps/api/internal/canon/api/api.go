@@ -29,6 +29,7 @@ func New(client *ent.Client) (http.Handler, huma.API) {
 	a.works(h)
 	a.releases(h)
 	a.people(h)
+	a.xrefs(h)
 	return mux, h
 }
 

@@ -65,3 +65,6 @@ type WorkPart func(*sql.Selector)
 
 // WorkTitle is the predicate function for worktitle builders.
 type WorkTitle func(*sql.Selector)
+
+// XrefLink is the predicate function for xreflink builders.
+type XrefLink func(*sql.Selector)

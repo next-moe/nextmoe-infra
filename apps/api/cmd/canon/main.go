@@ -13,6 +13,7 @@ import (
 
 	"api/internal/canon/api"
 	"api/internal/canon/ent"
+	"api/internal/canon/xref"
 	"api/pkg/config"
 	"api/pkg/logger"
 
@@ -40,6 +41,11 @@ func main() {
 			"fanin":    func(a []string) error { return runFanin(client, a) },
 			"takedown": func(a []string) error { return runTakedown(context.Background(), client, a) },
 			"restore":  func(a []string) error { return runRestore(context.Background(), client, a) },
+			"xref-import": func([]string) error {
+				n, err := xref.ImportLegacy(context.Background(), db)
+				slog.Info("xref import", "rows", n)
+				return err
+			},
 		}
 		run, ok := commands[os.Args[1]]
 		if !ok {

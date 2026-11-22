@@ -512,6 +512,34 @@ var (
 			},
 		},
 	}
+	// XrefLinkColumns holds the columns for the "xref_link" table.
+	XrefLinkColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "source", Type: field.TypeString},
+		{Name: "external_id", Type: field.TypeString},
+		{Name: "entity", Type: field.TypeString},
+		{Name: "entity_id", Type: field.TypeInt64},
+		{Name: "origin", Type: field.TypeString, Default: "legacy"},
+		{Name: "imported_at", Type: field.TypeTime},
+	}
+	// XrefLinkTable holds the schema information for the "xref_link" table.
+	XrefLinkTable = &schema.Table{
+		Name:       "xref_link",
+		Columns:    XrefLinkColumns,
+		PrimaryKey: []*schema.Column{XrefLinkColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "xreflink_source_external_id_entity",
+				Unique:  true,
+				Columns: []*schema.Column{XrefLinkColumns[1], XrefLinkColumns[2], XrefLinkColumns[3]},
+			},
+			{
+				Name:    "xreflink_entity_entity_id",
+				Unique:  false,
+				Columns: []*schema.Column{XrefLinkColumns[3], XrefLinkColumns[4]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		BookReleaseTable,
@@ -534,6 +562,7 @@ var (
 		WorkTable,
 		WorkPartTable,
 		WorkTitleTable,
+		XrefLinkTable,
 	}
 )
 
@@ -625,5 +654,8 @@ func init() {
 	WorkTitleTable.ForeignKeys[0].RefTable = WorkTable
 	WorkTitleTable.Annotation = &entsql.Annotation{
 		Table: "work_title",
+	}
+	XrefLinkTable.Annotation = &entsql.Annotation{
+		Table: "xref_link",
 	}
 }

@@ -23,6 +23,7 @@ import (
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
+	"api/internal/canon/ent/xreflink"
 	"context"
 	"errors"
 	"fmt"
@@ -112,6 +113,7 @@ func checkColumn(t, c string) error {
 			work.Table:             work.ValidColumn,
 			workpart.Table:         workpart.ValidColumn,
 			worktitle.Table:        worktitle.ValidColumn,
+			xreflink.Table:         xreflink.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

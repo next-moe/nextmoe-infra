@@ -54,6 +54,8 @@ type Tx struct {
 	WorkPart *WorkPartClient
 	// WorkTitle is the client for interacting with the WorkTitle builders.
 	WorkTitle *WorkTitleClient
+	// XrefLink is the client for interacting with the XrefLink builders.
+	XrefLink *XrefLinkClient
 
 	// lazily loaded.
 	client     *Client
@@ -205,6 +207,7 @@ func (tx *Tx) init() {
 	tx.Work = NewWorkClient(tx.config)
 	tx.WorkPart = NewWorkPartClient(tx.config)
 	tx.WorkTitle = NewWorkTitleClient(tx.config)
+	tx.XrefLink = NewXrefLinkClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

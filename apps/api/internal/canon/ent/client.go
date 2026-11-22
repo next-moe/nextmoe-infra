@@ -31,6 +31,7 @@ import (
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
+	"api/internal/canon/ent/xreflink"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -85,6 +86,8 @@ type Client struct {
 	WorkPart *WorkPartClient
 	// WorkTitle is the client for interacting with the WorkTitle builders.
 	WorkTitle *WorkTitleClient
+	// XrefLink is the client for interacting with the XrefLink builders.
+	XrefLink *XrefLinkClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -116,6 +119,7 @@ func (c *Client) init() {
 	c.Work = NewWorkClient(c.config)
 	c.WorkPart = NewWorkPartClient(c.config)
 	c.WorkTitle = NewWorkTitleClient(c.config)
+	c.XrefLink = NewXrefLinkClient(c.config)
 }
 
 type (
@@ -228,6 +232,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Work:             NewWorkClient(cfg),
 		WorkPart:         NewWorkPartClient(cfg),
 		WorkTitle:        NewWorkTitleClient(cfg),
+		XrefLink:         NewXrefLinkClient(cfg),
 	}, nil
 }
 
@@ -267,6 +272,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Work:             NewWorkClient(cfg),
 		WorkPart:         NewWorkPartClient(cfg),
 		WorkTitle:        NewWorkTitleClient(cfg),
+		XrefLink:         NewXrefLinkClient(cfg),
 	}, nil
 }
 
@@ -299,7 +305,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
 		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.Org, c.OrgName, c.Person,
 		c.PersonAlias, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
-		c.Work, c.WorkPart, c.WorkTitle,
+		c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
 	} {
 		n.Use(hooks...)
 	}
@@ -312,7 +318,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
 		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.Org, c.OrgName, c.Person,
 		c.PersonAlias, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
-		c.Work, c.WorkPart, c.WorkTitle,
+		c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -361,6 +367,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.WorkPart.mutate(ctx, m)
 	case *WorkTitleMutation:
 		return c.WorkTitle.mutate(ctx, m)
+	case *XrefLinkMutation:
+		return c.XrefLink.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -3602,17 +3610,150 @@ func (c *WorkTitleClient) mutate(ctx context.Context, m *WorkTitleMutation) (Val
 	}
 }
 
+// XrefLinkClient is a client for the XrefLink schema.
+type XrefLinkClient struct {
+	config
+}
+
+// NewXrefLinkClient returns a client for the XrefLink from the given config.
+func NewXrefLinkClient(c config) *XrefLinkClient {
+	return &XrefLinkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `xreflink.Hooks(f(g(h())))`.
+func (c *XrefLinkClient) Use(hooks ...Hook) {
+	c.hooks.XrefLink = append(c.hooks.XrefLink, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `xreflink.Intercept(f(g(h())))`.
+func (c *XrefLinkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.XrefLink = append(c.inters.XrefLink, interceptors...)
+}
+
+// Create returns a builder for creating a XrefLink entity.
+func (c *XrefLinkClient) Create() *XrefLinkCreate {
+	mutation := newXrefLinkMutation(c.config, OpCreate)
+	return &XrefLinkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of XrefLink entities.
+func (c *XrefLinkClient) CreateBulk(builders ...*XrefLinkCreate) *XrefLinkCreateBulk {
+	return &XrefLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *XrefLinkClient) MapCreateBulk(slice any, setFunc func(*XrefLinkCreate, int)) *XrefLinkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &XrefLinkCreateBulk{err: fmt.Errorf("calling to XrefLinkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*XrefLinkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &XrefLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for XrefLink.
+func (c *XrefLinkClient) Update() *XrefLinkUpdate {
+	mutation := newXrefLinkMutation(c.config, OpUpdate)
+	return &XrefLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *XrefLinkClient) UpdateOne(_m *XrefLink) *XrefLinkUpdateOne {
+	mutation := newXrefLinkMutation(c.config, OpUpdateOne, withXrefLink(_m))
+	return &XrefLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *XrefLinkClient) UpdateOneID(id int) *XrefLinkUpdateOne {
+	mutation := newXrefLinkMutation(c.config, OpUpdateOne, withXrefLinkID(id))
+	return &XrefLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for XrefLink.
+func (c *XrefLinkClient) Delete() *XrefLinkDelete {
+	mutation := newXrefLinkMutation(c.config, OpDelete)
+	return &XrefLinkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *XrefLinkClient) DeleteOne(_m *XrefLink) *XrefLinkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *XrefLinkClient) DeleteOneID(id int) *XrefLinkDeleteOne {
+	builder := c.Delete().Where(xreflink.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &XrefLinkDeleteOne{builder}
+}
+
+// Query returns a query builder for XrefLink.
+func (c *XrefLinkClient) Query() *XrefLinkQuery {
+	return &XrefLinkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeXrefLink},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a XrefLink entity by its id.
+func (c *XrefLinkClient) Get(ctx context.Context, id int) (*XrefLink, error) {
+	return c.Query().Where(xreflink.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *XrefLinkClient) GetX(ctx context.Context, id int) *XrefLink {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *XrefLinkClient) Hooks() []Hook {
+	return c.hooks.XrefLink
+}
+
+// Interceptors returns the client interceptors.
+func (c *XrefLinkClient) Interceptors() []Interceptor {
+	return c.inters.XrefLink
+}
+
+func (c *XrefLinkClient) mutate(ctx context.Context, m *XrefLinkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&XrefLinkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&XrefLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&XrefLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&XrefLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown XrefLink mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
 		FaninCursor, Hold, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
-		Revision, Takedown, Todo, Work, WorkPart, WorkTitle []ent.Hook
+		Revision, Takedown, Todo, Work, WorkPart, WorkTitle, XrefLink []ent.Hook
 	}
 	inters struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
 		FaninCursor, Hold, Org, OrgName, Person, PersonAlias, Release, ReleaseContent,
-		Revision, Takedown, Todo, Work, WorkPart, WorkTitle []ent.Interceptor
+		Revision, Takedown, Todo, Work, WorkPart, WorkTitle, XrefLink []ent.Interceptor
 	}
 )
 

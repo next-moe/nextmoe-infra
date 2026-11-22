@@ -22,6 +22,7 @@ import (
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
+	"api/internal/canon/ent/xreflink"
 	"time"
 )
 
@@ -303,4 +304,14 @@ func init() {
 	worktitleDescPosition := worktitleFields[5].Descriptor()
 	// worktitle.DefaultPosition holds the default value on creation for the position field.
 	worktitle.DefaultPosition = worktitleDescPosition.Default.(int)
+	xreflinkFields := schema.XrefLink{}.Fields()
+	_ = xreflinkFields
+	// xreflinkDescOrigin is the schema descriptor for origin field.
+	xreflinkDescOrigin := xreflinkFields[4].Descriptor()
+	// xreflink.DefaultOrigin holds the default value on creation for the origin field.
+	xreflink.DefaultOrigin = xreflinkDescOrigin.Default.(string)
+	// xreflinkDescImportedAt is the schema descriptor for imported_at field.
+	xreflinkDescImportedAt := xreflinkFields[5].Descriptor()
+	// xreflink.DefaultImportedAt holds the default value on creation for the imported_at field.
+	xreflink.DefaultImportedAt = xreflinkDescImportedAt.Default.(func() time.Time)
 }

@@ -24,6 +24,7 @@ import (
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
+	"api/internal/canon/ent/xreflink"
 	"context"
 	"errors"
 	"fmt"
@@ -63,6 +64,7 @@ const (
 	TypeWork             = "Work"
 	TypeWorkPart         = "WorkPart"
 	TypeWorkTitle        = "WorkTitle"
+	TypeXrefLink         = "XrefLink"
 )
 
 // BookReleaseMutation represents an operation that mutates the BookRelease nodes in the graph.
@@ -16754,4 +16756,636 @@ func (m *WorkTitleMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown WorkTitle edge %s", name)
+}
+
+// XrefLinkMutation represents an operation that mutates the XrefLink nodes in the graph.
+type XrefLinkMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	source        *string
+	external_id   *string
+	entity        *string
+	entity_id     *int64
+	addentity_id  *int64
+	origin        *string
+	imported_at   *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*XrefLink, error)
+	predicates    []predicate.XrefLink
+}
+
+var _ ent.Mutation = (*XrefLinkMutation)(nil)
+
+// xreflinkOption allows management of the mutation configuration using functional options.
+type xreflinkOption func(*XrefLinkMutation)
+
+// newXrefLinkMutation creates new mutation for the XrefLink entity.
+func newXrefLinkMutation(c config, op Op, opts ...xreflinkOption) *XrefLinkMutation {
+	m := &XrefLinkMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeXrefLink,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withXrefLinkID sets the ID field of the mutation.
+func withXrefLinkID(id int) xreflinkOption {
+	return func(m *XrefLinkMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *XrefLink
+		)
+		m.oldValue = func(ctx context.Context) (*XrefLink, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().XrefLink.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withXrefLink sets the old XrefLink of the mutation.
+func withXrefLink(node *XrefLink) xreflinkOption {
+	return func(m *XrefLinkMutation) {
+		m.oldValue = func(context.Context) (*XrefLink, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m XrefLinkMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m XrefLinkMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *XrefLinkMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *XrefLinkMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().XrefLink.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSource sets the "source" field.
+func (m *XrefLinkMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *XrefLinkMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the XrefLink entity.
+// If the XrefLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *XrefLinkMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *XrefLinkMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetExternalID sets the "external_id" field.
+func (m *XrefLinkMutation) SetExternalID(s string) {
+	m.external_id = &s
+}
+
+// ExternalID returns the value of the "external_id" field in the mutation.
+func (m *XrefLinkMutation) ExternalID() (r string, exists bool) {
+	v := m.external_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalID returns the old "external_id" field's value of the XrefLink entity.
+// If the XrefLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *XrefLinkMutation) OldExternalID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalID: %w", err)
+	}
+	return oldValue.ExternalID, nil
+}
+
+// ResetExternalID resets all changes to the "external_id" field.
+func (m *XrefLinkMutation) ResetExternalID() {
+	m.external_id = nil
+}
+
+// SetEntity sets the "entity" field.
+func (m *XrefLinkMutation) SetEntity(s string) {
+	m.entity = &s
+}
+
+// Entity returns the value of the "entity" field in the mutation.
+func (m *XrefLinkMutation) Entity() (r string, exists bool) {
+	v := m.entity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEntity returns the old "entity" field's value of the XrefLink entity.
+// If the XrefLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *XrefLinkMutation) OldEntity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEntity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEntity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEntity: %w", err)
+	}
+	return oldValue.Entity, nil
+}
+
+// ResetEntity resets all changes to the "entity" field.
+func (m *XrefLinkMutation) ResetEntity() {
+	m.entity = nil
+}
+
+// SetEntityID sets the "entity_id" field.
+func (m *XrefLinkMutation) SetEntityID(i int64) {
+	m.entity_id = &i
+	m.addentity_id = nil
+}
+
+// EntityID returns the value of the "entity_id" field in the mutation.
+func (m *XrefLinkMutation) EntityID() (r int64, exists bool) {
+	v := m.entity_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEntityID returns the old "entity_id" field's value of the XrefLink entity.
+// If the XrefLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *XrefLinkMutation) OldEntityID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEntityID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEntityID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEntityID: %w", err)
+	}
+	return oldValue.EntityID, nil
+}
+
+// AddEntityID adds i to the "entity_id" field.
+func (m *XrefLinkMutation) AddEntityID(i int64) {
+	if m.addentity_id != nil {
+		*m.addentity_id += i
+	} else {
+		m.addentity_id = &i
+	}
+}
+
+// AddedEntityID returns the value that was added to the "entity_id" field in this mutation.
+func (m *XrefLinkMutation) AddedEntityID() (r int64, exists bool) {
+	v := m.addentity_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEntityID resets all changes to the "entity_id" field.
+func (m *XrefLinkMutation) ResetEntityID() {
+	m.entity_id = nil
+	m.addentity_id = nil
+}
+
+// SetOrigin sets the "origin" field.
+func (m *XrefLinkMutation) SetOrigin(s string) {
+	m.origin = &s
+}
+
+// Origin returns the value of the "origin" field in the mutation.
+func (m *XrefLinkMutation) Origin() (r string, exists bool) {
+	v := m.origin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrigin returns the old "origin" field's value of the XrefLink entity.
+// If the XrefLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *XrefLinkMutation) OldOrigin(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrigin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrigin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrigin: %w", err)
+	}
+	return oldValue.Origin, nil
+}
+
+// ResetOrigin resets all changes to the "origin" field.
+func (m *XrefLinkMutation) ResetOrigin() {
+	m.origin = nil
+}
+
+// SetImportedAt sets the "imported_at" field.
+func (m *XrefLinkMutation) SetImportedAt(t time.Time) {
+	m.imported_at = &t
+}
+
+// ImportedAt returns the value of the "imported_at" field in the mutation.
+func (m *XrefLinkMutation) ImportedAt() (r time.Time, exists bool) {
+	v := m.imported_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImportedAt returns the old "imported_at" field's value of the XrefLink entity.
+// If the XrefLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *XrefLinkMutation) OldImportedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImportedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImportedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImportedAt: %w", err)
+	}
+	return oldValue.ImportedAt, nil
+}
+
+// ResetImportedAt resets all changes to the "imported_at" field.
+func (m *XrefLinkMutation) ResetImportedAt() {
+	m.imported_at = nil
+}
+
+// Where appends a list predicates to the XrefLinkMutation builder.
+func (m *XrefLinkMutation) Where(ps ...predicate.XrefLink) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the XrefLinkMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *XrefLinkMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.XrefLink, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *XrefLinkMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *XrefLinkMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (XrefLink).
+func (m *XrefLinkMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *XrefLinkMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.source != nil {
+		fields = append(fields, xreflink.FieldSource)
+	}
+	if m.external_id != nil {
+		fields = append(fields, xreflink.FieldExternalID)
+	}
+	if m.entity != nil {
+		fields = append(fields, xreflink.FieldEntity)
+	}
+	if m.entity_id != nil {
+		fields = append(fields, xreflink.FieldEntityID)
+	}
+	if m.origin != nil {
+		fields = append(fields, xreflink.FieldOrigin)
+	}
+	if m.imported_at != nil {
+		fields = append(fields, xreflink.FieldImportedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *XrefLinkMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case xreflink.FieldSource:
+		return m.Source()
+	case xreflink.FieldExternalID:
+		return m.ExternalID()
+	case xreflink.FieldEntity:
+		return m.Entity()
+	case xreflink.FieldEntityID:
+		return m.EntityID()
+	case xreflink.FieldOrigin:
+		return m.Origin()
+	case xreflink.FieldImportedAt:
+		return m.ImportedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *XrefLinkMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case xreflink.FieldSource:
+		return m.OldSource(ctx)
+	case xreflink.FieldExternalID:
+		return m.OldExternalID(ctx)
+	case xreflink.FieldEntity:
+		return m.OldEntity(ctx)
+	case xreflink.FieldEntityID:
+		return m.OldEntityID(ctx)
+	case xreflink.FieldOrigin:
+		return m.OldOrigin(ctx)
+	case xreflink.FieldImportedAt:
+		return m.OldImportedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown XrefLink field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *XrefLinkMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case xreflink.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case xreflink.FieldExternalID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalID(v)
+		return nil
+	case xreflink.FieldEntity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEntity(v)
+		return nil
+	case xreflink.FieldEntityID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEntityID(v)
+		return nil
+	case xreflink.FieldOrigin:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrigin(v)
+		return nil
+	case xreflink.FieldImportedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImportedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown XrefLink field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *XrefLinkMutation) AddedFields() []string {
+	var fields []string
+	if m.addentity_id != nil {
+		fields = append(fields, xreflink.FieldEntityID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *XrefLinkMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case xreflink.FieldEntityID:
+		return m.AddedEntityID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *XrefLinkMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case xreflink.FieldEntityID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEntityID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown XrefLink numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *XrefLinkMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *XrefLinkMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *XrefLinkMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown XrefLink nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *XrefLinkMutation) ResetField(name string) error {
+	switch name {
+	case xreflink.FieldSource:
+		m.ResetSource()
+		return nil
+	case xreflink.FieldExternalID:
+		m.ResetExternalID()
+		return nil
+	case xreflink.FieldEntity:
+		m.ResetEntity()
+		return nil
+	case xreflink.FieldEntityID:
+		m.ResetEntityID()
+		return nil
+	case xreflink.FieldOrigin:
+		m.ResetOrigin()
+		return nil
+	case xreflink.FieldImportedAt:
+		m.ResetImportedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown XrefLink field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *XrefLinkMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *XrefLinkMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *XrefLinkMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *XrefLinkMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *XrefLinkMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *XrefLinkMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *XrefLinkMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown XrefLink unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *XrefLinkMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown XrefLink edge %s", name)
 }

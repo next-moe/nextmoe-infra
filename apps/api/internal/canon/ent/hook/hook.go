@@ -248,6 +248,18 @@ func (f WorkTitleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WorkTitleMutation", m)
 }
 
+// The XrefLinkFunc type is an adapter to allow the use of ordinary
+// function as XrefLink mutator.
+type XrefLinkFunc func(context.Context, *ent.XrefLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f XrefLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.XrefLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.XrefLinkMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 
