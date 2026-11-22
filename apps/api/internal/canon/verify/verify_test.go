@@ -47,6 +47,21 @@ func TestValueShapes(t *testing.T) {
 	}
 }
 
+func TestRecordFieldsMatchWithoutPageMarks(t *testing.T) {
+	if !Matches(prop(registry.ShapeOrdinal, ""), 28.0, "28") || Matches(prop(registry.ShapeOrdinal, ""), 28.0, "27") {
+		t.Error("ordinal against a bare field")
+	}
+	if !Matches(prop(registry.ShapePartialDate, ""), "2025-08", "2025.8") {
+		t.Error("NDL month date")
+	}
+	if !Matches(prop(registry.ShapeISBN13, ""), "9784049164671", "978-4-04-916467-1") {
+		t.Error("hyphenated ISBN field")
+	}
+	if !Matches(prop(registry.ShapeVocab, "format"), "paperback", "電撃文庫 ; 4347") {
+		t.Error("format from a label series statement")
+	}
+}
+
 func TestEntailment(t *testing.T) {
 	page := Excerpt{URL: "https://www.kadokawa.co.jp/product/322508000515/", Lines: []string{
 		"著者：七菜 なな　イラスト：Parum",

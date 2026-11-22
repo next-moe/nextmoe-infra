@@ -89,7 +89,13 @@ func (r *run) check(ctx context.Context, p registry.Property, c contract.Candida
 		if rf != nil {
 			return out, rf
 		}
-		if !verify.Entails(p, val, ex) {
+		entailed := false
+		if rec != nil {
+			entailed = verify.Matches(p, val, ex.Lines[0])
+		} else {
+			entailed = verify.Entails(p, val, ex)
+		}
+		if !entailed {
 			continue
 		}
 		if best == "" || registry.Rank(src.Tier) < registry.Rank(best) {

@@ -153,3 +153,21 @@ func numberNear(lines []string, want string, marks []string) bool {
 	}
 	return false
 }
+
+// Matches is Entails for a structured record field: the field is the value's
+// own cell, so a number need not sit beside a unit mark.
+func Matches(p registry.Property, value any, field string) bool {
+	switch p.Shape {
+	case registry.ShapeInteger, registry.ShapeOrdinal, registry.ShapeMoney:
+		n := numberRe.FindString(fold(field))
+		if n == "" {
+			return false
+		}
+		got, err1 := strconv.ParseFloat(strings.ReplaceAll(n, ",", ""), 64)
+		want, err2 := strconv.ParseFloat(fmt.Sprint(value), 64)
+		return err1 == nil && err2 == nil && got == want
+	case registry.ShapeISBN13, registry.ShapeJAN:
+		return digits(field) == fmt.Sprint(value)
+	}
+	return Entails(p, value, Excerpt{Lines: []string{field}})
+}

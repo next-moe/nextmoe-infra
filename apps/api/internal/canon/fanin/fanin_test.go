@@ -85,6 +85,7 @@ func TestFaninCommitsVerifiedRowsAndRefusesTheRest(t *testing.T) {
 	client, _ := canontest.Client(t)
 	ctx := context.Background()
 	code := isbn()
+	name := fmt.Sprintf("test-%d", rand.Int64())
 	fields := fmt.Sprintf(`{"title":"アクセル・ワールド","volume":"28","isbn":"%s","date":"2025.8","label":"電撃文庫 ; 4347"}`, code)
 	page := snapshot("https://www.kadokawa.co.jp/product/322508000515/",
 		"アクセル・ワールド28", "定価: 924円（本体840円+税）", "発売日：2025年08月08日", "ISBN："+code)
@@ -109,7 +110,7 @@ func TestFaninCommitsVerifiedRowsAndRefusesTheRest(t *testing.T) {
 		{Value: val("2025-08-08"), Evidence: []contract.Evidence{{SnapshotID: "deadbeef", LineFrom: 1, LineTo: 1}}},
 	}
 
-	if _, err := New("t", pool, client).RunOnce(ctx, 10); err != nil {
+	if _, err := New(name, pool, client).RunOnce(ctx, 10); err != nil {
 		t.Fatal(err)
 	}
 	if len(pool.answers) != 1 || pool.answers[0].Result != "written" {
@@ -139,7 +140,7 @@ func TestFaninCommitsVerifiedRowsAndRefusesTheRest(t *testing.T) {
 	pool.outbox = append(pool.outbox, contract.OutboxEntry{ID: int64(len(pool.outbox) + 1), Row: contract.OutboxRow{ContractVersion: "9.9.9", Kind: "lead_result"}})
 
 	pool.answers = nil
-	if _, err := New("t", pool, client).RunOnce(ctx, 10); err != nil {
+	if _, err := New(name, pool, client).RunOnce(ctx, 10); err != nil {
 		t.Fatal(err)
 	}
 	want := []struct{ result, code string }{
@@ -159,11 +160,11 @@ func TestFaninCommitsVerifiedRowsAndRefusesTheRest(t *testing.T) {
 		t.Errorf("the official page should refine the date: %v %v", *rel.Released, rel.FieldState["released"])
 	}
 
-	if _, err := client.FaninCursor.Delete().Exec(ctx); err != nil {
+	if err := client.FaninCursor.DeleteOneID(name).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	before, _ := client.Work.Query().Count(ctx)
-	if _, err := New("t", pool, client).RunOnce(ctx, 10); err != nil {
+	if _, err := New(name, pool, client).RunOnce(ctx, 10); err != nil {
 		t.Fatal(err)
 	}
 	if after, _ := client.Work.Query().Count(ctx); after != before {
