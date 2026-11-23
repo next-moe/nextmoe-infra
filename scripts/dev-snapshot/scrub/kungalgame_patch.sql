@@ -34,4 +34,14 @@ UPDATE admin_log
   SET content = :'marker' || ' synthetic admin log entry.'
   WHERE content IS NOT NULL AND content <> '';
 
+-- moyu's own config store (moyu migration 060_config_store) holds prod secrets
+-- sealed with moyu's prod KUN_CONFIG_KEK. Guarded because a snapshot can
+-- predate the tables.
+DO $$
+BEGIN
+  IF to_regclass('config_secret') IS NOT NULL THEN
+    TRUNCATE config_secret, config_secret_audit;
+  END IF;
+END $$;
+
 COMMIT;
