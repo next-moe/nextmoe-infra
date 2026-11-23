@@ -44,6 +44,7 @@ import (
 	"api/internal/platform/settings/keys"
 	settingsPerm "api/internal/platform/settings/perm"
 
+	imgCDN "api/internal/platform/image/cdn"
 	imgHandler "api/internal/platform/image/handler"
 	imgRepoPkg "api/internal/platform/image/repository"
 	imgService "api/internal/platform/image/service"
@@ -682,7 +683,8 @@ func registerImageAdmin(_ *app.App, cfg *config.Config, admin fiber.Router) {
 	usageRepo := imgRepoPkg.NewSiteUsageRepository(imagesDB.DB())
 	statsRepo := imgRepoPkg.NewStatsRepository(imagesDB.DB())
 	svc := imgService.New(nil, s3, imgRepo, usageRepo, cfg.ImageService.CDNBase)
-	adminH := imgHandler.NewAdmin(imagesDB.DB(), svc, statsRepo, s3)
+	adminH := imgHandler.NewAdmin(imagesDB.DB(), svc, statsRepo, s3).
+		WithPurger(imgCDN.FromConfig(), imgCDN.Bases(cfg.ImageService.CDNBase))
 
 	g := admin.Group("/image")
 	g.Get("/list", adminH.List)

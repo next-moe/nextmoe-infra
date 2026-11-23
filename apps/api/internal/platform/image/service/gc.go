@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"api/internal/platform/image/cdn"
 	"api/internal/platform/image/model"
 	"api/internal/platform/image/repository"
 	"api/internal/platform/image/storage"
@@ -17,6 +18,13 @@ type GCService struct {
 	db      *gorm.DB
 	storage *storage.Client
 	imgRepo *repository.ImageRepository
+	purger  cdn.Purger
+	bases   []string
+}
+
+func (g *GCService) WithPurger(p cdn.Purger, bases []string) *GCService {
+	g.purger, g.bases = p, bases
+	return g
 }
 
 func NewGCService(db *gorm.DB, s *storage.Client, imgRepo *repository.ImageRepository) *GCService {
@@ -149,10 +157,17 @@ func (g *GCService) hardDelete(ctx context.Context, threshold time.Time, cfg GCC
 		if err := g.storage.Delete(ctx, r.StorageKey); err != nil {
 			slog.Warn("gc: delete main s3 object", "hash", r.Hash, "err", err)
 		}
+		keys := []string{r.StorageKey}
 		for _, v := range r.VariantList() {
 			key := fmt.Sprintf("%s/%s/%s_%s.%s", r.Hash[:2], r.Hash[2:4], r.Hash, v, r.Ext)
+			keys = append(keys, key)
 			if err := g.storage.Delete(ctx, key); err != nil {
 				slog.Warn("gc: delete variant", "hash", r.Hash, "variant", v, "err", err)
+			}
+		}
+		if g.purger != nil {
+			if err := g.purger.Purge(ctx, cdn.URLs(g.bases, keys)); err != nil {
+				slog.Warn("gc: cdn purge", "hash", r.Hash, "err", err)
 			}
 		}
 
