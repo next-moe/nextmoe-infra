@@ -1,11 +1,13 @@
 package cdn
 
 import (
+	"api/pkg/config"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -41,5 +43,15 @@ func TestURLsCoverEveryBase(t *testing.T) {
 	got := URLs([]string{"https://a.example", "https://b.example"}, []string{"ab/cd/x.webp", "/ab/cd/x_thumb.webp"})
 	if len(got) != 4 || got[1] != "https://a.example/ab/cd/x_thumb.webp" || got[2] != "https://b.example/ab/cd/x.webp" {
 		t.Errorf("%v", got)
+	}
+}
+
+func TestBasesCoverTheConfiguredHostsOnce(t *testing.T) {
+	got := Bases(config.ImageServiceConfig{CDNBase: "https://a.example/", Purge: config.ImagePurgeConfig{Bases: " https://b.example , https://a.example"}})
+	if strings.Join(got, ",") != "https://b.example,https://a.example" {
+		t.Errorf("bases %v", got)
+	}
+	if _, ok := FromConfig(config.ImagePurgeConfig{ZoneID: "z"}).(*noop); !ok {
+		t.Error("a zone without a token must not build a Cloudflare purger")
 	}
 }
