@@ -79,6 +79,7 @@ func workFromDetail(rec dto.PublicCatalogWork, include []string, logoURL func(st
 		releaseDateValue(rec.ReleaseDate), releasePrecision(rec.ReleaseDate), cover, banner, claimFrom(rec.ClaimedBy),
 		rec.ContentLimit,
 	)
+	w.SingleEnding = &rec.SingleEnding
 	attachWorkIncludes(&w, rec, include, logoURL)
 	return w
 }

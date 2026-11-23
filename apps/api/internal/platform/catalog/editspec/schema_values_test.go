@@ -25,6 +25,7 @@ var enumsWithoutVocabulary = map[string]string{
 	editspec.FieldReleaseHidden:     "bool-as-enum: hidden/visible, no token set worth publishing",
 	editspec.FieldWorkDisplayNSFW:   "bool-as-enum: forced-NSFW override flag, no token set worth publishing",
 	editspec.FieldWorkRouteHints:    "bool-as-enum: the game shows route hints itself, no token set worth publishing",
+	editspec.FieldWorkSingleEnding:  "bool-as-enum: the game has one ending, no token set worth publishing",
 	editspec.FieldReleaseFreeware:   "nullable bool-as-enum: freeware flag, null when no source recorded it",
 	editspec.FieldReleaseOfficial:   "nullable bool-as-enum: official-release flag, null when no source recorded it",
 	editspec.FieldTagSexual:         "bool-as-enum: the tag's sexual flag, no token set worth publishing",

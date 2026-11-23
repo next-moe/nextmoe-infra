@@ -144,6 +144,7 @@ func (s *PublicService) WalkthroughDetail(ctx context.Context, id int64, nsfw bo
 	if err := json.Unmarshal([]byte(rows[0].Chart), &c); err != nil {
 		return dto.PublicWalkthrough{}, false, fmt.Errorf("walkthrough %d chart: %w", id, err)
 	}
+	walkthrough.ClassifyEndings(&c)
 	items[0].Chart = &c
 	return items[0], true, nil
 }

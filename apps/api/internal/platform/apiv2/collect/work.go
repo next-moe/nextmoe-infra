@@ -65,6 +65,7 @@ func SearchSort(sort string) bool {
 func WorkSpec() Spec {
 	fields := append([]string{}, WorkBasicFields...)
 	fields = append(fields, WorkInclude...)
+	fields = append(fields, "single_ending")
 	return Spec{
 		Sort:    WorkSort,
 		Include: WorkInclude,

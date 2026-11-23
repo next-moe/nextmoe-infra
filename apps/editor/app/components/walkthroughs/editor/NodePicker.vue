@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
 import type { WtNode, WtNodeType } from '#shared/types/walkthrough'
-import { WT_ENDING_LABEL, WT_NODE_LABEL, wtTone } from '~/constants/walkthrough'
+import { WT_NODE_LABEL, wtTone } from '~/constants/walkthrough'
+import { endingLabel } from '~/utils/walkthrough/endings'
 import {
   characterTones,
   keysOf,
@@ -90,7 +91,7 @@ const groups = computed(() => {
       .map((e) => ({
         node: { node_type: 'ending', key: e.key },
         label: e.name || e.key,
-        hint: WT_ENDING_LABEL[e.ending_type]
+        hint: endingLabel(e)
       }))
   })
   return g
@@ -121,7 +122,11 @@ const create = (type: 'entry' | 'save' | 'ending') => {
         key,
         name: name || `结局 ${d.endings.length + 1}`,
         name_zh: null,
-        ending_type: 'other',
+        route_type: null,
+        outcome: null,
+        after: false,
+        other: true,
+        other_label: null,
         characters: []
       })
   })

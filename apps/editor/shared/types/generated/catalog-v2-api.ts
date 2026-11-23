@@ -2284,6 +2284,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/playtimes/{work_id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List which apps reported my playtime on one work
+         * @description One row per app, most minutes first. GET /v2/me/playtimes/{work_id} answers the most minutes among these rows. An empty list when no app reported. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs.
+         */
+        get: operations["listMyPlaytimeSources"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete every app's playtime on one work
+         * @description Deletes every app's row on the work and withdraws its daily play activity items. Idempotent: 204 also when nothing was recorded. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs.
+         */
+        delete: operations["deleteMyPlaytimeSources"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/playtimes/{work_id}/sources/{client_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete one app's playtime on one work
+         * @description Deletes the row the named app reported, whichever first-party app asks. 404 when that app has no row on the work. Once no app's row is left, the work's daily play activity items are withdrawn. 204 with no body. Requires a user access token from a first-party site app; any other app gets 403 PERMISSION_REQUIRED, because the list names the other apps the user runs.
+         */
+        delete: operations["deleteMyPlaytimeSource"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/privacy": {
         parameters: {
             query?: never;
@@ -6709,6 +6753,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListPlaytimeSource: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListPlaytimeSource.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["PlaytimeSource"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
         ListProblemType: {
             /**
              * Format: uri
@@ -9020,6 +9099,36 @@ export interface components {
             status: number;
             /** @description Catalog work id. Present on 200 items. */
             work_id?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        PlaytimeSource: {
+            /** @description That app's display name. null when the app no longer exists. Must not be used as a discriminant. */
+            app_name: string | null;
+            /** @description The app that reported this row. */
+            client_id: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC of the last play this app reported. null when it never said.
+             */
+            last_played_at: string | null;
+            /**
+             * Format: int64
+             * @description Absolute cumulative minutes this app reported.
+             */
+            minutes: number;
+            /**
+             * @description Type discriminant. Always playtime_source.
+             * @enum {string}
+             */
+            object: "playtime_source";
+            /** @description true for the row the calling app reported. */
+            self: boolean;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC of this app's last report.
+             */
+            updated_at: string;
         } & {
             [key: string]: unknown;
         };
@@ -11572,10 +11681,12 @@ export interface components {
             [key: string]: unknown;
         };
         WalkthroughEnding: {
+            /** @description true for an after-story, played on from another ending. Combines with route_type and outcome. */
+            after: boolean;
             /** @description characters[].key of the characters whose route this ending concludes. Empty array, never null. */
             character_keys: string[];
             /**
-             * @description heroine concludes one character's route, harem several; after is an after-story reached from another ending.
+             * @description route_type, outcome, after and other folded into one value, for a site that shows a single label: after when after is true, other when other is true, otherwise outcome when it is true, normal or bad, otherwise route_type when it is heroine or harem, otherwise other.
              * @enum {string}
              */
             ending_type: "heroine" | "harem" | "true" | "normal" | "bad" | "after" | "other";
@@ -11587,6 +11698,20 @@ export interface components {
             };
             /** @description The ending's name as the source page writes it. Must not be used as a discriminant. */
             name: string;
+            /** @description true when the ending fits no route_type or outcome; route_type and outcome are then null. */
+            other: boolean;
+            /** @description A short label an editor gave an ending marked other, such as 隐藏结局, in the language the editor wrote it. null when none. Must not be used as a discriminant. */
+            other_label: string | null;
+            /**
+             * @description How the ending turns out: happy (HE), true (TE), normal (NE) or bad (BE). null when other is true or the outcome is not recorded.
+             * @enum {string|null}
+             */
+            outcome: "happy" | "true" | "normal" | "bad" | null;
+            /**
+             * @description Whose route the ending closes: heroine is one character's (character_keys holds at most one), harem several characters' together, common the shared trunk before routes split. null when other is true or the route is not recorded.
+             * @enum {string|null}
+             */
+            route_type: "heroine" | "harem" | "common" | null;
         } & {
             [key: string]: unknown;
         };
@@ -11859,6 +11984,8 @@ export interface components {
             screenshots?: components["schemas"]["Screenshot"][];
             /** @description Present when include=series. Empty array if none. */
             series?: components["schemas"]["WorkSeriesRef"][];
+            /** @description Present on work detail only: true when reviewed editors marked the game as having a single ending, so there is no route to follow and a site may say no walkthrough is needed in place of an empty walkthrough list. */
+            single_ending?: boolean;
             /** @description Present when include=tags. Empty array if none. */
             tags?: components["schemas"]["WorkTag"][];
             /** @description Present when include=titles. Empty array if none. */
@@ -27036,6 +27163,296 @@ export interface operations {
             path: {
                 /** @description Catalog work id. */
                 work_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyPlaytimeSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Catalog work id. */
+                work_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListPlaytimeSource"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteMyPlaytimeSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Catalog work id. */
+                work_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteMyPlaytimeSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Catalog work id. */
+                work_id: string;
+                /** @description The app whose row to delete, as client_id in the sources list. */
+                client_id: string;
             };
             cookie?: never;
         };

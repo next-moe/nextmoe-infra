@@ -14155,13 +14155,16 @@ components:
     WalkthroughEnding:
       additionalProperties: true
       properties:
+        after:
+          description: true for an after-story, played on from another ending. Combines with route_type and outcome.
+          type: boolean
         character_keys:
           description: characters[].key of the characters whose route this ending concludes. Empty array, never null.
           items:
             type: string
           type: array
         ending_type:
-          description: heroine concludes one character's route, harem several; after is an after-story reached from another ending.
+          description: "route_type, outcome, after and other folded into one value, for a site that shows a single label: after when after is true, other when other is true, otherwise outcome when it is true, normal or bad, otherwise route_type when it is heroine or harem, otherwise other."
           enum:
             - heroine
             - harem
@@ -14187,11 +14190,48 @@ components:
           description: The ending's name as the source page writes it. Must not be used as a discriminant.
           maxLength: 512
           type: string
+        other:
+          description: true when the ending fits no route_type or outcome; route_type and outcome are then null.
+          type: boolean
+        other_label:
+          description: A short label an editor gave an ending marked other, such as 隐藏结局, in the language the editor wrote it. null when none. Must not be used as a discriminant.
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        outcome:
+          description: "How the ending turns out: happy (HE), true (TE), normal (NE) or bad (BE). null when other is true or the outcome is not recorded."
+          enum:
+            - happy
+            - "true"
+            - normal
+            - bad
+            - null
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
+        route_type:
+          description: "Whose route the ending closes: heroine is one character's (character_keys holds at most one), harem several characters' together, common the shared trunk before routes split. null when other is true or the route is not recorded."
+          enum:
+            - heroine
+            - harem
+            - common
+            - null
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
       required:
         - key
         - name
         - localized
         - ending_type
+        - route_type
+        - outcome
+        - after
+        - other
+        - other_label
         - character_keys
       type: object
     WalkthroughEntry:
@@ -14732,6 +14772,9 @@ components:
           items:
             $ref: "#/components/schemas/WorkSeriesRef"
           type: array
+        single_ending:
+          description: "Present on work detail only: true when reviewed editors marked the game as having a single ending, so there is no route to follow and a site may say no walkthrough is needed in place of an empty walkthrough list."
+          type: boolean
         tags:
           description: Present when include=tags. Empty array if none.
           items:
@@ -15335,7 +15378,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.90.0
+  version: 2.91.0
   x-stability: stable
 openapi: 3.1.0
 paths:

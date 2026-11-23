@@ -51,6 +51,7 @@ func Settle(text string, got Extracted, m *Metrics) (string, *walkthrough.Chart)
 	quoteCharacterNames(text, &chart)
 	RepairFromSource(text, &chart)
 	walkthrough.Normalize(&chart)
+	walkthrough.ClassifyEndings(&chart)
 	return Gate(text, chart, m), &chart
 }
 

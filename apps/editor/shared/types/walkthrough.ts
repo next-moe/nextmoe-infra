@@ -1,7 +1,7 @@
 export type WtNodeType = 'entry' | 'save' | 'ending' | 'collect' | 'open'
 export type WtStepType = 'choice' | 'action' | 'save' | 'heading' | 'note'
-export type WtEndingType =
-  'heroine' | 'harem' | 'true' | 'normal' | 'bad' | 'after' | 'other'
+export type WtRoute = 'heroine' | 'harem' | 'common'
+export type WtOutcome = 'happy' | 'true' | 'normal' | 'bad'
 export type WtLang = 'ja' | 'zh-Hans'
 
 export interface WtCharacter {
@@ -39,7 +39,11 @@ export interface WtEnding {
   key: string
   name: string
   name_zh: string | null
-  ending_type: WtEndingType
+  route_type: WtRoute | null
+  outcome: WtOutcome | null
+  after: boolean
+  other: boolean
+  other_label: string | null
   characters: string[]
 }
 

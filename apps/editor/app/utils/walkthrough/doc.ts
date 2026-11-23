@@ -7,11 +7,11 @@ import type {
   WtStepType
 } from '#shared/types/walkthrough'
 import {
-  WT_ENDING_TYPES,
   WT_KEY_PATTERN,
   WT_LIMITS,
   WT_STEP_META
 } from '~/constants/walkthrough'
+import { endingClassified, normalizeEnding } from './endings'
 
 const list = <T>(value: T[] | null | undefined): T[] =>
   Array.isArray(value) ? value : []
@@ -38,11 +38,7 @@ export const normalizeChart = (raw: unknown): WtChart => {
       unlocked_by: e.unlocked_by ?? null
     })),
     saves: list(c.saves).map((s) => ({ ...s, label_zh: s.label_zh ?? null })),
-    endings: list(c.endings).map((e) => ({
-      ...e,
-      name_zh: e.name_zh ?? null,
-      characters: list(e.characters)
-    })),
+    endings: list(c.endings).map(normalizeEnding),
     segments: list(c.segments).map((s) => ({
       ...s,
       section: s.section ?? null,
@@ -309,11 +305,19 @@ export const validateChart = (chart: WtChart): WtIssue[] => {
   })
   if (chart.legend.length > WT_LIMITS.legend)
     push(null, `符号说明最多 ${WT_LIMITS.legend} 条`)
-  const types = new Set(WT_ENDING_TYPES.map((e) => e.value))
   for (const e of chart.endings) {
     const t = { kind: 'ending' as const, key: e.key }
     if (blank(e.name)) push(t, '结局还没有名称')
-    if (!types.has(e.ending_type)) push(t, `结局「${e.name}」的类型无效`)
+    if (!endingClassified(e)) push(t, `结局「${e.name}」还没有选择类型`)
+    if (e.route_type === 'heroine' && e.characters.length > 1)
+      push(t, `结局「${e.name}」是个人线，只能归属一个角色`)
+    if (e.other_label !== null && blank(e.other_label))
+      push(t, `结局「${e.name}」的备注不能是空白`)
+    if (
+      e.other_label !== null &&
+      tooLong(e.other_label, WT_LIMITS.otherLabelRunes)
+    )
+      push(t, `结局「${e.name}」的备注最多 ${WT_LIMITS.otherLabelRunes} 字`)
     for (const k of e.characters) {
       if (!has(chart.characters, k))
         push(t, `结局「${e.name}」指向了不存在的角色`)

@@ -4,8 +4,9 @@ import type {
   WtSegment,
   WtStep
 } from '#shared/types/walkthrough'
-import { WT_ENDING_LABEL, WT_STEP_META } from '~/constants/walkthrough'
+import { WT_STEP_META } from '~/constants/walkthrough'
 import { nodeLabel, normalizeChart } from './doc'
+import { endingLabel } from './endings'
 
 export type WtChangeStatus = 'added' | 'removed' | 'changed'
 
@@ -215,10 +216,8 @@ export const diffCharts = (
         ...(x.name_zh !== y.name_zh
           ? [`中文名：${quote(x.name_zh)} → ${quote(y.name_zh)}`]
           : []),
-        ...(x.ending_type !== y.ending_type
-          ? [
-              `类型：${WT_ENDING_LABEL[x.ending_type]} → ${WT_ENDING_LABEL[y.ending_type]}`
-            ]
+        ...(endingLabel(x) !== endingLabel(y)
+          ? [`类型：${endingLabel(x)} → ${endingLabel(y)}`]
           : []),
         ...(JSON.stringify(x.characters) !== JSON.stringify(y.characters)
           ? [`归属：${names(a, x.characters)} → ${names(b, y.characters)}`]

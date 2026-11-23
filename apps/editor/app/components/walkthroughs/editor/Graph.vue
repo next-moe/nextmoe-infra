@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
 import type { WtNodeType } from '#shared/types/walkthrough'
-import { WT_ENDING_LABEL, wtTone } from '~/constants/walkthrough'
+import { wtTone } from '~/constants/walkthrough'
+import { endingLabel } from '~/utils/walkthrough/endings'
 import {
   layoutChart,
   type WtGraphEdge,
@@ -98,13 +99,11 @@ const NODE_ICON: Record<WtNodeType, string> = {
   open: 'lucide:ellipsis'
 }
 
-const endingType = (node: WtGraphNode) =>
-  node.kind === 'ending'
-    ? WT_ENDING_LABEL[
-        doc.chart.value.endings.find((e) => e.key === node.key)?.ending_type ??
-          'other'
-      ]
-    : ''
+const endingType = (node: WtGraphNode) => {
+  if (node.kind !== 'ending') return ''
+  const ending = doc.chart.value.endings.find((e) => e.key === node.key)
+  return ending ? endingLabel(ending) : ''
+}
 
 const clickNode = (node: WtGraphNode) => {
   if (view.wasDrag()) return

@@ -20,6 +20,16 @@ const (
 
 var EndingTypes = []string{"heroine", "harem", "true", "normal", "bad", "after", "other"}
 
+const (
+	RouteHeroine = "heroine"
+	RouteHarem   = "harem"
+	RouteCommon  = "common"
+)
+
+var Routes = []string{RouteHeroine, RouteHarem, RouteCommon}
+
+var Outcomes = []string{"happy", "true", "normal", "bad"}
+
 type Chart struct {
 	Characters []Character `json:"characters"`
 	Sections   []Section   `json:"sections"`
@@ -61,11 +71,18 @@ type Save struct {
 	LabelZh *string `json:"label_zh"`
 }
 
+// ImportType is the single-axis type (EndingTypes) that imports and charts
+// saved before route/outcome carry; ClassifyEndings folds it in and clears it.
 type Ending struct {
 	Key        string   `json:"key"`
 	Name       string   `json:"name"`
 	NameZh     *string  `json:"name_zh"`
-	EndingType string   `json:"ending_type"`
+	ImportType string   `json:"ending_type,omitempty"`
+	RouteType  *string  `json:"route_type"`
+	Outcome    *string  `json:"outcome"`
+	After      bool     `json:"after"`
+	Other      bool     `json:"other"`
+	OtherLabel *string  `json:"other_label"`
 	Characters []string `json:"characters"`
 }
 

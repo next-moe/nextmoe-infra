@@ -55,7 +55,7 @@ func (x Extracted) Chart() walkthrough.Chart {
 			c.Endings = append(c.Endings, walkthrough.Ending{
 				Key:        key,
 				Name:       s.To.Ending.Name,
-				EndingType: s.To.Ending.EndingType,
+				ImportType: s.To.Ending.EndingType,
 				Characters: s.To.Ending.Characters,
 			})
 		}
