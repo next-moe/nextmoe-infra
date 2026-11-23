@@ -72,6 +72,7 @@ func (a *API) progress(h huma.API) {
 			rows, err := a.client.QueryContext(ctx, `SELECT kind, subject, state, at, id FROM (
 				SELECT 'work_state' AS kind, work_id AS subject, state::text AS state, updated_at AS at, id FROM public.catalog_user_work_state WHERE actor_uid = $1
 				UNION ALL SELECT 'part_progress', part_id, state, updated_at, id FROM canon.library_part_progress WHERE actor_uid = $1
+				UNION ALL SELECT 'rating', work_id, NULL, changed_at, id FROM public.catalog_user_work_rating WHERE actor_uid = $1
 				UNION ALL SELECT kind, subject_id, NULL, deleted_at, -id FROM canon.library_tombstone WHERE actor_uid = $1
 			) c WHERE (at, kind, id) > ($2, $3, $4) ORDER BY at, kind, id LIMIT $5`, uid, at, kind, after, in.Limit)
 			if err != nil {
@@ -79,6 +80,7 @@ func (a *API) progress(h huma.API) {
 			}
 			defer rows.Close()
 			out := MeChangeList{Items: []MeChange{}, NextCursor: in.Cursor}
+			var rated []int64
 			for rows.Next() {
 				var c MeChange
 				var subject, n int64
@@ -94,9 +96,28 @@ func (a *API) progress(h huma.API) {
 					state = &name
 				}
 				c.State = state
+				if k == "rating" && n > 0 {
+					rated = append(rated, subject)
+				}
 				out.Items = append(out.Items, c)
 				out.NextCursor = encodeMeCursor(c.At, k, n)
 			}
-			return &MeChangesOutput{Body: out}, rows.Err()
+			if err := rows.Err(); err != nil {
+				return nil, err
+			}
+			rows.Close()
+			if len(rated) == 0 {
+				return &MeChangesOutput{Body: out}, nil
+			}
+			byWork, err := a.ratingsOf(ctx, uid, rated)
+			if err != nil {
+				return nil, err
+			}
+			for i := range out.Items {
+				if c := &out.Items[i]; c.Kind == "rating" {
+					c.Rating = byWork[c.SubjectID]
+				}
+			}
+			return &MeChangesOutput{Body: out}, nil
 		})
 }

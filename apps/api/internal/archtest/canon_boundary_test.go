@@ -13,8 +13,9 @@ import (
 // canonAllowedInternal is everything under api/internal that canon may import.
 // The legacy catalog, its Fiber middleware and its GORM database package are
 // deliberately absent: canon is on net/http, ent and database/sql (D23).
-// authz is the standard-library-only permission type the console shares.
-var canonAllowedInternal = []string{"/internal/canon", "/internal/testsupport", "/internal/platform/authz"}
+// authz is the standard-library-only permission type the console shares;
+// markdown is the goldmark renderer v2 cooks short reviews with.
+var canonAllowedInternal = []string{"/internal/canon", "/internal/testsupport", "/internal/platform/authz", "/internal/platform/markdown"}
 
 var canonForbiddenModules = []string{"gorm.io/", "github.com/gofiber/"}
 

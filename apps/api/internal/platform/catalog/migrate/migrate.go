@@ -858,6 +858,22 @@ func rawSQL(db *gorm.DB) error {
 		FOR EACH ROW EXECUTE FUNCTION catalog_work_user_rows_cascade()`).Error; err != nil {
 		return fmt.Errorf("user rows cascade trigger: %w", err)
 	}
+	// 2026-11-23 (plan 23 D27): a v3 rating keeps its medium's sub-scores in
+	// dimensions, keyed by the dimension (story, writing, …); the game set
+	// stays in its own columns, written through v2, until P4. Existing rows get
+	// '{}', which is "none rated". The column is not in the GORM model: v2
+	// never writes it, so its inserts take the default.
+	if err := db.Exec(`ALTER TABLE catalog_user_work_rating ADD COLUMN IF NOT EXISTS dimensions jsonb NOT NULL DEFAULT '{}'::jsonb`).Error; err != nil {
+		return fmt.Errorf("rating dimensions column: %w", err)
+	}
+	if exists, err := constraintExists(db, "catalog_user_work_rating", "chk_catalog_user_work_rating_dimensions"); err != nil {
+		return err
+	} else if !exists {
+		if err := db.Exec(`ALTER TABLE catalog_user_work_rating ADD CONSTRAINT chk_catalog_user_work_rating_dimensions
+			CHECK (jsonb_typeof(dimensions) = 'object')`).Error; err != nil {
+			return fmt.Errorf("rating dimensions check: %w", err)
+		}
+	}
 
 	// (7d) 2026-10-24, new empty tables: a walkthrough belongs to its work and
 	// its character pins to both ends. A merge rehangs work_id / character_id

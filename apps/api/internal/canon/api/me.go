@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"api/pkg/utils"
+
 	"github.com/danielgtaylor/huma/v2"
 )
 
@@ -64,9 +66,10 @@ type PutProgressInput struct {
 type WorkStateOutput struct{ Body WorkState }
 
 type MeChange struct {
-	Kind      string    `json:"kind" enum:"work_state,part_progress"`
-	SubjectID string    `json:"subject_id"`
-	State     *string   `json:"state" doc:"null when removed."`
+	Kind      string    `json:"kind" enum:"work_state,part_progress,rating"`
+	SubjectID string    `json:"subject_id" doc:"The work for work_state and rating, the part for part_progress."`
+	State     *string   `json:"state" doc:"null when removed, and always for a rating."`
+	Rating    *MyRating `json:"rating,omitempty" doc:"The rating as it is now; absent when removed."`
 	At        time.Time `json:"at"`
 }
 
@@ -84,15 +87,23 @@ type MeChangeList struct {
 type MeChangesOutput struct{ Body MeChangeList }
 
 func (a *API) user(ctx context.Context, header string) (int64, error) {
+	claims, err := a.viewer(ctx, header)
+	if err != nil {
+		return 0, err
+	}
+	return int64(claims.ID), nil
+}
+
+func (a *API) viewer(ctx context.Context, header string) (*utils.TokenClaims, error) {
 	token, ok := strings.CutPrefix(header, "Bearer ")
 	if !ok || a.verifier == nil {
-		return 0, huma.Error401Unauthorized("a bearer token is required")
+		return nil, huma.Error401Unauthorized("a bearer token is required")
 	}
 	claims, err := a.verifier.Parse(ctx, token)
 	if err != nil || claims.ID == 0 {
-		return 0, huma.Error401Unauthorized("the token is invalid, expired or names no user")
+		return nil, huma.Error401Unauthorized("the token is invalid, expired or names no user")
 	}
-	return int64(claims.ID), nil
+	return claims, nil
 }
 
 // workExists is the WorkDirectory check (10 §3): a work is served by canon or
