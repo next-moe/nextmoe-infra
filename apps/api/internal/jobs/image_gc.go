@@ -59,7 +59,7 @@ func RunImageGC(ctx context.Context, cfg *config.Config, opts ImageGCOpts) (Summ
 	}
 
 	imgRepo := repository.NewImageRepository(db.DB())
-	gc := service.NewGCService(db.DB(), s3, imgRepo).WithPurger(cdn.FromConfig(), cdn.Bases(cfg.ImageService.CDNBase))
+	gc := service.NewGCService(db.DB(), s3, imgRepo).WithPurger(cdn.FromConfig(cfg.ImageService.Purge), cdn.Bases(cfg.ImageService))
 
 	summary, err := gc.Run(ctx, service.GCConfig{
 		ColdAfter:    time.Duration(o.ColdDays) * 24 * time.Hour,
