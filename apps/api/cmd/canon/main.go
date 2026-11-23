@@ -13,6 +13,7 @@ import (
 
 	"api/internal/canon/api"
 	"api/internal/canon/ent"
+	"api/internal/canon/perm"
 	"api/internal/canon/xref"
 	"api/pkg/config"
 	"api/pkg/logger"
@@ -65,6 +66,16 @@ func main() {
 		RequiringIssuer(config.Env("KUN_SITE_URL", ""))
 	handler, _ := api.New(client, api.Options{Verifier: verifier})
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	idp, err := sql.Open("pgx", idpDSN())
+	if err != nil {
+		slog.Error("open the IdP database", "error", err)
+		os.Exit(1)
+	}
+	defer idp.Close()
+	go perm.Poll(ctx, idp, 30*time.Second)
+
 	srv := &http.Server{
 		Addr:              ":" + config.Env("KUN_CANON_PORT", "9288"),
 		Handler:           handler,
@@ -73,8 +84,6 @@ func main() {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 15*time.Second)

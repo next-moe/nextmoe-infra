@@ -1,6 +1,7 @@
 package permissions
 
 import (
+	canonPerm "api/internal/canon/perm"
 	aiPerm "api/internal/platform/ai/perm"
 	artifactPerm "api/internal/platform/artifact/perm"
 	"api/internal/platform/authz"
@@ -165,6 +166,18 @@ var live = NewRegistry(
 			{catalogPerm.DeleteReview, "Decide work deletion requests filed in the editor: approve (the work is deleted after the cooling-off), reject, execute an approved one whose cooling-off has ended, or restore a deleted work under its id.", "处理编辑台提交的删除请求:批准(冷却期后删除)、驳回、执行冷却期已过的已批准请求,或按原编号恢复已删除的作品"},
 			{catalogPerm.DiscussionModerate, "Hide or restore anyone's post in the discussion under an edit proposal or a merge, split or deletion request; the author's own delete stays theirs.", "隐藏或恢复编辑提案及合并/拆分/删除请求讨论区里任何人的留言(作者自己的删除不受影响)"},
 			{catalogPerm.FolderModerate, "Rename, blank, hide or delete anyone's folder, and list or remove every folder an account holds; folders are shared by every site.", "改名、清空、隐藏或删除任何人的收藏夹,查看或清除某个账号的全部收藏夹(收藏夹全网共用)"},
+		},
+	},
+	Domain{
+		Name:    "canon",
+		TitleZH: "自有目录(canon)",
+		Bundles: canonPerm.Bundles,
+		Holder:  canonPerm.Holder,
+		Keys: []Key{
+			{canonPerm.TodoValue, "Decide a value todo in the v3 review queue: an agent's value met a field a person wrote. Accepting writes it under your name; rejecting tells ingest to stop.", "裁决 v3 审核队列里的取值待办(采集值撞上人工写过的字段):接受即以本人名义写入,驳回会回告采集端不再提交"},
+			{canonPerm.TodoIdentity, "Decide an identity todo: say which existing person, alias or organization a pool record is, or let it be created as a new one.", "裁决身份待办:认定采集记录是哪个已有的人物、署名或组织,或确认新建"},
+			{canonPerm.Merge, "Merge two canon entities (work, part, release, person, organization) and undo a merge. Takes effect at once; the loser's id redirects.", "合并两个 canon 条目(作品、分卷、版本、人物、组织)及撤销合并;立即生效,被并方 id 重定向"},
+			{canonPerm.Takedown, "Take down a canon entity or one of its assets on a rights notice, and restore it. Hides it on every read face, holds it against agent writes and tells ingest.", "按权利通知下架 canon 条目或其素材,以及恢复;全部读面隐藏、冻结采集写入并同步给采集端"},
 		},
 	},
 	Domain{

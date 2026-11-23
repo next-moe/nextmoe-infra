@@ -5,6 +5,7 @@ package merge
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -276,7 +277,7 @@ func one(ctx context.Context, tx *ent.Tx, q string, args []any, dst any) error {
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		return errors.New("not found")
+		return sql.ErrNoRows
 	}
 	return rows.Scan(dst)
 }

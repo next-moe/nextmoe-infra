@@ -13,6 +13,7 @@ import (
 	"api/internal/canon/contract"
 	"api/internal/canon/ent"
 	"api/internal/canon/ent/todo"
+	"api/internal/canon/perm"
 	"api/internal/canon/registry"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -73,18 +74,30 @@ func (a *API) todos(h huma.API) {
 	huma.Register(h, huma.Operation{OperationID: "listTodos", Method: http.MethodGet, Path: "/v3/catalog/todos",
 		Summary: "Review queue", Tags: []string{"review"}, Errors: errs},
 		func(ctx context.Context, in *TodoListInput) (*TodoListOutput, error) {
-			if _, err := a.reviewer(ctx, in.Authorization); err != nil {
+			s, err := a.staffOf(ctx, in.Authorization)
+			if err != nil {
 				return nil, err
+			}
+			kinds := s.todoKinds()
+			if in.Kind != "" {
+				p, ok := perm.ForTodo(in.Kind)
+				if !ok {
+					return nil, huma.Error422UnprocessableEntity("kind must be one of " + strings.Join(registry.TodoKinds, ", "))
+				}
+				if !s.can(p) {
+					return nil, forbidden(p)
+				}
+				kinds = []string{in.Kind}
+			}
+			if len(kinds) == 0 {
+				return nil, huma.Error403Forbidden("the review queue needs " + string(perm.TodoValue) + " or " + string(perm.TodoIdentity))
 			}
 			after, err := decodeCursor(in.Cursor)
 			if err != nil {
 				return nil, err
 			}
-			q := a.client.Todo.Query().Where(todo.State(in.State), todo.IDGT(int(after))).Order(ent.Asc(todo.FieldID)).Limit(in.Limit + 1)
-			if in.Kind != "" {
-				q = q.Where(todo.Kind(in.Kind))
-			}
-			rows, err := q.All(ctx)
+			rows, err := a.client.Todo.Query().Where(todo.State(in.State), todo.KindIn(kinds...), todo.IDGT(int(after))).
+				Order(ent.Asc(todo.FieldID)).Limit(in.Limit + 1).All(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -102,11 +115,7 @@ func (a *API) todos(h huma.API) {
 	huma.Register(h, huma.Operation{OperationID: "acceptTodo", Method: http.MethodPost, Path: "/v3/catalog/todos/{id}/accept",
 		Summary: "Accept a todo: apply its suggestion as your commit", Tags: []string{"review"}, Errors: errs},
 		func(ctx context.Context, in *TodoAcceptInput) (*TodoResult, error) {
-			who, err := a.reviewer(ctx, in.Authorization)
-			if err != nil {
-				return nil, err
-			}
-			t, err := a.openTodo(ctx, in.ID)
+			t, who, err := a.decidable(ctx, in.Authorization, in.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -152,11 +161,7 @@ func (a *API) todos(h huma.API) {
 	huma.Register(h, huma.Operation{OperationID: "rejectTodo", Method: http.MethodPost, Path: "/v3/catalog/todos/{id}/reject",
 		Summary: "Reject a todo", Tags: []string{"review"}, Errors: errs},
 		func(ctx context.Context, in *TodoRejectInput) (*TodoResult, error) {
-			who, err := a.reviewer(ctx, in.Authorization)
-			if err != nil {
-				return nil, err
-			}
-			t, err := a.openTodo(ctx, in.ID)
+			t, who, err := a.decidable(ctx, in.Authorization, in.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -168,6 +173,24 @@ func (a *API) todos(h huma.API) {
 			out.Body.State = "rejected"
 			return out, nil
 		})
+}
+
+func (a *API) decidable(ctx context.Context, header string, n int) (*ent.Todo, string, error) {
+	s, err := a.staffOf(ctx, header)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(s.todoKinds()) == 0 {
+		return nil, "", huma.Error403Forbidden("deciding a todo needs " + string(perm.TodoValue) + " or " + string(perm.TodoIdentity))
+	}
+	t, err := a.openTodo(ctx, n)
+	if err != nil {
+		return nil, "", err
+	}
+	if p, _ := perm.ForTodo(t.Kind); !s.can(p) {
+		return nil, "", forbidden(p)
+	}
+	return t, s.key, nil
 }
 
 func (a *API) openTodo(ctx context.Context, n int) (*ent.Todo, error) {

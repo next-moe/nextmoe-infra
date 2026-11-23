@@ -214,13 +214,13 @@ func (f *Fanin) identity(ctx context.Context, lead string, ch commit.Change) (*r
 	case "org", "org_name":
 		if ch.Entity == "org" {
 			rf := refuse("IDENTITY_UNSURE", "new organizations are seeded by a person (plan 06 §5)")
-			rf.subject = "identity:org:" + lead
+			rf.subject = registry.TodoIdentity + ":org:" + lead
 			return rf, 0
 		}
 		if v, ok := ch.Values["text"]; ok {
 			if n, err := f.Client.OrgName.Query().Where(orgname.Text(unquote(v))).First(ctx); err == nil {
 				rf := refuse("IDENTITY_UNSURE", "org %d already has this name", n.OrgID)
-				rf.subject = "identity:org_name:" + unquote(v)
+				rf.subject = registry.TodoIdentity + ":org_name:" + unquote(v)
 				return rf, n.OrgID
 			}
 		}
@@ -228,7 +228,7 @@ func (f *Fanin) identity(ctx context.Context, lead string, ch commit.Change) (*r
 		if v, ok := ch.Values["name"]; ok {
 			if a, err := f.Client.PersonAlias.Query().Where(personalias.Name(unquote(v))).First(ctx); err == nil {
 				rf := refuse("IDENTITY_UNSURE", "alias %d already has this name; cite it if it is the same person", a.ID)
-				rf.subject = "identity:person_alias:" + unquote(v)
+				rf.subject = registry.TodoIdentity + ":person_alias:" + unquote(v)
 				return rf, a.ID
 			}
 		}

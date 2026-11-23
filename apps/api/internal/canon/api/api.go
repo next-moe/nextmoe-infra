@@ -38,6 +38,7 @@ func New(client *ent.Client, opts ...Options) (http.Handler, huma.API) {
 		a.verifier = o.Verifier
 	}
 	a.todos(h)
+	a.curation(h)
 	a.feed(h)
 	a.me(h)
 	a.works(h)

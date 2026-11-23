@@ -9,6 +9,7 @@ import (
 
 	"api/internal/canon/contract"
 	entodo "api/internal/canon/ent/todo"
+	"api/internal/canon/registry"
 )
 
 // todoSubject decides which refusals are a person's question rather than a
@@ -20,7 +21,7 @@ func todoSubject(rf *refusal, row contract.OutboxRow) (string, bool) {
 	switch rf.code {
 	case "HUMAN_LOCKED":
 		if c := row.Candidate; c != nil {
-			return "agent_on_human:" + c.Target.Entity + ":" + strconv.FormatInt(c.Target.ID, 10) + ":" + c.Property, true
+			return registry.TodoAgentOnHuman + ":" + c.Target.Entity + ":" + strconv.FormatInt(c.Target.ID, 10) + ":" + c.Property, true
 		}
 	}
 	return "", false

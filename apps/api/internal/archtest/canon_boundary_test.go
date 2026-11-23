@@ -13,13 +13,18 @@ import (
 // canonAllowedInternal is everything under api/internal that canon may import.
 // The legacy catalog, its Fiber middleware and its GORM database package are
 // deliberately absent: canon is on net/http, ent and database/sql (D23).
-var canonAllowedInternal = []string{"/internal/canon", "/internal/testsupport"}
+// authz is the standard-library-only permission type the console shares.
+var canonAllowedInternal = []string{"/internal/canon", "/internal/testsupport", "/internal/platform/authz"}
 
 var canonForbiddenModules = []string{"gorm.io/", "github.com/gofiber/"}
 
 // canonImporters is every package outside canon allowed to import it:
 // cmd/migrate runs its migrations.
 var canonImporters = []string{"cmd/canon", "cmd/migrate", "internal/canon"}
+
+// canonPermImporters may import canon's permission keys and nothing else of
+// canon: the console registry lists them beside every other domain.
+var canonPermImporters = []string{"internal/platform/permissions"}
 
 func TestCanonStaysOffTheLegacyStack(t *testing.T) {
 	root := moduleRoot(t)
@@ -47,6 +52,9 @@ func TestOnlyCanonAndItsMigrationImportCanon(t *testing.T) {
 	for _, top := range []string{"cmd", "internal", "pkg"} {
 		walkImports(t, filepath.Join(root, top), func(file, imp string) {
 			if imp != canon && !strings.HasPrefix(imp, canon+"/") {
+				return
+			}
+			if imp == canon+"/perm" && hasAnyPrefix(rel(root, file), canonPermImporters) {
 				return
 			}
 			if !hasAnyPrefix(rel(root, file), canonImporters) {
