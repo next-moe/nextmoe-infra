@@ -684,7 +684,7 @@ func registerImageAdmin(_ *app.App, cfg *config.Config, admin fiber.Router) {
 	statsRepo := imgRepoPkg.NewStatsRepository(imagesDB.DB())
 	svc := imgService.New(nil, s3, imgRepo, usageRepo, cfg.ImageService.CDNBase)
 	adminH := imgHandler.NewAdmin(imagesDB.DB(), svc, statsRepo, s3).
-		WithPurger(imgCDN.FromConfig(), imgCDN.Bases(cfg.ImageService.CDNBase))
+		WithPurger(imgCDN.FromConfig(cfg.ImageService.Purge), imgCDN.Bases(cfg.ImageService))
 
 	g := admin.Group("/image")
 	g.Get("/list", adminH.List)
