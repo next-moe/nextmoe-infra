@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"api/internal/canon/perm"
 	"api/internal/canon/xref"
 	"api/pkg/config"
+	"api/pkg/health"
 	"api/pkg/logger"
 	"api/pkg/oidctoken"
 
@@ -25,6 +27,10 @@ import (
 )
 
 func main() {
+	port := config.Env("KUN_CANON_PORT", "9288")
+	if n, err := strconv.Atoi(port); err == nil {
+		health.MaybeProbe(n, "/healthz")
+	}
 	if err := config.LoadScope("canon"); err != nil {
 		slog.Error("load config", "error", err)
 		os.Exit(1)
@@ -77,7 +83,7 @@ func main() {
 	go perm.Poll(ctx, idp, 30*time.Second)
 
 	srv := &http.Server{
-		Addr:              ":" + config.Env("KUN_CANON_PORT", "9288"),
+		Addr:              ":" + port,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,

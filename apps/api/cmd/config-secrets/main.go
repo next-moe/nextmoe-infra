@@ -18,7 +18,7 @@ import (
 
 var goServices = map[string]bool{
 	"oauth": true, "image": true, "artifact": true, "catalog": true, "community": true, "chat": true,
-	"trust": true, "ai": true, "agent": true, "telemetry": true, "telemetry-worker": true,
+	"trust": true, "ai": true, "agent": true, "telemetry": true, "telemetry-worker": true, "canon": true,
 }
 
 type container struct {

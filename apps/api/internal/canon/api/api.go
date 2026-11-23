@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"api/internal/canon/commit"
 	"api/internal/canon/ent"
@@ -46,6 +47,17 @@ func New(client *ent.Client, opts ...Options) (http.Handler, huma.API) {
 	a.releases(h)
 	a.people(h)
 	a.xrefs(h)
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		rows, err := client.QueryContext(ctx, `SELECT 1`)
+		if err != nil {
+			http.Error(w, "database unreachable", http.StatusServiceUnavailable)
+			return
+		}
+		rows.Close()
+		w.Write([]byte("ok"))
+	})
 	return withETag(mux), h
 }
 

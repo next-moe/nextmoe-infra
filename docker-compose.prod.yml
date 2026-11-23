@@ -836,6 +836,39 @@ services:
       <<: *svc-health
     restart: unless-stopped
 
+  # Owned catalog (plan 23, D24): the v3 faces over the canon schema, which
+  # lives in kun_catalog until P5 moves it to kun_canon. Off main until the
+  # light-novel pilot passes its gate. Public routing (/v3 on the catalog
+  # host) is a Dokploy domain, set when it goes live.
+  canon:
+    image: ghcr.io/next-moe/infra-canon:latest
+    pull_policy: always
+    environment:
+      <<: *infra-env
+      KUN_CANON_PORT: "9288"
+    expose: ["9288"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate-canon: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      <<: *svc-health
+    restart: unless-stopped
+
+  # Trusted fanin (plan 05 §15): pulls the ingest pool over HTTP, re-checks
+  # every row and commits what passes. Always prod → pool; the pool never
+  # reaches production. In the config store (scope canon):
+  # KUN_CANON_POOL_URL, KUN_CANON_POOL_TOKEN.
+  canon-fanin:
+    image: ghcr.io/next-moe/infra-canon:latest
+    command: ["fanin", "-every", "5m"]
+    pull_policy: always
+    environment: { <<: *infra-env }
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate-canon: { condition: service_completed_successfully }
+    restart: unless-stopped
+
   # AI-gateway semantic layer (kun_ai). Fronts all ecosystem AI calls behind
   # named routes (v0: moderate-text), holds the upstream credential single-point,
   # meters per tenant×route usage, and enforces per-route daily budget fuses. It
@@ -1140,6 +1173,20 @@ services:
     environment: { <<: *infra-env }
     depends_on:
       postgres: { condition: service_healthy }
+    restart: "no"
+
+  # Auto-applied on every deploy (canon and canon-fanin wait for it). Its
+  # first run moves the 11 legacy id sequences into canon_ids (DROP IDENTITY
+  # on catalog_work, catalog_release, …; plan 03 §6), so the first deploy that
+  # carries it is run by hand, after migrate-catalog, in a quiet window.
+  migrate-canon:
+    image: ghcr.io/next-moe/infra-migrate:latest
+    command: ["canon"]
+    pull_policy: always
+    environment: { <<: *infra-env }
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate-catalog: { condition: service_completed_successfully }
     restart: "no"
 
   # Auto-applied on every deploy (community waits for it). `migrate community`
