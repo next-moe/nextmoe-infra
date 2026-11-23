@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"api/internal/platform/image/cdn"
 	"api/internal/platform/image/model"
 	"api/internal/platform/image/repository"
 	"api/internal/platform/image/service"
@@ -22,6 +23,14 @@ type AdminHandler struct {
 	svc       *service.Service
 	statsRepo *repository.StatsRepository
 	storage   *storage.Client
+	purger    cdn.Purger
+	bases     []string
+}
+
+// WithPurger makes a hard delete purge the edge too; a takedown needs both.
+func (h *AdminHandler) WithPurger(p cdn.Purger, bases []string) *AdminHandler {
+	h.purger, h.bases = p, bases
+	return h
 }
 
 func NewAdmin(db *gorm.DB, svc *service.Service, statsRepo *repository.StatsRepository, s *storage.Client) *AdminHandler {
@@ -212,10 +221,18 @@ func (h *AdminHandler) Delete(c fiber.Ctx) error {
 	if err := h.storage.Delete(c.Context(), img.StorageKey); err != nil {
 		slog.Warn("hard-delete main s3", "hash", hash, "err", err)
 	}
+	keys := []string{img.StorageKey}
 	for _, v := range img.VariantList() {
 		key := img.Hash[:2] + "/" + img.Hash[2:4] + "/" + img.Hash + "_" + v + "." + img.Ext
+		keys = append(keys, key)
 		if err := h.storage.Delete(c.Context(), key); err != nil {
 			slog.Warn("hard-delete variant s3", "hash", hash, "variant", v, "err", err)
+		}
+	}
+	if h.purger != nil {
+		if err := h.purger.Purge(c.Context(), cdn.URLs(h.bases, keys)); err != nil {
+			slog.Error("hard-delete cdn purge", "hash", hash, "err", err)
+			return response.InternalError(c, errs.ErrImageStoreFailed)
 		}
 	}
 	if err := h.db.WithContext(c.Context()).Unscoped().
