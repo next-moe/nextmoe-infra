@@ -3,6 +3,7 @@ import { safeReturnPath } from '../server/utils/return-path'
 import { isPageNavigation } from '../server/utils/request-kind'
 import {
   isAllowedV2Path,
+  isAllowedV3Path,
   isMutatingMethod,
   passesCsrfCheck
 } from '../server/utils/proxy-policy'
@@ -162,5 +163,25 @@ describe('return-to-site link', () => {
     ['moyu', undefined]
   ])('rejects %s → %s', (from, target) => {
     expect(resolveReturnLink(from, target, RETURN_SITES)).toBeNull()
+  })
+})
+
+describe('v3 proxy allowlist', () => {
+  it.each([
+    '/v3/catalog/todos?kind=identity',
+    '/v3/catalog/todos/7/accept',
+    '/v3/catalog/merges',
+    '/v3/me/works/1/rating'
+  ])('allows %s', (path) => {
+    expect(isAllowedV3Path(path)).toBe(true)
+  })
+
+  it.each([
+    '/v3/catalog/../me',
+    '/v3/catalog%2ftodos',
+    '/v3/other',
+    '/v2/catalog/works'
+  ])('rejects %s', (path) => {
+    expect(isAllowedV3Path(path)).toBe(false)
   })
 })

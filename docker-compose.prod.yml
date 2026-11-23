@@ -1083,6 +1083,7 @@ services:
     environment:
       NUXT_OAUTH_API_BASE_SSR: http://oauth:9277/api/v1
       NUXT_CATALOG_API_BASE_SSR: http://catalog:9281
+      NUXT_CANON_API_BASE_SSR: http://canon:9288
       NUXT_PUBLIC_OAUTH_AUTHORIZE_BASE: https://account.nextmoe.com/api/v1
       NUXT_PUBLIC_OAUTH_WEB_BASE: https://account.nextmoe.com
       NUXT_PUBLIC_OAUTH_CLIENT_ID: nextmoe-editor

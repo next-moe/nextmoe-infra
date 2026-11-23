@@ -80,6 +80,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     oauthApiBaseSsr: '',
     catalogApiBaseSsr: 'http://127.0.0.1:9281',
+    canonApiBaseSsr: 'http://127.0.0.1:9288',
     public: {
       oauthAuthorizeBase: 'http://127.0.0.1:9277/api/v1',
       oauthWebBase: 'http://127.0.0.1:9420',

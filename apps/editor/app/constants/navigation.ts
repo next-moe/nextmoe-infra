@@ -91,6 +91,12 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         icon: 'lucide:git-merge',
         to: '/review/requests',
         reviewerOnly: true
+      },
+      {
+        label: '采集待办',
+        icon: 'lucide:bot',
+        to: '/review/ingest',
+        reviewerOnly: true
       }
     ]
   },

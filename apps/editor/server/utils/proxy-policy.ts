@@ -34,7 +34,9 @@ export const PROXY_RESPONSE_HEADERS = [
 
 export const CSRF_HEADER = EDITOR_CSRF_HEADER
 
-export const isAllowedV2Path = (path: string) => {
+export const V3_ALLOWED_PREFIXES = ['/v3/catalog/', '/v3/me/'] as const
+
+const isAllowedPath = (path: string, prefixes: readonly string[]) => {
   const pathname = path.split(/[?#]/, 1)[0] ?? ''
   if (/%2e|%2f|%5c|\\/i.test(pathname)) {
     return false
@@ -44,12 +46,18 @@ export const isAllowedV2Path = (path: string) => {
   ) {
     return false
   }
-  return V2_ALLOWED_PREFIXES.some((prefix) =>
+  return prefixes.some((prefix) =>
     prefix.endsWith('/')
       ? pathname.startsWith(prefix)
       : pathname === prefix || pathname.startsWith(`${prefix}/`)
   )
 }
+
+export const isAllowedV2Path = (path: string) =>
+  isAllowedPath(path, V2_ALLOWED_PREFIXES)
+
+export const isAllowedV3Path = (path: string) =>
+  isAllowedPath(path, V3_ALLOWED_PREFIXES)
 
 export const isMutatingMethod = (method: string) =>
   !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())

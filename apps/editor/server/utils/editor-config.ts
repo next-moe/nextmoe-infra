@@ -10,6 +10,7 @@ export const editorServerConfig = (event: H3Event) => {
     tokenBase: trimSlash(String(config.oauthApiBaseSsr || authorizeBase)),
     accountWebBase: trimSlash(String(config.public.oauthWebBase)),
     catalogBase: trimSlash(String(config.catalogApiBaseSsr)),
+    canonBase: trimSlash(String(config.canonApiBaseSsr)),
     clientId: String(config.public.oauthClientId),
     redirectUri: String(config.public.oauthRedirectUri)
   }
