@@ -188,3 +188,32 @@ func TestCheckKeepsNothing(t *testing.T) {
 		t.Errorf("Check refuses what Apply would: %v", err)
 	}
 }
+
+func TestTwoCommitsOfOneTitleAtOnceMakeOneWork(t *testing.T) {
+	client, _ := canontest.Client(t)
+	ctx := context.Background()
+	for range 5 {
+		name := unique("の競走")
+		errs := make(chan error, 4)
+		for range cap(errs) {
+			go func() {
+				_, err := New(client).Apply(ctx, title(name))
+				errs <- err
+			}()
+		}
+		written := 0
+		for range cap(errs) {
+			err := <-errs
+			var r Refused
+			switch {
+			case err == nil:
+				written++
+			case !errors.As(err, &r) || r[0].Code != "IDENTITY_UNSURE":
+				t.Errorf("the losers learn of the winner: %v", err)
+			}
+		}
+		if written != 1 {
+			t.Errorf("%d works of one title", written)
+		}
+	}
+}
