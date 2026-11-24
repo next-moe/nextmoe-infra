@@ -17,6 +17,7 @@ import (
 	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
+	"api/internal/canon/ent/patrol"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
 	"api/internal/canon/ent/programstate"
@@ -113,6 +114,7 @@ func checkColumn(t, c string) error {
 			mergerecord.Table:         mergerecord.ValidColumn,
 			org.Table:                 org.ValidColumn,
 			orgname.Table:             orgname.ValidColumn,
+			patrol.Table:              patrol.ValidColumn,
 			person.Table:              person.ValidColumn,
 			personalias.Table:         personalias.ValidColumn,
 			programstate.Table:        programstate.ValidColumn,

@@ -25,7 +25,7 @@ type Change struct {
 	Seq      string    `json:"seq"`
 	Entity   string    `json:"entity" doc:"The public entity the change shows on: a title edit names its work."`
 	EntityID string    `json:"entity_id"`
-	Action   string    `json:"action" doc:"create, update, merged_into, absorbed, unmerge, takedown or restore."`
+	Action   string    `json:"action" doc:"create, update, undo, remove, merged_into, absorbed, unmerge, takedown or restore."`
 	At       time.Time `json:"at"`
 }
 

@@ -48,6 +48,9 @@ type Org func(*sql.Selector)
 // OrgName is the predicate function for orgname builders.
 type OrgName func(*sql.Selector)
 
+// Patrol is the predicate function for patrol builders.
+type Patrol func(*sql.Selector)
+
 // Person is the predicate function for person builders.
 type Person func(*sql.Selector)
 

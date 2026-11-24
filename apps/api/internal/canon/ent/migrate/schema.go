@@ -375,6 +375,19 @@ var (
 			},
 		},
 	}
+	// PatrolColumns holds the columns for the "patrol" table.
+	PatrolColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "batch", Type: field.TypeString, Unique: true},
+		{Name: "by", Type: field.TypeString},
+		{Name: "at", Type: field.TypeTime},
+	}
+	// PatrolTable holds the schema information for the "patrol" table.
+	PatrolTable = &schema.Table{
+		Name:       "patrol",
+		Columns:    PatrolColumns,
+		PrimaryKey: []*schema.Column{PatrolColumns[0]},
+	}
 	// PersonColumns holds the columns for the "person" table.
 	PersonColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Default: schema.Expr("nextval('canon_ids.person')")},
@@ -762,6 +775,7 @@ var (
 		MergeRecordTable,
 		OrgTable,
 		OrgNameTable,
+		PatrolTable,
 		PersonTable,
 		PersonAliasTable,
 		ProgramStateTable,
@@ -836,6 +850,9 @@ func init() {
 	OrgNameTable.ForeignKeys[0].RefTable = OrgTable
 	OrgNameTable.Annotation = &entsql.Annotation{
 		Table: "org_name",
+	}
+	PatrolTable.Annotation = &entsql.Annotation{
+		Table: "patrol",
 	}
 	PersonTable.Annotation = &entsql.Annotation{
 		Table: "person",

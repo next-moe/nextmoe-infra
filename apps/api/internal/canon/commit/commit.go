@@ -69,6 +69,8 @@ type Change struct {
 	// Distinct lists the identity candidates judged to be other entities, as
 	// Candidate.Token; one missing from it refuses the create (06 §6 I1).
 	Distinct []string `json:"distinct,omitempty"`
+	// Remove takes out a child row (a wrong title or credit); only a person may.
+	Remove bool `json:"remove,omitempty"`
 	// Authority is a registry authority (NDL) the name was printed under.
 	Authority string `json:"authority,omitempty"`
 }
@@ -177,17 +179,26 @@ func (s *Service) run(ctx context.Context, cs Changeset, keep bool) (Result, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return Result{}, uniqueRefusal(err, -1)
+		return Result{}, writeRefusal(err, -1)
 	}
 	return Result{IDs: a.ids, Batch: a.batch}, nil
 }
 
-// uniqueRefusal turns a unique-index race (two commits between the pre-check
-// and the insert) into the same refusal the pre-check gives.
-func uniqueRefusal(err error, change int) error {
+// writeRefusal turns what the database or the schema would not take into a
+// refusal: a unique-index race answers as the pre-check does, and a missing
+// field, a broken check or a dangling id is the caller's to fix.
+func writeRefusal(err error, change int) error {
 	var pg *pgconn.PgError
-	if errors.As(err, &pg) && pg.Code == "23505" {
-		return Refused{{Change: change, Code: "UNIQUE_CONFLICT", Detail: pg.ConstraintName}}
+	if errors.As(err, &pg) {
+		switch pg.Code {
+		case "23505":
+			return Refused{{Change: change, Code: "UNIQUE_CONFLICT", Detail: pg.ConstraintName}}
+		case "23502", "23503", "23514":
+			return Refused{{Change: change, Code: "VALUE_NOT_ENTAILED", Detail: pg.ConstraintName + " " + pg.Message}}
+		}
+	}
+	if ent.IsValidationError(err) {
+		return Refused{{Change: change, Code: "VALUE_NOT_ENTAILED", Detail: err.Error()}}
 	}
 	return err
 }

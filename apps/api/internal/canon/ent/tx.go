@@ -42,6 +42,8 @@ type Tx struct {
 	Org *OrgClient
 	// OrgName is the client for interacting with the OrgName builders.
 	OrgName *OrgNameClient
+	// Patrol is the client for interacting with the Patrol builders.
+	Patrol *PatrolClient
 	// Person is the client for interacting with the Person builders.
 	Person *PersonClient
 	// PersonAlias is the client for interacting with the PersonAlias builders.
@@ -213,6 +215,7 @@ func (tx *Tx) init() {
 	tx.MergeRecord = NewMergeRecordClient(tx.config)
 	tx.Org = NewOrgClient(tx.config)
 	tx.OrgName = NewOrgNameClient(tx.config)
+	tx.Patrol = NewPatrolClient(tx.config)
 	tx.Person = NewPersonClient(tx.config)
 	tx.PersonAlias = NewPersonAliasClient(tx.config)
 	tx.ProgramState = NewProgramStateClient(tx.config)

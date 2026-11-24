@@ -25,6 +25,7 @@ import (
 	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
+	"api/internal/canon/ent/patrol"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
 	"api/internal/canon/ent/programstate"
@@ -80,6 +81,8 @@ type Client struct {
 	Org *OrgClient
 	// OrgName is the client for interacting with the OrgName builders.
 	OrgName *OrgNameClient
+	// Patrol is the client for interacting with the Patrol builders.
+	Patrol *PatrolClient
 	// Person is the client for interacting with the Person builders.
 	Person *PersonClient
 	// PersonAlias is the client for interacting with the PersonAlias builders.
@@ -131,6 +134,7 @@ func (c *Client) init() {
 	c.MergeRecord = NewMergeRecordClient(c.config)
 	c.Org = NewOrgClient(c.config)
 	c.OrgName = NewOrgNameClient(c.config)
+	c.Patrol = NewPatrolClient(c.config)
 	c.Person = NewPersonClient(c.config)
 	c.PersonAlias = NewPersonAliasClient(c.config)
 	c.ProgramState = NewProgramStateClient(c.config)
@@ -250,6 +254,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		MergeRecord:         NewMergeRecordClient(cfg),
 		Org:                 NewOrgClient(cfg),
 		OrgName:             NewOrgNameClient(cfg),
+		Patrol:              NewPatrolClient(cfg),
 		Person:              NewPersonClient(cfg),
 		PersonAlias:         NewPersonAliasClient(cfg),
 		ProgramState:        NewProgramStateClient(cfg),
@@ -296,6 +301,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		MergeRecord:         NewMergeRecordClient(cfg),
 		Org:                 NewOrgClient(cfg),
 		OrgName:             NewOrgNameClient(cfg),
+		Patrol:              NewPatrolClient(cfg),
 		Person:              NewPersonClient(cfg),
 		PersonAlias:         NewPersonAliasClient(cfg),
 		ProgramState:        NewProgramStateClient(cfg),
@@ -341,7 +347,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
 		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.IdentityKey,
 		c.LibraryPartProgress, c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName,
-		c.Person, c.PersonAlias, c.ProgramState, c.Redirect, c.Release,
+		c.Patrol, c.Person, c.PersonAlias, c.ProgramState, c.Redirect, c.Release,
 		c.ReleaseContent, c.Revision, c.Takedown, c.Todo, c.Work, c.WorkPart,
 		c.WorkTitle, c.XrefLink,
 	} {
@@ -356,7 +362,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
 		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.IdentityKey,
 		c.LibraryPartProgress, c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName,
-		c.Person, c.PersonAlias, c.ProgramState, c.Redirect, c.Release,
+		c.Patrol, c.Person, c.PersonAlias, c.ProgramState, c.Redirect, c.Release,
 		c.ReleaseContent, c.Revision, c.Takedown, c.Todo, c.Work, c.WorkPart,
 		c.WorkTitle, c.XrefLink,
 	} {
@@ -395,6 +401,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Org.mutate(ctx, m)
 	case *OrgNameMutation:
 		return c.OrgName.mutate(ctx, m)
+	case *PatrolMutation:
+		return c.Patrol.mutate(ctx, m)
 	case *PersonMutation:
 		return c.Person.mutate(ctx, m)
 	case *PersonAliasMutation:
@@ -2560,6 +2568,139 @@ func (c *OrgNameClient) mutate(ctx context.Context, m *OrgNameMutation) (Value, 
 	}
 }
 
+// PatrolClient is a client for the Patrol schema.
+type PatrolClient struct {
+	config
+}
+
+// NewPatrolClient returns a client for the Patrol from the given config.
+func NewPatrolClient(c config) *PatrolClient {
+	return &PatrolClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `patrol.Hooks(f(g(h())))`.
+func (c *PatrolClient) Use(hooks ...Hook) {
+	c.hooks.Patrol = append(c.hooks.Patrol, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `patrol.Intercept(f(g(h())))`.
+func (c *PatrolClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Patrol = append(c.inters.Patrol, interceptors...)
+}
+
+// Create returns a builder for creating a Patrol entity.
+func (c *PatrolClient) Create() *PatrolCreate {
+	mutation := newPatrolMutation(c.config, OpCreate)
+	return &PatrolCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Patrol entities.
+func (c *PatrolClient) CreateBulk(builders ...*PatrolCreate) *PatrolCreateBulk {
+	return &PatrolCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PatrolClient) MapCreateBulk(slice any, setFunc func(*PatrolCreate, int)) *PatrolCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PatrolCreateBulk{err: fmt.Errorf("calling to PatrolClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PatrolCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PatrolCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Patrol.
+func (c *PatrolClient) Update() *PatrolUpdate {
+	mutation := newPatrolMutation(c.config, OpUpdate)
+	return &PatrolUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PatrolClient) UpdateOne(_m *Patrol) *PatrolUpdateOne {
+	mutation := newPatrolMutation(c.config, OpUpdateOne, withPatrol(_m))
+	return &PatrolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PatrolClient) UpdateOneID(id int) *PatrolUpdateOne {
+	mutation := newPatrolMutation(c.config, OpUpdateOne, withPatrolID(id))
+	return &PatrolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Patrol.
+func (c *PatrolClient) Delete() *PatrolDelete {
+	mutation := newPatrolMutation(c.config, OpDelete)
+	return &PatrolDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PatrolClient) DeleteOne(_m *Patrol) *PatrolDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PatrolClient) DeleteOneID(id int) *PatrolDeleteOne {
+	builder := c.Delete().Where(patrol.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PatrolDeleteOne{builder}
+}
+
+// Query returns a query builder for Patrol.
+func (c *PatrolClient) Query() *PatrolQuery {
+	return &PatrolQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePatrol},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Patrol entity by its id.
+func (c *PatrolClient) Get(ctx context.Context, id int) (*Patrol, error) {
+	return c.Query().Where(patrol.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PatrolClient) GetX(ctx context.Context, id int) *Patrol {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PatrolClient) Hooks() []Hook {
+	return c.hooks.Patrol
+}
+
+// Interceptors returns the client interceptors.
+func (c *PatrolClient) Interceptors() []Interceptor {
+	return c.inters.Patrol
+}
+
+func (c *PatrolClient) mutate(ctx context.Context, m *PatrolMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PatrolCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PatrolUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PatrolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PatrolDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Patrol mutation op: %q", m.Op())
+	}
+}
+
 // PersonClient is a client for the Person schema.
 type PersonClient struct {
 	config
@@ -4630,14 +4771,14 @@ type (
 	hooks struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
 		FaninCursor, Hold, IdentityKey, LibraryPartProgress, LibraryTombstone,
-		MergeRecord, Org, OrgName, Person, PersonAlias, ProgramState, Redirect,
+		MergeRecord, Org, OrgName, Patrol, Person, PersonAlias, ProgramState, Redirect,
 		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
 		XrefLink []ent.Hook
 	}
 	inters struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
 		FaninCursor, Hold, IdentityKey, LibraryPartProgress, LibraryTombstone,
-		MergeRecord, Org, OrgName, Person, PersonAlias, ProgramState, Redirect,
+		MergeRecord, Org, OrgName, Patrol, Person, PersonAlias, ProgramState, Redirect,
 		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
 		XrefLink []ent.Interceptor
 	}

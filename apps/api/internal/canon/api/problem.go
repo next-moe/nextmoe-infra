@@ -22,6 +22,9 @@ type Problem struct {
 	CurrentID string   `json:"current_id,omitempty"`
 	// Current is the server's state when a client write lost to a newer one.
 	Current any `json:"current,omitempty"`
+	// Candidates is what a new entity may already be (IDENTITY_UNSURE): cite
+	// one, take over a legacy one, or list it in distinct.
+	Candidates []CandidateRef `json:"candidates,omitempty"`
 }
 
 func (p *Problem) Error() string  { return p.Detail }

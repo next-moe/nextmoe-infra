@@ -94,7 +94,7 @@ func SheetOf(ctx context.Context, client *ent.Client, t *ent.Todo) (Sheet, error
 			v := ch.Values[prop]
 			sv := SheetValue{Property: prop, Value: v.Raw, Tier: string(v.Tier)}
 			for _, e := range v.Evidence {
-				words, err := excerpt(ctx, client, e)
+				words, err := Excerpt(ctx, client, e)
 				if err != nil {
 					return out, err
 				}
@@ -126,7 +126,8 @@ func SheetOf(ctx context.Context, client *ent.Client, t *ent.Todo) (Sheet, error
 	return out, nil
 }
 
-func excerpt(ctx context.Context, client *ent.Client, e commit.EvidenceRef) (string, error) {
+// Excerpt is the words an evidence reference points at, with where they are.
+func Excerpt(ctx context.Context, client *ent.Client, e commit.EvidenceRef) (string, error) {
 	if e.Snapshot != "" {
 		s, err := client.EvidenceSnapshot.Get(ctx, e.Snapshot)
 		if err != nil {

@@ -45,6 +45,9 @@ func (a *applier) apply(ctx context.Context, i int, ch Change) error {
 	if state == nil {
 		state = map[string]any{}
 	}
+	if ch.Remove {
+		return a.remove(ctx, i, ch, row)
+	}
 	version := intOf(row["version"])
 	if ch.ExpectVersion != 0 && ch.ExpectVersion != version {
 		return Refused{{Change: i, Code: "VERSION_CONFLICT", Detail: fmt.Sprintf("%s %d is at version %d, not %d", ch.Entity, ch.ID, version, ch.ExpectVersion)}}
@@ -118,7 +121,7 @@ func (a *applier) apply(ctx context.Context, i int, ch Change) error {
 	}
 	saved, err := a.tx.Client().Mutate(ctx, m)
 	if err != nil {
-		return uniqueRefusal(err, i)
+		return writeRefusal(err, i)
 	}
 	id := entityID(saved)
 	if ch.Ref != "" {
@@ -139,6 +142,29 @@ func (a *applier) apply(ctx context.Context, i int, ch Change) error {
 	return a.tx.Revision.Create().SetEntity(ch.Entity).SetEntityID(id).SetAction(action).
 		SetActorKind(string(a.cs.Actor.Kind)).SetActorKey(a.cs.Actor.Key).SetReviewedBy(a.cs.Actor.Reviewer).SetBatch(a.batch).
 		SetNote(a.cs.Note).SetChanges(changes).SetRootEntity(root).SetRootID(rootID).Exec(ctx)
+}
+
+// removable is the child rows a person may take out; a public entity is
+// merged, taken down or undone instead, so its id keeps answering.
+var removable = map[string]bool{"work_title": true, "org_name": true, "credit": true, "release_content": true}
+
+func (a *applier) remove(ctx context.Context, i int, ch Change, row map[string]any) error {
+	if a.cs.Actor.Kind == ActorAgent || !removable[ch.Entity] || ch.ID == 0 {
+		return Refused{{Change: i, Code: "PROPERTY_OUT_OF_SCOPE", Detail: ch.Entity + " rows are not removed this way"}}
+	}
+	if v := intOf(row["version"]); ch.ExpectVersion != 0 && ch.ExpectVersion != v {
+		return Refused{{Change: i, Code: "VERSION_CONFLICT", Detail: fmt.Sprintf("%s %d is at version %d, not %d", ch.Entity, ch.ID, v, ch.ExpectVersion)}}
+	}
+	if _, err := a.tx.ExecContext(ctx, `DELETE FROM canon.`+ch.Entity+` WHERE id = $1`, ch.ID); err != nil {
+		return writeRefusal(err, i)
+	}
+	root, rootID := rootOfRow(ch.Entity, ch.ID, row)
+	if err := identity.Rekey(ctx, a.tx, root, rootID); err != nil {
+		return err
+	}
+	return a.tx.Revision.Create().SetEntity(ch.Entity).SetEntityID(ch.ID).SetAction(actionRemove).
+		SetActorKind(string(a.cs.Actor.Kind)).SetActorKey(a.cs.Actor.Key).SetBatch(a.batch).SetNote(a.cs.Note).
+		SetChanges(map[string]any{"row": row}).SetRootEntity(root).SetRootID(rootID).Exec(ctx)
 }
 
 // lock reads the row as it is now; a missing one names where it was merged to.

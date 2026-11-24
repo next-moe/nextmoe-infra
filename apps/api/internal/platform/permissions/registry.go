@@ -176,6 +176,9 @@ var live = NewRegistry(
 		Keys: []Key{
 			{canonPerm.TodoValue, "Decide a value todo in the v3 review queue: an agent's value met a field a person wrote. Accepting writes it under your name; rejecting tells ingest to stop.", "裁决 v3 审核队列里的取值待办(采集值撞上人工写过的字段):接受即以本人名义写入,驳回会回告采集端不再提交"},
 			{canonPerm.TodoIdentity, "Decide an identity todo: say which existing person, alias or organization a pool record is, or let it be created as a new one.", "裁决身份待办:认定采集记录是哪个已有的人物、署名或组织,或确认新建"},
+			{canonPerm.Edit, "Edit canon directly: create or change works, volumes, editions, persons and organizations, and undo a commit. What you write is locked against agents.", "直接编辑 canon:新建或修改作品、分卷、版本、人物、组织,以及撤销一次提交;写入的字段采集不能覆盖"},
+			{canonPerm.Patrol, "Patrol the agents' writes: mark a commit as looked at. Changes nothing by itself.", "巡查采集程序的写入:把一次提交标为已查看,不改任何值"},
+			{canonPerm.IngestManage, "Set an ingest program's mode: review (every row waits for a reviewer), auto (verified rows are written) or stopped.", "设置采集程序的模式:review(逐条等审核)、auto(校验通过即写入)、stopped(停止)"},
 			{canonPerm.Merge, "Merge two canon entities (work, part, release, person, organization) and undo a merge. Takes effect at once; the loser's id redirects.", "合并两个 canon 条目(作品、分卷、版本、人物、组织)及撤销合并;立即生效,被并方 id 重定向"},
 			{canonPerm.Takedown, "Take down a canon entity or one of its assets on a rights notice, and restore it. Hides it on every read face, holds it against agent writes and tells ingest.", "按权利通知下架 canon 条目或其素材,以及恢复;全部读面隐藏、冻结采集写入并同步给采集端"},
 		},

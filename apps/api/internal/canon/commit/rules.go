@@ -194,6 +194,18 @@ func rootOf(entity string, id int64, saved ent.Value) (string, int64) {
 	return entity, id
 }
 
+// rootOfRow is rootOf for a row read as JSON.
+func rootOfRow(entity string, id int64, row map[string]any) (string, int64) {
+	for _, r := range roots[entity] {
+		if n, ok := row[columnOf[r.field]].(float64); ok && n != 0 {
+			return r.entity, int64(n)
+		}
+	}
+	return entity, id
+}
+
+var columnOf = map[string]string{"WorkID": "work_id", "PartID": "part_id", "ReleaseID": "release_id", "PersonID": "person_id", "OrgID": "org_id"}
+
 func entityID(v ent.Value) int64 {
 	f := reflect.Indirect(reflect.ValueOf(v)).FieldByName("ID")
 	if f.CanInt() {

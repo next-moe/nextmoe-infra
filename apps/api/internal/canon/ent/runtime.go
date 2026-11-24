@@ -17,6 +17,7 @@ import (
 	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
+	"api/internal/canon/ent/patrol"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
 	"api/internal/canon/ent/programstate"
@@ -216,6 +217,12 @@ func init() {
 	orgname.DefaultUpdatedAt = orgnameDescUpdatedAt.Default.(func() time.Time)
 	// orgname.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	orgname.UpdateDefaultUpdatedAt = orgnameDescUpdatedAt.UpdateDefault.(func() time.Time)
+	patrolFields := schema.Patrol{}.Fields()
+	_ = patrolFields
+	// patrolDescAt is the schema descriptor for at field.
+	patrolDescAt := patrolFields[2].Descriptor()
+	// patrol.DefaultAt holds the default value on creation for the at field.
+	patrol.DefaultAt = patrolDescAt.Default.(func() time.Time)
 	personFields := schema.Person{}.Fields()
 	_ = personFields
 	// personDescFieldState is the schema descriptor for field_state field.

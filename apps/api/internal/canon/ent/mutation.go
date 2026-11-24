@@ -17,6 +17,7 @@ import (
 	"api/internal/canon/ent/mergerecord"
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
+	"api/internal/canon/ent/patrol"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
 	"api/internal/canon/ent/predicate"
@@ -64,6 +65,7 @@ const (
 	TypeMergeRecord         = "MergeRecord"
 	TypeOrg                 = "Org"
 	TypeOrgName             = "OrgName"
+	TypePatrol              = "Patrol"
 	TypePerson              = "Person"
 	TypePersonAlias         = "PersonAlias"
 	TypeProgramState        = "ProgramState"
@@ -10910,6 +10912,440 @@ func (m *OrgNameMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown OrgName edge %s", name)
+}
+
+// PatrolMutation represents an operation that mutates the Patrol nodes in the graph.
+type PatrolMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	batch         *string
+	by            *string
+	at            *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*Patrol, error)
+	predicates    []predicate.Patrol
+}
+
+var _ ent.Mutation = (*PatrolMutation)(nil)
+
+// patrolOption allows management of the mutation configuration using functional options.
+type patrolOption func(*PatrolMutation)
+
+// newPatrolMutation creates new mutation for the Patrol entity.
+func newPatrolMutation(c config, op Op, opts ...patrolOption) *PatrolMutation {
+	m := &PatrolMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePatrol,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPatrolID sets the ID field of the mutation.
+func withPatrolID(id int) patrolOption {
+	return func(m *PatrolMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Patrol
+		)
+		m.oldValue = func(ctx context.Context) (*Patrol, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Patrol.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPatrol sets the old Patrol of the mutation.
+func withPatrol(node *Patrol) patrolOption {
+	return func(m *PatrolMutation) {
+		m.oldValue = func(context.Context) (*Patrol, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PatrolMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PatrolMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PatrolMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PatrolMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Patrol.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetBatch sets the "batch" field.
+func (m *PatrolMutation) SetBatch(s string) {
+	m.batch = &s
+}
+
+// Batch returns the value of the "batch" field in the mutation.
+func (m *PatrolMutation) Batch() (r string, exists bool) {
+	v := m.batch
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBatch returns the old "batch" field's value of the Patrol entity.
+// If the Patrol object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PatrolMutation) OldBatch(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBatch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBatch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBatch: %w", err)
+	}
+	return oldValue.Batch, nil
+}
+
+// ResetBatch resets all changes to the "batch" field.
+func (m *PatrolMutation) ResetBatch() {
+	m.batch = nil
+}
+
+// SetBy sets the "by" field.
+func (m *PatrolMutation) SetBy(s string) {
+	m.by = &s
+}
+
+// By returns the value of the "by" field in the mutation.
+func (m *PatrolMutation) By() (r string, exists bool) {
+	v := m.by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBy returns the old "by" field's value of the Patrol entity.
+// If the Patrol object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PatrolMutation) OldBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBy: %w", err)
+	}
+	return oldValue.By, nil
+}
+
+// ResetBy resets all changes to the "by" field.
+func (m *PatrolMutation) ResetBy() {
+	m.by = nil
+}
+
+// SetAt sets the "at" field.
+func (m *PatrolMutation) SetAt(t time.Time) {
+	m.at = &t
+}
+
+// At returns the value of the "at" field in the mutation.
+func (m *PatrolMutation) At() (r time.Time, exists bool) {
+	v := m.at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAt returns the old "at" field's value of the Patrol entity.
+// If the Patrol object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PatrolMutation) OldAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAt: %w", err)
+	}
+	return oldValue.At, nil
+}
+
+// ResetAt resets all changes to the "at" field.
+func (m *PatrolMutation) ResetAt() {
+	m.at = nil
+}
+
+// Where appends a list predicates to the PatrolMutation builder.
+func (m *PatrolMutation) Where(ps ...predicate.Patrol) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PatrolMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PatrolMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Patrol, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PatrolMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PatrolMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Patrol).
+func (m *PatrolMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PatrolMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.batch != nil {
+		fields = append(fields, patrol.FieldBatch)
+	}
+	if m.by != nil {
+		fields = append(fields, patrol.FieldBy)
+	}
+	if m.at != nil {
+		fields = append(fields, patrol.FieldAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PatrolMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case patrol.FieldBatch:
+		return m.Batch()
+	case patrol.FieldBy:
+		return m.By()
+	case patrol.FieldAt:
+		return m.At()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PatrolMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case patrol.FieldBatch:
+		return m.OldBatch(ctx)
+	case patrol.FieldBy:
+		return m.OldBy(ctx)
+	case patrol.FieldAt:
+		return m.OldAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Patrol field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PatrolMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case patrol.FieldBatch:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBatch(v)
+		return nil
+	case patrol.FieldBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBy(v)
+		return nil
+	case patrol.FieldAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Patrol field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PatrolMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PatrolMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PatrolMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Patrol numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PatrolMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PatrolMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PatrolMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Patrol nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PatrolMutation) ResetField(name string) error {
+	switch name {
+	case patrol.FieldBatch:
+		m.ResetBatch()
+		return nil
+	case patrol.FieldBy:
+		m.ResetBy()
+		return nil
+	case patrol.FieldAt:
+		m.ResetAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Patrol field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PatrolMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PatrolMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PatrolMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PatrolMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PatrolMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PatrolMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PatrolMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Patrol unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PatrolMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Patrol edge %s", name)
 }
 
 // PersonMutation represents an operation that mutates the Person nodes in the graph.

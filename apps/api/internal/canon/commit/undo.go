@@ -47,7 +47,7 @@ func (s *Service) Undo(ctx context.Context, batch string, by Actor, note string)
 		return err
 	}
 	defer tx.Rollback()
-	revs, err := tx.Revision.Query().Where(revision.Batch(batch), revision.ActionIn("create", "update")).Order(ent.Desc(revision.FieldID)).All(ctx)
+	revs, err := tx.Revision.Query().Where(revision.Batch(batch), revision.ActionIn("create", "update", actionRemove), revision.Undoes(0)).Order(ent.Desc(revision.FieldID)).All(ctx)
 	if err != nil {
 		return err
 	}
@@ -63,9 +63,12 @@ func (s *Service) Undo(ctx context.Context, batch string, by Actor, note string)
 	var conflicts Conflicts
 	for _, r := range revs {
 		var err error
-		if r.Action == "create" {
+		switch r.Action {
+		case "create":
 			err = u.remove(ctx, r)
-		} else {
+		case actionRemove:
+			err = u.putBack(ctx, r)
+		default:
 			err = u.restore(ctx, r)
 		}
 		var c Conflicts
@@ -235,6 +238,25 @@ func (u *undoer) remove(ctx context.Context, r *ent.Revision) error {
 		}
 	}
 	return u.record(ctx, r, actionRemove, map[string]any{"row": row})
+}
+
+// putBack returns a row a person removed, under its own id.
+func (u *undoer) putBack(ctx context.Context, r *ent.Revision) error {
+	row, err := json.Marshal(r.Changes["row"])
+	if err != nil {
+		return err
+	}
+	if _, err := u.tx.ExecContext(ctx, `INSERT INTO canon.`+r.Entity+` SELECT * FROM jsonb_populate_record(NULL::canon.`+r.Entity+`, $1)`, row); err != nil {
+		var pg *pgconn.PgError
+		if errors.As(err, &pg) && strings.HasPrefix(pg.Code, "23") {
+			return Conflicts{fmt.Sprintf("%s %d cannot come back: %s", r.Entity, r.EntityID, pg.Message)}
+		}
+		return err
+	}
+	if err := identity.Rekey(ctx, u.tx, r.RootEntity, r.RootID); err != nil {
+		return err
+	}
+	return u.record(ctx, r, actionUndo, map[string]any{})
 }
 
 func (u *undoer) record(ctx context.Context, r *ent.Revision, action string, changes map[string]any) error {

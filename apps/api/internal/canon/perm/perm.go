@@ -13,11 +13,16 @@ const (
 	TodoIdentity authz.Permission = "canon.todo.identity"
 	Merge        authz.Permission = "canon.merge"
 	Takedown     authz.Permission = "canon.takedown"
+	Edit         authz.Permission = "canon.edit"
+	Patrol       authz.Permission = "canon.patrol"
+	IngestManage authz.Permission = "canon.ingest_manage"
 )
 
-var All = []authz.Permission{TodoValue, TodoIdentity, Merge, Takedown}
+var All = []authz.Permission{TodoValue, TodoIdentity, Merge, Takedown, Edit, Patrol, IngestManage}
 
-var Bundles = authz.Bundles{"moderator": All, "admin": All, "ren": All}
+// Starting and stopping programs decides what reaches canon unreviewed, so it
+// is not a moderator's by default.
+var Bundles = authz.Bundles{"moderator": All[:len(All)-1], "admin": All, "ren": All}
 
 var Holder = authz.NewHolder(Bundles)
 

@@ -97,3 +97,17 @@ func (Takedown) Fields() []ent.Field {
 }
 
 func (Takedown) Indexes() []ent.Index { return []ent.Index{index.Fields("entity", "entity_id")} }
+
+// Patrol is a commit of an agent a person has looked at (plan 07 §4). It marks
+// and changes nothing, and no agent ever writes one.
+type Patrol struct{ ent.Schema }
+
+func (Patrol) Annotations() []schema.Annotation { return []schema.Annotation{entsql.Table("patrol")} }
+
+func (Patrol) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("batch").Unique(),
+		field.String("by"),
+		field.Time("at").Default(timeNow).Immutable(),
+	}
+}
