@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -82,6 +83,9 @@ type Changeset struct {
 	// Key, when set, makes Apply idempotent: a second Apply with the same key
 	// writes nothing and returns the first result.
 	Key string `json:"key,omitempty"`
+	// Known is what refs the changeset no longer creates turned out to be; the
+	// result carries them with the ids it created.
+	Known map[string]int64 `json:"known,omitempty"`
 }
 
 type Result struct {
@@ -165,6 +169,7 @@ func (s *Service) run(ctx context.Context, cs Changeset, keep bool) (Result, err
 		}
 	}
 	a := &applier{s: s, tx: tx, cs: cs, batch: uuid.NewString(), ids: map[string]int64{}, created: map[string]Change{}}
+	maps.Copy(a.ids, cs.Known)
 	for i, ch := range cs.Changes {
 		if err := a.apply(ctx, i, ch); err != nil {
 			return Result{}, err

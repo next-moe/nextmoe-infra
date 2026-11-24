@@ -60,7 +60,7 @@ func TestCiting(t *testing.T) {
 		t.Errorf("citing an alias drops its person: %v", got)
 	}
 	cited := row().Citing("work", 9)
-	if got := refs(cited); !slices.Equal(got, []string{"release.isbn.1", "book.isbn.1"}) {
+	if got := refs(cited); !slices.Equal(got, []string{"person.a", "alias.a", "credit.0", "release.isbn.1", "book.isbn.1"}) {
 		t.Errorf("citing a work drops what describes it: %v", got)
 	}
 }

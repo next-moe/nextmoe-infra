@@ -23,10 +23,10 @@ func TestEditingThroughTheFace(t *testing.T) {
 	body := fmt.Sprintf(`{"note":"new series","changes":[
 		{"ref":"w","entity":"work","values":{"medium":"novel"}},
 		{"entity":"work_title","values":{"work_id":"ref:w","text":%q,"lang":"ja","kind":"official"}},
-		{"entity":"work_title","values":{"work_id":"ref:w","text":"別名","lang":"ja","kind":"alternative"}},
+		{"entity":"work_title","values":{"work_id":"ref:w","text":%q,"lang":"ja","kind":"alternative"}},
 		{"ref":"r","entity":"release","values":{"lang":"ja","format":"paperback"}},
 		{"entity":"release_content","values":{"release_id":"ref:r","work_id":"ref:w"}},
-		{"entity":"book_release","values":{"release_id":"ref:r","isbn13":%q}}]}`, title, code)
+		{"entity":"book_release","values":{"release_id":"ref:r","isbn13":%q}}]}`, title, canontest.Title("の別名"), code)
 	if c := call(t, h, http.MethodPost, "/v3/catalog/commits", "user", body, nil); c != http.StatusForbidden {
 		t.Errorf("editor without the key: %d", c)
 	}

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -82,12 +81,10 @@ func Accept(ctx context.Context, client *ent.Client, id int, by Reviewer, d Deci
 	if cs, err = fanin.CiteByAuthority(ctx, client, cs); err != nil {
 		return nil, err
 	}
-	cs, used, err := resolve(ctx, client, cs, questions, by, d)
-	if err != nil {
+	if cs, err = resolve(ctx, client, cs, questions, by, d); err != nil {
 		return nil, err
 	}
-	maps.Copy(used, citedSince(before, cs))
-	if err := learnPersons(ctx, client, before, used); err != nil {
+	if cs.Known, err = learnPersons(ctx, client, before, cs.Known); err != nil {
 		return nil, err
 	}
 	cs.Actor.Reviewer = by.Key
@@ -104,10 +101,8 @@ func Accept(ctx context.Context, client *ent.Client, id int, by Reviewer, d Deci
 	if err != nil {
 		return nil, err
 	}
-	ids := maps.Clone(res.IDs)
-	maps.Copy(ids, used)
-	return ids, client.Todo.UpdateOneID(t.ID).SetState("done").SetResolvedBy(by.Key).
-		SetResolution(map[string]any{"result": "written", "ids": ids, "batch": res.Batch, "note": d.Note, "omitted": d.Omit, "evidence": d.Evidence}).Exec(ctx)
+	return res.IDs, client.Todo.UpdateOneID(t.ID).SetState("done").SetResolvedBy(by.Key).
+		SetResolution(map[string]any{"result": "written", "ids": res.IDs, "batch": res.Batch, "note": d.Note, "omitted": d.Omit, "evidence": d.Evidence}).Exec(ctx)
 }
 
 // ask adds what turned up since the todo was filed to its questions: a todo
@@ -135,32 +130,6 @@ func ask(ctx context.Context, client *ent.Client, t *ent.Todo, cs commit.Changes
 		return err
 	}
 	return Invalid("something of this name was made since: " + refused.Error())
-}
-
-// citedSince is what the refs an authority settled on the way turned out to be.
-func citedSince(before, after commit.Changeset) map[string]int64 {
-	made := map[string]bool{}
-	for _, ch := range after.Changes {
-		made[ch.Ref] = true
-	}
-	out := map[string]int64{}
-	for _, ch := range before.Changes {
-		for key, v := range ch.Values {
-			ref := refOf(v)
-			if ref == "" || made[ref] {
-				continue
-			}
-			for _, now := range after.Changes {
-				if now.Ref != ch.Ref {
-					continue
-				}
-				if id, err := strconv.ParseInt(string(now.Values[key].Raw), 10, 64); err == nil {
-					out[ref] = id
-				}
-			}
-		}
-	}
-	return out
 }
 
 func refOf(v commit.Value) string {
@@ -211,17 +180,15 @@ func open(ctx context.Context, client *ent.Client, id int, by Reviewer) (*ent.To
 	return t, nil
 }
 
-// resolve rewrites the changeset by the answers. used is what the refs it no
-// longer creates turned out to be, which the pool learns from.
-func resolve(ctx context.Context, client *ent.Client, cs commit.Changeset, questions []fanin.Question, by Reviewer, d Decision) (commit.Changeset, map[string]int64, error) {
-	used := map[string]int64{}
+// resolve rewrites the changeset by the answers.
+func resolve(ctx context.Context, client *ent.Client, cs commit.Changeset, questions []fanin.Question, by Reviewer, d Decision) (commit.Changeset, error) {
 	if len(d.Omit) > 0 {
 		var unknown []string
 		if cs, unknown = cs.Omitting(d.Omit...); len(unknown) > 0 {
-			return cs, nil, Invalid("omit names " + strings.Join(unknown, ", ") + ", which the changeset does not have")
+			return cs, Invalid("omit names " + strings.Join(unknown, ", ") + ", which the changeset does not have")
 		}
 		if len(cs.Changes) == 0 {
-			return cs, nil, Invalid("nothing is left to write")
+			return cs, Invalid("nothing is left to write")
 		}
 	}
 	asked := map[string]bool{}
@@ -233,7 +200,7 @@ func resolve(ctx context.Context, client *ent.Client, cs commit.Changeset, quest
 		}
 		a, ok := d.Answers[q.Ref]
 		if !ok {
-			return cs, nil, Invalid("question " + q.Ref + " is not answered")
+			return cs, Invalid("question " + q.Ref + " is not answered")
 		}
 		var err error
 		switch {
@@ -241,25 +208,27 @@ func resolve(ctx context.Context, client *ent.Client, cs commit.Changeset, quest
 			cs, err = settleCited(cs, i, a)
 		case a.Use != 0:
 			before := cs
-			cs = cs.Citing(q.Ref, a.Use)
-			used[q.Ref] = a.Use
+			if cs, err = cite(ctx, client, cs, q, a.Use); err != nil {
+				return cs, err
+			}
 			err = usePerson(ctx, client, before, q, a.Use, &cs)
 		case a.Adopt != 0:
 			// Taken over by a todo accepted before this one: the same entity,
 			// now canon's, under the same id.
 			if taken, terr := inCanon(ctx, client, q.Entity, a.Adopt); terr != nil {
-				return cs, nil, terr
+				return cs, terr
 			} else if taken {
 				before := cs
-				cs = cs.Citing(q.Ref, a.Adopt)
-				used[q.Ref] = a.Adopt
+				if cs, err = cite(ctx, client, cs, q, a.Adopt); err != nil {
+					return cs, err
+				}
 				err = usePerson(ctx, client, before, q, a.Adopt, &cs)
 				break
 			}
 			err = adopt(ctx, client, &cs, q, a.Adopt, by)
 		case a.New:
 			if q.Entity == "org" && !by.Human {
-				return cs, nil, Invalid("a new organization is a person's call")
+				return cs, Invalid("a new organization is a person's call")
 			}
 			for _, c := range q.Candidates {
 				cs.Changes[i].Distinct = append(slices.Clone(cs.Changes[i].Distinct), c.Token())
@@ -268,15 +237,22 @@ func resolve(ctx context.Context, client *ent.Client, cs commit.Changeset, quest
 			err = Invalid("the answer to " + q.Ref + " is neither use, adopt nor new")
 		}
 		if err != nil {
-			return cs, nil, err
+			return cs, err
 		}
 	}
 	for ref := range d.Answers {
 		if !asked[ref] {
-			return cs, nil, Invalid("answers name " + ref + ", which nothing asks about")
+			return cs, Invalid("answers name " + ref + ", which nothing asks about")
 		}
 	}
-	return cs, used, nil
+	return cs, nil
+}
+
+func cite(ctx context.Context, client *ent.Client, cs commit.Changeset, q fanin.Question, id int64) (commit.Changeset, error) {
+	if q.Entity == "work" {
+		return fanin.JoinWork(ctx, client, cs, q.Ref, id)
+	}
+	return cs.Citing(q.Ref, id), nil
 }
 
 func settleCited(cs commit.Changeset, i int, a Answer) (commit.Changeset, error) {
@@ -315,9 +291,10 @@ func usePerson(ctx context.Context, client *ent.Client, before commit.Changeset,
 
 // learnPersons adds the person behind every alias that was cited instead of
 // created, so the pool learns both.
-func learnPersons(ctx context.Context, client *ent.Client, before commit.Changeset, used map[string]int64) error {
+func learnPersons(ctx context.Context, client *ent.Client, before commit.Changeset, known map[string]int64) (map[string]int64, error) {
+	out := maps.Clone(known)
 	for _, ch := range before.Changes {
-		alias, ok := used[ch.Ref]
+		alias, ok := known[ch.Ref]
 		if !ok || ch.Entity != "person_alias" {
 			continue
 		}
@@ -327,11 +304,11 @@ func learnPersons(ctx context.Context, client *ent.Client, before commit.Changes
 		}
 		a, err := client.PersonAlias.Get(ctx, alias)
 		if err != nil {
-			return err
+			return known, err
 		}
-		used[person] = a.PersonID
+		out[person] = a.PersonID
 	}
-	return nil
+	return out, nil
 }
 
 // adopt takes over a legacy id. A legacy credit name keeps its person too:

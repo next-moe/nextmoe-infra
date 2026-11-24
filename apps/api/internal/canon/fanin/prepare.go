@@ -3,7 +3,6 @@ package fanin
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"strings"
 
 	"api/internal/canon/commit"
@@ -160,6 +159,9 @@ func (f *Fanin) identify(ctx context.Context, r *run, it *item) error {
 		return err
 	}
 	it.cs = cs
+	if err := f.joinKnownWorks(ctx, r, it); err != nil {
+		return err
+	}
 	for _, ch := range it.cs.Changes {
 		var q *Question
 		var err error
@@ -179,6 +181,32 @@ func (f *Fanin) identify(ctx context.Context, r *run, it *item) error {
 		if q != nil {
 			it.questions = append(it.questions, *q)
 		}
+	}
+	return nil
+}
+
+// joinKnownWorks settles what the ladder may before anything is asked.
+func (f *Fanin) joinKnownWorks(ctx context.Context, r *run, it *item) error {
+	for i := 0; i < len(it.cs.Changes); i++ {
+		ch := it.cs.Changes[i]
+		if ch.Entity != "work_title" {
+			continue
+		}
+		q, err := f.asksAbout(ctx, r, it, ch, "work", "work_id", "text")
+		if err != nil || q == nil {
+			return err
+		}
+		work, err := SameWork(ctx, f.Client, it.cs, *q)
+		if err != nil {
+			return err
+		}
+		if work == 0 {
+			continue
+		}
+		if it.cs, err = JoinWork(ctx, f.Client, it.cs, q.Ref, work); err != nil {
+			return err
+		}
+		i = -1
 	}
 	return nil
 }
@@ -293,9 +321,4 @@ func str(v commit.Value) string {
 	var s string
 	_ = json.Unmarshal(v.Raw, &s)
 	return s
-}
-
-func num(v commit.Value) int64 {
-	n, _ := strconv.ParseInt(string(v.Raw), 10, 64)
-	return n
 }

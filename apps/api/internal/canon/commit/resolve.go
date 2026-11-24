@@ -2,6 +2,7 @@ package commit
 
 import (
 	"encoding/json"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -12,6 +13,11 @@ import (
 func (cs Changeset) Citing(ref string, id int64) Changeset {
 	out := cs
 	out.Changes = nil
+	out.Known = maps.Clone(cs.Known)
+	if out.Known == nil {
+		out.Known = map[string]int64{}
+	}
+	out.Known[ref] = id
 	entity := ""
 	for _, ch := range cs.Changes {
 		if ch.Ref == ref {
@@ -112,7 +118,7 @@ func (cs Changeset) used() map[string]bool {
 // descriptive lists, per entity, the rows that only restate what an existing
 // one already says when a changeset cites it instead of creating it.
 var descriptive = map[string]map[string]string{
-	"work": {"work_title": "work_id", "book_work": "work_id", "credit": "work_id"},
+	"work": {"work_title": "work_id", "book_work": "work_id"},
 	"org":  {"org_name": "org_id"},
 }
 
