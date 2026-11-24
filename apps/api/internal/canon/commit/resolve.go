@@ -25,20 +25,34 @@ func (cs Changeset) Citing(ref string, id int64) Changeset {
 		ch.Values = repoint(ch.Values, ref, id)
 		out.Changes = append(out.Changes, ch)
 	}
-	return out.pruned()
+	return out.pruned(cs)
 }
 
-// Omitting leaves refs out, and every change that points at one of them.
-func (cs Changeset) Omitting(refs ...string) Changeset {
-	out := cs
+// Omitting leaves out refs, and single properties as "<ref>.<property>". What
+// points at an omitted ref goes with it, and so does a name nothing credits
+// any more. An entry that names nothing here is returned.
+func (cs Changeset) Omitting(entries ...string) (Changeset, []string) {
 	gone := map[string]bool{}
-	for _, r := range refs {
-		gone[r] = true
+	props := map[string]map[string]bool{}
+	var unknown []string
+	for _, e := range entries {
+		ref, prop, ok := cs.locate(e)
+		switch {
+		case !ok:
+			unknown = append(unknown, e)
+		case prop == "":
+			gone[ref] = true
+		default:
+			if props[ref] == nil {
+				props[ref] = map[string]bool{}
+			}
+			props[ref][prop] = true
+		}
 	}
 	for again := true; again; {
 		again = false
 		for _, ch := range cs.Changes {
-			if gone[ch.Ref] || ch.Ref == "" {
+			if ch.Ref == "" || gone[ch.Ref] {
 				continue
 			}
 			for _, v := range ch.Values {
@@ -48,18 +62,51 @@ func (cs Changeset) Omitting(refs ...string) Changeset {
 			}
 		}
 	}
-	out.Changes = slices.DeleteFunc(slices.Clone(cs.Changes), func(ch Change) bool {
+	out := cs
+	out.Changes = nil
+	for _, ch := range cs.Changes {
 		if gone[ch.Ref] {
-			return true
+			continue
 		}
-		for _, v := range ch.Values {
-			if gone[refIn(v)] {
-				return true
+		drop := false
+		values := make(map[string]Value, len(ch.Values))
+		for k, v := range ch.Values {
+			drop = drop || gone[refIn(v)]
+			if !props[ch.Ref][k] {
+				values[k] = v
 			}
 		}
-		return false
-	})
-	return out.pruned()
+		if drop {
+			continue
+		}
+		ch.Values = values
+		out.Changes = append(out.Changes, ch)
+	}
+	return out.pruned(cs), unknown
+}
+
+// locate reads an omit entry; refs carry dots themselves, so the longest ref wins.
+func (cs Changeset) locate(entry string) (ref, prop string, ok bool) {
+	for _, ch := range cs.Changes {
+		if ch.Ref == entry {
+			return entry, "", true
+		}
+		rest, has := strings.CutPrefix(entry, ch.Ref+".")
+		if _, known := ch.Values[rest]; ch.Ref != "" && has && known && len(ch.Ref) > len(ref) {
+			ref, prop, ok = ch.Ref, rest, true
+		}
+	}
+	return ref, prop, ok
+}
+
+func (cs Changeset) used() map[string]bool {
+	out := map[string]bool{}
+	for _, ch := range cs.Changes {
+		for _, v := range ch.Values {
+			out[refIn(v)] = true
+		}
+	}
+	return out
 }
 
 // descriptive lists, per entity, the rows that only restate what an existing
@@ -74,18 +121,16 @@ func describes(entity string, ch Change, ref string) bool {
 	return ok && refIn(ch.Values[field]) == ref
 }
 
-// pruned drops a person nothing in the changeset names any more: citing an
-// alias would otherwise leave a person with no name behind.
-func (cs Changeset) pruned() Changeset {
-	used := map[string]bool{}
-	for _, ch := range cs.Changes {
-		for _, v := range ch.Values {
-			used[refIn(v)] = true
-		}
+// pruned drops the names was credited and cs no longer does, then the persons
+// nothing names any more.
+func (cs Changeset) pruned(was Changeset) Changeset {
+	credited := was.used()
+	for _, entity := range []string{"person_alias", "person"} {
+		used := cs.used()
+		cs.Changes = slices.DeleteFunc(slices.Clone(cs.Changes), func(ch Change) bool {
+			return ch.Entity == entity && ch.ID == 0 && ch.Ref != "" && credited[ch.Ref] && !used[ch.Ref]
+		})
 	}
-	cs.Changes = slices.DeleteFunc(slices.Clone(cs.Changes), func(ch Change) bool {
-		return ch.Entity == "person" && ch.ID == 0 && ch.Ref != "" && !used[ch.Ref]
-	})
 	return cs
 }
 

@@ -216,12 +216,10 @@ func open(ctx context.Context, client *ent.Client, id int, by Reviewer) (*ent.To
 func resolve(ctx context.Context, client *ent.Client, cs commit.Changeset, questions []fanin.Question, by Reviewer, d Decision) (commit.Changeset, map[string]int64, error) {
 	used := map[string]int64{}
 	if len(d.Omit) > 0 {
-		for _, r := range d.Omit {
-			if !slices.ContainsFunc(cs.Changes, func(ch commit.Change) bool { return ch.Ref == r }) {
-				return cs, nil, Invalid("omit names " + r + ", which the changeset does not have")
-			}
+		var unknown []string
+		if cs, unknown = cs.Omitting(d.Omit...); len(unknown) > 0 {
+			return cs, nil, Invalid("omit names " + strings.Join(unknown, ", ") + ", which the changeset does not have")
 		}
-		cs = cs.Omitting(d.Omit...)
 		if len(cs.Changes) == 0 {
 			return cs, nil, Invalid("nothing is left to write")
 		}
