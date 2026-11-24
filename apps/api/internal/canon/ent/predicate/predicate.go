@@ -30,6 +30,9 @@ type FaninCursor func(*sql.Selector)
 // Hold is the predicate function for hold builders.
 type Hold func(*sql.Selector)
 
+// IdentityKey is the predicate function for identitykey builders.
+type IdentityKey func(*sql.Selector)
+
 // LibraryPartProgress is the predicate function for librarypartprogress builders.
 type LibraryPartProgress func(*sql.Selector)
 
@@ -50,6 +53,9 @@ type Person func(*sql.Selector)
 
 // PersonAlias is the predicate function for personalias builders.
 type PersonAlias func(*sql.Selector)
+
+// ProgramState is the predicate function for programstate builders.
+type ProgramState func(*sql.Selector)
 
 // Redirect is the predicate function for redirect builders.
 type Redirect func(*sql.Selector)

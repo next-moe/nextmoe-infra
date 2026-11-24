@@ -11,6 +11,7 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/identitykey"
 	"api/internal/canon/ent/librarypartprogress"
 	"api/internal/canon/ent/librarytombstone"
 	"api/internal/canon/ent/mergerecord"
@@ -18,6 +19,7 @@ import (
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
+	"api/internal/canon/ent/programstate"
 	"api/internal/canon/ent/redirect"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
@@ -105,6 +107,7 @@ func checkColumn(t, c string) error {
 			evidencesnapshot.Table:    evidencesnapshot.ValidColumn,
 			fanincursor.Table:         fanincursor.ValidColumn,
 			hold.Table:                hold.ValidColumn,
+			identitykey.Table:         identitykey.ValidColumn,
 			librarypartprogress.Table: librarypartprogress.ValidColumn,
 			librarytombstone.Table:    librarytombstone.ValidColumn,
 			mergerecord.Table:         mergerecord.ValidColumn,
@@ -112,6 +115,7 @@ func checkColumn(t, c string) error {
 			orgname.Table:             orgname.ValidColumn,
 			person.Table:              person.ValidColumn,
 			personalias.Table:         personalias.ValidColumn,
+			programstate.Table:        programstate.ValidColumn,
 			redirect.Table:            redirect.ValidColumn,
 			release.Table:             release.ValidColumn,
 			releasecontent.Table:      releasecontent.ValidColumn,

@@ -13,6 +13,7 @@ import (
 	"api/internal/canon/ent"
 	"api/internal/canon/ent/migrate"
 	"api/internal/canon/ent/redirect"
+	"api/internal/canon/identity"
 
 	entschema "entgo.io/ent/dialect/sql/schema"
 )
@@ -23,7 +24,8 @@ var Mergeable = map[string]bool{"work": true, "work_part": true, "release": true
 // polymorphic lists the tables that name an entity by (entity, id) without a
 // foreign key. xref_link follows the merge; revision keeps the loser's history
 // under its old id on purpose; todo names subjects by key, not id; an active
-// hold or takedown refuses the merge before anything moves.
+// hold or takedown refuses the merge before anything moves; identity_key is
+// rebuilt from the rows that moved.
 var polymorphic = []string{"xref_link"}
 
 var (
@@ -210,6 +212,12 @@ func Merge(ctx context.Context, client *ent.Client, entity string, loser, surviv
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM canon.`+entity+` WHERE id = $1`, loser); err != nil {
 		return 0, fmt.Errorf("delete loser: %w", err)
+	}
+	if err := identity.Forget(ctx, tx, entity, loser); err != nil {
+		return 0, err
+	}
+	if err := identity.Rekey(ctx, tx, entity, survivor); err != nil {
+		return 0, err
 	}
 
 	var row map[string]any

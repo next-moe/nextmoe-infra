@@ -21,7 +21,10 @@ var RefusalCodes = []Code{
 	{"ENTITY_HELD", "the entity is held (takedown, dispute or review)"},
 	{"ENTITY_MERGED", "the entity was merged; resubmit against its survivor"},
 	{"UNIQUE_CONFLICT", "another entity already holds this unique key"},
+	{"VERSION_CONFLICT", "the entity changed since the change was prepared; read it again"},
+	{"SAME_TIER_CONFLICT", "another source of the same tier says otherwise; a todo was opened"},
 	{"IDENTITY_UNSURE", "identity could not be decided; a todo was opened"},
-	{"REJECTED_IN_REVIEW", "a person reviewed the todo this row opened and rejected it"},
+	{"AWAITING_REVIEW", "the program is in review mode; the row is in the review queue"},
+	{"REJECTED_IN_REVIEW", "a reviewer rejected the todo this row opened"},
 	{"HOST_EXCLUDED", "the evidence comes from an excluded host"},
 }

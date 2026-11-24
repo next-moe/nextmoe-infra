@@ -104,6 +104,18 @@ func (f HoldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HoldMutation", m)
 }
 
+// The IdentityKeyFunc type is an adapter to allow the use of ordinary
+// function as IdentityKey mutator.
+type IdentityKeyFunc func(context.Context, *ent.IdentityKeyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IdentityKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IdentityKeyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdentityKeyMutation", m)
+}
+
 // The LibraryPartProgressFunc type is an adapter to allow the use of ordinary
 // function as LibraryPartProgress mutator.
 type LibraryPartProgressFunc func(context.Context, *ent.LibraryPartProgressMutation) (ent.Value, error)
@@ -186,6 +198,18 @@ func (f PersonAliasFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PersonAliasMutation", m)
+}
+
+// The ProgramStateFunc type is an adapter to allow the use of ordinary
+// function as ProgramState mutator.
+type ProgramStateFunc func(context.Context, *ent.ProgramStateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProgramStateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProgramStateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProgramStateMutation", m)
 }
 
 // The RedirectFunc type is an adapter to allow the use of ordinary

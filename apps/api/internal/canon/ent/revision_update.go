@@ -104,6 +104,55 @@ func (_u *RevisionUpdate) SetNillableActorKey(v *string) *RevisionUpdate {
 	return _u
 }
 
+// SetReviewedBy sets the "reviewed_by" field.
+func (_u *RevisionUpdate) SetReviewedBy(v string) *RevisionUpdate {
+	_u.mutation.SetReviewedBy(v)
+	return _u
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_u *RevisionUpdate) SetNillableReviewedBy(v *string) *RevisionUpdate {
+	if v != nil {
+		_u.SetReviewedBy(*v)
+	}
+	return _u
+}
+
+// SetBatch sets the "batch" field.
+func (_u *RevisionUpdate) SetBatch(v string) *RevisionUpdate {
+	_u.mutation.SetBatch(v)
+	return _u
+}
+
+// SetNillableBatch sets the "batch" field if the given value is not nil.
+func (_u *RevisionUpdate) SetNillableBatch(v *string) *RevisionUpdate {
+	if v != nil {
+		_u.SetBatch(*v)
+	}
+	return _u
+}
+
+// SetUndoes sets the "undoes" field.
+func (_u *RevisionUpdate) SetUndoes(v int64) *RevisionUpdate {
+	_u.mutation.ResetUndoes()
+	_u.mutation.SetUndoes(v)
+	return _u
+}
+
+// SetNillableUndoes sets the "undoes" field if the given value is not nil.
+func (_u *RevisionUpdate) SetNillableUndoes(v *int64) *RevisionUpdate {
+	if v != nil {
+		_u.SetUndoes(*v)
+	}
+	return _u
+}
+
+// AddUndoes adds value to the "undoes" field.
+func (_u *RevisionUpdate) AddUndoes(v int64) *RevisionUpdate {
+	_u.mutation.AddUndoes(v)
+	return _u
+}
+
 // SetNote sets the "note" field.
 func (_u *RevisionUpdate) SetNote(v string) *RevisionUpdate {
 	_u.mutation.SetNote(v)
@@ -224,6 +273,18 @@ func (_u *RevisionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.ActorKey(); ok {
 		_spec.SetField(revision.FieldActorKey, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ReviewedBy(); ok {
+		_spec.SetField(revision.FieldReviewedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Batch(); ok {
+		_spec.SetField(revision.FieldBatch, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Undoes(); ok {
+		_spec.SetField(revision.FieldUndoes, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedUndoes(); ok {
+		_spec.AddField(revision.FieldUndoes, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(revision.FieldNote, field.TypeString, value)
 	}
@@ -336,6 +397,55 @@ func (_u *RevisionUpdateOne) SetNillableActorKey(v *string) *RevisionUpdateOne {
 	if v != nil {
 		_u.SetActorKey(*v)
 	}
+	return _u
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (_u *RevisionUpdateOne) SetReviewedBy(v string) *RevisionUpdateOne {
+	_u.mutation.SetReviewedBy(v)
+	return _u
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_u *RevisionUpdateOne) SetNillableReviewedBy(v *string) *RevisionUpdateOne {
+	if v != nil {
+		_u.SetReviewedBy(*v)
+	}
+	return _u
+}
+
+// SetBatch sets the "batch" field.
+func (_u *RevisionUpdateOne) SetBatch(v string) *RevisionUpdateOne {
+	_u.mutation.SetBatch(v)
+	return _u
+}
+
+// SetNillableBatch sets the "batch" field if the given value is not nil.
+func (_u *RevisionUpdateOne) SetNillableBatch(v *string) *RevisionUpdateOne {
+	if v != nil {
+		_u.SetBatch(*v)
+	}
+	return _u
+}
+
+// SetUndoes sets the "undoes" field.
+func (_u *RevisionUpdateOne) SetUndoes(v int64) *RevisionUpdateOne {
+	_u.mutation.ResetUndoes()
+	_u.mutation.SetUndoes(v)
+	return _u
+}
+
+// SetNillableUndoes sets the "undoes" field if the given value is not nil.
+func (_u *RevisionUpdateOne) SetNillableUndoes(v *int64) *RevisionUpdateOne {
+	if v != nil {
+		_u.SetUndoes(*v)
+	}
+	return _u
+}
+
+// AddUndoes adds value to the "undoes" field.
+func (_u *RevisionUpdateOne) AddUndoes(v int64) *RevisionUpdateOne {
+	_u.mutation.AddUndoes(v)
 	return _u
 }
 
@@ -488,6 +598,18 @@ func (_u *RevisionUpdateOne) sqlSave(ctx context.Context) (_node *Revision, err 
 	}
 	if value, ok := _u.mutation.ActorKey(); ok {
 		_spec.SetField(revision.FieldActorKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ReviewedBy(); ok {
+		_spec.SetField(revision.FieldReviewedBy, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Batch(); ok {
+		_spec.SetField(revision.FieldBatch, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Undoes(); ok {
+		_spec.SetField(revision.FieldUndoes, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedUndoes(); ok {
+		_spec.AddField(revision.FieldUndoes, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(revision.FieldNote, field.TypeString, value)

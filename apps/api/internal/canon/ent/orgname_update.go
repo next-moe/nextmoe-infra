@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -91,6 +92,39 @@ func (_u *OrgNameUpdate) AddPosition(v int) *OrgNameUpdate {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *OrgNameUpdate) SetFieldState(v map[string]interface{}) *OrgNameUpdate {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *OrgNameUpdate) SetVersion(v int) *OrgNameUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *OrgNameUpdate) SetNillableVersion(v *int) *OrgNameUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *OrgNameUpdate) AddVersion(v int) *OrgNameUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *OrgNameUpdate) SetUpdatedAt(v time.Time) *OrgNameUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetOrg sets the "org" edge to the Org entity.
 func (_u *OrgNameUpdate) SetOrg(v *Org) *OrgNameUpdate {
 	return _u.SetOrgID(v.ID)
@@ -109,6 +143,7 @@ func (_u *OrgNameUpdate) ClearOrg() *OrgNameUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *OrgNameUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -131,6 +166,14 @@ func (_u *OrgNameUpdate) Exec(ctx context.Context) error {
 func (_u *OrgNameUpdate) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *OrgNameUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := orgname.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -170,6 +213,18 @@ func (_u *OrgNameUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedPosition(); ok {
 		_spec.AddField(orgname.FieldPosition, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(orgname.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(orgname.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(orgname.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(orgname.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.OrgCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -283,6 +338,39 @@ func (_u *OrgNameUpdateOne) AddPosition(v int) *OrgNameUpdateOne {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *OrgNameUpdateOne) SetFieldState(v map[string]interface{}) *OrgNameUpdateOne {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *OrgNameUpdateOne) SetVersion(v int) *OrgNameUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *OrgNameUpdateOne) SetNillableVersion(v *int) *OrgNameUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *OrgNameUpdateOne) AddVersion(v int) *OrgNameUpdateOne {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *OrgNameUpdateOne) SetUpdatedAt(v time.Time) *OrgNameUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetOrg sets the "org" edge to the Org entity.
 func (_u *OrgNameUpdateOne) SetOrg(v *Org) *OrgNameUpdateOne {
 	return _u.SetOrgID(v.ID)
@@ -314,6 +402,7 @@ func (_u *OrgNameUpdateOne) Select(field string, fields ...string) *OrgNameUpdat
 
 // Save executes the query and returns the updated OrgName entity.
 func (_u *OrgNameUpdateOne) Save(ctx context.Context) (*OrgName, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -336,6 +425,14 @@ func (_u *OrgNameUpdateOne) Exec(ctx context.Context) error {
 func (_u *OrgNameUpdateOne) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *OrgNameUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := orgname.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -392,6 +489,18 @@ func (_u *OrgNameUpdateOne) sqlSave(ctx context.Context) (_node *OrgName, err er
 	}
 	if value, ok := _u.mutation.AddedPosition(); ok {
 		_spec.AddField(orgname.FieldPosition, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(orgname.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(orgname.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(orgname.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(orgname.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.OrgCleared() {
 		edge := &sqlgraph.EdgeSpec{

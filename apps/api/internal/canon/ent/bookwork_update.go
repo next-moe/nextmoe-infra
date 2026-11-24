@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -56,6 +57,39 @@ func (_u *BookWorkUpdate) SetNillableCategory(v *string) *BookWorkUpdate {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *BookWorkUpdate) SetFieldState(v map[string]interface{}) *BookWorkUpdate {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *BookWorkUpdate) SetVersion(v int) *BookWorkUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *BookWorkUpdate) SetNillableVersion(v *int) *BookWorkUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *BookWorkUpdate) AddVersion(v int) *BookWorkUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *BookWorkUpdate) SetUpdatedAt(v time.Time) *BookWorkUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetWork sets the "work" edge to the Work entity.
 func (_u *BookWorkUpdate) SetWork(v *Work) *BookWorkUpdate {
 	return _u.SetWorkID(v.ID)
@@ -74,6 +108,7 @@ func (_u *BookWorkUpdate) ClearWork() *BookWorkUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *BookWorkUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -99,6 +134,14 @@ func (_u *BookWorkUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_u *BookWorkUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := bookwork.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_u *BookWorkUpdate) check() error {
 	if _u.mutation.WorkCleared() && len(_u.mutation.WorkIDs()) > 0 {
@@ -121,6 +164,18 @@ func (_u *BookWorkUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(bookwork.FieldCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(bookwork.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(bookwork.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(bookwork.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(bookwork.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.WorkCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -199,6 +254,39 @@ func (_u *BookWorkUpdateOne) SetNillableCategory(v *string) *BookWorkUpdateOne {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *BookWorkUpdateOne) SetFieldState(v map[string]interface{}) *BookWorkUpdateOne {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *BookWorkUpdateOne) SetVersion(v int) *BookWorkUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *BookWorkUpdateOne) SetNillableVersion(v *int) *BookWorkUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *BookWorkUpdateOne) AddVersion(v int) *BookWorkUpdateOne {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *BookWorkUpdateOne) SetUpdatedAt(v time.Time) *BookWorkUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetWork sets the "work" edge to the Work entity.
 func (_u *BookWorkUpdateOne) SetWork(v *Work) *BookWorkUpdateOne {
 	return _u.SetWorkID(v.ID)
@@ -230,6 +318,7 @@ func (_u *BookWorkUpdateOne) Select(field string, fields ...string) *BookWorkUpd
 
 // Save executes the query and returns the updated BookWork entity.
 func (_u *BookWorkUpdateOne) Save(ctx context.Context) (*BookWork, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -252,6 +341,14 @@ func (_u *BookWorkUpdateOne) Exec(ctx context.Context) error {
 func (_u *BookWorkUpdateOne) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *BookWorkUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := bookwork.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -294,6 +391,18 @@ func (_u *BookWorkUpdateOne) sqlSave(ctx context.Context) (_node *BookWork, err 
 	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(bookwork.FieldCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(bookwork.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(bookwork.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(bookwork.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(bookwork.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.WorkCleared() {
 		edge := &sqlgraph.EdgeSpec{

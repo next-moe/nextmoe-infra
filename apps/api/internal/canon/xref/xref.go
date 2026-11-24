@@ -1,5 +1,5 @@
-// Package xref maintains the third-party id read model (D22). Import is the
-// only place canon code reads a legacy table, and only to copy ids out of it.
+// Package xref maintains the third-party id read model (D22), copied out of the
+// legacy catalog's references.
 package xref
 
 import (

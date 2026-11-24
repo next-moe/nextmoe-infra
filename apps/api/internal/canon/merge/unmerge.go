@@ -9,6 +9,7 @@ import (
 
 	"api/internal/canon/ent"
 	"api/internal/canon/ent/redirect"
+	"api/internal/canon/identity"
 )
 
 var ErrUndone = errors.New("merge already undone")
@@ -67,6 +68,9 @@ func Unmerge(ctx context.Context, client *ent.Client, mergeID int, by string) er
 		return err
 	}
 	for _, x := range []int64{rec.LoserID, rec.SurvivorID} {
+		if err := identity.Rekey(ctx, tx, rec.Entity, x); err != nil {
+			return err
+		}
 		if err := tx.Revision.Create().SetEntity(rec.Entity).SetEntityID(x).SetRootEntity(rec.Entity).SetRootID(x).SetAction("unmerge").SetActorKind("human").
 			SetActorKey(by).SetChanges(map[string]any{"merge_id": mergeID}).Exec(ctx); err != nil {
 			return err

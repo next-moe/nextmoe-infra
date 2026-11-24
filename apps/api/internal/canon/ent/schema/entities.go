@@ -8,7 +8,7 @@ var Entities = []ent.Interface{
 	Work{}, WorkTitle{}, WorkPart{},
 	Release{}, ReleaseContent{}, BookWork{}, BookRelease{},
 	Person{}, PersonAlias{}, Org{}, OrgName{}, Credit{},
-	Revision{}, EvidenceSnapshot{}, EvidenceRecord{}, CommitKey{}, FaninCursor{},
+	Revision{}, EvidenceSnapshot{}, EvidenceRecord{}, CommitKey{}, FaninCursor{}, IdentityKey{}, ProgramState{},
 	Todo{}, Hold{}, Takedown{}, XrefLink{}, Redirect{}, MergeRecord{},
 	LibraryPartProgress{}, LibraryTombstone{},
 }

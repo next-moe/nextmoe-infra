@@ -12,6 +12,7 @@ import (
 
 	"api/internal/canon/commit"
 	"api/internal/canon/ent"
+	"api/internal/canon/ent/revision"
 	"api/internal/canon/merge"
 	"api/internal/canon/takedown"
 
@@ -72,6 +73,13 @@ func (a *API) gone(ctx context.Context, entity string, n int64, err error) error
 			return rerr
 		} else if ok {
 			return merged(entity, to)
+		}
+		removed, rerr := a.client.Revision.Query().Where(revision.Entity(entity), revision.EntityID(n), revision.Action("remove")).Exist(ctx)
+		if rerr != nil {
+			return rerr
+		}
+		if removed {
+			return huma.Error410Gone(entity + " " + id(n) + " was removed")
 		}
 		return huma.Error404NotFound(entity + " " + id(n) + " does not exist")
 	}

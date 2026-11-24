@@ -23,6 +23,12 @@ const (
 	FieldActorKind = "actor_kind"
 	// FieldActorKey holds the string denoting the actor_key field in the database.
 	FieldActorKey = "actor_key"
+	// FieldReviewedBy holds the string denoting the reviewed_by field in the database.
+	FieldReviewedBy = "reviewed_by"
+	// FieldBatch holds the string denoting the batch field in the database.
+	FieldBatch = "batch"
+	// FieldUndoes holds the string denoting the undoes field in the database.
+	FieldUndoes = "undoes"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
 	// FieldChanges holds the string denoting the changes field in the database.
@@ -45,6 +51,9 @@ var Columns = []string{
 	FieldAction,
 	FieldActorKind,
 	FieldActorKey,
+	FieldReviewedBy,
+	FieldBatch,
+	FieldUndoes,
 	FieldNote,
 	FieldChanges,
 	FieldRootEntity,
@@ -63,6 +72,12 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultReviewedBy holds the default value on creation for the "reviewed_by" field.
+	DefaultReviewedBy string
+	// DefaultBatch holds the default value on creation for the "batch" field.
+	DefaultBatch string
+	// DefaultUndoes holds the default value on creation for the "undoes" field.
+	DefaultUndoes int64
 	// DefaultRootEntity holds the default value on creation for the "root_entity" field.
 	DefaultRootEntity string
 	// DefaultRootID holds the default value on creation for the "root_id" field.
@@ -102,6 +117,21 @@ func ByActorKind(opts ...sql.OrderTermOption) OrderOption {
 // ByActorKey orders the results by the actor_key field.
 func ByActorKey(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActorKey, opts...).ToFunc()
+}
+
+// ByReviewedBy orders the results by the reviewed_by field.
+func ByReviewedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewedBy, opts...).ToFunc()
+}
+
+// ByBatch orders the results by the batch field.
+func ByBatch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBatch, opts...).ToFunc()
+}
+
+// ByUndoes orders the results by the undoes field.
+func ByUndoes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUndoes, opts...).ToFunc()
 }
 
 // ByNote orders the results by the note field.

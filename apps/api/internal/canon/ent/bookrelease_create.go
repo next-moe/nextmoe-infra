@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -155,6 +156,54 @@ func (_c *BookReleaseCreate) SetNillablePriceBasis(v *string) *BookReleaseCreate
 	return _c
 }
 
+// SetFieldState sets the "field_state" field.
+func (_c *BookReleaseCreate) SetFieldState(v map[string]interface{}) *BookReleaseCreate {
+	_c.mutation.SetFieldState(v)
+	return _c
+}
+
+// SetVersion sets the "version" field.
+func (_c *BookReleaseCreate) SetVersion(v int) *BookReleaseCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *BookReleaseCreate) SetNillableVersion(v *int) *BookReleaseCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *BookReleaseCreate) SetCreatedAt(v time.Time) *BookReleaseCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *BookReleaseCreate) SetNillableCreatedAt(v *time.Time) *BookReleaseCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *BookReleaseCreate) SetUpdatedAt(v time.Time) *BookReleaseCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *BookReleaseCreate) SetNillableUpdatedAt(v *time.Time) *BookReleaseCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
+	}
+	return _c
+}
+
 // SetRelease sets the "release" edge to the Release entity.
 func (_c *BookReleaseCreate) SetRelease(v *Release) *BookReleaseCreate {
 	return _c.SetReleaseID(v.ID)
@@ -177,6 +226,7 @@ func (_c *BookReleaseCreate) Mutation() *BookReleaseMutation {
 
 // Save creates the BookRelease in the database.
 func (_c *BookReleaseCreate) Save(ctx context.Context) (*BookRelease, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -202,10 +252,42 @@ func (_c *BookReleaseCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *BookReleaseCreate) defaults() {
+	if _, ok := _c.mutation.FieldState(); !ok {
+		v := bookrelease.DefaultFieldState
+		_c.mutation.SetFieldState(v)
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := bookrelease.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := bookrelease.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := bookrelease.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *BookReleaseCreate) check() error {
 	if _, ok := _c.mutation.ReleaseID(); !ok {
 		return &ValidationError{Name: "release_id", err: errors.New(`ent: missing required field "BookRelease.release_id"`)}
+	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		return &ValidationError{Name: "field_state", err: errors.New(`ent: missing required field "BookRelease.field_state"`)}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "BookRelease.version"`)}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "BookRelease.created_at"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "BookRelease.updated_at"`)}
 	}
 	if len(_c.mutation.ReleaseIDs()) == 0 {
 		return &ValidationError{Name: "release", err: errors.New(`ent: missing required edge "BookRelease.release"`)}
@@ -264,6 +346,22 @@ func (_c *BookReleaseCreate) createSpec() (*BookRelease, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PriceBasis(); ok {
 		_spec.SetField(bookrelease.FieldPriceBasis, field.TypeString, value)
 		_node.PriceBasis = value
+	}
+	if value, ok := _c.mutation.FieldState(); ok {
+		_spec.SetField(bookrelease.FieldFieldState, field.TypeJSON, value)
+		_node.FieldState = value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(bookrelease.FieldVersion, field.TypeInt, value)
+		_node.Version = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(bookrelease.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(bookrelease.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
 	}
 	if nodes := _c.mutation.ReleaseIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -548,6 +646,48 @@ func (u *BookReleaseUpsert) ClearPriceBasis() *BookReleaseUpsert {
 	return u
 }
 
+// SetFieldState sets the "field_state" field.
+func (u *BookReleaseUpsert) SetFieldState(v map[string]interface{}) *BookReleaseUpsert {
+	u.Set(bookrelease.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *BookReleaseUpsert) UpdateFieldState() *BookReleaseUpsert {
+	u.SetExcluded(bookrelease.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *BookReleaseUpsert) SetVersion(v int) *BookReleaseUpsert {
+	u.Set(bookrelease.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *BookReleaseUpsert) UpdateVersion() *BookReleaseUpsert {
+	u.SetExcluded(bookrelease.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *BookReleaseUpsert) AddVersion(v int) *BookReleaseUpsert {
+	u.Add(bookrelease.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BookReleaseUpsert) SetUpdatedAt(v time.Time) *BookReleaseUpsert {
+	u.Set(bookrelease.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BookReleaseUpsert) UpdateUpdatedAt() *BookReleaseUpsert {
+	u.SetExcluded(bookrelease.FieldUpdatedAt)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -558,6 +698,11 @@ func (u *BookReleaseUpsert) ClearPriceBasis() *BookReleaseUpsert {
 //		Exec(ctx)
 func (u *BookReleaseUpsertOne) UpdateNewValues() *BookReleaseUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(bookrelease.FieldCreatedAt)
+		}
+	}))
 	return u
 }
 
@@ -798,6 +943,55 @@ func (u *BookReleaseUpsertOne) ClearPriceBasis() *BookReleaseUpsertOne {
 	})
 }
 
+// SetFieldState sets the "field_state" field.
+func (u *BookReleaseUpsertOne) SetFieldState(v map[string]interface{}) *BookReleaseUpsertOne {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *BookReleaseUpsertOne) UpdateFieldState() *BookReleaseUpsertOne {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *BookReleaseUpsertOne) SetVersion(v int) *BookReleaseUpsertOne {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *BookReleaseUpsertOne) AddVersion(v int) *BookReleaseUpsertOne {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *BookReleaseUpsertOne) UpdateVersion() *BookReleaseUpsertOne {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BookReleaseUpsertOne) SetUpdatedAt(v time.Time) *BookReleaseUpsertOne {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BookReleaseUpsertOne) UpdateUpdatedAt() *BookReleaseUpsertOne {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
 // Exec executes the query.
 func (u *BookReleaseUpsertOne) Exec(ctx context.Context) error {
 	if len(u.create.conflict) == 0 {
@@ -850,6 +1044,7 @@ func (_c *BookReleaseCreateBulk) Save(ctx context.Context) ([]*BookRelease, erro
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*BookReleaseMutation)
 				if !ok {
@@ -971,6 +1166,13 @@ type BookReleaseUpsertBulk struct {
 //		Exec(ctx)
 func (u *BookReleaseUpsertBulk) UpdateNewValues() *BookReleaseUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(bookrelease.FieldCreatedAt)
+			}
+		}
+	}))
 	return u
 }
 
@@ -1208,6 +1410,55 @@ func (u *BookReleaseUpsertBulk) UpdatePriceBasis() *BookReleaseUpsertBulk {
 func (u *BookReleaseUpsertBulk) ClearPriceBasis() *BookReleaseUpsertBulk {
 	return u.Update(func(s *BookReleaseUpsert) {
 		s.ClearPriceBasis()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *BookReleaseUpsertBulk) SetFieldState(v map[string]interface{}) *BookReleaseUpsertBulk {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *BookReleaseUpsertBulk) UpdateFieldState() *BookReleaseUpsertBulk {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *BookReleaseUpsertBulk) SetVersion(v int) *BookReleaseUpsertBulk {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *BookReleaseUpsertBulk) AddVersion(v int) *BookReleaseUpsertBulk {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *BookReleaseUpsertBulk) UpdateVersion() *BookReleaseUpsertBulk {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BookReleaseUpsertBulk) SetUpdatedAt(v time.Time) *BookReleaseUpsertBulk {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BookReleaseUpsertBulk) UpdateUpdatedAt() *BookReleaseUpsertBulk {
+	return u.Update(func(s *BookReleaseUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 

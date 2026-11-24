@@ -63,6 +63,9 @@ type Property struct {
 	Unique  Unique   `json:"unique,omitempty"`
 	Agent   bool     `json:"agent"`
 	Clauses []string `json:"clauses,omitempty"`
+	// Named: the ref is a fact read off a page, so the cited evidence must carry
+	// the target's own name. Every other ref is structural and cites nothing.
+	Named bool `json:"named,omitempty"`
 	// ScopedByProgram: the value is the writing program's medium, not a fact
 	// read off a page, so it carries no evidence.
 	ScopedByProgram bool   `json:"scoped_by_program,omitempty"`
@@ -92,6 +95,12 @@ func ProgramScoped(vocab, doc string, clauses ...string) Property {
 func RefFact(entity, doc string, clauses ...string) Property {
 	p := Fact(ShapeRef, doc, clauses...)
 	p.Ref = entity
+	return p
+}
+
+func NamedRefFact(entity, doc string, clauses ...string) Property {
+	p := RefFact(entity, doc, clauses...)
+	p.Named = true
 	return p
 }
 

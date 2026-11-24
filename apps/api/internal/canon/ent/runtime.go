@@ -3,12 +3,15 @@
 package ent
 
 import (
+	"api/internal/canon/ent/bookrelease"
+	"api/internal/canon/ent/bookwork"
 	"api/internal/canon/ent/commitkey"
 	"api/internal/canon/ent/credit"
 	"api/internal/canon/ent/evidencerecord"
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/identitykey"
 	"api/internal/canon/ent/librarypartprogress"
 	"api/internal/canon/ent/librarytombstone"
 	"api/internal/canon/ent/mergerecord"
@@ -16,6 +19,7 @@ import (
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
+	"api/internal/canon/ent/programstate"
 	"api/internal/canon/ent/redirect"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
@@ -34,10 +38,54 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	bookreleaseFields := schema.BookRelease{}.Fields()
+	_ = bookreleaseFields
+	// bookreleaseDescFieldState is the schema descriptor for field_state field.
+	bookreleaseDescFieldState := bookreleaseFields[10].Descriptor()
+	// bookrelease.DefaultFieldState holds the default value on creation for the field_state field.
+	bookrelease.DefaultFieldState = bookreleaseDescFieldState.Default.(map[string]interface{})
+	// bookreleaseDescVersion is the schema descriptor for version field.
+	bookreleaseDescVersion := bookreleaseFields[11].Descriptor()
+	// bookrelease.DefaultVersion holds the default value on creation for the version field.
+	bookrelease.DefaultVersion = bookreleaseDescVersion.Default.(int)
+	// bookreleaseDescCreatedAt is the schema descriptor for created_at field.
+	bookreleaseDescCreatedAt := bookreleaseFields[12].Descriptor()
+	// bookrelease.DefaultCreatedAt holds the default value on creation for the created_at field.
+	bookrelease.DefaultCreatedAt = bookreleaseDescCreatedAt.Default.(func() time.Time)
+	// bookreleaseDescUpdatedAt is the schema descriptor for updated_at field.
+	bookreleaseDescUpdatedAt := bookreleaseFields[13].Descriptor()
+	// bookrelease.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	bookrelease.DefaultUpdatedAt = bookreleaseDescUpdatedAt.Default.(func() time.Time)
+	// bookrelease.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	bookrelease.UpdateDefaultUpdatedAt = bookreleaseDescUpdatedAt.UpdateDefault.(func() time.Time)
+	bookworkFields := schema.BookWork{}.Fields()
+	_ = bookworkFields
+	// bookworkDescFieldState is the schema descriptor for field_state field.
+	bookworkDescFieldState := bookworkFields[2].Descriptor()
+	// bookwork.DefaultFieldState holds the default value on creation for the field_state field.
+	bookwork.DefaultFieldState = bookworkDescFieldState.Default.(map[string]interface{})
+	// bookworkDescVersion is the schema descriptor for version field.
+	bookworkDescVersion := bookworkFields[3].Descriptor()
+	// bookwork.DefaultVersion holds the default value on creation for the version field.
+	bookwork.DefaultVersion = bookworkDescVersion.Default.(int)
+	// bookworkDescCreatedAt is the schema descriptor for created_at field.
+	bookworkDescCreatedAt := bookworkFields[4].Descriptor()
+	// bookwork.DefaultCreatedAt holds the default value on creation for the created_at field.
+	bookwork.DefaultCreatedAt = bookworkDescCreatedAt.Default.(func() time.Time)
+	// bookworkDescUpdatedAt is the schema descriptor for updated_at field.
+	bookworkDescUpdatedAt := bookworkFields[5].Descriptor()
+	// bookwork.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	bookwork.DefaultUpdatedAt = bookworkDescUpdatedAt.Default.(func() time.Time)
+	// bookwork.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	bookwork.UpdateDefaultUpdatedAt = bookworkDescUpdatedAt.UpdateDefault.(func() time.Time)
 	commitkeyFields := schema.CommitKey{}.Fields()
 	_ = commitkeyFields
+	// commitkeyDescBatch is the schema descriptor for batch field.
+	commitkeyDescBatch := commitkeyFields[2].Descriptor()
+	// commitkey.DefaultBatch holds the default value on creation for the batch field.
+	commitkey.DefaultBatch = commitkeyDescBatch.Default.(string)
 	// commitkeyDescCreatedAt is the schema descriptor for created_at field.
-	commitkeyDescCreatedAt := commitkeyFields[2].Descriptor()
+	commitkeyDescCreatedAt := commitkeyFields[3].Descriptor()
 	// commitkey.DefaultCreatedAt holds the default value on creation for the created_at field.
 	commitkey.DefaultCreatedAt = commitkeyDescCreatedAt.Default.(func() time.Time)
 	creditFields := schema.Credit{}.Fields()
@@ -94,6 +142,12 @@ func init() {
 	holdDescCreatedAt := holdFields[5].Descriptor()
 	// hold.DefaultCreatedAt holds the default value on creation for the created_at field.
 	hold.DefaultCreatedAt = holdDescCreatedAt.Default.(func() time.Time)
+	identitykeyFields := schema.IdentityKey{}.Fields()
+	_ = identitykeyFields
+	// identitykeyDescMedium is the schema descriptor for medium field.
+	identitykeyDescMedium := identitykeyFields[4].Descriptor()
+	// identitykey.DefaultMedium holds the default value on creation for the medium field.
+	identitykey.DefaultMedium = identitykeyDescMedium.Default.(string)
 	librarypartprogressFields := schema.LibraryPartProgress{}.Fields()
 	_ = librarypartprogressFields
 	// librarypartprogressDescUpdatedAt is the schema descriptor for updated_at field.
@@ -144,6 +198,24 @@ func init() {
 	orgnameDescPosition := orgnameFields[3].Descriptor()
 	// orgname.DefaultPosition holds the default value on creation for the position field.
 	orgname.DefaultPosition = orgnameDescPosition.Default.(int)
+	// orgnameDescFieldState is the schema descriptor for field_state field.
+	orgnameDescFieldState := orgnameFields[4].Descriptor()
+	// orgname.DefaultFieldState holds the default value on creation for the field_state field.
+	orgname.DefaultFieldState = orgnameDescFieldState.Default.(map[string]interface{})
+	// orgnameDescVersion is the schema descriptor for version field.
+	orgnameDescVersion := orgnameFields[5].Descriptor()
+	// orgname.DefaultVersion holds the default value on creation for the version field.
+	orgname.DefaultVersion = orgnameDescVersion.Default.(int)
+	// orgnameDescCreatedAt is the schema descriptor for created_at field.
+	orgnameDescCreatedAt := orgnameFields[6].Descriptor()
+	// orgname.DefaultCreatedAt holds the default value on creation for the created_at field.
+	orgname.DefaultCreatedAt = orgnameDescCreatedAt.Default.(func() time.Time)
+	// orgnameDescUpdatedAt is the schema descriptor for updated_at field.
+	orgnameDescUpdatedAt := orgnameFields[7].Descriptor()
+	// orgname.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	orgname.DefaultUpdatedAt = orgnameDescUpdatedAt.Default.(func() time.Time)
+	// orgname.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	orgname.UpdateDefaultUpdatedAt = orgnameDescUpdatedAt.UpdateDefault.(func() time.Time)
 	personFields := schema.Person{}.Fields()
 	_ = personFields
 	// personDescFieldState is the schema descriptor for field_state field.
@@ -188,6 +260,18 @@ func init() {
 	personalias.DefaultUpdatedAt = personaliasDescUpdatedAt.Default.(func() time.Time)
 	// personalias.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	personalias.UpdateDefaultUpdatedAt = personaliasDescUpdatedAt.UpdateDefault.(func() time.Time)
+	programstateFields := schema.ProgramState{}.Fields()
+	_ = programstateFields
+	// programstateDescNote is the schema descriptor for note field.
+	programstateDescNote := programstateFields[2].Descriptor()
+	// programstate.DefaultNote holds the default value on creation for the note field.
+	programstate.DefaultNote = programstateDescNote.Default.(string)
+	// programstateDescUpdatedAt is the schema descriptor for updated_at field.
+	programstateDescUpdatedAt := programstateFields[4].Descriptor()
+	// programstate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	programstate.DefaultUpdatedAt = programstateDescUpdatedAt.Default.(func() time.Time)
+	// programstate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	programstate.UpdateDefaultUpdatedAt = programstateDescUpdatedAt.UpdateDefault.(func() time.Time)
 	redirectFields := schema.Redirect{}.Fields()
 	_ = redirectFields
 	// redirectDescCreatedAt is the schema descriptor for created_at field.
@@ -232,18 +316,48 @@ func init() {
 	releasecontentDescPosition := releasecontentFields[4].Descriptor()
 	// releasecontent.DefaultPosition holds the default value on creation for the position field.
 	releasecontent.DefaultPosition = releasecontentDescPosition.Default.(int)
+	// releasecontentDescFieldState is the schema descriptor for field_state field.
+	releasecontentDescFieldState := releasecontentFields[5].Descriptor()
+	// releasecontent.DefaultFieldState holds the default value on creation for the field_state field.
+	releasecontent.DefaultFieldState = releasecontentDescFieldState.Default.(map[string]interface{})
+	// releasecontentDescVersion is the schema descriptor for version field.
+	releasecontentDescVersion := releasecontentFields[6].Descriptor()
+	// releasecontent.DefaultVersion holds the default value on creation for the version field.
+	releasecontent.DefaultVersion = releasecontentDescVersion.Default.(int)
+	// releasecontentDescCreatedAt is the schema descriptor for created_at field.
+	releasecontentDescCreatedAt := releasecontentFields[7].Descriptor()
+	// releasecontent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	releasecontent.DefaultCreatedAt = releasecontentDescCreatedAt.Default.(func() time.Time)
+	// releasecontentDescUpdatedAt is the schema descriptor for updated_at field.
+	releasecontentDescUpdatedAt := releasecontentFields[8].Descriptor()
+	// releasecontent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	releasecontent.DefaultUpdatedAt = releasecontentDescUpdatedAt.Default.(func() time.Time)
+	// releasecontent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	releasecontent.UpdateDefaultUpdatedAt = releasecontentDescUpdatedAt.UpdateDefault.(func() time.Time)
 	revisionFields := schema.Revision{}.Fields()
 	_ = revisionFields
+	// revisionDescReviewedBy is the schema descriptor for reviewed_by field.
+	revisionDescReviewedBy := revisionFields[6].Descriptor()
+	// revision.DefaultReviewedBy holds the default value on creation for the reviewed_by field.
+	revision.DefaultReviewedBy = revisionDescReviewedBy.Default.(string)
+	// revisionDescBatch is the schema descriptor for batch field.
+	revisionDescBatch := revisionFields[7].Descriptor()
+	// revision.DefaultBatch holds the default value on creation for the batch field.
+	revision.DefaultBatch = revisionDescBatch.Default.(string)
+	// revisionDescUndoes is the schema descriptor for undoes field.
+	revisionDescUndoes := revisionFields[8].Descriptor()
+	// revision.DefaultUndoes holds the default value on creation for the undoes field.
+	revision.DefaultUndoes = revisionDescUndoes.Default.(int64)
 	// revisionDescRootEntity is the schema descriptor for root_entity field.
-	revisionDescRootEntity := revisionFields[8].Descriptor()
+	revisionDescRootEntity := revisionFields[11].Descriptor()
 	// revision.DefaultRootEntity holds the default value on creation for the root_entity field.
 	revision.DefaultRootEntity = revisionDescRootEntity.Default.(string)
 	// revisionDescRootID is the schema descriptor for root_id field.
-	revisionDescRootID := revisionFields[9].Descriptor()
+	revisionDescRootID := revisionFields[12].Descriptor()
 	// revision.DefaultRootID holds the default value on creation for the root_id field.
 	revision.DefaultRootID = revisionDescRootID.Default.(int64)
 	// revisionDescCreatedAt is the schema descriptor for created_at field.
-	revisionDescCreatedAt := revisionFields[10].Descriptor()
+	revisionDescCreatedAt := revisionFields[13].Descriptor()
 	// revision.DefaultCreatedAt holds the default value on creation for the created_at field.
 	revision.DefaultCreatedAt = revisionDescCreatedAt.Default.(func() time.Time)
 	takedownFields := schema.Takedown{}.Fields()
@@ -254,28 +368,36 @@ func init() {
 	takedown.DefaultCreatedAt = takedownDescCreatedAt.Default.(func() time.Time)
 	todoFields := schema.Todo{}.Fields()
 	_ = todoFields
+	// todoDescGroupKey is the schema descriptor for group_key field.
+	todoDescGroupKey := todoFields[2].Descriptor()
+	// todo.DefaultGroupKey holds the default value on creation for the group_key field.
+	todo.DefaultGroupKey = todoDescGroupKey.Default.(string)
+	// todoDescProgram is the schema descriptor for program field.
+	todoDescProgram := todoFields[3].Descriptor()
+	// todo.DefaultProgram holds the default value on creation for the program field.
+	todo.DefaultProgram = todoDescProgram.Default.(string)
 	// todoDescState is the schema descriptor for state field.
-	todoDescState := todoFields[2].Descriptor()
+	todoDescState := todoFields[4].Descriptor()
 	// todo.DefaultState holds the default value on creation for the state field.
 	todo.DefaultState = todoDescState.Default.(string)
 	// todoDescDetail is the schema descriptor for detail field.
-	todoDescDetail := todoFields[3].Descriptor()
+	todoDescDetail := todoFields[5].Descriptor()
 	// todo.DefaultDetail holds the default value on creation for the detail field.
 	todo.DefaultDetail = todoDescDetail.Default.(string)
 	// todoDescSource is the schema descriptor for source field.
-	todoDescSource := todoFields[4].Descriptor()
+	todoDescSource := todoFields[6].Descriptor()
 	// todo.DefaultSource holds the default value on creation for the source field.
 	todo.DefaultSource = todoDescSource.Default.(string)
 	// todoDescAnswered is the schema descriptor for answered field.
-	todoDescAnswered := todoFields[7].Descriptor()
+	todoDescAnswered := todoFields[13].Descriptor()
 	// todo.DefaultAnswered holds the default value on creation for the answered field.
 	todo.DefaultAnswered = todoDescAnswered.Default.(bool)
 	// todoDescCreatedAt is the schema descriptor for created_at field.
-	todoDescCreatedAt := todoFields[9].Descriptor()
+	todoDescCreatedAt := todoFields[15].Descriptor()
 	// todo.DefaultCreatedAt holds the default value on creation for the created_at field.
 	todo.DefaultCreatedAt = todoDescCreatedAt.Default.(func() time.Time)
 	// todoDescUpdatedAt is the schema descriptor for updated_at field.
-	todoDescUpdatedAt := todoFields[10].Descriptor()
+	todoDescUpdatedAt := todoFields[16].Descriptor()
 	// todo.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	todo.DefaultUpdatedAt = todoDescUpdatedAt.Default.(func() time.Time)
 	// todo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -346,6 +468,24 @@ func init() {
 	worktitleDescPosition := worktitleFields[5].Descriptor()
 	// worktitle.DefaultPosition holds the default value on creation for the position field.
 	worktitle.DefaultPosition = worktitleDescPosition.Default.(int)
+	// worktitleDescFieldState is the schema descriptor for field_state field.
+	worktitleDescFieldState := worktitleFields[6].Descriptor()
+	// worktitle.DefaultFieldState holds the default value on creation for the field_state field.
+	worktitle.DefaultFieldState = worktitleDescFieldState.Default.(map[string]interface{})
+	// worktitleDescVersion is the schema descriptor for version field.
+	worktitleDescVersion := worktitleFields[7].Descriptor()
+	// worktitle.DefaultVersion holds the default value on creation for the version field.
+	worktitle.DefaultVersion = worktitleDescVersion.Default.(int)
+	// worktitleDescCreatedAt is the schema descriptor for created_at field.
+	worktitleDescCreatedAt := worktitleFields[8].Descriptor()
+	// worktitle.DefaultCreatedAt holds the default value on creation for the created_at field.
+	worktitle.DefaultCreatedAt = worktitleDescCreatedAt.Default.(func() time.Time)
+	// worktitleDescUpdatedAt is the schema descriptor for updated_at field.
+	worktitleDescUpdatedAt := worktitleFields[9].Descriptor()
+	// worktitle.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	worktitle.DefaultUpdatedAt = worktitleDescUpdatedAt.Default.(func() time.Time)
+	// worktitle.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	worktitle.UpdateDefaultUpdatedAt = worktitleDescUpdatedAt.UpdateDefault.(func() time.Time)
 	xreflinkFields := schema.XrefLink{}.Fields()
 	_ = xreflinkFields
 	// xreflinkDescOrigin is the schema descriptor for origin field.

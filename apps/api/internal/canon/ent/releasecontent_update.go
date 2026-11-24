@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -113,6 +114,39 @@ func (_u *ReleaseContentUpdate) AddPosition(v int) *ReleaseContentUpdate {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *ReleaseContentUpdate) SetFieldState(v map[string]interface{}) *ReleaseContentUpdate {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *ReleaseContentUpdate) SetVersion(v int) *ReleaseContentUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *ReleaseContentUpdate) SetNillableVersion(v *int) *ReleaseContentUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *ReleaseContentUpdate) AddVersion(v int) *ReleaseContentUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *ReleaseContentUpdate) SetUpdatedAt(v time.Time) *ReleaseContentUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetRelease sets the "release" edge to the Release entity.
 func (_u *ReleaseContentUpdate) SetRelease(v *Release) *ReleaseContentUpdate {
 	return _u.SetReleaseID(v.ID)
@@ -153,6 +187,7 @@ func (_u *ReleaseContentUpdate) ClearPart() *ReleaseContentUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *ReleaseContentUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -175,6 +210,14 @@ func (_u *ReleaseContentUpdate) Exec(ctx context.Context) error {
 func (_u *ReleaseContentUpdate) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *ReleaseContentUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := releasecontent.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -209,6 +252,18 @@ func (_u *ReleaseContentUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedPosition(); ok {
 		_spec.AddField(releasecontent.FieldPosition, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(releasecontent.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(releasecontent.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(releasecontent.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(releasecontent.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.ReleaseCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -400,6 +455,39 @@ func (_u *ReleaseContentUpdateOne) AddPosition(v int) *ReleaseContentUpdateOne {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *ReleaseContentUpdateOne) SetFieldState(v map[string]interface{}) *ReleaseContentUpdateOne {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *ReleaseContentUpdateOne) SetVersion(v int) *ReleaseContentUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *ReleaseContentUpdateOne) SetNillableVersion(v *int) *ReleaseContentUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *ReleaseContentUpdateOne) AddVersion(v int) *ReleaseContentUpdateOne {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *ReleaseContentUpdateOne) SetUpdatedAt(v time.Time) *ReleaseContentUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetRelease sets the "release" edge to the Release entity.
 func (_u *ReleaseContentUpdateOne) SetRelease(v *Release) *ReleaseContentUpdateOne {
 	return _u.SetReleaseID(v.ID)
@@ -453,6 +541,7 @@ func (_u *ReleaseContentUpdateOne) Select(field string, fields ...string) *Relea
 
 // Save executes the query and returns the updated ReleaseContent entity.
 func (_u *ReleaseContentUpdateOne) Save(ctx context.Context) (*ReleaseContent, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -475,6 +564,14 @@ func (_u *ReleaseContentUpdateOne) Exec(ctx context.Context) error {
 func (_u *ReleaseContentUpdateOne) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *ReleaseContentUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := releasecontent.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -526,6 +623,18 @@ func (_u *ReleaseContentUpdateOne) sqlSave(ctx context.Context) (_node *ReleaseC
 	}
 	if value, ok := _u.mutation.AddedPosition(); ok {
 		_spec.AddField(releasecontent.FieldPosition, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(releasecontent.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(releasecontent.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(releasecontent.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(releasecontent.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.ReleaseCleared() {
 		edge := &sqlgraph.EdgeSpec{

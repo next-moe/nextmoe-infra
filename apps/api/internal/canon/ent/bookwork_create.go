@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -34,6 +35,54 @@ func (_c *BookWorkCreate) SetCategory(v string) *BookWorkCreate {
 	return _c
 }
 
+// SetFieldState sets the "field_state" field.
+func (_c *BookWorkCreate) SetFieldState(v map[string]interface{}) *BookWorkCreate {
+	_c.mutation.SetFieldState(v)
+	return _c
+}
+
+// SetVersion sets the "version" field.
+func (_c *BookWorkCreate) SetVersion(v int) *BookWorkCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *BookWorkCreate) SetNillableVersion(v *int) *BookWorkCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *BookWorkCreate) SetCreatedAt(v time.Time) *BookWorkCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *BookWorkCreate) SetNillableCreatedAt(v *time.Time) *BookWorkCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *BookWorkCreate) SetUpdatedAt(v time.Time) *BookWorkCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *BookWorkCreate) SetNillableUpdatedAt(v *time.Time) *BookWorkCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
+	}
+	return _c
+}
+
 // SetWork sets the "work" edge to the Work entity.
 func (_c *BookWorkCreate) SetWork(v *Work) *BookWorkCreate {
 	return _c.SetWorkID(v.ID)
@@ -46,6 +95,7 @@ func (_c *BookWorkCreate) Mutation() *BookWorkMutation {
 
 // Save creates the BookWork in the database.
 func (_c *BookWorkCreate) Save(ctx context.Context) (*BookWork, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -71,6 +121,26 @@ func (_c *BookWorkCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *BookWorkCreate) defaults() {
+	if _, ok := _c.mutation.FieldState(); !ok {
+		v := bookwork.DefaultFieldState
+		_c.mutation.SetFieldState(v)
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := bookwork.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := bookwork.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := bookwork.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *BookWorkCreate) check() error {
 	if _, ok := _c.mutation.WorkID(); !ok {
@@ -78,6 +148,18 @@ func (_c *BookWorkCreate) check() error {
 	}
 	if _, ok := _c.mutation.Category(); !ok {
 		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "BookWork.category"`)}
+	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		return &ValidationError{Name: "field_state", err: errors.New(`ent: missing required field "BookWork.field_state"`)}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "BookWork.version"`)}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "BookWork.created_at"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "BookWork.updated_at"`)}
 	}
 	if len(_c.mutation.WorkIDs()) == 0 {
 		return &ValidationError{Name: "work", err: errors.New(`ent: missing required edge "BookWork.work"`)}
@@ -112,6 +194,22 @@ func (_c *BookWorkCreate) createSpec() (*BookWork, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Category(); ok {
 		_spec.SetField(bookwork.FieldCategory, field.TypeString, value)
 		_node.Category = value
+	}
+	if value, ok := _c.mutation.FieldState(); ok {
+		_spec.SetField(bookwork.FieldFieldState, field.TypeJSON, value)
+		_node.FieldState = value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(bookwork.FieldVersion, field.TypeInt, value)
+		_node.Version = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(bookwork.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(bookwork.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
 	}
 	if nodes := _c.mutation.WorkIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -206,6 +304,48 @@ func (u *BookWorkUpsert) UpdateCategory() *BookWorkUpsert {
 	return u
 }
 
+// SetFieldState sets the "field_state" field.
+func (u *BookWorkUpsert) SetFieldState(v map[string]interface{}) *BookWorkUpsert {
+	u.Set(bookwork.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *BookWorkUpsert) UpdateFieldState() *BookWorkUpsert {
+	u.SetExcluded(bookwork.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *BookWorkUpsert) SetVersion(v int) *BookWorkUpsert {
+	u.Set(bookwork.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *BookWorkUpsert) UpdateVersion() *BookWorkUpsert {
+	u.SetExcluded(bookwork.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *BookWorkUpsert) AddVersion(v int) *BookWorkUpsert {
+	u.Add(bookwork.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BookWorkUpsert) SetUpdatedAt(v time.Time) *BookWorkUpsert {
+	u.Set(bookwork.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BookWorkUpsert) UpdateUpdatedAt() *BookWorkUpsert {
+	u.SetExcluded(bookwork.FieldUpdatedAt)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -216,6 +356,11 @@ func (u *BookWorkUpsert) UpdateCategory() *BookWorkUpsert {
 //		Exec(ctx)
 func (u *BookWorkUpsertOne) UpdateNewValues() *BookWorkUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(bookwork.FieldCreatedAt)
+		}
+	}))
 	return u
 }
 
@@ -274,6 +419,55 @@ func (u *BookWorkUpsertOne) UpdateCategory() *BookWorkUpsertOne {
 	})
 }
 
+// SetFieldState sets the "field_state" field.
+func (u *BookWorkUpsertOne) SetFieldState(v map[string]interface{}) *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *BookWorkUpsertOne) UpdateFieldState() *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *BookWorkUpsertOne) SetVersion(v int) *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *BookWorkUpsertOne) AddVersion(v int) *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *BookWorkUpsertOne) UpdateVersion() *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BookWorkUpsertOne) SetUpdatedAt(v time.Time) *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BookWorkUpsertOne) UpdateUpdatedAt() *BookWorkUpsertOne {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
 // Exec executes the query.
 func (u *BookWorkUpsertOne) Exec(ctx context.Context) error {
 	if len(u.create.conflict) == 0 {
@@ -326,6 +520,7 @@ func (_c *BookWorkCreateBulk) Save(ctx context.Context) ([]*BookWork, error) {
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*BookWorkMutation)
 				if !ok {
@@ -447,6 +642,13 @@ type BookWorkUpsertBulk struct {
 //		Exec(ctx)
 func (u *BookWorkUpsertBulk) UpdateNewValues() *BookWorkUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(bookwork.FieldCreatedAt)
+			}
+		}
+	}))
 	return u
 }
 
@@ -502,6 +704,55 @@ func (u *BookWorkUpsertBulk) SetCategory(v string) *BookWorkUpsertBulk {
 func (u *BookWorkUpsertBulk) UpdateCategory() *BookWorkUpsertBulk {
 	return u.Update(func(s *BookWorkUpsert) {
 		s.UpdateCategory()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *BookWorkUpsertBulk) SetFieldState(v map[string]interface{}) *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *BookWorkUpsertBulk) UpdateFieldState() *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *BookWorkUpsertBulk) SetVersion(v int) *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *BookWorkUpsertBulk) AddVersion(v int) *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *BookWorkUpsertBulk) UpdateVersion() *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *BookWorkUpsertBulk) SetUpdatedAt(v time.Time) *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *BookWorkUpsertBulk) UpdateUpdatedAt() *BookWorkUpsertBulk {
+	return u.Update(func(s *BookWorkUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 

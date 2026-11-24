@@ -52,6 +52,48 @@ func (_c *RevisionCreate) SetActorKey(v string) *RevisionCreate {
 	return _c
 }
 
+// SetReviewedBy sets the "reviewed_by" field.
+func (_c *RevisionCreate) SetReviewedBy(v string) *RevisionCreate {
+	_c.mutation.SetReviewedBy(v)
+	return _c
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_c *RevisionCreate) SetNillableReviewedBy(v *string) *RevisionCreate {
+	if v != nil {
+		_c.SetReviewedBy(*v)
+	}
+	return _c
+}
+
+// SetBatch sets the "batch" field.
+func (_c *RevisionCreate) SetBatch(v string) *RevisionCreate {
+	_c.mutation.SetBatch(v)
+	return _c
+}
+
+// SetNillableBatch sets the "batch" field if the given value is not nil.
+func (_c *RevisionCreate) SetNillableBatch(v *string) *RevisionCreate {
+	if v != nil {
+		_c.SetBatch(*v)
+	}
+	return _c
+}
+
+// SetUndoes sets the "undoes" field.
+func (_c *RevisionCreate) SetUndoes(v int64) *RevisionCreate {
+	_c.mutation.SetUndoes(v)
+	return _c
+}
+
+// SetNillableUndoes sets the "undoes" field if the given value is not nil.
+func (_c *RevisionCreate) SetNillableUndoes(v *int64) *RevisionCreate {
+	if v != nil {
+		_c.SetUndoes(*v)
+	}
+	return _c
+}
+
 // SetNote sets the "note" field.
 func (_c *RevisionCreate) SetNote(v string) *RevisionCreate {
 	_c.mutation.SetNote(v)
@@ -155,6 +197,18 @@ func (_c *RevisionCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *RevisionCreate) defaults() {
+	if _, ok := _c.mutation.ReviewedBy(); !ok {
+		v := revision.DefaultReviewedBy
+		_c.mutation.SetReviewedBy(v)
+	}
+	if _, ok := _c.mutation.Batch(); !ok {
+		v := revision.DefaultBatch
+		_c.mutation.SetBatch(v)
+	}
+	if _, ok := _c.mutation.Undoes(); !ok {
+		v := revision.DefaultUndoes
+		_c.mutation.SetUndoes(v)
+	}
 	if _, ok := _c.mutation.RootEntity(); !ok {
 		v := revision.DefaultRootEntity
 		_c.mutation.SetRootEntity(v)
@@ -185,6 +239,15 @@ func (_c *RevisionCreate) check() error {
 	}
 	if _, ok := _c.mutation.ActorKey(); !ok {
 		return &ValidationError{Name: "actor_key", err: errors.New(`ent: missing required field "Revision.actor_key"`)}
+	}
+	if _, ok := _c.mutation.ReviewedBy(); !ok {
+		return &ValidationError{Name: "reviewed_by", err: errors.New(`ent: missing required field "Revision.reviewed_by"`)}
+	}
+	if _, ok := _c.mutation.Batch(); !ok {
+		return &ValidationError{Name: "batch", err: errors.New(`ent: missing required field "Revision.batch"`)}
+	}
+	if _, ok := _c.mutation.Undoes(); !ok {
+		return &ValidationError{Name: "undoes", err: errors.New(`ent: missing required field "Revision.undoes"`)}
 	}
 	if _, ok := _c.mutation.Changes(); !ok {
 		return &ValidationError{Name: "changes", err: errors.New(`ent: missing required field "Revision.changes"`)}
@@ -250,6 +313,18 @@ func (_c *RevisionCreate) createSpec() (*Revision, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ActorKey(); ok {
 		_spec.SetField(revision.FieldActorKey, field.TypeString, value)
 		_node.ActorKey = value
+	}
+	if value, ok := _c.mutation.ReviewedBy(); ok {
+		_spec.SetField(revision.FieldReviewedBy, field.TypeString, value)
+		_node.ReviewedBy = value
+	}
+	if value, ok := _c.mutation.Batch(); ok {
+		_spec.SetField(revision.FieldBatch, field.TypeString, value)
+		_node.Batch = value
+	}
+	if value, ok := _c.mutation.Undoes(); ok {
+		_spec.SetField(revision.FieldUndoes, field.TypeInt64, value)
+		_node.Undoes = value
 	}
 	if value, ok := _c.mutation.Note(); ok {
 		_spec.SetField(revision.FieldNote, field.TypeString, value)
@@ -386,6 +461,48 @@ func (u *RevisionUpsert) SetActorKey(v string) *RevisionUpsert {
 // UpdateActorKey sets the "actor_key" field to the value that was provided on create.
 func (u *RevisionUpsert) UpdateActorKey() *RevisionUpsert {
 	u.SetExcluded(revision.FieldActorKey)
+	return u
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *RevisionUpsert) SetReviewedBy(v string) *RevisionUpsert {
+	u.Set(revision.FieldReviewedBy, v)
+	return u
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateReviewedBy() *RevisionUpsert {
+	u.SetExcluded(revision.FieldReviewedBy)
+	return u
+}
+
+// SetBatch sets the "batch" field.
+func (u *RevisionUpsert) SetBatch(v string) *RevisionUpsert {
+	u.Set(revision.FieldBatch, v)
+	return u
+}
+
+// UpdateBatch sets the "batch" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateBatch() *RevisionUpsert {
+	u.SetExcluded(revision.FieldBatch)
+	return u
+}
+
+// SetUndoes sets the "undoes" field.
+func (u *RevisionUpsert) SetUndoes(v int64) *RevisionUpsert {
+	u.Set(revision.FieldUndoes, v)
+	return u
+}
+
+// UpdateUndoes sets the "undoes" field to the value that was provided on create.
+func (u *RevisionUpsert) UpdateUndoes() *RevisionUpsert {
+	u.SetExcluded(revision.FieldUndoes)
+	return u
+}
+
+// AddUndoes adds v to the "undoes" field.
+func (u *RevisionUpsert) AddUndoes(v int64) *RevisionUpsert {
+	u.Add(revision.FieldUndoes, v)
 	return u
 }
 
@@ -574,6 +691,55 @@ func (u *RevisionUpsertOne) SetActorKey(v string) *RevisionUpsertOne {
 func (u *RevisionUpsertOne) UpdateActorKey() *RevisionUpsertOne {
 	return u.Update(func(s *RevisionUpsert) {
 		s.UpdateActorKey()
+	})
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *RevisionUpsertOne) SetReviewedBy(v string) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetReviewedBy(v)
+	})
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateReviewedBy() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateReviewedBy()
+	})
+}
+
+// SetBatch sets the "batch" field.
+func (u *RevisionUpsertOne) SetBatch(v string) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetBatch(v)
+	})
+}
+
+// UpdateBatch sets the "batch" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateBatch() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateBatch()
+	})
+}
+
+// SetUndoes sets the "undoes" field.
+func (u *RevisionUpsertOne) SetUndoes(v int64) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetUndoes(v)
+	})
+}
+
+// AddUndoes adds v to the "undoes" field.
+func (u *RevisionUpsertOne) AddUndoes(v int64) *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.AddUndoes(v)
+	})
+}
+
+// UpdateUndoes sets the "undoes" field to the value that was provided on create.
+func (u *RevisionUpsertOne) UpdateUndoes() *RevisionUpsertOne {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateUndoes()
 	})
 }
 
@@ -938,6 +1104,55 @@ func (u *RevisionUpsertBulk) SetActorKey(v string) *RevisionUpsertBulk {
 func (u *RevisionUpsertBulk) UpdateActorKey() *RevisionUpsertBulk {
 	return u.Update(func(s *RevisionUpsert) {
 		s.UpdateActorKey()
+	})
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *RevisionUpsertBulk) SetReviewedBy(v string) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetReviewedBy(v)
+	})
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateReviewedBy() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateReviewedBy()
+	})
+}
+
+// SetBatch sets the "batch" field.
+func (u *RevisionUpsertBulk) SetBatch(v string) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetBatch(v)
+	})
+}
+
+// UpdateBatch sets the "batch" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateBatch() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateBatch()
+	})
+}
+
+// SetUndoes sets the "undoes" field.
+func (u *RevisionUpsertBulk) SetUndoes(v int64) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.SetUndoes(v)
+	})
+}
+
+// AddUndoes adds v to the "undoes" field.
+func (u *RevisionUpsertBulk) AddUndoes(v int64) *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.AddUndoes(v)
+	})
+}
+
+// UpdateUndoes sets the "undoes" field to the value that was provided on create.
+func (u *RevisionUpsertBulk) UpdateUndoes() *RevisionUpsertBulk {
+	return u.Update(func(s *RevisionUpsert) {
+		s.UpdateUndoes()
 	})
 }
 

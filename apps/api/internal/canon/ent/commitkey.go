@@ -20,6 +20,8 @@ type CommitKey struct {
 	ID string `json:"id,omitempty"`
 	// Ids holds the value of the "ids" field.
 	Ids map[string]int64 `json:"ids,omitempty"`
+	// Batch holds the value of the "batch" field.
+	Batch string `json:"batch,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -32,7 +34,7 @@ func (*CommitKey) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case commitkey.FieldIds:
 			values[i] = new([]byte)
-		case commitkey.FieldID:
+		case commitkey.FieldID, commitkey.FieldBatch:
 			values[i] = new(sql.NullString)
 		case commitkey.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -64,6 +66,12 @@ func (_m *CommitKey) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Ids); err != nil {
 					return fmt.Errorf("unmarshal field ids: %w", err)
 				}
+			}
+		case commitkey.FieldBatch:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field batch", values[i])
+			} else if value.Valid {
+				_m.Batch = value.String
 			}
 		case commitkey.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -109,6 +117,9 @@ func (_m *CommitKey) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("ids=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Ids))
+	builder.WriteString(", ")
+	builder.WriteString("batch=")
+	builder.WriteString(_m.Batch)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

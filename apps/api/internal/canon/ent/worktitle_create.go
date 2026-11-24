@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -74,6 +75,54 @@ func (_c *WorkTitleCreate) SetNillablePosition(v *int) *WorkTitleCreate {
 	return _c
 }
 
+// SetFieldState sets the "field_state" field.
+func (_c *WorkTitleCreate) SetFieldState(v map[string]interface{}) *WorkTitleCreate {
+	_c.mutation.SetFieldState(v)
+	return _c
+}
+
+// SetVersion sets the "version" field.
+func (_c *WorkTitleCreate) SetVersion(v int) *WorkTitleCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *WorkTitleCreate) SetNillableVersion(v *int) *WorkTitleCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *WorkTitleCreate) SetCreatedAt(v time.Time) *WorkTitleCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *WorkTitleCreate) SetNillableCreatedAt(v *time.Time) *WorkTitleCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *WorkTitleCreate) SetUpdatedAt(v time.Time) *WorkTitleCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *WorkTitleCreate) SetNillableUpdatedAt(v *time.Time) *WorkTitleCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
+	}
+	return _c
+}
+
 // SetWork sets the "work" edge to the Work entity.
 func (_c *WorkTitleCreate) SetWork(v *Work) *WorkTitleCreate {
 	return _c.SetWorkID(v.ID)
@@ -122,6 +171,22 @@ func (_c *WorkTitleCreate) defaults() {
 		v := worktitle.DefaultPosition
 		_c.mutation.SetPosition(v)
 	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		v := worktitle.DefaultFieldState
+		_c.mutation.SetFieldState(v)
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := worktitle.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := worktitle.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := worktitle.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -148,6 +213,18 @@ func (_c *WorkTitleCreate) check() error {
 	}
 	if _, ok := _c.mutation.Position(); !ok {
 		return &ValidationError{Name: "position", err: errors.New(`ent: missing required field "WorkTitle.position"`)}
+	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		return &ValidationError{Name: "field_state", err: errors.New(`ent: missing required field "WorkTitle.field_state"`)}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "WorkTitle.version"`)}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "WorkTitle.created_at"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "WorkTitle.updated_at"`)}
 	}
 	if len(_c.mutation.WorkIDs()) == 0 {
 		return &ValidationError{Name: "work", err: errors.New(`ent: missing required edge "WorkTitle.work"`)}
@@ -198,6 +275,22 @@ func (_c *WorkTitleCreate) createSpec() (*WorkTitle, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Position(); ok {
 		_spec.SetField(worktitle.FieldPosition, field.TypeInt, value)
 		_node.Position = value
+	}
+	if value, ok := _c.mutation.FieldState(); ok {
+		_spec.SetField(worktitle.FieldFieldState, field.TypeJSON, value)
+		_node.FieldState = value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(worktitle.FieldVersion, field.TypeInt, value)
+		_node.Version = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(worktitle.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(worktitle.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
 	}
 	if nodes := _c.mutation.WorkIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -346,6 +439,48 @@ func (u *WorkTitleUpsert) AddPosition(v int) *WorkTitleUpsert {
 	return u
 }
 
+// SetFieldState sets the "field_state" field.
+func (u *WorkTitleUpsert) SetFieldState(v map[string]interface{}) *WorkTitleUpsert {
+	u.Set(worktitle.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdateFieldState() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkTitleUpsert) SetVersion(v int) *WorkTitleUpsert {
+	u.Set(worktitle.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdateVersion() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkTitleUpsert) AddVersion(v int) *WorkTitleUpsert {
+	u.Add(worktitle.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkTitleUpsert) SetUpdatedAt(v time.Time) *WorkTitleUpsert {
+	u.Set(worktitle.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkTitleUpsert) UpdateUpdatedAt() *WorkTitleUpsert {
+	u.SetExcluded(worktitle.FieldUpdatedAt)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -356,6 +491,11 @@ func (u *WorkTitleUpsert) AddPosition(v int) *WorkTitleUpsert {
 //		Exec(ctx)
 func (u *WorkTitleUpsertOne) UpdateNewValues() *WorkTitleUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(worktitle.FieldCreatedAt)
+		}
+	}))
 	return u
 }
 
@@ -474,6 +614,55 @@ func (u *WorkTitleUpsertOne) AddPosition(v int) *WorkTitleUpsertOne {
 func (u *WorkTitleUpsertOne) UpdatePosition() *WorkTitleUpsertOne {
 	return u.Update(func(s *WorkTitleUpsert) {
 		s.UpdatePosition()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *WorkTitleUpsertOne) SetFieldState(v map[string]interface{}) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdateFieldState() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkTitleUpsertOne) SetVersion(v int) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkTitleUpsertOne) AddVersion(v int) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdateVersion() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkTitleUpsertOne) SetUpdatedAt(v time.Time) *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkTitleUpsertOne) UpdateUpdatedAt() *WorkTitleUpsertOne {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 
@@ -651,6 +840,13 @@ type WorkTitleUpsertBulk struct {
 //		Exec(ctx)
 func (u *WorkTitleUpsertBulk) UpdateNewValues() *WorkTitleUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(worktitle.FieldCreatedAt)
+			}
+		}
+	}))
 	return u
 }
 
@@ -769,6 +965,55 @@ func (u *WorkTitleUpsertBulk) AddPosition(v int) *WorkTitleUpsertBulk {
 func (u *WorkTitleUpsertBulk) UpdatePosition() *WorkTitleUpsertBulk {
 	return u.Update(func(s *WorkTitleUpsert) {
 		s.UpdatePosition()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *WorkTitleUpsertBulk) SetFieldState(v map[string]interface{}) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdateFieldState() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *WorkTitleUpsertBulk) SetVersion(v int) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *WorkTitleUpsertBulk) AddVersion(v int) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdateVersion() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WorkTitleUpsertBulk) SetUpdatedAt(v time.Time) *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WorkTitleUpsertBulk) UpdateUpdatedAt() *WorkTitleUpsertBulk {
+	return u.Update(func(s *WorkTitleUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 

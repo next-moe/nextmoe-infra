@@ -9,6 +9,10 @@ type Term struct {
 type Vocabulary struct {
 	Name  string `json:"name"`
 	Terms []Term `json:"terms"`
+	// WholeWords: a page word counts only standing alone. By substring the gold
+	// set caught 「原作」 read as author (作) and 「企画・原案」 as illustrator (画).
+	// Other vocabularies need the substring: 「電撃文庫」 is a 文庫.
+	WholeWords bool `json:"whole_words,omitempty"`
 }
 
 // Vocabularies is every vocabulary a property may name; a property naming one
@@ -42,9 +46,9 @@ var Vocabularies = []Vocabulary{
 	{Name: "release_status", Terms: []Term{{Key: "announced", EntailedBy: []string{"近刊", "予約", "発売予定"}}, {Key: "released"}, {Key: "cancelled", EntailedBy: []string{"発売中止", "刊行中止"}}}},
 	{Name: "portion", Terms: []Term{{Key: "full"}, {Key: "partial"}}},
 	{Name: "org_kind", Terms: []Term{{Key: "company"}, {Key: "brand"}, {Key: "label"}, {Key: "magazine"}, {Key: "platform"}, {Key: "circle"}, {Key: "translation_group"}}},
-	{Name: "book_role", Terms: []Term{
-		{Key: "author", EntailedBy: []string{"著", "著者", "作", "作者", "文"}},
-		{Key: "illustrator", EntailedBy: []string{"イラスト", "絵", "画", "插畫", "插画", "繪者"}},
+	{Name: "book_role", WholeWords: true, Terms: []Term{
+		{Key: "author", EntailedBy: []string{"著", "著者", "作", "作者", "作家", "文"}},
+		{Key: "illustrator", EntailedBy: []string{"イラスト", "イラストレーター", "絵", "画", "插畫", "插画", "繪者"}},
 		{Key: "original_work", EntailedBy: []string{"原作"}},
 		{Key: "character_design", EntailedBy: []string{"キャラクター原案", "キャラクターデザイン"}},
 		{Key: "translator", EntailedBy: []string{"翻訳", "訳", "譯者", "译者"}},

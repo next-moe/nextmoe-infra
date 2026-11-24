@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"math/rand/v2"
 	"testing"
 
 	"api/internal/canon/canontest"
@@ -24,24 +22,12 @@ func official(v any) Value {
 
 var agent = Actor{Kind: ActorAgent, Key: "ln-pilot"}
 
-// isbn returns a fresh valid ISBN-13 so reruns on a shared test database do not collide.
-func isbn() string {
-	base := fmt.Sprintf("978%09d", rand.IntN(1_000_000_000))
-	sum := 0
-	for i, r := range base {
-		n := int(r - '0')
-		if i%2 == 1 {
-			n *= 3
-		}
-		sum += n
-	}
-	return fmt.Sprintf("%s%d", base, (10-sum%10)%10)
-}
+func isbn() string { return canontest.ISBN() }
 
 func book(code string) Changeset {
 	return Changeset{Actor: agent, Note: "pilot", Changes: []Change{
 		{Ref: "w", Entity: "work", Values: map[string]Value{"medium": official("novel"), "status": official("ongoing")}},
-		{Entity: "work_title", Values: map[string]Value{"work_id": official("ref:w"), "text": official("アクセル・ワールド"), "lang": official("ja"), "kind": official("official")}},
+		{Entity: "work_title", Values: map[string]Value{"work_id": official("ref:w"), "text": official("試験" + code + "の本"), "lang": official("ja"), "kind": official("official")}},
 		{Ref: "v", Entity: "work_part", Values: map[string]Value{"work_id": official("ref:w"), "kind": official("volume"), "ordinal": official(28), "released": official("2025-08")}},
 		{Ref: "r", Entity: "release", Values: map[string]Value{"lang": official("ja"), "format": official("paperback"), "released": official("2025-08-08")}},
 		{Entity: "release_content", Values: map[string]Value{"release_id": official("ref:r"), "work_id": official("ref:w"), "part_id": official("ref:v")}},
@@ -78,7 +64,9 @@ func TestApplyCreatesAChangesetAtomically(t *testing.T) {
 	}
 
 	before, _ := client.Work.Query().Count(ctx)
-	_, err = s.Apply(ctx, book(code))
+	again := book(code)
+	again.Changes[1].Values["text"] = official("別題" + code + "の本")
+	_, err = s.Apply(ctx, again)
 	if r := refusal(t, err); r.Code != "UNIQUE_CONFLICT" || r.Property != "isbn13" {
 		t.Errorf("duplicate isbn: %+v", r)
 	}

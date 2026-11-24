@@ -19,10 +19,10 @@ func (BookWork) Annotations() []schema.Annotation {
 }
 
 func (BookWork) Fields() []ent.Field {
-	return []ent.Field{
+	return append([]ent.Field{
 		with(field.Int64("work_id").Unique(), r.RefFact("work", "The work this extension describes.", "R1.4")),
 		with(field.String("category"), r.VocabFact("book_category", "Light novel, light bungei, shin bungei or general.", "R1.4")),
-	}
+	}, stamps()...)
 }
 
 func (BookWork) Edges() []ent.Edge {
@@ -40,18 +40,18 @@ func (BookRelease) Fields() []ent.Field {
 	isbn.Unique = r.UniqueGlobal
 	jan := r.Fact(r.ShapeJAN, "JAN of this edition; a set's JAN stands for the set only.", "R4.2", "R8.2")
 	jan.Unique = r.UniqueGlobal
-	return []ent.Field{
+	return append([]ent.Field{
 		with(field.Int64("release_id").Unique(), r.RefFact("release", "The release this extension describes.", "R4.2")),
 		with(field.String("isbn13").Optional().Nillable(), isbn),
 		with(field.String("jan").Optional().Nillable(), jan),
-		with(field.Int64("publisher_id").Optional().Nillable(), r.RefFact("org", "Publisher of record.", "R7.2")),
-		with(field.Int64("label_id").Optional().Nillable(), r.RefFact("org", "The label (レーベル) the edition is published under.", "R7.2")),
+		with(field.Int64("publisher_id").Optional().Nillable(), r.NamedRefFact("org", "Publisher of record.", "R7.2")),
+		with(field.Int64("label_id").Optional().Nillable(), r.NamedRefFact("org", "The label (レーベル) the edition is published under.", "R7.2")),
 		with(field.String("label_number").Optional(), r.Fact(r.ShapeText, "The label's own serial, e.g. 4347 in 「電撃文庫 ; 4347」.", "R4.2")),
 		with(field.Int("pages").Optional().Nillable(), r.Fact(r.ShapeInteger, "Page count.", "R8.2")),
 		with(field.String("price_amount").Optional().Nillable().SchemaType(numeric("12,2")), r.Fact(r.ShapeMoney, "List price, as printed.", "R8.2")),
 		with(field.String("price_currency").Optional(), r.Fact(r.ShapeCurrency, "ISO 4217 currency of the price.", "R8.2")),
 		with(field.String("price_basis").Optional(), r.VocabFact("price_basis", "Whether price_amount is the tax-inclusive 定価 or the 本体 price.", "R8.2")),
-	}
+	}, stamps()...)
 }
 
 func (BookRelease) Indexes() []ent.Index { return uniqueIndexes(BookRelease{}.Fields()) }

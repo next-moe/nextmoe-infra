@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"api/internal/canon/registry"
 
@@ -80,7 +82,7 @@ func Entails(p registry.Property, value any, ex Excerpt) bool {
 			return true
 		}
 		for _, k := range t.EntailedBy {
-			if strings.Contains(text, fold(k)) {
+			if v.WholeWords && standsAlone(text, fold(k)) || !v.WholeWords && strings.Contains(text, fold(k)) {
 				return true
 			}
 		}
@@ -103,6 +105,64 @@ func Entails(p registry.Property, value any, ex Excerpt) bool {
 		return true
 	}
 	return false
+}
+
+// Names reports whether ex carries one of a referenced entity's names. A
+// record field is the name's own cell and must be it: as a substring,
+// 「ガガガブックス」 was also read off 「ガガガブックスf」.
+func Names(names []string, ex Excerpt, recordField bool) bool {
+	text := fold(strings.Join(ex.Lines, "\n"))
+	for _, n := range names {
+		n = fold(n)
+		if n == "" {
+			continue
+		}
+		if recordField {
+			if squash(text) == squash(n) {
+				return true
+			}
+			continue
+		}
+		if standsAlone(text, n) {
+			return true
+		}
+	}
+	return false
+}
+
+// standsAlone finds word in text with no letter or digit against either end.
+// Whitespace inside the word may differ, as 「川原 礫」 and 「川原礫」 do.
+func standsAlone(text, word string) bool {
+	var b strings.Builder
+	for _, r := range squash(word) {
+		if b.Len() > 0 {
+			b.WriteString(`\s*`)
+		}
+		b.WriteString(regexp.QuoteMeta(string(r)))
+	}
+	re, err := regexp.Compile(b.String())
+	if err != nil || b.Len() == 0 {
+		return false
+	}
+	for from := 0; from < len(text); {
+		m := re.FindStringIndex(text[from:])
+		if m == nil {
+			return false
+		}
+		start, end := from+m[0], from+m[1]
+		before, _ := utf8.DecodeLastRuneInString(text[:start])
+		after, _ := utf8.DecodeRuneInString(text[end:])
+		if !wordRune(before) && !wordRune(after) {
+			return true
+		}
+		_, n := utf8.DecodeRuneInString(text[start:])
+		from = start + n
+	}
+	return false
+}
+
+func wordRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.Is(unicode.Mn, r)
 }
 
 func fold(s string) string { return strings.ToLower(norm.NFKC.String(s)) }

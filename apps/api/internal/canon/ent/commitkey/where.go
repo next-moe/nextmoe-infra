@@ -64,9 +64,79 @@ func IDContainsFold(id string) predicate.CommitKey {
 	return predicate.CommitKey(sql.FieldContainsFold(FieldID, id))
 }
 
+// Batch applies equality check predicate on the "batch" field. It's identical to BatchEQ.
+func Batch(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldEQ(FieldBatch, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.CommitKey {
 	return predicate.CommitKey(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// BatchEQ applies the EQ predicate on the "batch" field.
+func BatchEQ(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldEQ(FieldBatch, v))
+}
+
+// BatchNEQ applies the NEQ predicate on the "batch" field.
+func BatchNEQ(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldNEQ(FieldBatch, v))
+}
+
+// BatchIn applies the In predicate on the "batch" field.
+func BatchIn(vs ...string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldIn(FieldBatch, vs...))
+}
+
+// BatchNotIn applies the NotIn predicate on the "batch" field.
+func BatchNotIn(vs ...string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldNotIn(FieldBatch, vs...))
+}
+
+// BatchGT applies the GT predicate on the "batch" field.
+func BatchGT(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldGT(FieldBatch, v))
+}
+
+// BatchGTE applies the GTE predicate on the "batch" field.
+func BatchGTE(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldGTE(FieldBatch, v))
+}
+
+// BatchLT applies the LT predicate on the "batch" field.
+func BatchLT(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldLT(FieldBatch, v))
+}
+
+// BatchLTE applies the LTE predicate on the "batch" field.
+func BatchLTE(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldLTE(FieldBatch, v))
+}
+
+// BatchContains applies the Contains predicate on the "batch" field.
+func BatchContains(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldContains(FieldBatch, v))
+}
+
+// BatchHasPrefix applies the HasPrefix predicate on the "batch" field.
+func BatchHasPrefix(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldHasPrefix(FieldBatch, v))
+}
+
+// BatchHasSuffix applies the HasSuffix predicate on the "batch" field.
+func BatchHasSuffix(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldHasSuffix(FieldBatch, v))
+}
+
+// BatchEqualFold applies the EqualFold predicate on the "batch" field.
+func BatchEqualFold(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldEqualFold(FieldBatch, v))
+}
+
+// BatchContainsFold applies the ContainsFold predicate on the "batch" field.
+func BatchContainsFold(v string) predicate.CommitKey {
+	return predicate.CommitKey(sql.FieldContainsFold(FieldBatch, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

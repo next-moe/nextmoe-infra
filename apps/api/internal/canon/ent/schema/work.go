@@ -42,14 +42,14 @@ func (WorkTitle) Annotations() []schema.Annotation {
 }
 
 func (WorkTitle) Fields() []ent.Field {
-	return []ent.Field{
+	return append([]ent.Field{
 		with(field.Int64("work_id"), r.RefFact("work", "The work this title names.", "R3.1")),
 		with(field.String("text").NotEmpty(), r.Fact(r.ShapeTitle, "A title exactly as printed.", "R3.1")),
 		with(field.String("lang"), r.Fact(r.ShapeLang, "BCP-47 language of the title.", "R3.1")),
 		with(field.String("kind"), r.VocabFact("title_kind", "Official, alternative, romanized or translated.", "R3.2")),
 		with(field.Bool("machine").Default(false), r.Internal(r.ShapeBool, "True when the title is a machine translation.")),
 		with(field.Int("position").Default(0), r.Internal(r.ShapeInteger, "Display order among siblings; set by people and the system, not by agents.")),
-	}
+	}, stamps()...)
 }
 
 func (WorkTitle) Edges() []ent.Edge {

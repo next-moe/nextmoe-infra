@@ -15,6 +15,8 @@ const (
 	FieldID = "id"
 	// FieldIds holds the string denoting the ids field in the database.
 	FieldIds = "ids"
+	// FieldBatch holds the string denoting the batch field in the database.
+	FieldBatch = "batch"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the commitkey in the database.
@@ -25,6 +27,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldIds,
+	FieldBatch,
 	FieldCreatedAt,
 }
 
@@ -39,6 +42,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultBatch holds the default value on creation for the "batch" field.
+	DefaultBatch string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -49,6 +54,11 @@ type OrderOption func(*sql.Selector)
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByBatch orders the results by the batch field.
+func ByBatch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBatch, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

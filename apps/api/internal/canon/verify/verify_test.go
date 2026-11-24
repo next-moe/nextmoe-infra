@@ -110,3 +110,54 @@ func TestEntailment(t *testing.T) {
 		}
 	}
 }
+
+func TestARoleWordStandsAlone(t *testing.T) {
+	role := registry.Property{Shape: registry.ShapeVocab, Vocab: "book_role"}
+	for _, c := range []struct {
+		line, term string
+		want       bool
+	}{
+		{"著者 タンバ", "author", true},
+		{"イラスト／りっくす", "illustrator", true},
+		{"作家：十文字青", "author", true},
+		{"著・文・その他", "author", true},
+		{`"auth_role_hyouji": "著"`, "author", true},
+		{"原作：川原礫", "original_work", true},
+		{"原作：川原礫", "author", false},
+		{"企画・原案：X", "illustrator", false},
+		{"作品紹介", "author", false},
+		{"挿画集", "illustrator", false},
+		{"キャラクター原案：X", "character_design", true},
+	} {
+		if got := Entails(role, c.term, Excerpt{Lines: []string{c.line}}); got != c.want {
+			t.Errorf("%q as %s: %v", c.line, c.term, got)
+		}
+	}
+	format := registry.Property{Shape: registry.ShapeVocab, Vocab: "format"}
+	if !Entails(format, "paperback", Excerpt{Lines: []string{"電撃文庫 ; 4347"}}) {
+		t.Error("a 文庫 label is a paperback's page word")
+	}
+}
+
+func TestARefNeedsTheTargetsOwnName(t *testing.T) {
+	page := func(l string) Excerpt { return Excerpt{Lines: []string{l}} }
+	for _, c := range []struct {
+		names  []string
+		line   string
+		record bool
+		want   bool
+	}{
+		{[]string{"電撃文庫"}, "レーベル 電撃文庫", false, true},
+		{[]string{"電撃文庫"}, "電撃文庫MAGAZINE", false, false},
+		{[]string{"MF文庫J"}, "ＭＦ文庫Ｊ", true, true},
+		{[]string{"ファンタジア文庫", "富士見ファンタジア文庫"}, "富士見ファンタジア文庫", true, true},
+		{[]string{"ガガガブックス"}, "ガガガブックスf", true, false},
+		{[]string{"川原 礫"}, "著者 川原礫", false, true},
+		{[]string{"川原"}, "著者 川原礫", false, false},
+		{[]string{""}, "著者 川原礫", false, false},
+	} {
+		if got := Names(c.names, page(c.line), c.record); got != c.want {
+			t.Errorf("%v on %q (record %v): %v", c.names, c.line, c.record, got)
+		}
+	}
+}

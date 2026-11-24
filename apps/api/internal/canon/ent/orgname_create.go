@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -50,6 +51,54 @@ func (_c *OrgNameCreate) SetPosition(v int) *OrgNameCreate {
 func (_c *OrgNameCreate) SetNillablePosition(v *int) *OrgNameCreate {
 	if v != nil {
 		_c.SetPosition(*v)
+	}
+	return _c
+}
+
+// SetFieldState sets the "field_state" field.
+func (_c *OrgNameCreate) SetFieldState(v map[string]interface{}) *OrgNameCreate {
+	_c.mutation.SetFieldState(v)
+	return _c
+}
+
+// SetVersion sets the "version" field.
+func (_c *OrgNameCreate) SetVersion(v int) *OrgNameCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *OrgNameCreate) SetNillableVersion(v *int) *OrgNameCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *OrgNameCreate) SetCreatedAt(v time.Time) *OrgNameCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *OrgNameCreate) SetNillableCreatedAt(v *time.Time) *OrgNameCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *OrgNameCreate) SetUpdatedAt(v time.Time) *OrgNameCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *OrgNameCreate) SetNillableUpdatedAt(v *time.Time) *OrgNameCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
 	}
 	return _c
 }
@@ -98,6 +147,22 @@ func (_c *OrgNameCreate) defaults() {
 		v := orgname.DefaultPosition
 		_c.mutation.SetPosition(v)
 	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		v := orgname.DefaultFieldState
+		_c.mutation.SetFieldState(v)
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := orgname.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := orgname.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := orgname.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -118,6 +183,18 @@ func (_c *OrgNameCreate) check() error {
 	}
 	if _, ok := _c.mutation.Position(); !ok {
 		return &ValidationError{Name: "position", err: errors.New(`ent: missing required field "OrgName.position"`)}
+	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		return &ValidationError{Name: "field_state", err: errors.New(`ent: missing required field "OrgName.field_state"`)}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "OrgName.version"`)}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "OrgName.created_at"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "OrgName.updated_at"`)}
 	}
 	if len(_c.mutation.OrgIDs()) == 0 {
 		return &ValidationError{Name: "org", err: errors.New(`ent: missing required edge "OrgName.org"`)}
@@ -160,6 +237,22 @@ func (_c *OrgNameCreate) createSpec() (*OrgName, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Position(); ok {
 		_spec.SetField(orgname.FieldPosition, field.TypeInt, value)
 		_node.Position = value
+	}
+	if value, ok := _c.mutation.FieldState(); ok {
+		_spec.SetField(orgname.FieldFieldState, field.TypeJSON, value)
+		_node.FieldState = value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(orgname.FieldVersion, field.TypeInt, value)
+		_node.Version = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(orgname.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(orgname.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
 	}
 	if nodes := _c.mutation.OrgIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -284,6 +377,48 @@ func (u *OrgNameUpsert) AddPosition(v int) *OrgNameUpsert {
 	return u
 }
 
+// SetFieldState sets the "field_state" field.
+func (u *OrgNameUpsert) SetFieldState(v map[string]interface{}) *OrgNameUpsert {
+	u.Set(orgname.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *OrgNameUpsert) UpdateFieldState() *OrgNameUpsert {
+	u.SetExcluded(orgname.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *OrgNameUpsert) SetVersion(v int) *OrgNameUpsert {
+	u.Set(orgname.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *OrgNameUpsert) UpdateVersion() *OrgNameUpsert {
+	u.SetExcluded(orgname.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *OrgNameUpsert) AddVersion(v int) *OrgNameUpsert {
+	u.Add(orgname.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *OrgNameUpsert) SetUpdatedAt(v time.Time) *OrgNameUpsert {
+	u.Set(orgname.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *OrgNameUpsert) UpdateUpdatedAt() *OrgNameUpsert {
+	u.SetExcluded(orgname.FieldUpdatedAt)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -294,6 +429,11 @@ func (u *OrgNameUpsert) AddPosition(v int) *OrgNameUpsert {
 //		Exec(ctx)
 func (u *OrgNameUpsertOne) UpdateNewValues() *OrgNameUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(orgname.FieldCreatedAt)
+		}
+	}))
 	return u
 }
 
@@ -384,6 +524,55 @@ func (u *OrgNameUpsertOne) AddPosition(v int) *OrgNameUpsertOne {
 func (u *OrgNameUpsertOne) UpdatePosition() *OrgNameUpsertOne {
 	return u.Update(func(s *OrgNameUpsert) {
 		s.UpdatePosition()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *OrgNameUpsertOne) SetFieldState(v map[string]interface{}) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *OrgNameUpsertOne) UpdateFieldState() *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *OrgNameUpsertOne) SetVersion(v int) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *OrgNameUpsertOne) AddVersion(v int) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *OrgNameUpsertOne) UpdateVersion() *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *OrgNameUpsertOne) SetUpdatedAt(v time.Time) *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *OrgNameUpsertOne) UpdateUpdatedAt() *OrgNameUpsertOne {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 
@@ -561,6 +750,13 @@ type OrgNameUpsertBulk struct {
 //		Exec(ctx)
 func (u *OrgNameUpsertBulk) UpdateNewValues() *OrgNameUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(orgname.FieldCreatedAt)
+			}
+		}
+	}))
 	return u
 }
 
@@ -651,6 +847,55 @@ func (u *OrgNameUpsertBulk) AddPosition(v int) *OrgNameUpsertBulk {
 func (u *OrgNameUpsertBulk) UpdatePosition() *OrgNameUpsertBulk {
 	return u.Update(func(s *OrgNameUpsert) {
 		s.UpdatePosition()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *OrgNameUpsertBulk) SetFieldState(v map[string]interface{}) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *OrgNameUpsertBulk) UpdateFieldState() *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *OrgNameUpsertBulk) SetVersion(v int) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *OrgNameUpsertBulk) AddVersion(v int) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *OrgNameUpsertBulk) UpdateVersion() *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *OrgNameUpsertBulk) SetUpdatedAt(v time.Time) *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *OrgNameUpsertBulk) UpdateUpdatedAt() *OrgNameUpsertBulk {
+	return u.Update(func(s *OrgNameUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 

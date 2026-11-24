@@ -79,6 +79,21 @@ func ActorKey(v string) predicate.Revision {
 	return predicate.Revision(sql.FieldEQ(FieldActorKey, v))
 }
 
+// ReviewedBy applies equality check predicate on the "reviewed_by" field. It's identical to ReviewedByEQ.
+func ReviewedBy(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldReviewedBy, v))
+}
+
+// Batch applies equality check predicate on the "batch" field. It's identical to BatchEQ.
+func Batch(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldBatch, v))
+}
+
+// Undoes applies equality check predicate on the "undoes" field. It's identical to UndoesEQ.
+func Undoes(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldUndoes, v))
+}
+
 // Note applies equality check predicate on the "note" field. It's identical to NoteEQ.
 func Note(v string) predicate.Revision {
 	return predicate.Revision(sql.FieldEQ(FieldNote, v))
@@ -397,6 +412,176 @@ func ActorKeyEqualFold(v string) predicate.Revision {
 // ActorKeyContainsFold applies the ContainsFold predicate on the "actor_key" field.
 func ActorKeyContainsFold(v string) predicate.Revision {
 	return predicate.Revision(sql.FieldContainsFold(FieldActorKey, v))
+}
+
+// ReviewedByEQ applies the EQ predicate on the "reviewed_by" field.
+func ReviewedByEQ(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldReviewedBy, v))
+}
+
+// ReviewedByNEQ applies the NEQ predicate on the "reviewed_by" field.
+func ReviewedByNEQ(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldNEQ(FieldReviewedBy, v))
+}
+
+// ReviewedByIn applies the In predicate on the "reviewed_by" field.
+func ReviewedByIn(vs ...string) predicate.Revision {
+	return predicate.Revision(sql.FieldIn(FieldReviewedBy, vs...))
+}
+
+// ReviewedByNotIn applies the NotIn predicate on the "reviewed_by" field.
+func ReviewedByNotIn(vs ...string) predicate.Revision {
+	return predicate.Revision(sql.FieldNotIn(FieldReviewedBy, vs...))
+}
+
+// ReviewedByGT applies the GT predicate on the "reviewed_by" field.
+func ReviewedByGT(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldGT(FieldReviewedBy, v))
+}
+
+// ReviewedByGTE applies the GTE predicate on the "reviewed_by" field.
+func ReviewedByGTE(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldGTE(FieldReviewedBy, v))
+}
+
+// ReviewedByLT applies the LT predicate on the "reviewed_by" field.
+func ReviewedByLT(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldLT(FieldReviewedBy, v))
+}
+
+// ReviewedByLTE applies the LTE predicate on the "reviewed_by" field.
+func ReviewedByLTE(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldLTE(FieldReviewedBy, v))
+}
+
+// ReviewedByContains applies the Contains predicate on the "reviewed_by" field.
+func ReviewedByContains(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldContains(FieldReviewedBy, v))
+}
+
+// ReviewedByHasPrefix applies the HasPrefix predicate on the "reviewed_by" field.
+func ReviewedByHasPrefix(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldHasPrefix(FieldReviewedBy, v))
+}
+
+// ReviewedByHasSuffix applies the HasSuffix predicate on the "reviewed_by" field.
+func ReviewedByHasSuffix(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldHasSuffix(FieldReviewedBy, v))
+}
+
+// ReviewedByEqualFold applies the EqualFold predicate on the "reviewed_by" field.
+func ReviewedByEqualFold(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEqualFold(FieldReviewedBy, v))
+}
+
+// ReviewedByContainsFold applies the ContainsFold predicate on the "reviewed_by" field.
+func ReviewedByContainsFold(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldContainsFold(FieldReviewedBy, v))
+}
+
+// BatchEQ applies the EQ predicate on the "batch" field.
+func BatchEQ(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldBatch, v))
+}
+
+// BatchNEQ applies the NEQ predicate on the "batch" field.
+func BatchNEQ(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldNEQ(FieldBatch, v))
+}
+
+// BatchIn applies the In predicate on the "batch" field.
+func BatchIn(vs ...string) predicate.Revision {
+	return predicate.Revision(sql.FieldIn(FieldBatch, vs...))
+}
+
+// BatchNotIn applies the NotIn predicate on the "batch" field.
+func BatchNotIn(vs ...string) predicate.Revision {
+	return predicate.Revision(sql.FieldNotIn(FieldBatch, vs...))
+}
+
+// BatchGT applies the GT predicate on the "batch" field.
+func BatchGT(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldGT(FieldBatch, v))
+}
+
+// BatchGTE applies the GTE predicate on the "batch" field.
+func BatchGTE(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldGTE(FieldBatch, v))
+}
+
+// BatchLT applies the LT predicate on the "batch" field.
+func BatchLT(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldLT(FieldBatch, v))
+}
+
+// BatchLTE applies the LTE predicate on the "batch" field.
+func BatchLTE(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldLTE(FieldBatch, v))
+}
+
+// BatchContains applies the Contains predicate on the "batch" field.
+func BatchContains(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldContains(FieldBatch, v))
+}
+
+// BatchHasPrefix applies the HasPrefix predicate on the "batch" field.
+func BatchHasPrefix(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldHasPrefix(FieldBatch, v))
+}
+
+// BatchHasSuffix applies the HasSuffix predicate on the "batch" field.
+func BatchHasSuffix(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldHasSuffix(FieldBatch, v))
+}
+
+// BatchEqualFold applies the EqualFold predicate on the "batch" field.
+func BatchEqualFold(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldEqualFold(FieldBatch, v))
+}
+
+// BatchContainsFold applies the ContainsFold predicate on the "batch" field.
+func BatchContainsFold(v string) predicate.Revision {
+	return predicate.Revision(sql.FieldContainsFold(FieldBatch, v))
+}
+
+// UndoesEQ applies the EQ predicate on the "undoes" field.
+func UndoesEQ(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldEQ(FieldUndoes, v))
+}
+
+// UndoesNEQ applies the NEQ predicate on the "undoes" field.
+func UndoesNEQ(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldNEQ(FieldUndoes, v))
+}
+
+// UndoesIn applies the In predicate on the "undoes" field.
+func UndoesIn(vs ...int64) predicate.Revision {
+	return predicate.Revision(sql.FieldIn(FieldUndoes, vs...))
+}
+
+// UndoesNotIn applies the NotIn predicate on the "undoes" field.
+func UndoesNotIn(vs ...int64) predicate.Revision {
+	return predicate.Revision(sql.FieldNotIn(FieldUndoes, vs...))
+}
+
+// UndoesGT applies the GT predicate on the "undoes" field.
+func UndoesGT(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldGT(FieldUndoes, v))
+}
+
+// UndoesGTE applies the GTE predicate on the "undoes" field.
+func UndoesGTE(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldGTE(FieldUndoes, v))
+}
+
+// UndoesLT applies the LT predicate on the "undoes" field.
+func UndoesLT(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldLT(FieldUndoes, v))
+}
+
+// UndoesLTE applies the LTE predicate on the "undoes" field.
+func UndoesLTE(v int64) predicate.Revision {
+	return predicate.Revision(sql.FieldLTE(FieldUndoes, v))
 }
 
 // NoteEQ applies the EQ predicate on the "note" field.

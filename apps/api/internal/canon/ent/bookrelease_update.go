@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -230,6 +231,39 @@ func (_u *BookReleaseUpdate) ClearPriceBasis() *BookReleaseUpdate {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *BookReleaseUpdate) SetFieldState(v map[string]interface{}) *BookReleaseUpdate {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *BookReleaseUpdate) SetVersion(v int) *BookReleaseUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *BookReleaseUpdate) SetNillableVersion(v *int) *BookReleaseUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *BookReleaseUpdate) AddVersion(v int) *BookReleaseUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *BookReleaseUpdate) SetUpdatedAt(v time.Time) *BookReleaseUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetRelease sets the "release" edge to the Release entity.
 func (_u *BookReleaseUpdate) SetRelease(v *Release) *BookReleaseUpdate {
 	return _u.SetReleaseID(v.ID)
@@ -270,6 +304,7 @@ func (_u *BookReleaseUpdate) ClearLabel() *BookReleaseUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *BookReleaseUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -292,6 +327,14 @@ func (_u *BookReleaseUpdate) Exec(ctx context.Context) error {
 func (_u *BookReleaseUpdate) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *BookReleaseUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := bookrelease.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -359,6 +402,18 @@ func (_u *BookReleaseUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.PriceBasisCleared() {
 		_spec.ClearField(bookrelease.FieldPriceBasis, field.TypeString)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(bookrelease.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(bookrelease.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(bookrelease.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(bookrelease.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.ReleaseCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -668,6 +723,39 @@ func (_u *BookReleaseUpdateOne) ClearPriceBasis() *BookReleaseUpdateOne {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *BookReleaseUpdateOne) SetFieldState(v map[string]interface{}) *BookReleaseUpdateOne {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *BookReleaseUpdateOne) SetVersion(v int) *BookReleaseUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *BookReleaseUpdateOne) SetNillableVersion(v *int) *BookReleaseUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *BookReleaseUpdateOne) AddVersion(v int) *BookReleaseUpdateOne {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *BookReleaseUpdateOne) SetUpdatedAt(v time.Time) *BookReleaseUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetRelease sets the "release" edge to the Release entity.
 func (_u *BookReleaseUpdateOne) SetRelease(v *Release) *BookReleaseUpdateOne {
 	return _u.SetReleaseID(v.ID)
@@ -721,6 +809,7 @@ func (_u *BookReleaseUpdateOne) Select(field string, fields ...string) *BookRele
 
 // Save executes the query and returns the updated BookRelease entity.
 func (_u *BookReleaseUpdateOne) Save(ctx context.Context) (*BookRelease, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -743,6 +832,14 @@ func (_u *BookReleaseUpdateOne) Exec(ctx context.Context) error {
 func (_u *BookReleaseUpdateOne) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *BookReleaseUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := bookrelease.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -827,6 +924,18 @@ func (_u *BookReleaseUpdateOne) sqlSave(ctx context.Context) (_node *BookRelease
 	}
 	if _u.mutation.PriceBasisCleared() {
 		_spec.ClearField(bookrelease.FieldPriceBasis, field.TypeString)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(bookrelease.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(bookrelease.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(bookrelease.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(bookrelease.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.ReleaseCleared() {
 		edge := &sqlgraph.EdgeSpec{

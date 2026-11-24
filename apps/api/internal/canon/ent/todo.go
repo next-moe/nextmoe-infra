@@ -22,14 +22,26 @@ type Todo struct {
 	Kind string `json:"kind,omitempty"`
 	// SubjectKey holds the value of the "subject_key" field.
 	SubjectKey string `json:"subject_key,omitempty"`
+	// GroupKey holds the value of the "group_key" field.
+	GroupKey string `json:"group_key,omitempty"`
+	// Program holds the value of the "program" field.
+	Program string `json:"program,omitempty"`
 	// State holds the value of the "state" field.
 	State string `json:"state,omitempty"`
 	// Detail holds the value of the "detail" field.
 	Detail string `json:"detail,omitempty"`
 	// Source holds the value of the "source" field.
 	Source string `json:"source,omitempty"`
+	// Waiting holds the value of the "waiting" field.
+	Waiting []string `json:"waiting,omitempty"`
 	// Suggestion holds the value of the "suggestion" field.
 	Suggestion map[string]interface{} `json:"suggestion,omitempty"`
+	// Changeset holds the value of the "changeset" field.
+	Changeset map[string]interface{} `json:"changeset,omitempty"`
+	// Questions holds the value of the "questions" field.
+	Questions []map[string]interface{} `json:"questions,omitempty"`
+	// Notes holds the value of the "notes" field.
+	Notes []map[string]interface{} `json:"notes,omitempty"`
 	// ResolvedBy holds the value of the "resolved_by" field.
 	ResolvedBy string `json:"resolved_by,omitempty"`
 	// Answered holds the value of the "answered" field.
@@ -48,13 +60,13 @@ func (*Todo) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case todo.FieldSuggestion, todo.FieldResolution:
+		case todo.FieldWaiting, todo.FieldSuggestion, todo.FieldChangeset, todo.FieldQuestions, todo.FieldNotes, todo.FieldResolution:
 			values[i] = new([]byte)
 		case todo.FieldAnswered:
 			values[i] = new(sql.NullBool)
 		case todo.FieldID:
 			values[i] = new(sql.NullInt64)
-		case todo.FieldKind, todo.FieldSubjectKey, todo.FieldState, todo.FieldDetail, todo.FieldSource, todo.FieldResolvedBy:
+		case todo.FieldKind, todo.FieldSubjectKey, todo.FieldGroupKey, todo.FieldProgram, todo.FieldState, todo.FieldDetail, todo.FieldSource, todo.FieldResolvedBy:
 			values[i] = new(sql.NullString)
 		case todo.FieldCreatedAt, todo.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -91,6 +103,18 @@ func (_m *Todo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.SubjectKey = value.String
 			}
+		case todo.FieldGroupKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field group_key", values[i])
+			} else if value.Valid {
+				_m.GroupKey = value.String
+			}
+		case todo.FieldProgram:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field program", values[i])
+			} else if value.Valid {
+				_m.Program = value.String
+			}
 		case todo.FieldState:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field state", values[i])
@@ -109,12 +133,44 @@ func (_m *Todo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Source = value.String
 			}
+		case todo.FieldWaiting:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field waiting", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Waiting); err != nil {
+					return fmt.Errorf("unmarshal field waiting: %w", err)
+				}
+			}
 		case todo.FieldSuggestion:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field suggestion", values[i])
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.Suggestion); err != nil {
 					return fmt.Errorf("unmarshal field suggestion: %w", err)
+				}
+			}
+		case todo.FieldChangeset:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field changeset", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Changeset); err != nil {
+					return fmt.Errorf("unmarshal field changeset: %w", err)
+				}
+			}
+		case todo.FieldQuestions:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field questions", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Questions); err != nil {
+					return fmt.Errorf("unmarshal field questions: %w", err)
+				}
+			}
+		case todo.FieldNotes:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field notes", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Notes); err != nil {
+					return fmt.Errorf("unmarshal field notes: %w", err)
 				}
 			}
 		case todo.FieldResolvedBy:
@@ -191,6 +247,12 @@ func (_m *Todo) String() string {
 	builder.WriteString("subject_key=")
 	builder.WriteString(_m.SubjectKey)
 	builder.WriteString(", ")
+	builder.WriteString("group_key=")
+	builder.WriteString(_m.GroupKey)
+	builder.WriteString(", ")
+	builder.WriteString("program=")
+	builder.WriteString(_m.Program)
+	builder.WriteString(", ")
 	builder.WriteString("state=")
 	builder.WriteString(_m.State)
 	builder.WriteString(", ")
@@ -200,8 +262,20 @@ func (_m *Todo) String() string {
 	builder.WriteString("source=")
 	builder.WriteString(_m.Source)
 	builder.WriteString(", ")
+	builder.WriteString("waiting=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Waiting))
+	builder.WriteString(", ")
 	builder.WriteString("suggestion=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Suggestion))
+	builder.WriteString(", ")
+	builder.WriteString("changeset=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Changeset))
+	builder.WriteString(", ")
+	builder.WriteString("questions=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Questions))
+	builder.WriteString(", ")
+	builder.WriteString("notes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Notes))
 	builder.WriteString(", ")
 	builder.WriteString("resolved_by=")
 	builder.WriteString(_m.ResolvedBy)

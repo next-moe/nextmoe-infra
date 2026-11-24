@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -78,6 +79,54 @@ func (_c *ReleaseContentCreate) SetNillablePosition(v *int) *ReleaseContentCreat
 	return _c
 }
 
+// SetFieldState sets the "field_state" field.
+func (_c *ReleaseContentCreate) SetFieldState(v map[string]interface{}) *ReleaseContentCreate {
+	_c.mutation.SetFieldState(v)
+	return _c
+}
+
+// SetVersion sets the "version" field.
+func (_c *ReleaseContentCreate) SetVersion(v int) *ReleaseContentCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *ReleaseContentCreate) SetNillableVersion(v *int) *ReleaseContentCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *ReleaseContentCreate) SetCreatedAt(v time.Time) *ReleaseContentCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *ReleaseContentCreate) SetNillableCreatedAt(v *time.Time) *ReleaseContentCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *ReleaseContentCreate) SetUpdatedAt(v time.Time) *ReleaseContentCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *ReleaseContentCreate) SetNillableUpdatedAt(v *time.Time) *ReleaseContentCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
+	}
+	return _c
+}
+
 // SetRelease sets the "release" edge to the Release entity.
 func (_c *ReleaseContentCreate) SetRelease(v *Release) *ReleaseContentCreate {
 	return _c.SetReleaseID(v.ID)
@@ -136,6 +185,22 @@ func (_c *ReleaseContentCreate) defaults() {
 		v := releasecontent.DefaultPosition
 		_c.mutation.SetPosition(v)
 	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		v := releasecontent.DefaultFieldState
+		_c.mutation.SetFieldState(v)
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := releasecontent.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := releasecontent.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := releasecontent.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -151,6 +216,18 @@ func (_c *ReleaseContentCreate) check() error {
 	}
 	if _, ok := _c.mutation.Position(); !ok {
 		return &ValidationError{Name: "position", err: errors.New(`ent: missing required field "ReleaseContent.position"`)}
+	}
+	if _, ok := _c.mutation.FieldState(); !ok {
+		return &ValidationError{Name: "field_state", err: errors.New(`ent: missing required field "ReleaseContent.field_state"`)}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "ReleaseContent.version"`)}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ReleaseContent.created_at"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "ReleaseContent.updated_at"`)}
 	}
 	if len(_c.mutation.ReleaseIDs()) == 0 {
 		return &ValidationError{Name: "release", err: errors.New(`ent: missing required edge "ReleaseContent.release"`)}
@@ -192,6 +269,22 @@ func (_c *ReleaseContentCreate) createSpec() (*ReleaseContent, *sqlgraph.CreateS
 	if value, ok := _c.mutation.Position(); ok {
 		_spec.SetField(releasecontent.FieldPosition, field.TypeInt, value)
 		_node.Position = value
+	}
+	if value, ok := _c.mutation.FieldState(); ok {
+		_spec.SetField(releasecontent.FieldFieldState, field.TypeJSON, value)
+		_node.FieldState = value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(releasecontent.FieldVersion, field.TypeInt, value)
+		_node.Version = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(releasecontent.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(releasecontent.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
 	}
 	if nodes := _c.mutation.ReleaseIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -368,6 +461,48 @@ func (u *ReleaseContentUpsert) AddPosition(v int) *ReleaseContentUpsert {
 	return u
 }
 
+// SetFieldState sets the "field_state" field.
+func (u *ReleaseContentUpsert) SetFieldState(v map[string]interface{}) *ReleaseContentUpsert {
+	u.Set(releasecontent.FieldFieldState, v)
+	return u
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *ReleaseContentUpsert) UpdateFieldState() *ReleaseContentUpsert {
+	u.SetExcluded(releasecontent.FieldFieldState)
+	return u
+}
+
+// SetVersion sets the "version" field.
+func (u *ReleaseContentUpsert) SetVersion(v int) *ReleaseContentUpsert {
+	u.Set(releasecontent.FieldVersion, v)
+	return u
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *ReleaseContentUpsert) UpdateVersion() *ReleaseContentUpsert {
+	u.SetExcluded(releasecontent.FieldVersion)
+	return u
+}
+
+// AddVersion adds v to the "version" field.
+func (u *ReleaseContentUpsert) AddVersion(v int) *ReleaseContentUpsert {
+	u.Add(releasecontent.FieldVersion, v)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ReleaseContentUpsert) SetUpdatedAt(v time.Time) *ReleaseContentUpsert {
+	u.Set(releasecontent.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ReleaseContentUpsert) UpdateUpdatedAt() *ReleaseContentUpsert {
+	u.SetExcluded(releasecontent.FieldUpdatedAt)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -378,6 +513,11 @@ func (u *ReleaseContentUpsert) AddPosition(v int) *ReleaseContentUpsert {
 //		Exec(ctx)
 func (u *ReleaseContentUpsertOne) UpdateNewValues() *ReleaseContentUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(releasecontent.FieldCreatedAt)
+		}
+	}))
 	return u
 }
 
@@ -489,6 +629,55 @@ func (u *ReleaseContentUpsertOne) AddPosition(v int) *ReleaseContentUpsertOne {
 func (u *ReleaseContentUpsertOne) UpdatePosition() *ReleaseContentUpsertOne {
 	return u.Update(func(s *ReleaseContentUpsert) {
 		s.UpdatePosition()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *ReleaseContentUpsertOne) SetFieldState(v map[string]interface{}) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *ReleaseContentUpsertOne) UpdateFieldState() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *ReleaseContentUpsertOne) SetVersion(v int) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *ReleaseContentUpsertOne) AddVersion(v int) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *ReleaseContentUpsertOne) UpdateVersion() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ReleaseContentUpsertOne) SetUpdatedAt(v time.Time) *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ReleaseContentUpsertOne) UpdateUpdatedAt() *ReleaseContentUpsertOne {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 
@@ -666,6 +855,13 @@ type ReleaseContentUpsertBulk struct {
 //		Exec(ctx)
 func (u *ReleaseContentUpsertBulk) UpdateNewValues() *ReleaseContentUpsertBulk {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(releasecontent.FieldCreatedAt)
+			}
+		}
+	}))
 	return u
 }
 
@@ -777,6 +973,55 @@ func (u *ReleaseContentUpsertBulk) AddPosition(v int) *ReleaseContentUpsertBulk 
 func (u *ReleaseContentUpsertBulk) UpdatePosition() *ReleaseContentUpsertBulk {
 	return u.Update(func(s *ReleaseContentUpsert) {
 		s.UpdatePosition()
+	})
+}
+
+// SetFieldState sets the "field_state" field.
+func (u *ReleaseContentUpsertBulk) SetFieldState(v map[string]interface{}) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetFieldState(v)
+	})
+}
+
+// UpdateFieldState sets the "field_state" field to the value that was provided on create.
+func (u *ReleaseContentUpsertBulk) UpdateFieldState() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateFieldState()
+	})
+}
+
+// SetVersion sets the "version" field.
+func (u *ReleaseContentUpsertBulk) SetVersion(v int) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetVersion(v)
+	})
+}
+
+// AddVersion adds v to the "version" field.
+func (u *ReleaseContentUpsertBulk) AddVersion(v int) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.AddVersion(v)
+	})
+}
+
+// UpdateVersion sets the "version" field to the value that was provided on create.
+func (u *ReleaseContentUpsertBulk) UpdateVersion() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateVersion()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ReleaseContentUpsertBulk) SetUpdatedAt(v time.Time) *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ReleaseContentUpsertBulk) UpdateUpdatedAt() *ReleaseContentUpsertBulk {
+	return u.Update(func(s *ReleaseContentUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 

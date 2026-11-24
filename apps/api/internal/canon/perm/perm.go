@@ -24,6 +24,8 @@ var Holder = authz.NewHolder(Bundles)
 var todoKeys = map[string]authz.Permission{
 	registry.TodoIdentity:     TodoIdentity,
 	registry.TodoAgentOnHuman: TodoValue,
+	registry.TodoFirstWrite:   TodoValue,
+	registry.TodoConflict:     TodoValue,
 }
 
 // ForTodo is the key that decides a todo of this kind.

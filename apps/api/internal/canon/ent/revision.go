@@ -28,6 +28,12 @@ type Revision struct {
 	ActorKind string `json:"actor_kind,omitempty"`
 	// ActorKey holds the value of the "actor_key" field.
 	ActorKey string `json:"actor_key,omitempty"`
+	// ReviewedBy holds the value of the "reviewed_by" field.
+	ReviewedBy string `json:"reviewed_by,omitempty"`
+	// Batch holds the value of the "batch" field.
+	Batch string `json:"batch,omitempty"`
+	// Undoes holds the value of the "undoes" field.
+	Undoes int64 `json:"undoes,omitempty"`
 	// Note holds the value of the "note" field.
 	Note string `json:"note,omitempty"`
 	// Changes holds the value of the "changes" field.
@@ -48,9 +54,9 @@ func (*Revision) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case revision.FieldChanges:
 			values[i] = new([]byte)
-		case revision.FieldID, revision.FieldEntityID, revision.FieldRootID:
+		case revision.FieldID, revision.FieldEntityID, revision.FieldUndoes, revision.FieldRootID:
 			values[i] = new(sql.NullInt64)
-		case revision.FieldEntity, revision.FieldAction, revision.FieldActorKind, revision.FieldActorKey, revision.FieldNote, revision.FieldRootEntity:
+		case revision.FieldEntity, revision.FieldAction, revision.FieldActorKind, revision.FieldActorKey, revision.FieldReviewedBy, revision.FieldBatch, revision.FieldNote, revision.FieldRootEntity:
 			values[i] = new(sql.NullString)
 		case revision.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -104,6 +110,24 @@ func (_m *Revision) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field actor_key", values[i])
 			} else if value.Valid {
 				_m.ActorKey = value.String
+			}
+		case revision.FieldReviewedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field reviewed_by", values[i])
+			} else if value.Valid {
+				_m.ReviewedBy = value.String
+			}
+		case revision.FieldBatch:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field batch", values[i])
+			} else if value.Valid {
+				_m.Batch = value.String
+			}
+		case revision.FieldUndoes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field undoes", values[i])
+			} else if value.Valid {
+				_m.Undoes = value.Int64
 			}
 		case revision.FieldNote:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -187,6 +211,15 @@ func (_m *Revision) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("actor_key=")
 	builder.WriteString(_m.ActorKey)
+	builder.WriteString(", ")
+	builder.WriteString("reviewed_by=")
+	builder.WriteString(_m.ReviewedBy)
+	builder.WriteString(", ")
+	builder.WriteString("batch=")
+	builder.WriteString(_m.Batch)
+	builder.WriteString(", ")
+	builder.WriteString("undoes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Undoes))
 	builder.WriteString(", ")
 	builder.WriteString("note=")
 	builder.WriteString(_m.Note)

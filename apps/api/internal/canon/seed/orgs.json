@@ -1,0 +1,21 @@
+[
+  {"key": "kadokawa", "kind": "company", "legacy_id": 20501, "names": [{"text": "KADOKAWA", "lang": "ja"}]},
+  {"key": "shogakukan", "kind": "company", "legacy_id": 37068, "names": [{"text": "小学館", "lang": "ja"}]},
+  {"key": "shueisha", "kind": "company", "legacy_id": 38091, "names": [{"text": "集英社", "lang": "ja"}]},
+  {"key": "overlap", "kind": "company", "legacy_id": 40085, "names": [{"text": "オーバーラップ", "lang": "ja"}, {"text": "OVERLAP,inc", "lang": "en"}]},
+  {"key": "media-factory", "kind": "company", "legacy_id": 38168, "names": [{"text": "メディアファクトリー", "lang": "ja"}]},
+  {"key": "kadokawa-tw", "kind": "company", "legacy_id": 38150, "names": [{"text": "台灣角川", "lang": "zh-Hant"}]},
+  {"key": "chingwin", "kind": "company", "legacy_id": 37617, "names": [{"text": "青文出版社", "lang": "zh-Hant"}, {"text": "青文出版社股份有限公司", "lang": "zh-Hant"}]},
+  {"key": "tongli", "kind": "company", "legacy_id": 37151, "names": [{"text": "東立出版社", "lang": "zh-Hant"}]},
+  {"key": "dengeki", "kind": "label", "parent": "kadokawa", "names": [{"text": "電撃文庫", "lang": "ja"}]},
+  {"key": "sneaker", "kind": "label", "parent": "kadokawa", "legacy_id": 9931, "names": [{"text": "角川スニーカー文庫", "lang": "ja"}]},
+  {"key": "fantasia", "kind": "label", "parent": "kadokawa", "legacy_id": 19918, "names": [{"text": "ファンタジア文庫", "lang": "ja"}, {"text": "富士見ファンタジア文庫", "lang": "ja"}]},
+  {"key": "mf-j", "kind": "label", "parent": "kadokawa", "legacy_id": 2426, "names": [{"text": "MF文庫J", "lang": "ja"}]},
+  {"key": "gagaga", "kind": "label", "parent": "shogakukan", "names": [{"text": "ガガガ文庫", "lang": "ja"}]},
+  {"key": "gagaga-books", "kind": "label", "parent": "shogakukan", "names": [{"text": "ガガガブックス", "lang": "ja"}]},
+  {"key": "gagaga-books-f", "kind": "label", "parent": "shogakukan", "names": [{"text": "ガガガブックスf", "lang": "ja"}]},
+  {"key": "dash-x", "kind": "label", "parent": "shueisha", "names": [{"text": "ダッシュエックス文庫", "lang": "ja"}]},
+  {"key": "dash-x-digital", "kind": "label", "parent": "shueisha", "names": [{"text": "ダッシュエックス文庫DIGITAL", "lang": "ja"}]},
+  {"key": "overlap-bunko", "kind": "label", "parent": "overlap", "names": [{"text": "オーバーラップ文庫", "lang": "ja"}]},
+  {"key": "chingwin-bunko", "kind": "label", "parent": "chingwin", "names": [{"text": "青文文庫", "lang": "zh-Hant"}]}
+]

@@ -18,6 +18,7 @@ import (
 	"api/internal/canon/ent/workpart"
 	"api/internal/canon/ent/worktitle"
 	"api/internal/canon/ent/xreflink"
+	"api/internal/canon/identity"
 	"api/internal/canon/merge"
 )
 
@@ -41,7 +42,8 @@ func TestMergeAndUnmergeRoundTrip(t *testing.T) {
 	client, _ := canontest.Client(t)
 	ctx := context.Background()
 	s := commit.New(client)
-	survivor, loser, older := work(t, s, "正"), work(t, s, "副"), work(t, s, "旧")
+	tails := []string{canontest.Title("の正"), canontest.Title("の副"), canontest.Title("の旧")}
+	survivor, loser, older := work(t, s, tails[0]), work(t, s, tails[1]), work(t, s, tails[2])
 	if err := client.XrefLink.Create().SetSource("vndb").SetExternalID("v" + strconv.FormatInt(loser, 10)).SetEntity("work").SetEntityID(loser).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -57,6 +59,10 @@ func TestMergeAndUnmergeRoundTrip(t *testing.T) {
 	parts, _ := client.WorkPart.Query().Where(workpart.WorkID(survivor)).Count(ctx)
 	books, _ := client.BookWork.Query().Where(bookwork.WorkID(survivor)).Count(ctx)
 	xr, _ := client.XrefLink.Query().Where(xreflink.EntityID(survivor)).Count(ctx)
+	found, _ := identity.Find(ctx, client, "work", "novel", tails[1], 0)
+	if len(found) != 1 || found[0].ID != survivor {
+		t.Errorf("the loser's title finds the survivor: %+v", found)
+	}
 	if titles != 3 || parts != 3 || books != 1 || xr != 1 {
 		t.Errorf("after merge: titles %d parts %d book_work %d xref %d", titles, parts, books, xr)
 	}

@@ -64,6 +64,16 @@ func SubjectKey(v string) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldSubjectKey, v))
 }
 
+// GroupKey applies equality check predicate on the "group_key" field. It's identical to GroupKeyEQ.
+func GroupKey(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldEQ(FieldGroupKey, v))
+}
+
+// Program applies equality check predicate on the "program" field. It's identical to ProgramEQ.
+func Program(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldEQ(FieldProgram, v))
+}
+
 // State applies equality check predicate on the "state" field. It's identical to StateEQ.
 func State(v string) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldState, v))
@@ -227,6 +237,136 @@ func SubjectKeyEqualFold(v string) predicate.Todo {
 // SubjectKeyContainsFold applies the ContainsFold predicate on the "subject_key" field.
 func SubjectKeyContainsFold(v string) predicate.Todo {
 	return predicate.Todo(sql.FieldContainsFold(FieldSubjectKey, v))
+}
+
+// GroupKeyEQ applies the EQ predicate on the "group_key" field.
+func GroupKeyEQ(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldEQ(FieldGroupKey, v))
+}
+
+// GroupKeyNEQ applies the NEQ predicate on the "group_key" field.
+func GroupKeyNEQ(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldNEQ(FieldGroupKey, v))
+}
+
+// GroupKeyIn applies the In predicate on the "group_key" field.
+func GroupKeyIn(vs ...string) predicate.Todo {
+	return predicate.Todo(sql.FieldIn(FieldGroupKey, vs...))
+}
+
+// GroupKeyNotIn applies the NotIn predicate on the "group_key" field.
+func GroupKeyNotIn(vs ...string) predicate.Todo {
+	return predicate.Todo(sql.FieldNotIn(FieldGroupKey, vs...))
+}
+
+// GroupKeyGT applies the GT predicate on the "group_key" field.
+func GroupKeyGT(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldGT(FieldGroupKey, v))
+}
+
+// GroupKeyGTE applies the GTE predicate on the "group_key" field.
+func GroupKeyGTE(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldGTE(FieldGroupKey, v))
+}
+
+// GroupKeyLT applies the LT predicate on the "group_key" field.
+func GroupKeyLT(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldLT(FieldGroupKey, v))
+}
+
+// GroupKeyLTE applies the LTE predicate on the "group_key" field.
+func GroupKeyLTE(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldLTE(FieldGroupKey, v))
+}
+
+// GroupKeyContains applies the Contains predicate on the "group_key" field.
+func GroupKeyContains(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldContains(FieldGroupKey, v))
+}
+
+// GroupKeyHasPrefix applies the HasPrefix predicate on the "group_key" field.
+func GroupKeyHasPrefix(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldHasPrefix(FieldGroupKey, v))
+}
+
+// GroupKeyHasSuffix applies the HasSuffix predicate on the "group_key" field.
+func GroupKeyHasSuffix(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldHasSuffix(FieldGroupKey, v))
+}
+
+// GroupKeyEqualFold applies the EqualFold predicate on the "group_key" field.
+func GroupKeyEqualFold(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldEqualFold(FieldGroupKey, v))
+}
+
+// GroupKeyContainsFold applies the ContainsFold predicate on the "group_key" field.
+func GroupKeyContainsFold(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldContainsFold(FieldGroupKey, v))
+}
+
+// ProgramEQ applies the EQ predicate on the "program" field.
+func ProgramEQ(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldEQ(FieldProgram, v))
+}
+
+// ProgramNEQ applies the NEQ predicate on the "program" field.
+func ProgramNEQ(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldNEQ(FieldProgram, v))
+}
+
+// ProgramIn applies the In predicate on the "program" field.
+func ProgramIn(vs ...string) predicate.Todo {
+	return predicate.Todo(sql.FieldIn(FieldProgram, vs...))
+}
+
+// ProgramNotIn applies the NotIn predicate on the "program" field.
+func ProgramNotIn(vs ...string) predicate.Todo {
+	return predicate.Todo(sql.FieldNotIn(FieldProgram, vs...))
+}
+
+// ProgramGT applies the GT predicate on the "program" field.
+func ProgramGT(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldGT(FieldProgram, v))
+}
+
+// ProgramGTE applies the GTE predicate on the "program" field.
+func ProgramGTE(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldGTE(FieldProgram, v))
+}
+
+// ProgramLT applies the LT predicate on the "program" field.
+func ProgramLT(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldLT(FieldProgram, v))
+}
+
+// ProgramLTE applies the LTE predicate on the "program" field.
+func ProgramLTE(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldLTE(FieldProgram, v))
+}
+
+// ProgramContains applies the Contains predicate on the "program" field.
+func ProgramContains(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldContains(FieldProgram, v))
+}
+
+// ProgramHasPrefix applies the HasPrefix predicate on the "program" field.
+func ProgramHasPrefix(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldHasPrefix(FieldProgram, v))
+}
+
+// ProgramHasSuffix applies the HasSuffix predicate on the "program" field.
+func ProgramHasSuffix(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldHasSuffix(FieldProgram, v))
+}
+
+// ProgramEqualFold applies the EqualFold predicate on the "program" field.
+func ProgramEqualFold(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldEqualFold(FieldProgram, v))
+}
+
+// ProgramContainsFold applies the ContainsFold predicate on the "program" field.
+func ProgramContainsFold(v string) predicate.Todo {
+	return predicate.Todo(sql.FieldContainsFold(FieldProgram, v))
 }
 
 // StateEQ applies the EQ predicate on the "state" field.
@@ -424,6 +564,16 @@ func SourceContainsFold(v string) predicate.Todo {
 	return predicate.Todo(sql.FieldContainsFold(FieldSource, v))
 }
 
+// WaitingIsNil applies the IsNil predicate on the "waiting" field.
+func WaitingIsNil() predicate.Todo {
+	return predicate.Todo(sql.FieldIsNull(FieldWaiting))
+}
+
+// WaitingNotNil applies the NotNil predicate on the "waiting" field.
+func WaitingNotNil() predicate.Todo {
+	return predicate.Todo(sql.FieldNotNull(FieldWaiting))
+}
+
 // SuggestionIsNil applies the IsNil predicate on the "suggestion" field.
 func SuggestionIsNil() predicate.Todo {
 	return predicate.Todo(sql.FieldIsNull(FieldSuggestion))
@@ -432,6 +582,36 @@ func SuggestionIsNil() predicate.Todo {
 // SuggestionNotNil applies the NotNil predicate on the "suggestion" field.
 func SuggestionNotNil() predicate.Todo {
 	return predicate.Todo(sql.FieldNotNull(FieldSuggestion))
+}
+
+// ChangesetIsNil applies the IsNil predicate on the "changeset" field.
+func ChangesetIsNil() predicate.Todo {
+	return predicate.Todo(sql.FieldIsNull(FieldChangeset))
+}
+
+// ChangesetNotNil applies the NotNil predicate on the "changeset" field.
+func ChangesetNotNil() predicate.Todo {
+	return predicate.Todo(sql.FieldNotNull(FieldChangeset))
+}
+
+// QuestionsIsNil applies the IsNil predicate on the "questions" field.
+func QuestionsIsNil() predicate.Todo {
+	return predicate.Todo(sql.FieldIsNull(FieldQuestions))
+}
+
+// QuestionsNotNil applies the NotNil predicate on the "questions" field.
+func QuestionsNotNil() predicate.Todo {
+	return predicate.Todo(sql.FieldNotNull(FieldQuestions))
+}
+
+// NotesIsNil applies the IsNil predicate on the "notes" field.
+func NotesIsNil() predicate.Todo {
+	return predicate.Todo(sql.FieldIsNull(FieldNotes))
+}
+
+// NotesNotNil applies the NotNil predicate on the "notes" field.
+func NotesNotNil() predicate.Todo {
+	return predicate.Todo(sql.FieldNotNull(FieldNotes))
 }
 
 // ResolvedByEQ applies the EQ predicate on the "resolved_by" field.

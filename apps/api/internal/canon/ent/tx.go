@@ -30,6 +30,8 @@ type Tx struct {
 	FaninCursor *FaninCursorClient
 	// Hold is the client for interacting with the Hold builders.
 	Hold *HoldClient
+	// IdentityKey is the client for interacting with the IdentityKey builders.
+	IdentityKey *IdentityKeyClient
 	// LibraryPartProgress is the client for interacting with the LibraryPartProgress builders.
 	LibraryPartProgress *LibraryPartProgressClient
 	// LibraryTombstone is the client for interacting with the LibraryTombstone builders.
@@ -44,6 +46,8 @@ type Tx struct {
 	Person *PersonClient
 	// PersonAlias is the client for interacting with the PersonAlias builders.
 	PersonAlias *PersonAliasClient
+	// ProgramState is the client for interacting with the ProgramState builders.
+	ProgramState *ProgramStateClient
 	// Redirect is the client for interacting with the Redirect builders.
 	Redirect *RedirectClient
 	// Release is the client for interacting with the Release builders.
@@ -203,6 +207,7 @@ func (tx *Tx) init() {
 	tx.EvidenceSnapshot = NewEvidenceSnapshotClient(tx.config)
 	tx.FaninCursor = NewFaninCursorClient(tx.config)
 	tx.Hold = NewHoldClient(tx.config)
+	tx.IdentityKey = NewIdentityKeyClient(tx.config)
 	tx.LibraryPartProgress = NewLibraryPartProgressClient(tx.config)
 	tx.LibraryTombstone = NewLibraryTombstoneClient(tx.config)
 	tx.MergeRecord = NewMergeRecordClient(tx.config)
@@ -210,6 +215,7 @@ func (tx *Tx) init() {
 	tx.OrgName = NewOrgNameClient(tx.config)
 	tx.Person = NewPersonClient(tx.config)
 	tx.PersonAlias = NewPersonAliasClient(tx.config)
+	tx.ProgramState = NewProgramStateClient(tx.config)
 	tx.Redirect = NewRedirectClient(tx.config)
 	tx.Release = NewReleaseClient(tx.config)
 	tx.ReleaseContent = NewReleaseContentClient(tx.config)

@@ -8,16 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
-	"sort"
 	"strings"
 	"time"
 
 	"api/internal/canon/contract"
 	"api/internal/canon/ent"
+	"api/internal/canon/identity"
 	"api/internal/canon/registry"
-	"api/internal/canon/verify"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -29,9 +28,13 @@ const (
 	ActorSystem ActorKind = "system"
 )
 
+// Actor is who a value belongs to. Reviewer approved an agent's write (D29):
+// the value stays the agent's, so stronger evidence may still replace it, and
+// the approval is on the stamp and the revision.
 type Actor struct {
-	Kind ActorKind
-	Key  string
+	Kind     ActorKind `json:"kind"`
+	Key      string    `json:"key"`
+	Reviewer string    `json:"reviewer,omitempty"`
 }
 
 type EvidenceRef struct {
@@ -42,40 +45,55 @@ type EvidenceRef struct {
 	Path     string `json:"path,omitempty"`
 }
 
+// Value's Source is the registered source its evidence comes from; two sources
+// of one tier that disagree conflict, one source that changes its mind does not.
 type Value struct {
-	Raw      json.RawMessage
-	Tier     registry.Tier
-	Evidence []EvidenceRef
+	Raw      json.RawMessage `json:"raw"`
+	Tier     registry.Tier   `json:"tier,omitempty"`
+	Source   string          `json:"source,omitempty"`
+	Evidence []EvidenceRef   `json:"evidence,omitempty"`
 }
 
 // Change creates an entity when ID is zero; Ref names it for later changes
 // of the same changeset, which point at it as "ref:<Ref>".
 type Change struct {
-	Ref    string
-	Entity string
-	ID     int64
-	Values map[string]Value
+	Ref    string           `json:"ref,omitempty"`
+	Entity string           `json:"entity"`
+	ID     int64            `json:"id,omitempty"`
+	Values map[string]Value `json:"values,omitempty"`
+	// AdoptID creates the entity under a legacy id a reviewer or a person
+	// judged to be the same one (D30).
+	AdoptID int64 `json:"adopt_id,omitempty"`
+	// ExpectVersion refuses the change when the entity moved on; 0 does not check.
+	ExpectVersion int `json:"expect_version,omitempty"`
+	// Distinct lists the identity candidates judged to be other entities, as
+	// Candidate.Token; one missing from it refuses the create (06 §6 I1).
+	Distinct []string `json:"distinct,omitempty"`
+	// Authority is a registry authority (NDL) the name was printed under.
+	Authority string `json:"authority,omitempty"`
 }
 
 type Changeset struct {
-	Actor   Actor
-	Note    string
-	Changes []Change
+	Actor   Actor    `json:"actor"`
+	Note    string   `json:"note,omitempty"`
+	Changes []Change `json:"changes"`
 	// Key, when set, makes Apply idempotent: a second Apply with the same key
 	// writes nothing and returns the first result.
-	Key string
+	Key string `json:"key,omitempty"`
 }
 
 type Result struct {
 	IDs      map[string]int64
+	Batch    string
 	Replayed bool
 }
 
 type Refusal struct {
-	Change   int
-	Property string
-	Code     string
-	Detail   string
+	Change     int
+	Property   string
+	Code       string
+	Detail     string
+	Candidates []identity.Candidate
 }
 
 type Refused []Refusal
@@ -86,6 +104,15 @@ func (r Refused) Error() string {
 		parts[i] = fmt.Sprintf("change %d %s: %s %s", x.Change, x.Property, x.Code, x.Detail)
 	}
 	return strings.Join(parts, "; ")
+}
+
+func (r Refused) Has(code string) bool {
+	for _, x := range r {
+		if x.Code == code {
+			return true
+		}
+	}
+	return false
 }
 
 type Service struct {
@@ -99,278 +126,60 @@ func New(client *ent.Client) *Service {
 }
 
 func (s *Service) Apply(ctx context.Context, cs Changeset) (Result, error) {
-	res := Result{IDs: map[string]int64{}}
+	return s.run(ctx, cs, true)
+}
+
+// Check is Apply that keeps nothing: what a changeset would be refused for now.
+func (s *Service) Check(ctx context.Context, cs Changeset) error {
+	_, err := s.run(ctx, cs, false)
+	return err
+}
+
+// Prior is the result a key was already applied with.
+func (s *Service) Prior(ctx context.Context, key string) (Result, bool, error) {
+	k, err := s.client.CommitKey.Get(ctx, key)
+	if ent.IsNotFound(err) {
+		return Result{}, false, nil
+	}
+	if err != nil {
+		return Result{}, false, err
+	}
+	return Result{IDs: k.Ids, Batch: k.Batch, Replayed: true}, true, nil
+}
+
+func (s *Service) run(ctx context.Context, cs Changeset, keep bool) (Result, error) {
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
-		return res, err
+		return Result{}, err
 	}
 	defer tx.Rollback()
 	if cs.Key != "" {
 		prior, err := tx.CommitKey.Get(ctx, cs.Key)
 		if err == nil {
-			return Result{IDs: prior.Ids, Replayed: true}, nil
+			return Result{IDs: prior.Ids, Batch: prior.Batch, Replayed: true}, nil
 		}
 		if !ent.IsNotFound(err) {
-			return res, err
-		}
-	}
-	for i, ch := range cs.Changes {
-		if err := s.apply(ctx, tx, cs, i, ch, res.IDs); err != nil {
 			return Result{}, err
 		}
 	}
+	a := &applier{s: s, tx: tx, cs: cs, batch: uuid.NewString(), ids: map[string]int64{}, created: map[string]Change{}}
+	for i, ch := range cs.Changes {
+		if err := a.apply(ctx, i, ch); err != nil {
+			return Result{}, err
+		}
+	}
+	if !keep {
+		return Result{}, nil
+	}
 	if cs.Key != "" {
-		if err := tx.CommitKey.Create().SetID(cs.Key).SetIds(res.IDs).Exec(ctx); err != nil {
+		if err := tx.CommitKey.Create().SetID(cs.Key).SetIds(a.ids).SetBatch(a.batch).Exec(ctx); err != nil {
 			return Result{}, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
 		return Result{}, uniqueRefusal(err, -1)
 	}
-	return res, nil
-}
-
-func (s *Service) apply(ctx context.Context, tx *ent.Tx, cs Changeset, i int, ch Change, ids map[string]int64) error {
-	b, ok := builders[ch.Entity]
-	props := s.index[ch.Entity]
-	if !ok || props == nil {
-		return Refused{{Change: i, Code: "PROPERTY_UNKNOWN", Detail: "unknown entity " + ch.Entity}}
-	}
-	if cs.Actor.Kind == ActorAgent && ch.ID != 0 {
-		if held, err := isHeld(ctx, tx, ch.Entity, ch.ID); err != nil {
-			return err
-		} else if held {
-			return Refused{{Change: i, Code: "ENTITY_HELD", Detail: fmt.Sprintf("%s %d is held", ch.Entity, ch.ID)}}
-		}
-	}
-	var state map[string]any
-	version := 0
-	if ch.ID != 0 && b.stamped {
-		var raw []byte
-		rows, err := tx.QueryContext(ctx, `SELECT field_state, version FROM canon.`+ch.Entity+` WHERE id = $1 FOR UPDATE`, ch.ID)
-		if err != nil {
-			return err
-		}
-		found := rows.Next()
-		if found {
-			err = rows.Scan(&raw, &version)
-		}
-		rows.Close()
-		if err != nil {
-			return err
-		}
-		if !found {
-			detail := fmt.Sprintf("%s %d does not exist", ch.Entity, ch.ID)
-			if r, err := tx.QueryContext(ctx, `SELECT new_id FROM canon.redirect WHERE entity = $1 AND old_id = $2
-				AND revoked_at IS NULL ORDER BY id DESC LIMIT 1`, ch.Entity, ch.ID); err == nil {
-				var to int64
-				if r.Next() && r.Scan(&to) == nil {
-					detail = fmt.Sprintf("%s %d was merged into %d", ch.Entity, ch.ID, to)
-				}
-				r.Close()
-			}
-			return Refused{{Change: i, Code: "ENTITY_MERGED", Detail: detail}}
-		}
-		if err := json.Unmarshal(raw, &state); err != nil {
-			return err
-		}
-	}
-	if state == nil {
-		state = map[string]any{}
-	}
-
-	var m ent.Mutation
-	if ch.ID == 0 {
-		m = b.create(tx.Client())
-	} else {
-		m = b.update(tx.Client(), ch.ID)
-	}
-	var refused Refused
-	changes := map[string]any{}
-	keys := make([]string, 0, len(ch.Values))
-	for k := range ch.Values {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		v := ch.Values[key]
-		p, ok := props[key]
-		if !ok {
-			refused = append(refused, Refusal{i, key, "PROPERTY_UNKNOWN", "not in the registry"})
-			continue
-		}
-		if r := s.permitted(cs.Actor, p, v, state[key]); r != "" {
-			refused = append(refused, Refusal{i, key, r, ""})
-			continue
-		}
-		val, verr := verify.Value(p, v.Raw)
-		if verr != nil {
-			refused = append(refused, Refusal{i, key, verr.Code, verr.Detail})
-			continue
-		}
-		if ref, isRef := val.(string); isRef && p.Shape == registry.ShapeRef {
-			id, known := ids[strings.TrimPrefix(ref, "ref:")]
-			if !known {
-				refused = append(refused, Refusal{i, key, "VALUE_NOT_ENTAILED", ref + " is not created earlier in this changeset"})
-				continue
-			}
-			val = id
-		}
-		if id, isID := val.(int64); isID && p.Shape == registry.ShapeRef && cs.Actor.Kind == ActorAgent {
-			if held, err := isHeld(ctx, tx, p.Ref, id); err != nil {
-				return err
-			} else if held {
-				refused = append(refused, Refusal{i, key, "ENTITY_HELD", fmt.Sprintf("%s %d is held", p.Ref, id)})
-				continue
-			}
-		}
-		if p.Unique == registry.UniqueGlobal {
-			if holder, err := s.holder(ctx, tx, ch.Entity, key, val, ch.ID); err != nil {
-				return err
-			} else if holder != 0 {
-				refused = append(refused, Refusal{i, key, "UNIQUE_CONFLICT", fmt.Sprintf("%s row %d already holds %v", ch.Entity, holder, val)})
-				continue
-			}
-		}
-		if err := m.SetField(key, val); err != nil {
-			refused = append(refused, Refusal{i, key, "VALUE_NOT_ENTAILED", err.Error()})
-			continue
-		}
-		changes[key] = map[string]any{"value": val, "tier": v.Tier, "evidence": v.Evidence}
-		state[key] = s.stamp(cs.Actor, v.Tier)
-	}
-	if len(refused) > 0 {
-		return refused
-	}
-	if b.stamped {
-		if err := m.SetField("field_state", state); err != nil {
-			return err
-		}
-		if ch.ID != 0 {
-			if err := m.SetField("version", version+1); err != nil {
-				return err
-			}
-		}
-	}
-	saved, err := tx.Client().Mutate(ctx, m)
-	if err != nil {
-		return uniqueRefusal(err, i)
-	}
-	id := entityID(saved)
-	if ch.Ref != "" {
-		ids[ch.Ref] = id
-	}
-	action := "update"
-	if ch.ID == 0 {
-		action = "create"
-	}
-	root, rootID := rootOf(ch.Entity, id, saved)
-	return tx.Revision.Create().SetEntity(ch.Entity).SetEntityID(id).SetAction(action).
-		SetActorKind(string(cs.Actor.Kind)).SetActorKey(cs.Actor.Key).SetNote(cs.Note).
-		SetChanges(changes).SetRootEntity(root).SetRootID(rootID).Exec(ctx)
-}
-
-func (s *Service) permitted(a Actor, p registry.Property, v Value, prior any) string {
-	if a.Kind != ActorAgent {
-		return ""
-	}
-	if !p.Agent {
-		return "PROPERTY_OUT_OF_SCOPE"
-	}
-	if p.Shape != registry.ShapeRef && !containsTier(p.Tiers, v.Tier) {
-		return "TIER_NOT_ALLOWED"
-	}
-	if st, ok := prior.(map[string]any); ok {
-		if st["by"] == string(ActorHuman) {
-			return "HUMAN_LOCKED"
-		}
-		if was, _ := st["assurance"].(string); was != "" && registry.Rank(registry.Tier(was)) < registry.Rank(v.Tier) {
-			return "STRONGER_VALUE_EXISTS"
-		}
-	}
-	return ""
-}
-
-func (s *Service) stamp(a Actor, tier registry.Tier) map[string]any {
-	st := map[string]any{"by": string(a.Kind), "key": a.Key, "at": s.now().UTC().Format(time.RFC3339)}
-	if tier != "" {
-		st["assurance"] = string(tier)
-	}
-	return st
-}
-
-func (s *Service) holder(ctx context.Context, tx *ent.Tx, entity, column string, val any, self int64) (int64, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM canon.`+entity+` WHERE `+column+` = $1 AND id <> $2 LIMIT 1`, val, self)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-	var id int64
-	if rows.Next() {
-		if err := rows.Scan(&id); err != nil {
-			return 0, err
-		}
-	}
-	return id, rows.Err()
-}
-
-func isHeld(ctx context.Context, tx *ent.Tx, entity string, id int64) (bool, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT 1 FROM canon.hold WHERE entity = $1 AND entity_id = $2 AND released_at IS NULL LIMIT 1`, entity, id)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-	return rows.Next(), rows.Err()
-}
-
-func containsTier(ts []registry.Tier, t registry.Tier) bool {
-	for _, x := range ts {
-		if x == t {
-			return true
-		}
-	}
-	return false
-}
-
-// roots names the parent field a child row shows up under; an entity absent
-// here is public on its own.
-var roots = map[string][]struct{ entity, field string }{
-	"work_title":      {{"work", "WorkID"}},
-	"work_part":       {{"work", "WorkID"}},
-	"book_work":       {{"work", "WorkID"}},
-	"release_content": {{"work", "WorkID"}},
-	"book_release":    {{"release", "ReleaseID"}},
-	"person_alias":    {{"person", "PersonID"}},
-	"org_name":        {{"org", "OrgID"}},
-	"credit":          {{"work", "WorkID"}, {"work_part", "PartID"}, {"release", "ReleaseID"}},
-}
-
-func rootOf(entity string, id int64, saved ent.Value) (string, int64) {
-	v := reflect.Indirect(reflect.ValueOf(saved))
-	for _, r := range roots[entity] {
-		f := v.FieldByName(r.field)
-		if !f.IsValid() {
-			continue
-		}
-		if f.Kind() == reflect.Pointer {
-			if f.IsNil() {
-				continue
-			}
-			f = f.Elem()
-		}
-		if f.CanInt() && f.Int() != 0 {
-			return r.entity, f.Int()
-		}
-	}
-	return entity, id
-}
-
-func entityID(v ent.Value) int64 {
-	f := reflect.Indirect(reflect.ValueOf(v)).FieldByName("ID")
-	if f.CanInt() {
-		return f.Int()
-	}
-	return 0
+	return Result{IDs: a.ids, Batch: a.batch}, nil
 }
 
 // uniqueRefusal turns a unique-index race (two commits between the pre-check

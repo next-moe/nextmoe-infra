@@ -43,7 +43,7 @@ func TestTodoKeysSplitTheQueue(t *testing.T) {
 		t.Fatalf("editor with the value key lists: %d", c)
 	}
 	for _, it := range list.Items {
-		if it.Kind != registry.TodoAgentOnHuman {
+		if it.Kind == registry.TodoIdentity {
 			t.Errorf("editor saw a %s todo", it.Kind)
 		}
 	}

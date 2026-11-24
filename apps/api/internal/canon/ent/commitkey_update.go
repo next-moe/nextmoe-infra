@@ -33,6 +33,20 @@ func (_u *CommitKeyUpdate) SetIds(v map[string]int64) *CommitKeyUpdate {
 	return _u
 }
 
+// SetBatch sets the "batch" field.
+func (_u *CommitKeyUpdate) SetBatch(v string) *CommitKeyUpdate {
+	_u.mutation.SetBatch(v)
+	return _u
+}
+
+// SetNillableBatch sets the "batch" field if the given value is not nil.
+func (_u *CommitKeyUpdate) SetNillableBatch(v *string) *CommitKeyUpdate {
+	if v != nil {
+		_u.SetBatch(*v)
+	}
+	return _u
+}
+
 // Mutation returns the CommitKeyMutation object of the builder.
 func (_u *CommitKeyUpdate) Mutation() *CommitKeyMutation {
 	return _u.mutation
@@ -77,6 +91,9 @@ func (_u *CommitKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Ids(); ok {
 		_spec.SetField(commitkey.FieldIds, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.Batch(); ok {
+		_spec.SetField(commitkey.FieldBatch, field.TypeString, value)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{commitkey.Label}
@@ -100,6 +117,20 @@ type CommitKeyUpdateOne struct {
 // SetIds sets the "ids" field.
 func (_u *CommitKeyUpdateOne) SetIds(v map[string]int64) *CommitKeyUpdateOne {
 	_u.mutation.SetIds(v)
+	return _u
+}
+
+// SetBatch sets the "batch" field.
+func (_u *CommitKeyUpdateOne) SetBatch(v string) *CommitKeyUpdateOne {
+	_u.mutation.SetBatch(v)
+	return _u
+}
+
+// SetNillableBatch sets the "batch" field if the given value is not nil.
+func (_u *CommitKeyUpdateOne) SetNillableBatch(v *string) *CommitKeyUpdateOne {
+	if v != nil {
+		_u.SetBatch(*v)
+	}
 	return _u
 }
 
@@ -176,6 +207,9 @@ func (_u *CommitKeyUpdateOne) sqlSave(ctx context.Context) (_node *CommitKey, er
 	}
 	if value, ok := _u.mutation.Ids(); ok {
 		_spec.SetField(commitkey.FieldIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Batch(); ok {
+		_spec.SetField(commitkey.FieldBatch, field.TypeString, value)
 	}
 	_node = &CommitKey{config: _u.config}
 	_spec.Assign = _node.assignValues

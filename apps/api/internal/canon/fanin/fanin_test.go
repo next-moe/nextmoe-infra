@@ -2,164 +2,88 @@ package fanin
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math/rand/v2"
-	"strings"
 	"testing"
 
 	"api/internal/canon/canontest"
 	"api/internal/canon/contract"
 	"api/internal/canon/ent/bookrelease"
-	"api/internal/canon/ent/todo"
+	"api/internal/canon/registry"
 	"api/internal/canon/takedown"
 )
 
-type fakePool struct {
-	outbox  []contract.OutboxEntry
-	snaps   map[string]contract.Snapshot
-	recs    map[string]contract.Record
-	answers []contract.InboxRow
-	blocked []contract.BlockItem
-}
+type props = map[string]contract.Candidate
 
-func (p *fakePool) Outbox(_ context.Context, after int64, limit int) (contract.OutboxPage, error) {
-	var page contract.OutboxPage
-	for _, e := range p.outbox {
-		if e.ID > after && len(page.Items) < limit {
-			page.Items = append(page.Items, e)
-			page.NextAfter = e.ID
-		}
-	}
-	return page, nil
-}
-
-func (p *fakePool) Snapshot(_ context.Context, h string) (contract.Snapshot, error) {
-	s, ok := p.snaps[h]
-	if !ok {
-		return s, errNotFound
-	}
-	return s, nil
-}
-
-func (p *fakePool) Record(_ context.Context, id string) (contract.Record, error) {
-	r, ok := p.recs[id]
-	if !ok {
-		return r, errNotFound
-	}
-	return r, nil
-}
-
-func (p *fakePool) Block(_ context.Context, items []contract.BlockItem) error {
-	p.blocked = append(p.blocked, items...)
-	return nil
-}
-
-func (p *fakePool) Answer(_ context.Context, rows []contract.InboxRow) error {
-	p.answers = append(p.answers, rows...)
-	return nil
-}
-
-func snapshot(url string, lines ...string) contract.Snapshot {
-	sum := sha256.Sum256([]byte(strings.Join(lines, "\n")))
-	h := hex.EncodeToString(sum[:])
-	return contract.Snapshot{Hash: h, RequestedURL: url, FinalURL: url, FetchedAt: "2026-11-22T00:00:00Z", Loaded: true, Lines: lines}
-}
-
-func isbn() string {
-	base := fmt.Sprintf("978%09d", rand.IntN(1_000_000_000))
-	sum := 0
-	for i, r := range base {
-		n := int(r - '0')
-		if i%2 == 1 {
-			n *= 3
-		}
-		sum += n
-	}
-	return fmt.Sprintf("%s%d", base, (10-sum%10)%10)
-}
-
-func val(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
-
-func fromRecord(v any, path string) contract.Candidate {
-	return contract.Candidate{Value: val(v), Tier: "registry", Evidence: []contract.Evidence{{RecordID: "ndl:1", Path: path}}}
-}
-
-func ref(r string) contract.Candidate { return contract.Candidate{Value: val("ref:" + r)} }
+func fresh(tag string) string { return fmt.Sprintf("%s-%d", tag, rand.Int64()) }
 
 func TestFaninCommitsVerifiedRowsAndRefusesTheRest(t *testing.T) {
 	client, _ := canontest.Client(t)
+	canontest.Mode(t, client, "ln-pilot", registry.ModeAuto)
 	ctx := context.Background()
-	code := isbn()
-	name := fmt.Sprintf("test-%d", rand.Int64())
-	fields := fmt.Sprintf(`{"title":"アクセル・ワールド","volume":"28","isbn":"%s","date":"2025.8","label":"電撃文庫 ; 4347"}`, code)
-	page := snapshot("https://www.kadokawa.co.jp/product/322508000515/",
-		"アクセル・ワールド28", "定価: 924円（本体840円+税）", "発売日：2025年08月08日", "ISBN："+code)
-	pool := &fakePool{
-		snaps: map[string]contract.Snapshot{page.Hash: page},
-		recs:  map[string]contract.Record{"ndl:1": {ID: "ndl:1", Source: "ndl", Key: code, Hash: "x", FetchedAt: "2026-11-22T00:00:00Z", Fields: json.RawMessage(fields)}},
-	}
-	add := func(row contract.OutboxRow) {
-		row.ContractVersion, row.Program = contract.Version, "ln-pilot"
-		pool.outbox = append(pool.outbox, contract.OutboxEntry{ID: int64(len(pool.outbox) + 1), Row: row})
-	}
-	add(contract.OutboxRow{Kind: "changeset", Changeset: &contract.Changeset{LeadID: "l1", Entities: []contract.NewEntity{
-		{Ref: "w", Entity: "work", Properties: map[string]contract.Candidate{"medium": {Value: val("novel")}}},
-		{Ref: "t", Entity: "work_title", Properties: map[string]contract.Candidate{"work_id": ref("w"), "text": fromRecord("アクセル・ワールド", "title"), "lang": fromRecord("ja", "title"), "kind": fromRecord("official", "title")}},
-		{Ref: "r", Entity: "release", Properties: map[string]contract.Candidate{"lang": fromRecord("ja", "title"), "format": {Value: val("paperback"), Evidence: []contract.Evidence{{RecordID: "ndl:1", Path: "label"}}}, "released": fromRecord("2025-08", "date")}},
-		{Ref: "b", Entity: "book_release", Properties: map[string]contract.Candidate{"release_id": ref("r"), "isbn13": fromRecord(code, "isbn")}},
-	}}})
-	cands := []contract.Candidate{
-		{Value: val("2025-08-08"), Evidence: []contract.Evidence{{SnapshotID: page.Hash, LineFrom: 3, LineTo: 3}}},
-		{Value: val("2025-08-09"), Evidence: []contract.Evidence{{SnapshotID: page.Hash, LineFrom: 3, LineTo: 3}}},
-		{Value: val("2025-08-08"), Evidence: []contract.Evidence{{SnapshotID: page.Hash, LineFrom: 3, LineTo: 9}}},
-		{Value: val("2025-08-08"), Evidence: []contract.Evidence{{SnapshotID: "deadbeef", LineFrom: 1, LineTo: 1}}},
-	}
-
-	if _, err := New(name, pool, client).RunOnce(ctx, 10); err != nil {
+	code, title := canontest.ISBN(), canontest.Title("の世界")
+	name := fresh("test")
+	pool := canontest.NewPool()
+	pool.AddRecord("ndl:1", "ndl", map[string]any{"title": title, "volume": "28", "isbn": code, "date": "2025.8", "label": "電撃文庫 ; 4347"})
+	page := pool.AddSnapshot("https://www.kadokawa.co.jp/product/322508000515/",
+		title+"28", "定価: 924円（本体840円+税）", "発売日：2025年08月08日", "ISBN："+code)
+	from := func(v any, path string) contract.Candidate { return canontest.Cite("ndl:1", v, path) }
+	pool.Changeset("l1",
+		canontest.New("w", "work", props{"medium": {Value: canontest.Val("novel")}}),
+		canontest.New("t", "work_title", props{"work_id": canontest.Ref("w"), "text": from(title, "title"), "lang": from("ja", "title"), "kind": from("official", "title")}),
+		canontest.New("r", "release", props{"lang": from("ja", "title"), "format": from("paperback", "label"), "released": from("2025-08", "date")}),
+		canontest.New("b", "book_release", props{"release_id": canontest.Ref("r"), "isbn13": from(code, "isbn")}),
+	)
+	f := New(name, pool, client)
+	if _, err := f.RunOnce(ctx, 10); err != nil {
 		t.Fatal(err)
 	}
-	if len(pool.answers) != 1 || pool.answers[0].Result != "written" {
-		t.Fatalf("changeset answer: %+v", pool.answers)
+	if a := pool.Take(); len(a) != 1 || a[0].Result != "written" {
+		t.Fatalf("changeset answer: %+v", a)
 	}
 	br, err := client.BookRelease.Query().Where(bookrelease.Isbn13(code)).Only(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rel, _ := client.Release.Get(ctx, br.ReleaseID)
-	if rel.Released == nil || *rel.Released != "2025-08" || rel.FieldState["released"].(map[string]any)["assurance"] != "registry" {
+	st := rel.FieldState["released"].(map[string]any)
+	if rel.Released == nil || *rel.Released != "2025-08" || st["assurance"] != "registry" || st["source"] != "ndl" {
 		t.Fatalf("release from the NDL record: %+v", rel)
+	}
+	if br.FieldState["isbn13"].(map[string]any)["source"] != "ndl" {
+		t.Errorf("book_release is stamped too: %v", br.FieldState)
 	}
 	if n, _ := client.EvidenceRecord.Query().Count(ctx); n == 0 {
 		t.Error("the NDL record was not archived")
 	}
 
-	for _, c := range cands {
-		c.Target = contract.Target{Entity: "release", ID: rel.ID}
-		c.Tier = "official"
-		cc := c
-		add(contract.OutboxRow{Kind: "candidate", Candidate: &contract.Candidate{Target: cc.Target, Value: cc.Value, Tier: cc.Tier, Evidence: cc.Evidence, Property: "released"}})
+	at := func(from, to int) []contract.Evidence {
+		return []contract.Evidence{{SnapshotID: page.Hash, LineFrom: from, LineTo: to}}
 	}
-	add(contract.OutboxRow{Kind: "changeset", Changeset: &contract.Changeset{LeadID: "l2", Entities: []contract.NewEntity{
-		{Ref: "b", Entity: "book_release", Properties: map[string]contract.Candidate{"release_id": {Value: val(rel.ID)}, "isbn13": fromRecord(code, "isbn")}},
-	}}})
-	pool.outbox = append(pool.outbox, contract.OutboxEntry{ID: int64(len(pool.outbox) + 1), Row: contract.OutboxRow{ContractVersion: "9.9.9", Kind: "lead_result"}})
-
-	pool.answers = nil
-	if _, err := New(name, pool, client).RunOnce(ctx, 10); err != nil {
+	for _, c := range []contract.Candidate{
+		{Value: canontest.Val("2025-08-08"), Evidence: at(3, 3)},
+		{Value: canontest.Val("2025-08-09"), Evidence: at(3, 3)},
+		{Value: canontest.Val("2025-08-08"), Evidence: at(3, 9)},
+		{Value: canontest.Val("2025-08-08"), Evidence: []contract.Evidence{{SnapshotID: "deadbeef", LineFrom: 1, LineTo: 1}}},
+	} {
+		c.Target, c.Tier, c.Property = contract.Target{Entity: "release", ID: rel.ID}, "official", "released"
+		pool.Candidate(c)
+	}
+	pool.Changeset("l2", canontest.New("b", "book_release", props{"release_id": {Value: canontest.Val(rel.ID)}, "isbn13": from(code, "isbn")}))
+	pool.Rows = append(pool.Rows, contract.OutboxEntry{ID: int64(len(pool.Rows) + 1), Row: contract.OutboxRow{ContractVersion: "9.9.9", Kind: "lead_result"}})
+	if _, err := f.RunOnce(ctx, 10); err != nil {
 		t.Fatal(err)
 	}
 	want := []struct{ result, code string }{
 		{"written", ""}, {"refused", "VALUE_NOT_ENTAILED"}, {"refused", "EXCERPT_NOT_ON_PAGE"},
 		{"refused", "SNAPSHOT_MISSING"}, {"refused", "UNIQUE_CONFLICT"}, {"refused", "CONTRACT_VERSION_UNSUPPORTED"},
 	}
-	if len(pool.answers) != len(want) {
-		t.Fatalf("answers %+v", pool.answers)
+	got := pool.Take()
+	if len(got) != len(want) {
+		t.Fatalf("answers %+v", got)
 	}
 	for i, w := range want {
-		if a := pool.answers[i]; a.Result != w.result || a.Code != w.code {
+		if a := got[i]; a.Result != w.result || a.Code != w.code {
 			t.Errorf("answer %d: %s %s %s, want %s %s", i, a.Result, a.Code, a.Detail, w.result, w.code)
 		}
 	}
@@ -172,62 +96,95 @@ func TestFaninCommitsVerifiedRowsAndRefusesTheRest(t *testing.T) {
 		t.Fatal(err)
 	}
 	before, _ := client.Work.Query().Count(ctx)
-	if _, err := New(name, pool, client).RunOnce(ctx, 10); err != nil {
+	if _, err := f.RunOnce(ctx, 10); err != nil {
 		t.Fatal(err)
+	}
+	if a := pool.Take(); a[0].Result != "written" || a[0].IDs["w"] == 0 {
+		t.Errorf("a replayed row answers as it did: %+v", a[0])
 	}
 	if after, _ := client.Work.Query().Count(ctx); after != before {
 		t.Errorf("replaying the pool created %d more works", after-before)
 	}
 }
 
-func TestSameNamedPersonBecomesOneTodo(t *testing.T) {
+func TestARefIsWrittenOnlyWhereItsNameIs(t *testing.T) {
 	client, _ := canontest.Client(t)
+	canontest.Mode(t, client, "ln-pilot", registry.ModeAuto)
 	ctx := context.Background()
-	name := fmt.Sprintf("同名%d", rand.Int64())
-	rec := contract.Record{ID: "ndl:p", Source: "ndl", Key: "p", Hash: "x", FetchedAt: "2026-11-22T00:00:00Z",
-		Fields: json.RawMessage(fmt.Sprintf(`{"creators":[{"name":%q}]}`, name))}
-	pool := &fakePool{recs: map[string]contract.Record{"ndl:p": rec}}
-	person := func() {
-		pool.outbox = append(pool.outbox, contract.OutboxEntry{ID: int64(len(pool.outbox) + 1), Row: contract.OutboxRow{
-			ContractVersion: contract.Version, Program: "ln-pilot", Kind: "changeset", Changeset: &contract.Changeset{LeadID: "l", Entities: []contract.NewEntity{
-				{Ref: "p", Entity: "person", Properties: map[string]contract.Candidate{}},
-				{Ref: "a", Entity: "person_alias", Properties: map[string]contract.Candidate{"person_id": ref("p"),
-					"name": {Value: val(name), Evidence: []contract.Evidence{{RecordID: "ndl:p", Path: "creators.0.name"}}}}},
-			}}}})
-	}
-	person()
-	person()
-	person()
-	f := New(fmt.Sprintf("todo-%d", rand.Int64()), pool, client)
-	if _, err := f.RunOnce(ctx, 10); err != nil {
+	label, err := client.Org.Create().SetKind("label").Save(ctx)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if pool.answers[0].Result != "written" || pool.answers[1].Result != "todo" || pool.answers[2].Result != "todo" {
-		t.Fatalf("answers %+v", pool.answers)
+	labelName := canontest.Title("文庫")
+	if err := client.OrgName.Create().SetOrgID(label.ID).SetText(labelName).SetLang("ja").Exec(ctx); err != nil {
+		t.Fatal(err)
 	}
-	n, err := client.Todo.Query().Where(todo.SubjectKey("identity:person_alias:" + name)).Count(ctx)
-	if err != nil || n != 1 {
-		t.Errorf("todos for one question: %d %v", n, err)
+	pool := canontest.NewPool()
+	pool.AddRecord("ndl:a", "ndl", map[string]any{"label": labelName, "other": labelName + "f",
+		"creators": []map[string]any{{"name": "山田" + canontest.ISBN() + "花", "role_text": "著"}, {"name": "佐藤", "role_text": "イラスト"}}})
+	release := func(lead, path string) {
+		pool.Changeset(lead,
+			canontest.New("r", "release", props{"lang": canontest.Cite("ndl:a", "ja", "label"), "format": canontest.Cite("ndl:a", "paperback", "label")}),
+			canontest.New("b", "book_release", props{"release_id": canontest.Ref("r"), "label_id": canontest.Cite("ndl:a", label.ID, path)}))
+	}
+	release("named", "label")
+	release("other", "other")
+	credited := func(lead, rolePath string) {
+		name := canontest.Cite("ndl:a", firstName(pool), "creators.0.name")
+		pool.Changeset(lead,
+			canontest.New("w", "work", props{"medium": {Value: canontest.Val("novel")}}),
+			canontest.New("p", "person", props{}),
+			canontest.New("a", "person_alias", props{"person_id": canontest.Ref("p"), "name": name}),
+			canontest.New("c", "credit", props{"work_id": canontest.Ref("w"), "alias_id": citeRef("a", "creators.0.name"), "role": canontest.Cite("ndl:a", roleAt(rolePath), rolePath)}))
+	}
+	credited("together", "creators.0.role_text")
+	credited("apart", "creators.1.role_text")
+	if _, err := New(fresh("named"), pool, client).RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"written", "refused", "written", "refused"}
+	for i, a := range pool.Take() {
+		if a.Result != want[i] {
+			t.Errorf("row %d: %s %s %s, want %s", i+1, a.Result, a.Code, a.Detail, want[i])
+		}
+	}
+	br, err := client.BookRelease.Query().Where(bookrelease.LabelID(label.ID)).Only(ctx)
+	if err != nil || br.FieldState["label_id"].(map[string]any)["assurance"] != "registry" {
+		t.Errorf("the label is written and graded: %+v %v", br, err)
 	}
 }
 
-func TestSettledTodosAreAnsweredOnce(t *testing.T) {
+func firstName(p *canontest.Pool) string {
+	v, _ := lookup(p.Recs["ndl:a"].Fields, "creators.0.name")
+	return v
+}
+
+func roleAt(path string) string {
+	if path == "creators.0.role_text" {
+		return "author"
+	}
+	return "illustrator"
+}
+
+func citeRef(ref, path string) contract.Candidate {
+	c := canontest.Ref(ref)
+	c.Tier, c.Evidence = "registry", []contract.Evidence{{RecordID: "ndl:a", Path: path}}
+	return c
+}
+
+func TestAStoppedProgramsRowsStayInThePool(t *testing.T) {
 	client, _ := canontest.Client(t)
 	ctx := context.Background()
-	name := fmt.Sprintf("settled-%d", rand.Int64())
-	if err := client.Todo.Create().SetKind("identity").SetSubjectKey("identity:x:" + name).SetSource("pool:" + name + ":42").
-		SetState("done").SetResolution(map[string]any{"result": "written", "ids": map[string]any{"work": 9, "alias.ndl.1": 11}}).Exec(ctx); err != nil {
-		t.Fatal(err)
+	canontest.Mode(t, client, "ln-pilot", registry.ModeStopped)
+	pool := canontest.NewPool()
+	pool.Changeset("l", canontest.New("w", "work", props{"medium": {Value: canontest.Val("novel")}}))
+	f := New(fresh("stopped"), pool, client)
+	if n, err := f.RunOnce(ctx, 10); err != nil || n != 0 || len(pool.Take()) != 0 {
+		t.Errorf("rows handled: %d %v", n, err)
 	}
-	pool := &fakePool{}
-	f := New(name, pool, client)
-	for i := 0; i < 2; i++ {
-		if _, err := f.RunOnce(ctx, 10); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if len(pool.answers) != 1 || pool.answers[0].OutboxID != 42 || pool.answers[0].Result != "written" || pool.answers[0].IDs["alias.ndl.1"] != 11 {
-		t.Errorf("answers %+v", pool.answers)
+	canontest.Mode(t, client, "ln-pilot", registry.ModeAuto)
+	if n, err := f.RunOnce(ctx, 10); err != nil || n != 1 {
+		t.Errorf("after starting again: %d %v", n, err)
 	}
 }
 
@@ -243,16 +200,16 @@ func TestTakedownsReachThePoolAndLiftOnRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pool := &fakePool{}
-	f := New(fmt.Sprintf("block-%d", rand.Int64()), pool, client)
+	pool := canontest.NewPool()
+	f := New(fresh("block"), pool, client)
 	mine := func() []contract.BlockItem {
 		var out []contract.BlockItem
-		for _, it := range pool.blocked {
+		for _, it := range pool.Blocked {
 			if it.TakedownID == td.ID {
 				out = append(out, it)
 			}
 		}
-		pool.blocked = nil
+		pool.Blocked = nil
 		return out
 	}
 	if _, err := f.RunOnce(ctx, 10); err != nil {

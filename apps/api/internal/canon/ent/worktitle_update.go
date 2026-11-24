@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -119,6 +120,39 @@ func (_u *WorkTitleUpdate) AddPosition(v int) *WorkTitleUpdate {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *WorkTitleUpdate) SetFieldState(v map[string]interface{}) *WorkTitleUpdate {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *WorkTitleUpdate) SetVersion(v int) *WorkTitleUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *WorkTitleUpdate) SetNillableVersion(v *int) *WorkTitleUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *WorkTitleUpdate) AddVersion(v int) *WorkTitleUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *WorkTitleUpdate) SetUpdatedAt(v time.Time) *WorkTitleUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetWork sets the "work" edge to the Work entity.
 func (_u *WorkTitleUpdate) SetWork(v *Work) *WorkTitleUpdate {
 	return _u.SetWorkID(v.ID)
@@ -137,6 +171,7 @@ func (_u *WorkTitleUpdate) ClearWork() *WorkTitleUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *WorkTitleUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -159,6 +194,14 @@ func (_u *WorkTitleUpdate) Exec(ctx context.Context) error {
 func (_u *WorkTitleUpdate) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *WorkTitleUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := worktitle.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -204,6 +247,18 @@ func (_u *WorkTitleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedPosition(); ok {
 		_spec.AddField(worktitle.FieldPosition, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(worktitle.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(worktitle.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(worktitle.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(worktitle.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.WorkCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -345,6 +400,39 @@ func (_u *WorkTitleUpdateOne) AddPosition(v int) *WorkTitleUpdateOne {
 	return _u
 }
 
+// SetFieldState sets the "field_state" field.
+func (_u *WorkTitleUpdateOne) SetFieldState(v map[string]interface{}) *WorkTitleUpdateOne {
+	_u.mutation.SetFieldState(v)
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *WorkTitleUpdateOne) SetVersion(v int) *WorkTitleUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *WorkTitleUpdateOne) SetNillableVersion(v *int) *WorkTitleUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *WorkTitleUpdateOne) AddVersion(v int) *WorkTitleUpdateOne {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *WorkTitleUpdateOne) SetUpdatedAt(v time.Time) *WorkTitleUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetWork sets the "work" edge to the Work entity.
 func (_u *WorkTitleUpdateOne) SetWork(v *Work) *WorkTitleUpdateOne {
 	return _u.SetWorkID(v.ID)
@@ -376,6 +464,7 @@ func (_u *WorkTitleUpdateOne) Select(field string, fields ...string) *WorkTitleU
 
 // Save executes the query and returns the updated WorkTitle entity.
 func (_u *WorkTitleUpdateOne) Save(ctx context.Context) (*WorkTitle, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -398,6 +487,14 @@ func (_u *WorkTitleUpdateOne) Exec(ctx context.Context) error {
 func (_u *WorkTitleUpdateOne) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *WorkTitleUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := worktitle.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -460,6 +557,18 @@ func (_u *WorkTitleUpdateOne) sqlSave(ctx context.Context) (_node *WorkTitle, er
 	}
 	if value, ok := _u.mutation.AddedPosition(); ok {
 		_spec.AddField(worktitle.FieldPosition, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.FieldState(); ok {
+		_spec.SetField(worktitle.FieldFieldState, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(worktitle.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(worktitle.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(worktitle.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.WorkCleared() {
 		edge := &sqlgraph.EdgeSpec{

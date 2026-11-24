@@ -17,7 +17,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 // internalTables are canon's own bookkeeping; ingest never writes them.
 var internalTables = map[string]bool{
@@ -25,6 +25,7 @@ var internalTables = map[string]bool{
 	"todo": true, "hold": true, "takedown": true, "xref_link": true,
 	"redirect": true, "merge_record": true,
 	"library_part_progress": true, "library_tombstone": true,
+	"identity_key": true, "program_state": true,
 }
 
 type Property struct {

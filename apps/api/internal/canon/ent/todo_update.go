@@ -12,6 +12,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -52,6 +53,34 @@ func (_u *TodoUpdate) SetSubjectKey(v string) *TodoUpdate {
 func (_u *TodoUpdate) SetNillableSubjectKey(v *string) *TodoUpdate {
 	if v != nil {
 		_u.SetSubjectKey(*v)
+	}
+	return _u
+}
+
+// SetGroupKey sets the "group_key" field.
+func (_u *TodoUpdate) SetGroupKey(v string) *TodoUpdate {
+	_u.mutation.SetGroupKey(v)
+	return _u
+}
+
+// SetNillableGroupKey sets the "group_key" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableGroupKey(v *string) *TodoUpdate {
+	if v != nil {
+		_u.SetGroupKey(*v)
+	}
+	return _u
+}
+
+// SetProgram sets the "program" field.
+func (_u *TodoUpdate) SetProgram(v string) *TodoUpdate {
+	_u.mutation.SetProgram(v)
+	return _u
+}
+
+// SetNillableProgram sets the "program" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableProgram(v *string) *TodoUpdate {
+	if v != nil {
+		_u.SetProgram(*v)
 	}
 	return _u
 }
@@ -98,6 +127,24 @@ func (_u *TodoUpdate) SetNillableSource(v *string) *TodoUpdate {
 	return _u
 }
 
+// SetWaiting sets the "waiting" field.
+func (_u *TodoUpdate) SetWaiting(v []string) *TodoUpdate {
+	_u.mutation.SetWaiting(v)
+	return _u
+}
+
+// AppendWaiting appends value to the "waiting" field.
+func (_u *TodoUpdate) AppendWaiting(v []string) *TodoUpdate {
+	_u.mutation.AppendWaiting(v)
+	return _u
+}
+
+// ClearWaiting clears the value of the "waiting" field.
+func (_u *TodoUpdate) ClearWaiting() *TodoUpdate {
+	_u.mutation.ClearWaiting()
+	return _u
+}
+
 // SetSuggestion sets the "suggestion" field.
 func (_u *TodoUpdate) SetSuggestion(v map[string]interface{}) *TodoUpdate {
 	_u.mutation.SetSuggestion(v)
@@ -107,6 +154,54 @@ func (_u *TodoUpdate) SetSuggestion(v map[string]interface{}) *TodoUpdate {
 // ClearSuggestion clears the value of the "suggestion" field.
 func (_u *TodoUpdate) ClearSuggestion() *TodoUpdate {
 	_u.mutation.ClearSuggestion()
+	return _u
+}
+
+// SetChangeset sets the "changeset" field.
+func (_u *TodoUpdate) SetChangeset(v map[string]interface{}) *TodoUpdate {
+	_u.mutation.SetChangeset(v)
+	return _u
+}
+
+// ClearChangeset clears the value of the "changeset" field.
+func (_u *TodoUpdate) ClearChangeset() *TodoUpdate {
+	_u.mutation.ClearChangeset()
+	return _u
+}
+
+// SetQuestions sets the "questions" field.
+func (_u *TodoUpdate) SetQuestions(v []map[string]interface{}) *TodoUpdate {
+	_u.mutation.SetQuestions(v)
+	return _u
+}
+
+// AppendQuestions appends value to the "questions" field.
+func (_u *TodoUpdate) AppendQuestions(v []map[string]interface{}) *TodoUpdate {
+	_u.mutation.AppendQuestions(v)
+	return _u
+}
+
+// ClearQuestions clears the value of the "questions" field.
+func (_u *TodoUpdate) ClearQuestions() *TodoUpdate {
+	_u.mutation.ClearQuestions()
+	return _u
+}
+
+// SetNotes sets the "notes" field.
+func (_u *TodoUpdate) SetNotes(v []map[string]interface{}) *TodoUpdate {
+	_u.mutation.SetNotes(v)
+	return _u
+}
+
+// AppendNotes appends value to the "notes" field.
+func (_u *TodoUpdate) AppendNotes(v []map[string]interface{}) *TodoUpdate {
+	_u.mutation.AppendNotes(v)
+	return _u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (_u *TodoUpdate) ClearNotes() *TodoUpdate {
+	_u.mutation.ClearNotes()
 	return _u
 }
 
@@ -218,6 +313,12 @@ func (_u *TodoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.SubjectKey(); ok {
 		_spec.SetField(todo.FieldSubjectKey, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.GroupKey(); ok {
+		_spec.SetField(todo.FieldGroupKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Program(); ok {
+		_spec.SetField(todo.FieldProgram, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.State(); ok {
 		_spec.SetField(todo.FieldState, field.TypeString, value)
 	}
@@ -227,11 +328,50 @@ func (_u *TodoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(todo.FieldSource, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Waiting(); ok {
+		_spec.SetField(todo.FieldWaiting, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedWaiting(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, todo.FieldWaiting, value)
+		})
+	}
+	if _u.mutation.WaitingCleared() {
+		_spec.ClearField(todo.FieldWaiting, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Suggestion(); ok {
 		_spec.SetField(todo.FieldSuggestion, field.TypeJSON, value)
 	}
 	if _u.mutation.SuggestionCleared() {
 		_spec.ClearField(todo.FieldSuggestion, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Changeset(); ok {
+		_spec.SetField(todo.FieldChangeset, field.TypeJSON, value)
+	}
+	if _u.mutation.ChangesetCleared() {
+		_spec.ClearField(todo.FieldChangeset, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Questions(); ok {
+		_spec.SetField(todo.FieldQuestions, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedQuestions(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, todo.FieldQuestions, value)
+		})
+	}
+	if _u.mutation.QuestionsCleared() {
+		_spec.ClearField(todo.FieldQuestions, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Notes(); ok {
+		_spec.SetField(todo.FieldNotes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedNotes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, todo.FieldNotes, value)
+		})
+	}
+	if _u.mutation.NotesCleared() {
+		_spec.ClearField(todo.FieldNotes, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.ResolvedBy(); ok {
 		_spec.SetField(todo.FieldResolvedBy, field.TypeString, value)
@@ -299,6 +439,34 @@ func (_u *TodoUpdateOne) SetNillableSubjectKey(v *string) *TodoUpdateOne {
 	return _u
 }
 
+// SetGroupKey sets the "group_key" field.
+func (_u *TodoUpdateOne) SetGroupKey(v string) *TodoUpdateOne {
+	_u.mutation.SetGroupKey(v)
+	return _u
+}
+
+// SetNillableGroupKey sets the "group_key" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableGroupKey(v *string) *TodoUpdateOne {
+	if v != nil {
+		_u.SetGroupKey(*v)
+	}
+	return _u
+}
+
+// SetProgram sets the "program" field.
+func (_u *TodoUpdateOne) SetProgram(v string) *TodoUpdateOne {
+	_u.mutation.SetProgram(v)
+	return _u
+}
+
+// SetNillableProgram sets the "program" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableProgram(v *string) *TodoUpdateOne {
+	if v != nil {
+		_u.SetProgram(*v)
+	}
+	return _u
+}
+
 // SetState sets the "state" field.
 func (_u *TodoUpdateOne) SetState(v string) *TodoUpdateOne {
 	_u.mutation.SetState(v)
@@ -341,6 +509,24 @@ func (_u *TodoUpdateOne) SetNillableSource(v *string) *TodoUpdateOne {
 	return _u
 }
 
+// SetWaiting sets the "waiting" field.
+func (_u *TodoUpdateOne) SetWaiting(v []string) *TodoUpdateOne {
+	_u.mutation.SetWaiting(v)
+	return _u
+}
+
+// AppendWaiting appends value to the "waiting" field.
+func (_u *TodoUpdateOne) AppendWaiting(v []string) *TodoUpdateOne {
+	_u.mutation.AppendWaiting(v)
+	return _u
+}
+
+// ClearWaiting clears the value of the "waiting" field.
+func (_u *TodoUpdateOne) ClearWaiting() *TodoUpdateOne {
+	_u.mutation.ClearWaiting()
+	return _u
+}
+
 // SetSuggestion sets the "suggestion" field.
 func (_u *TodoUpdateOne) SetSuggestion(v map[string]interface{}) *TodoUpdateOne {
 	_u.mutation.SetSuggestion(v)
@@ -350,6 +536,54 @@ func (_u *TodoUpdateOne) SetSuggestion(v map[string]interface{}) *TodoUpdateOne 
 // ClearSuggestion clears the value of the "suggestion" field.
 func (_u *TodoUpdateOne) ClearSuggestion() *TodoUpdateOne {
 	_u.mutation.ClearSuggestion()
+	return _u
+}
+
+// SetChangeset sets the "changeset" field.
+func (_u *TodoUpdateOne) SetChangeset(v map[string]interface{}) *TodoUpdateOne {
+	_u.mutation.SetChangeset(v)
+	return _u
+}
+
+// ClearChangeset clears the value of the "changeset" field.
+func (_u *TodoUpdateOne) ClearChangeset() *TodoUpdateOne {
+	_u.mutation.ClearChangeset()
+	return _u
+}
+
+// SetQuestions sets the "questions" field.
+func (_u *TodoUpdateOne) SetQuestions(v []map[string]interface{}) *TodoUpdateOne {
+	_u.mutation.SetQuestions(v)
+	return _u
+}
+
+// AppendQuestions appends value to the "questions" field.
+func (_u *TodoUpdateOne) AppendQuestions(v []map[string]interface{}) *TodoUpdateOne {
+	_u.mutation.AppendQuestions(v)
+	return _u
+}
+
+// ClearQuestions clears the value of the "questions" field.
+func (_u *TodoUpdateOne) ClearQuestions() *TodoUpdateOne {
+	_u.mutation.ClearQuestions()
+	return _u
+}
+
+// SetNotes sets the "notes" field.
+func (_u *TodoUpdateOne) SetNotes(v []map[string]interface{}) *TodoUpdateOne {
+	_u.mutation.SetNotes(v)
+	return _u
+}
+
+// AppendNotes appends value to the "notes" field.
+func (_u *TodoUpdateOne) AppendNotes(v []map[string]interface{}) *TodoUpdateOne {
+	_u.mutation.AppendNotes(v)
+	return _u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (_u *TodoUpdateOne) ClearNotes() *TodoUpdateOne {
+	_u.mutation.ClearNotes()
 	return _u
 }
 
@@ -491,6 +725,12 @@ func (_u *TodoUpdateOne) sqlSave(ctx context.Context) (_node *Todo, err error) {
 	if value, ok := _u.mutation.SubjectKey(); ok {
 		_spec.SetField(todo.FieldSubjectKey, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.GroupKey(); ok {
+		_spec.SetField(todo.FieldGroupKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Program(); ok {
+		_spec.SetField(todo.FieldProgram, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.State(); ok {
 		_spec.SetField(todo.FieldState, field.TypeString, value)
 	}
@@ -500,11 +740,50 @@ func (_u *TodoUpdateOne) sqlSave(ctx context.Context) (_node *Todo, err error) {
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(todo.FieldSource, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Waiting(); ok {
+		_spec.SetField(todo.FieldWaiting, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedWaiting(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, todo.FieldWaiting, value)
+		})
+	}
+	if _u.mutation.WaitingCleared() {
+		_spec.ClearField(todo.FieldWaiting, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Suggestion(); ok {
 		_spec.SetField(todo.FieldSuggestion, field.TypeJSON, value)
 	}
 	if _u.mutation.SuggestionCleared() {
 		_spec.ClearField(todo.FieldSuggestion, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Changeset(); ok {
+		_spec.SetField(todo.FieldChangeset, field.TypeJSON, value)
+	}
+	if _u.mutation.ChangesetCleared() {
+		_spec.ClearField(todo.FieldChangeset, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Questions(); ok {
+		_spec.SetField(todo.FieldQuestions, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedQuestions(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, todo.FieldQuestions, value)
+		})
+	}
+	if _u.mutation.QuestionsCleared() {
+		_spec.ClearField(todo.FieldQuestions, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Notes(); ok {
+		_spec.SetField(todo.FieldNotes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedNotes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, todo.FieldNotes, value)
+		})
+	}
+	if _u.mutation.NotesCleared() {
+		_spec.ClearField(todo.FieldNotes, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.ResolvedBy(); ok {
 		_spec.SetField(todo.FieldResolvedBy, field.TypeString, value)

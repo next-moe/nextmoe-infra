@@ -78,12 +78,12 @@ func (OrgName) Annotations() []schema.Annotation {
 }
 
 func (OrgName) Fields() []ent.Field {
-	return []ent.Field{
+	return append([]ent.Field{
 		with(field.Int64("org_id"), r.RefFact("org", "The organization this name belongs to.", "R7.2")),
 		with(field.String("text").NotEmpty(), r.Fact(r.ShapeTitle, "A name of the organization as it presents itself.", "R7.2")),
 		with(field.String("lang"), r.Fact(r.ShapeLang, "BCP-47 language of the name.", "R7.2")),
 		with(field.Int("position").Default(0), r.Internal(r.ShapeInteger, "Display order among siblings; set by people and the system, not by agents.")),
-	}
+	}, stamps()...)
 }
 
 func (OrgName) Edges() []ent.Edge {

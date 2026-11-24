@@ -8,6 +8,16 @@ type Program struct {
 	Doc    string `json:"doc"`
 }
 
+// A program's mode (D6): in review every verified row waits for a reviewer,
+// in auto it is written, and a stopped program's rows stay in the pool.
+const (
+	ModeReview  = "review"
+	ModeAuto    = "auto"
+	ModeStopped = "stopped"
+)
+
+var Modes = []string{ModeReview, ModeAuto, ModeStopped}
+
 var Programs = []Program{
 	{Key: "ln-pilot", Medium: "novel", Doc: "Japanese bunko light novels of the pilot labels and their official Chinese editions (D4)."},
 }

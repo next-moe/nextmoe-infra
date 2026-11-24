@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -10,30 +9,33 @@ import (
 	"time"
 
 	"api/internal/canon/commit"
-	"api/internal/canon/contract"
 	"api/internal/canon/ent"
 	"api/internal/canon/ent/todo"
 	"api/internal/canon/perm"
 	"api/internal/canon/registry"
+	"api/internal/canon/review"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 type Todo struct {
-	ID         string         `json:"id"`
-	Kind       string         `json:"kind"`
-	SubjectKey string         `json:"subject_key"`
-	State      string         `json:"state" enum:"open,done,rejected"`
-	Detail     string         `json:"detail"`
-	Source     string         `json:"source"`
-	Suggestion map[string]any `json:"suggestion" doc:"The pool row that opened it; accepting applies it as a person's commit."`
-	ResolvedBy string         `json:"resolved_by"`
-	CreatedAt  time.Time      `json:"created_at"`
+	ID         string           `json:"id"`
+	Kind       string           `json:"kind"`
+	SubjectKey string           `json:"subject_key"`
+	Program    string           `json:"program"`
+	State      string           `json:"state" enum:"open,done,rejected,superseded"`
+	Detail     string           `json:"detail"`
+	Source     string           `json:"source"`
+	Suggestion map[string]any   `json:"suggestion" doc:"The pool row that opened it. Accepting commits it as the program's write with you as its reviewer; an agent_on_human todo becomes your own edit."`
+	Questions  []map[string]any `json:"questions" doc:"Identity questions; accepting answers every one."`
+	Notes      []map[string]any `json:"notes" doc:"What reviewers who left it open found."`
+	ResolvedBy string           `json:"resolved_by"`
+	CreatedAt  time.Time        `json:"created_at"`
 }
 
 type TodoListInput struct {
 	AuthInput
-	State  string `query:"state" enum:"open,done,rejected," default:"open"`
+	State  string `query:"state" enum:"open,done,rejected,superseded," default:"open"`
 	Kind   string `query:"kind"`
 	Cursor string `query:"cursor"`
 	Limit  int    `query:"limit" minimum:"1" maximum:"100" default:"20"`
@@ -50,8 +52,16 @@ type TodoAcceptInput struct {
 	AuthInput
 	ID   int `path:"id" minimum:"1"`
 	Body struct {
-		UseIDs map[string]string `json:"use_ids,omitempty" doc:"ref → an existing canon id: that entity is the same one, so it is cited, not created."`
+		Answers map[string]TodoAnswer `json:"answers,omitempty" doc:"Keyed by question ref."`
+		Omit    []string              `json:"omit,omitempty" doc:"Refs to leave out; whatever points at one goes with it."`
+		Note    string                `json:"note,omitempty" maxLength:"2000"`
 	}
+}
+
+type TodoAnswer struct {
+	Use   string `json:"use,omitempty" doc:"The existing canon id it is."`
+	Adopt string `json:"adopt,omitempty" doc:"The legacy id it is; the new entity takes it over."`
+	New   bool   `json:"new,omitempty" doc:"None of the candidates."`
 }
 
 type TodoRejectInput struct {
@@ -107,48 +117,41 @@ func (a *API) todos(h huma.API) {
 				out.NextCursor = encodeCursor(int64(rows[len(rows)-1].ID))
 			}
 			for _, t := range rows {
-				out.Items = append(out.Items, Todo{ID: strconv.Itoa(t.ID), Kind: t.Kind, SubjectKey: t.SubjectKey, State: t.State,
-					Detail: t.Detail, Source: t.Source, Suggestion: t.Suggestion, ResolvedBy: t.ResolvedBy, CreatedAt: t.CreatedAt})
+				item := Todo{ID: strconv.Itoa(t.ID), Kind: t.Kind, SubjectKey: t.SubjectKey, Program: t.Program, State: t.State,
+					Detail: t.Detail, Source: t.Source, Suggestion: t.Suggestion, Questions: t.Questions, Notes: t.Notes,
+					ResolvedBy: t.ResolvedBy, CreatedAt: t.CreatedAt}
+				if item.Questions == nil {
+					item.Questions = []map[string]any{}
+				}
+				if item.Notes == nil {
+					item.Notes = []map[string]any{}
+				}
+				out.Items = append(out.Items, item)
 			}
 			return &TodoListOutput{Body: out}, nil
 		})
 	huma.Register(h, huma.Operation{OperationID: "acceptTodo", Method: http.MethodPost, Path: "/v3/catalog/todos/{id}/accept",
-		Summary: "Accept a todo: apply its suggestion as your commit", Tags: []string{"review"}, Errors: errs},
+		Summary: "Accept a todo and commit what it holds", Tags: []string{"review"}, Errors: errs},
 		func(ctx context.Context, in *TodoAcceptInput) (*TodoResult, error) {
 			t, who, err := a.decidable(ctx, in.Authorization, in.ID)
 			if err != nil {
 				return nil, err
 			}
-			use := map[string]int64{}
-			for ref, v := range in.Body.UseIDs {
-				n, perr := strconv.ParseInt(v, 10, 64)
-				if perr != nil || n <= 0 {
-					return nil, huma.Error422UnprocessableEntity("use_ids values are canon ids")
+			d := review.Decision{Answers: map[string]review.Answer{}, Omit: in.Body.Omit, Note: in.Body.Note}
+			for ref, v := range in.Body.Answers {
+				ans := review.Answer{New: v.New}
+				for dst, text := range map[*int64]string{&ans.Use: v.Use, &ans.Adopt: v.Adopt} {
+					if text == "" {
+						continue
+					}
+					if *dst, err = strconv.ParseInt(text, 10, 64); err != nil || *dst <= 0 {
+						return nil, huma.Error422UnprocessableEntity("use and adopt are ids")
+					}
 				}
-				use[ref] = n
+				d.Answers[ref] = ans
 			}
-			cs, err := suggestionChangeset(t.Suggestion, use, commit.Actor{Kind: commit.ActorHuman, Key: who})
-			if err != nil {
-				return nil, huma.Error422UnprocessableEntity(err.Error())
-			}
-			cs.Key, cs.Note = "todo:"+strconv.Itoa(t.ID), "accepted todo "+strconv.Itoa(t.ID)
-			res, err := a.commit.Apply(ctx, cs)
-			var refused commit.Refused
-			if errors.As(err, &refused) {
-				return nil, huma.Error422UnprocessableEntity(refused.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			ids := map[string]int64{}
-			for k, v := range use {
-				ids[k] = v
-			}
-			for k, v := range res.IDs {
-				ids[k] = v
-			}
-			if err := a.client.Todo.UpdateOneID(t.ID).SetState("done").SetResolvedBy(who).
-				SetResolution(map[string]any{"result": "written", "ids": ids}).Exec(ctx); err != nil {
+			ids, err := review.Accept(ctx, a.client, t.ID, review.Reviewer{Key: who, Human: true}, d)
+			if err := decisionError(err); err != nil {
 				return nil, err
 			}
 			out := &TodoResult{}
@@ -165,8 +168,7 @@ func (a *API) todos(h huma.API) {
 			if err != nil {
 				return nil, err
 			}
-			if err := a.client.Todo.UpdateOneID(t.ID).SetState("rejected").SetResolvedBy(who).
-				SetResolution(map[string]any{"result": "refused", "code": "REJECTED_IN_REVIEW", "detail": in.Body.Note}).Exec(ctx); err != nil {
+			if err := decisionError(review.Reject(ctx, a.client, t.ID, review.Reviewer{Key: who, Human: true}, in.Body.Note)); err != nil {
 				return nil, err
 			}
 			out := &TodoResult{}
@@ -207,46 +209,21 @@ func (a *API) openTodo(ctx context.Context, n int) (*ent.Todo, error) {
 	return t, nil
 }
 
-// suggestionChangeset turns the pool row a todo carries into a person's
-// changeset. A ref the reviewer maps to an existing id is cited instead of
-// created, which is how "this is the same person" is said.
-func suggestionChangeset(s map[string]any, use map[string]int64, actor commit.Actor) (commit.Changeset, error) {
-	b, _ := json.Marshal(s)
-	var row contract.OutboxRow
-	if err := json.Unmarshal(b, &row); err != nil {
-		return commit.Changeset{}, err
-	}
-	cs := commit.Changeset{Actor: actor}
-	value := func(c contract.Candidate) commit.Value {
-		raw := c.Value
-		var ref string
-		if json.Unmarshal(raw, &ref) == nil && strings.HasPrefix(ref, "ref:") {
-			if n, ok := use[strings.TrimPrefix(ref, "ref:")]; ok {
-				raw, _ = json.Marshal(n)
-			}
-		}
-		return commit.Value{Raw: raw, Tier: registry.Tier(c.Tier)}
-	}
+// decisionError turns what review refuses into a problem the editor can show.
+func decisionError(err error) error {
+	var refused commit.Refused
+	var invalid review.Invalid
 	switch {
-	case row.Candidate != nil:
-		c := row.Candidate
-		cs.Changes = []commit.Change{{Entity: c.Target.Entity, ID: c.Target.ID, Values: map[string]commit.Value{c.Property: value(*c)}}}
-	case row.Changeset != nil:
-		for _, ne := range row.Changeset.Entities {
-			if _, cited := use[ne.Ref]; cited {
-				continue
-			}
-			ch := commit.Change{Ref: ne.Ref, Entity: ne.Entity, Values: map[string]commit.Value{}}
-			for k, c := range ne.Properties {
-				ch.Values[k] = value(c)
-			}
-			cs.Changes = append(cs.Changes, ch)
-		}
-	default:
-		return cs, errors.New("the todo carries no candidate or changeset")
+	case err == nil:
+		return nil
+	case errors.Is(err, review.ErrSettled):
+		return huma.Error409Conflict(err.Error())
+	case errors.Is(err, review.ErrPersonOnly):
+		return huma.Error403Forbidden(err.Error())
+	case errors.As(err, &refused):
+		return huma.Error422UnprocessableEntity(refused.Error())
+	case errors.As(err, &invalid):
+		return huma.Error422UnprocessableEntity(invalid.Error())
 	}
-	if len(cs.Changes) == 0 {
-		return cs, errors.New("use_ids cites every entity; nothing is left to write")
-	}
-	return cs, nil
+	return err
 }

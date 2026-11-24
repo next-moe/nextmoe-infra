@@ -17,14 +17,26 @@ const (
 	FieldKind = "kind"
 	// FieldSubjectKey holds the string denoting the subject_key field in the database.
 	FieldSubjectKey = "subject_key"
+	// FieldGroupKey holds the string denoting the group_key field in the database.
+	FieldGroupKey = "group_key"
+	// FieldProgram holds the string denoting the program field in the database.
+	FieldProgram = "program"
 	// FieldState holds the string denoting the state field in the database.
 	FieldState = "state"
 	// FieldDetail holds the string denoting the detail field in the database.
 	FieldDetail = "detail"
 	// FieldSource holds the string denoting the source field in the database.
 	FieldSource = "source"
+	// FieldWaiting holds the string denoting the waiting field in the database.
+	FieldWaiting = "waiting"
 	// FieldSuggestion holds the string denoting the suggestion field in the database.
 	FieldSuggestion = "suggestion"
+	// FieldChangeset holds the string denoting the changeset field in the database.
+	FieldChangeset = "changeset"
+	// FieldQuestions holds the string denoting the questions field in the database.
+	FieldQuestions = "questions"
+	// FieldNotes holds the string denoting the notes field in the database.
+	FieldNotes = "notes"
 	// FieldResolvedBy holds the string denoting the resolved_by field in the database.
 	FieldResolvedBy = "resolved_by"
 	// FieldAnswered holds the string denoting the answered field in the database.
@@ -44,10 +56,16 @@ var Columns = []string{
 	FieldID,
 	FieldKind,
 	FieldSubjectKey,
+	FieldGroupKey,
+	FieldProgram,
 	FieldState,
 	FieldDetail,
 	FieldSource,
+	FieldWaiting,
 	FieldSuggestion,
+	FieldChangeset,
+	FieldQuestions,
+	FieldNotes,
 	FieldResolvedBy,
 	FieldAnswered,
 	FieldResolution,
@@ -66,6 +84,10 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultGroupKey holds the default value on creation for the "group_key" field.
+	DefaultGroupKey string
+	// DefaultProgram holds the default value on creation for the "program" field.
+	DefaultProgram string
 	// DefaultState holds the default value on creation for the "state" field.
 	DefaultState string
 	// DefaultDetail holds the default value on creation for the "detail" field.
@@ -98,6 +120,16 @@ func ByKind(opts ...sql.OrderTermOption) OrderOption {
 // BySubjectKey orders the results by the subject_key field.
 func BySubjectKey(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubjectKey, opts...).ToFunc()
+}
+
+// ByGroupKey orders the results by the group_key field.
+func ByGroupKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupKey, opts...).ToFunc()
+}
+
+// ByProgram orders the results by the program field.
+func ByProgram(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProgram, opts...).ToFunc()
 }
 
 // ByState orders the results by the state field.

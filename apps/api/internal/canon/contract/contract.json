@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "entities": [
     {
       "name": "book_release",
@@ -68,6 +68,7 @@
           "clauses": [
             "R7.2"
           ],
+          "named": true,
           "doc": "Publisher of record."
         },
         {
@@ -84,6 +85,7 @@
           "clauses": [
             "R7.2"
           ],
+          "named": true,
           "doc": "The label (レーベル) the edition is published under."
         },
         {
@@ -266,6 +268,7 @@
           "clauses": [
             "R7.1"
           ],
+          "named": true,
           "doc": "The name as credited."
         },
         {
@@ -282,6 +285,7 @@
           "clauses": [
             "R7.2"
           ],
+          "named": true,
           "doc": "An organization credited instead of a person."
         },
         {
@@ -590,9 +594,10 @@
           "agent": true,
           "clauses": [
             "R4.2",
-            "R5"
+            "R4.3"
           ],
-          "doc": "A work this edition contains."
+          "named": true,
+          "doc": "A work this edition contains; its title is on the evidence."
         },
         {
           "key": "part_id",
@@ -1117,6 +1122,7 @@
             "著者",
             "作",
             "作者",
+            "作家",
             "文"
           ]
         },
@@ -1124,6 +1130,7 @@
           "key": "illustrator",
           "entailed_by": [
             "イラスト",
+            "イラストレーター",
             "絵",
             "画",
             "插畫",
@@ -1160,7 +1167,8 @@
             "出版"
           ]
         }
-      ]
+      ],
+      "whole_words": true
     },
     {
       "name": "price_basis",
@@ -1256,12 +1264,24 @@
       "doc": "another entity already holds this unique key"
     },
     {
+      "code": "VERSION_CONFLICT",
+      "doc": "the entity changed since the change was prepared; read it again"
+    },
+    {
+      "code": "SAME_TIER_CONFLICT",
+      "doc": "another source of the same tier says otherwise; a todo was opened"
+    },
+    {
       "code": "IDENTITY_UNSURE",
       "doc": "identity could not be decided; a todo was opened"
     },
     {
+      "code": "AWAITING_REVIEW",
+      "doc": "the program is in review mode; the row is in the review queue"
+    },
+    {
       "code": "REJECTED_IN_REVIEW",
-      "doc": "a person reviewed the todo this row opened and rejected it"
+      "doc": "a reviewer rejected the todo this row opened"
     },
     {
       "code": "HOST_EXCLUDED",
@@ -1619,7 +1639,10 @@
             "ENTITY_HELD",
             "ENTITY_MERGED",
             "UNIQUE_CONFLICT",
+            "VERSION_CONFLICT",
+            "SAME_TIER_CONFLICT",
             "IDENTITY_UNSURE",
+            "AWAITING_REVIEW",
             "REJECTED_IN_REVIEW",
             "HOST_EXCLUDED"
           ],
@@ -1763,7 +1786,7 @@
         },
         "contract_version": {
           "enum": [
-            "0.1.0"
+            "0.2.0"
           ],
           "type": "string"
         },

@@ -5,8 +5,10 @@ package ent
 import (
 	"api/internal/canon/ent/org"
 	"api/internal/canon/ent/orgname"
+	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
@@ -25,6 +27,14 @@ type OrgName struct {
 	Lang string `json:"lang,omitempty"`
 	// Position holds the value of the "position" field.
 	Position int `json:"position,omitempty"`
+	// FieldState holds the value of the "field_state" field.
+	FieldState map[string]interface{} `json:"field_state,omitempty"`
+	// Version holds the value of the "version" field.
+	Version int `json:"version,omitempty"`
+	// CreatedAt holds the value of the "created_at" field.
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// UpdatedAt holds the value of the "updated_at" field.
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the OrgNameQuery when eager-loading is set.
 	Edges        OrgNameEdges `json:"edges"`
@@ -56,10 +66,14 @@ func (*OrgName) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case orgname.FieldID, orgname.FieldOrgID, orgname.FieldPosition:
+		case orgname.FieldFieldState:
+			values[i] = new([]byte)
+		case orgname.FieldID, orgname.FieldOrgID, orgname.FieldPosition, orgname.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case orgname.FieldText, orgname.FieldLang:
 			values[i] = new(sql.NullString)
+		case orgname.FieldCreatedAt, orgname.FieldUpdatedAt:
+			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -104,6 +118,32 @@ func (_m *OrgName) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field position", values[i])
 			} else if value.Valid {
 				_m.Position = int(value.Int64)
+			}
+		case orgname.FieldFieldState:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field field_state", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.FieldState); err != nil {
+					return fmt.Errorf("unmarshal field field_state: %w", err)
+				}
+			}
+		case orgname.FieldVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field version", values[i])
+			} else if value.Valid {
+				_m.Version = int(value.Int64)
+			}
+		case orgname.FieldCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field created_at", values[i])
+			} else if value.Valid {
+				_m.CreatedAt = value.Time
+			}
+		case orgname.FieldUpdatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
+			} else if value.Valid {
+				_m.UpdatedAt = value.Time
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -157,6 +197,18 @@ func (_m *OrgName) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("position=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Position))
+	builder.WriteString(", ")
+	builder.WriteString("field_state=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FieldState))
+	builder.WriteString(", ")
+	builder.WriteString("version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Version))
+	builder.WriteString(", ")
+	builder.WriteString("created_at=")
+	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("updated_at=")
+	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

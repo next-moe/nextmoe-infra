@@ -19,6 +19,10 @@ var (
 		{Name: "price_amount", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "numeric(12,2)"}},
 		{Name: "price_currency", Type: field.TypeString, Nullable: true},
 		{Name: "price_basis", Type: field.TypeString, Nullable: true},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "publisher_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "label_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "release_id", Type: field.TypeInt64, Unique: true},
@@ -31,19 +35,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "book_release_org_published",
-				Columns:    []*schema.Column{BookReleaseColumns[8]},
+				Columns:    []*schema.Column{BookReleaseColumns[12]},
 				RefColumns: []*schema.Column{OrgColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "book_release_org_labelled",
-				Columns:    []*schema.Column{BookReleaseColumns[9]},
+				Columns:    []*schema.Column{BookReleaseColumns[13]},
 				RefColumns: []*schema.Column{OrgColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "book_release_release_book",
-				Columns:    []*schema.Column{BookReleaseColumns[10]},
+				Columns:    []*schema.Column{BookReleaseColumns[14]},
 				RefColumns: []*schema.Column{ReleaseColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -65,6 +69,10 @@ var (
 	BookWorkColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "category", Type: field.TypeString},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "work_id", Type: field.TypeInt64, Unique: true},
 	}
 	// BookWorkTable holds the schema information for the "book_work" table.
@@ -75,7 +83,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "book_work_work_book",
-				Columns:    []*schema.Column{BookWorkColumns[2]},
+				Columns:    []*schema.Column{BookWorkColumns[6]},
 				RefColumns: []*schema.Column{WorkColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -85,6 +93,7 @@ var (
 	CommitKeyColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
 		{Name: "ids", Type: field.TypeJSON},
+		{Name: "batch", Type: field.TypeString, Default: ""},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// CommitKeyTable holds the schema information for the "commit_key" table.
@@ -214,6 +223,33 @@ var (
 			},
 		},
 	}
+	// IdentityKeyColumns holds the columns for the "identity_key" table.
+	IdentityKeyColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "entity", Type: field.TypeString},
+		{Name: "entity_id", Type: field.TypeInt64},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "key", Type: field.TypeString},
+		{Name: "medium", Type: field.TypeString, Default: ""},
+	}
+	// IdentityKeyTable holds the schema information for the "identity_key" table.
+	IdentityKeyTable = &schema.Table{
+		Name:       "identity_key",
+		Columns:    IdentityKeyColumns,
+		PrimaryKey: []*schema.Column{IdentityKeyColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "identitykey_entity_entity_id_kind_key",
+				Unique:  true,
+				Columns: []*schema.Column{IdentityKeyColumns[1], IdentityKeyColumns[2], IdentityKeyColumns[3], IdentityKeyColumns[4]},
+			},
+			{
+				Name:    "identitykey_entity_key",
+				Unique:  false,
+				Columns: []*schema.Column{IdentityKeyColumns[1], IdentityKeyColumns[4]},
+			},
+		},
+	}
 	// LibraryPartProgressColumns holds the columns for the "library_part_progress" table.
 	LibraryPartProgressColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -319,6 +355,10 @@ var (
 		{Name: "text", Type: field.TypeString},
 		{Name: "lang", Type: field.TypeString},
 		{Name: "position", Type: field.TypeInt, Default: 0},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "org_id", Type: field.TypeInt64},
 	}
 	// OrgNameTable holds the schema information for the "org_name" table.
@@ -329,7 +369,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "org_name_org_names",
-				Columns:    []*schema.Column{OrgNameColumns[4]},
+				Columns:    []*schema.Column{OrgNameColumns[8]},
 				RefColumns: []*schema.Column{OrgColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -375,6 +415,20 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 		},
+	}
+	// ProgramStateColumns holds the columns for the "program_state" table.
+	ProgramStateColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "mode", Type: field.TypeString},
+		{Name: "note", Type: field.TypeString, Default: ""},
+		{Name: "set_by", Type: field.TypeString},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ProgramStateTable holds the schema information for the "program_state" table.
+	ProgramStateTable = &schema.Table{
+		Name:       "program_state",
+		Columns:    ProgramStateColumns,
+		PrimaryKey: []*schema.Column{ProgramStateColumns[0]},
 	}
 	// RedirectColumns holds the columns for the "redirect" table.
 	RedirectColumns = []*schema.Column{
@@ -429,6 +483,10 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "portion", Type: field.TypeString, Default: "full"},
 		{Name: "position", Type: field.TypeInt, Default: 0},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "release_id", Type: field.TypeInt64},
 		{Name: "work_id", Type: field.TypeInt64},
 		{Name: "part_id", Type: field.TypeInt64, Nullable: true},
@@ -441,19 +499,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "release_content_release_contents",
-				Columns:    []*schema.Column{ReleaseContentColumns[3]},
+				Columns:    []*schema.Column{ReleaseContentColumns[7]},
 				RefColumns: []*schema.Column{ReleaseColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "release_content_work_contents",
-				Columns:    []*schema.Column{ReleaseContentColumns[4]},
+				Columns:    []*schema.Column{ReleaseContentColumns[8]},
 				RefColumns: []*schema.Column{WorkColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "release_content_work_part_contents",
-				Columns:    []*schema.Column{ReleaseContentColumns[5]},
+				Columns:    []*schema.Column{ReleaseContentColumns[9]},
 				RefColumns: []*schema.Column{WorkPartColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -467,6 +525,9 @@ var (
 		{Name: "action", Type: field.TypeString},
 		{Name: "actor_kind", Type: field.TypeString},
 		{Name: "actor_key", Type: field.TypeString},
+		{Name: "reviewed_by", Type: field.TypeString, Default: ""},
+		{Name: "batch", Type: field.TypeString, Default: ""},
+		{Name: "undoes", Type: field.TypeInt64, Default: 0},
 		{Name: "note", Type: field.TypeString, Nullable: true},
 		{Name: "changes", Type: field.TypeJSON},
 		{Name: "root_entity", Type: field.TypeString, Default: ""},
@@ -487,7 +548,22 @@ var (
 			{
 				Name:    "revision_root_entity_root_id",
 				Unique:  false,
-				Columns: []*schema.Column{RevisionColumns[8], RevisionColumns[9]},
+				Columns: []*schema.Column{RevisionColumns[11], RevisionColumns[12]},
+			},
+			{
+				Name:    "revision_batch",
+				Unique:  false,
+				Columns: []*schema.Column{RevisionColumns[7]},
+			},
+			{
+				Name:    "revision_undoes",
+				Unique:  false,
+				Columns: []*schema.Column{RevisionColumns[8]},
+			},
+			{
+				Name:    "revision_actor_key_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{RevisionColumns[5], RevisionColumns[13]},
 			},
 		},
 	}
@@ -527,10 +603,16 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "kind", Type: field.TypeString},
 		{Name: "subject_key", Type: field.TypeString, Unique: true},
+		{Name: "group_key", Type: field.TypeString, Default: ""},
+		{Name: "program", Type: field.TypeString, Default: ""},
 		{Name: "state", Type: field.TypeString, Default: "open"},
 		{Name: "detail", Type: field.TypeString, Default: ""},
 		{Name: "source", Type: field.TypeString, Default: ""},
+		{Name: "waiting", Type: field.TypeJSON, Nullable: true},
 		{Name: "suggestion", Type: field.TypeJSON, Nullable: true},
+		{Name: "changeset", Type: field.TypeJSON, Nullable: true},
+		{Name: "questions", Type: field.TypeJSON, Nullable: true},
+		{Name: "notes", Type: field.TypeJSON, Nullable: true},
 		{Name: "resolved_by", Type: field.TypeString, Nullable: true},
 		{Name: "answered", Type: field.TypeBool, Default: false},
 		{Name: "resolution", Type: field.TypeJSON, Nullable: true},
@@ -546,7 +628,12 @@ var (
 			{
 				Name:    "todo_state_kind",
 				Unique:  false,
-				Columns: []*schema.Column{TodoColumns[3], TodoColumns[1]},
+				Columns: []*schema.Column{TodoColumns[5], TodoColumns[1]},
+			},
+			{
+				Name:    "todo_group_key",
+				Unique:  false,
+				Columns: []*schema.Column{TodoColumns[3]},
 			},
 		},
 	}
@@ -611,6 +698,10 @@ var (
 		{Name: "kind", Type: field.TypeString},
 		{Name: "machine", Type: field.TypeBool, Default: false},
 		{Name: "position", Type: field.TypeInt, Default: 0},
+		{Name: "field_state", Type: field.TypeJSON},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "work_id", Type: field.TypeInt64},
 	}
 	// WorkTitleTable holds the schema information for the "work_title" table.
@@ -621,7 +712,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "work_title_work_titles",
-				Columns:    []*schema.Column{WorkTitleColumns[6]},
+				Columns:    []*schema.Column{WorkTitleColumns[10]},
 				RefColumns: []*schema.Column{WorkColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -665,6 +756,7 @@ var (
 		EvidenceSnapshotTable,
 		FaninCursorTable,
 		HoldTable,
+		IdentityKeyTable,
 		LibraryPartProgressTable,
 		LibraryTombstoneTable,
 		MergeRecordTable,
@@ -672,6 +764,7 @@ var (
 		OrgNameTable,
 		PersonTable,
 		PersonAliasTable,
+		ProgramStateTable,
 		RedirectTable,
 		ReleaseTable,
 		ReleaseContentTable,
@@ -723,6 +816,9 @@ func init() {
 	HoldTable.Annotation = &entsql.Annotation{
 		Table: "hold",
 	}
+	IdentityKeyTable.Annotation = &entsql.Annotation{
+		Table: "identity_key",
+	}
 	LibraryPartProgressTable.ForeignKeys[0].RefTable = WorkPartTable
 	LibraryPartProgressTable.Annotation = &entsql.Annotation{
 		Table: "library_part_progress",
@@ -747,6 +843,9 @@ func init() {
 	PersonAliasTable.ForeignKeys[0].RefTable = PersonTable
 	PersonAliasTable.Annotation = &entsql.Annotation{
 		Table: "person_alias",
+	}
+	ProgramStateTable.Annotation = &entsql.Annotation{
+		Table: "program_state",
 	}
 	RedirectTable.Annotation = &entsql.Annotation{
 		Table: "redirect",

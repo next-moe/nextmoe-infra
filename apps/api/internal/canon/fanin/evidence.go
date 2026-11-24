@@ -18,11 +18,7 @@ import (
 	"api/internal/canon/verify"
 )
 
-type refusal struct {
-	code, detail string
-	// subject, when set, files the refusal as a todo under this key.
-	subject string
-}
+type refusal struct{ code, detail string }
 
 func (r *refusal) Error() string { return r.code + ": " + r.detail }
 
@@ -39,9 +35,13 @@ type checked struct {
 
 type run struct {
 	program registry.Program
+	client  *ent.Client
 	pool    Pool
 	snaps   map[string]contract.Snapshot
 	recs    map[string]contract.Record
+	// row is the changeset being checked; its own entities are named by their
+	// properties, not by canon.
+	row *contract.Changeset
 }
 
 func (r *run) snapshot(ctx context.Context, hash string) (contract.Snapshot, *refusal) {
@@ -80,9 +80,16 @@ func (r *run) check(ctx context.Context, p registry.Property, c contract.Candida
 	if verr != nil {
 		return out, refuse(verr.Code, "%s", verr.Detail)
 	}
-	if p.Shape == registry.ShapeRef {
+	if p.Shape == registry.ShapeRef && !p.Named {
 		out.value = commit.Value{Raw: c.Value}
 		return out, nil
+	}
+	var names []string
+	if p.Named {
+		var err error
+		if names, err = r.names(ctx, p.Ref, val); err != nil {
+			return out, refuse("SNAPSHOT_MISSING", "%v", err)
+		}
 	}
 	if len(c.Evidence) == 0 {
 		return out, refuse("EXCERPT_NOT_ON_PAGE", "no evidence cited")
@@ -94,16 +101,21 @@ func (r *run) check(ctx context.Context, p registry.Property, c contract.Candida
 			return out, rf
 		}
 		entailed := false
-		if rec != nil {
+		switch {
+		case p.Named && p.Ref == "work":
+			entailed = titled(names, ex)
+		case p.Named:
+			entailed = verify.Names(names, ex, rec != nil)
+		case rec != nil:
 			entailed = verify.Matches(p, val, ex.Lines[0])
-		} else {
+		default:
 			entailed = verify.Entails(p, val, ex)
 		}
 		if !entailed {
 			continue
 		}
 		if best == "" || registry.Rank(src.Tier) < registry.Rank(best) {
-			best = src.Tier
+			best, out.value.Source = src.Tier, src.Key
 		}
 		if snap != nil {
 			out.snaps = append(out.snaps, *snap)

@@ -28,6 +28,20 @@ type PersonListOutput struct{ Body PersonList }
 
 type OrgOutput struct{ Body Org }
 
+type OrgListInput struct {
+	Kind   string `query:"kind" enum:"company,brand,label,magazine,platform,circle,translation_group," doc:"Only organizations of this kind."`
+	IDs    string `query:"ids" doc:"Comma-separated ids, at most 100; does not paginate."`
+	Cursor string `query:"cursor"`
+	Limit  int    `query:"limit" minimum:"1" maximum:"100" default:"100"`
+}
+
+type OrgList struct {
+	Items      []Org  `json:"items"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
+
+type OrgListOutput struct{ Body OrgList }
+
 func (a *API) people(h huma.API) {
 	huma.Register(h, huma.Operation{OperationID: "getPerson", Method: http.MethodGet, Path: "/v3/catalog/persons/{id}",
 		Summary: "Get one person with every alias and credit", Tags: []string{"persons"}, Errors: []int{http.StatusNotFound, http.StatusGone}},
@@ -85,12 +99,60 @@ func (a *API) people(h huma.API) {
 			if err := a.gone(ctx, "org", in.ID, err); err != nil {
 				return nil, err
 			}
-			out := Org{ID: id(o.ID), Kind: o.Kind, ParentID: idp(o.ParentID), Names: []OrgName{}}
-			for _, n := range o.Edges.Names {
-				out.Names = append(out.Names, OrgName{Text: n.Text, Lang: n.Lang})
-			}
-			return &OrgOutput{Body: out}, nil
+			return &OrgOutput{Body: shapeOrg(o)}, nil
 		})
+	huma.Register(h, huma.Operation{OperationID: "listOrgs", Method: http.MethodGet, Path: "/v3/catalog/orgs",
+		Summary: "List organizations", Tags: []string{"orgs"}, Errors: []int{http.StatusBadRequest}},
+		func(ctx context.Context, in *OrgListInput) (*OrgListOutput, error) {
+			ids, err := parseIDs(in.IDs)
+			if err != nil {
+				return nil, err
+			}
+			q := a.client.Org.Query().WithNames().Order(ent.Asc(org.FieldID))
+			if in.Kind != "" {
+				q = q.Where(org.Kind(in.Kind))
+			}
+			if ids != nil {
+				q = q.Where(org.IDIn(ids...))
+			} else {
+				after, err := decodeCursor(in.Cursor)
+				if err != nil {
+					return nil, err
+				}
+				q = q.Where(org.IDGT(after)).Limit(in.Limit + 1)
+			}
+			rows, err := q.All(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out := OrgList{Items: []Org{}}
+			if ids == nil && len(rows) > in.Limit {
+				rows = rows[:in.Limit]
+				out.NextCursor = encodeCursor(rows[len(rows)-1].ID)
+			}
+			all := make([]int64, len(rows))
+			for i, o := range rows {
+				all[i] = o.ID
+			}
+			gone, err := a.goneSet(ctx, "org", all)
+			if err != nil {
+				return nil, err
+			}
+			for _, o := range rows {
+				if !gone[o.ID] {
+					out.Items = append(out.Items, shapeOrg(o))
+				}
+			}
+			return &OrgListOutput{Body: out}, nil
+		})
+}
+
+func shapeOrg(o *ent.Org) Org {
+	out := Org{ID: id(o.ID), Kind: o.Kind, ParentID: idp(o.ParentID), Names: []OrgName{}}
+	for _, n := range o.Edges.Names {
+		out.Names = append(out.Names, OrgName{Text: n.Text, Lang: n.Lang})
+	}
+	return out
 }
 
 func (a *API) personQuery() *ent.PersonQuery {

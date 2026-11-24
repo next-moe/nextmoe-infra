@@ -22,6 +22,12 @@ func (Revision) Fields() []ent.Field {
 		field.String("action"),
 		field.String("actor_kind"),
 		field.String("actor_key"),
+		// reviewed_by approved an agent's write (D29); the actor stays the agent.
+		field.String("reviewed_by").Default(""),
+		// batch is shared by every revision of one commit, the unit an undo takes back.
+		field.String("batch").Default(""),
+		// undoes is the revision an undo or remove took back.
+		field.Int64("undoes").Default(0),
 		field.String("note").Optional(),
 		field.JSON("changes", map[string]any{}),
 		// root is the public entity a change shows up on, so the change feed
@@ -33,5 +39,5 @@ func (Revision) Fields() []ent.Field {
 }
 
 func (Revision) Indexes() []ent.Index {
-	return []ent.Index{index.Fields("entity", "entity_id"), index.Fields("root_entity", "root_id")}
+	return []ent.Index{index.Fields("entity", "entity_id"), index.Fields("root_entity", "root_id"), index.Fields("batch"), index.Fields("undoes"), index.Fields("actor_key", "created_at")}
 }

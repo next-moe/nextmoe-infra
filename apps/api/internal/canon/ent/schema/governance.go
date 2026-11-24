@@ -18,10 +18,21 @@ func (Todo) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("kind"),
 		field.String("subject_key").Unique(),
+		// group_key is the question whose newest content this is; a newer row
+		// for the same group supersedes the open one.
+		field.String("group_key").Default(""),
+		field.String("program").Default(""),
 		field.String("state").Default("open"),
 		field.String("detail").Default(""),
 		field.String("source").Default(""),
+		// waiting is every pool row answered "todo" with this content.
+		field.Strings("waiting").Optional(),
 		field.JSON("suggestion", map[string]any{}).Optional(),
+		// changeset is the suggestion after fanin verified it: what accepting
+		// commits, evidence and tiers included, so a decision never re-reads the pool.
+		field.JSON("changeset", map[string]any{}).Optional(),
+		field.JSON("questions", []map[string]any{}).Optional(),
+		field.JSON("notes", []map[string]any{}).Optional(),
 		field.String("resolved_by").Optional(),
 		// answered is set once fanin has told the pool how a person settled
 		// a todo that came from the pool.
@@ -32,7 +43,9 @@ func (Todo) Fields() []ent.Field {
 	}
 }
 
-func (Todo) Indexes() []ent.Index { return []ent.Index{index.Fields("state", "kind")} }
+func (Todo) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("state", "kind"), index.Fields("group_key")}
+}
 
 // Hold stops agents from writing an entity or any value pointing at it
 // (plan 07 §4); a takedown places one too.

@@ -19,6 +19,7 @@ import (
 	"api/internal/canon/ent/evidencesnapshot"
 	"api/internal/canon/ent/fanincursor"
 	"api/internal/canon/ent/hold"
+	"api/internal/canon/ent/identitykey"
 	"api/internal/canon/ent/librarypartprogress"
 	"api/internal/canon/ent/librarytombstone"
 	"api/internal/canon/ent/mergerecord"
@@ -26,6 +27,7 @@ import (
 	"api/internal/canon/ent/orgname"
 	"api/internal/canon/ent/person"
 	"api/internal/canon/ent/personalias"
+	"api/internal/canon/ent/programstate"
 	"api/internal/canon/ent/redirect"
 	"api/internal/canon/ent/release"
 	"api/internal/canon/ent/releasecontent"
@@ -66,6 +68,8 @@ type Client struct {
 	FaninCursor *FaninCursorClient
 	// Hold is the client for interacting with the Hold builders.
 	Hold *HoldClient
+	// IdentityKey is the client for interacting with the IdentityKey builders.
+	IdentityKey *IdentityKeyClient
 	// LibraryPartProgress is the client for interacting with the LibraryPartProgress builders.
 	LibraryPartProgress *LibraryPartProgressClient
 	// LibraryTombstone is the client for interacting with the LibraryTombstone builders.
@@ -80,6 +84,8 @@ type Client struct {
 	Person *PersonClient
 	// PersonAlias is the client for interacting with the PersonAlias builders.
 	PersonAlias *PersonAliasClient
+	// ProgramState is the client for interacting with the ProgramState builders.
+	ProgramState *ProgramStateClient
 	// Redirect is the client for interacting with the Redirect builders.
 	Redirect *RedirectClient
 	// Release is the client for interacting with the Release builders.
@@ -119,6 +125,7 @@ func (c *Client) init() {
 	c.EvidenceSnapshot = NewEvidenceSnapshotClient(c.config)
 	c.FaninCursor = NewFaninCursorClient(c.config)
 	c.Hold = NewHoldClient(c.config)
+	c.IdentityKey = NewIdentityKeyClient(c.config)
 	c.LibraryPartProgress = NewLibraryPartProgressClient(c.config)
 	c.LibraryTombstone = NewLibraryTombstoneClient(c.config)
 	c.MergeRecord = NewMergeRecordClient(c.config)
@@ -126,6 +133,7 @@ func (c *Client) init() {
 	c.OrgName = NewOrgNameClient(c.config)
 	c.Person = NewPersonClient(c.config)
 	c.PersonAlias = NewPersonAliasClient(c.config)
+	c.ProgramState = NewProgramStateClient(c.config)
 	c.Redirect = NewRedirectClient(c.config)
 	c.Release = NewReleaseClient(c.config)
 	c.ReleaseContent = NewReleaseContentClient(c.config)
@@ -236,6 +244,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EvidenceSnapshot:    NewEvidenceSnapshotClient(cfg),
 		FaninCursor:         NewFaninCursorClient(cfg),
 		Hold:                NewHoldClient(cfg),
+		IdentityKey:         NewIdentityKeyClient(cfg),
 		LibraryPartProgress: NewLibraryPartProgressClient(cfg),
 		LibraryTombstone:    NewLibraryTombstoneClient(cfg),
 		MergeRecord:         NewMergeRecordClient(cfg),
@@ -243,6 +252,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		OrgName:             NewOrgNameClient(cfg),
 		Person:              NewPersonClient(cfg),
 		PersonAlias:         NewPersonAliasClient(cfg),
+		ProgramState:        NewProgramStateClient(cfg),
 		Redirect:            NewRedirectClient(cfg),
 		Release:             NewReleaseClient(cfg),
 		ReleaseContent:      NewReleaseContentClient(cfg),
@@ -280,6 +290,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EvidenceSnapshot:    NewEvidenceSnapshotClient(cfg),
 		FaninCursor:         NewFaninCursorClient(cfg),
 		Hold:                NewHoldClient(cfg),
+		IdentityKey:         NewIdentityKeyClient(cfg),
 		LibraryPartProgress: NewLibraryPartProgressClient(cfg),
 		LibraryTombstone:    NewLibraryTombstoneClient(cfg),
 		MergeRecord:         NewMergeRecordClient(cfg),
@@ -287,6 +298,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		OrgName:             NewOrgNameClient(cfg),
 		Person:              NewPersonClient(cfg),
 		PersonAlias:         NewPersonAliasClient(cfg),
+		ProgramState:        NewProgramStateClient(cfg),
 		Redirect:            NewRedirectClient(cfg),
 		Release:             NewReleaseClient(cfg),
 		ReleaseContent:      NewReleaseContentClient(cfg),
@@ -327,10 +339,11 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
-		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.LibraryPartProgress,
-		c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName, c.Person, c.PersonAlias,
-		c.Redirect, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
-		c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
+		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.IdentityKey,
+		c.LibraryPartProgress, c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName,
+		c.Person, c.PersonAlias, c.ProgramState, c.Redirect, c.Release,
+		c.ReleaseContent, c.Revision, c.Takedown, c.Todo, c.Work, c.WorkPart,
+		c.WorkTitle, c.XrefLink,
 	} {
 		n.Use(hooks...)
 	}
@@ -341,10 +354,11 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.BookRelease, c.BookWork, c.CommitKey, c.Credit, c.EvidenceRecord,
-		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.LibraryPartProgress,
-		c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName, c.Person, c.PersonAlias,
-		c.Redirect, c.Release, c.ReleaseContent, c.Revision, c.Takedown, c.Todo,
-		c.Work, c.WorkPart, c.WorkTitle, c.XrefLink,
+		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.IdentityKey,
+		c.LibraryPartProgress, c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName,
+		c.Person, c.PersonAlias, c.ProgramState, c.Redirect, c.Release,
+		c.ReleaseContent, c.Revision, c.Takedown, c.Todo, c.Work, c.WorkPart,
+		c.WorkTitle, c.XrefLink,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -369,6 +383,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.FaninCursor.mutate(ctx, m)
 	case *HoldMutation:
 		return c.Hold.mutate(ctx, m)
+	case *IdentityKeyMutation:
+		return c.IdentityKey.mutate(ctx, m)
 	case *LibraryPartProgressMutation:
 		return c.LibraryPartProgress.mutate(ctx, m)
 	case *LibraryTombstoneMutation:
@@ -383,6 +399,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Person.mutate(ctx, m)
 	case *PersonAliasMutation:
 		return c.PersonAlias.mutate(ctx, m)
+	case *ProgramStateMutation:
+		return c.ProgramState.mutate(ctx, m)
 	case *RedirectMutation:
 		return c.Redirect.mutate(ctx, m)
 	case *ReleaseMutation:
@@ -1616,6 +1634,139 @@ func (c *HoldClient) mutate(ctx context.Context, m *HoldMutation) (Value, error)
 	}
 }
 
+// IdentityKeyClient is a client for the IdentityKey schema.
+type IdentityKeyClient struct {
+	config
+}
+
+// NewIdentityKeyClient returns a client for the IdentityKey from the given config.
+func NewIdentityKeyClient(c config) *IdentityKeyClient {
+	return &IdentityKeyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `identitykey.Hooks(f(g(h())))`.
+func (c *IdentityKeyClient) Use(hooks ...Hook) {
+	c.hooks.IdentityKey = append(c.hooks.IdentityKey, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `identitykey.Intercept(f(g(h())))`.
+func (c *IdentityKeyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.IdentityKey = append(c.inters.IdentityKey, interceptors...)
+}
+
+// Create returns a builder for creating a IdentityKey entity.
+func (c *IdentityKeyClient) Create() *IdentityKeyCreate {
+	mutation := newIdentityKeyMutation(c.config, OpCreate)
+	return &IdentityKeyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of IdentityKey entities.
+func (c *IdentityKeyClient) CreateBulk(builders ...*IdentityKeyCreate) *IdentityKeyCreateBulk {
+	return &IdentityKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *IdentityKeyClient) MapCreateBulk(slice any, setFunc func(*IdentityKeyCreate, int)) *IdentityKeyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &IdentityKeyCreateBulk{err: fmt.Errorf("calling to IdentityKeyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*IdentityKeyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &IdentityKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for IdentityKey.
+func (c *IdentityKeyClient) Update() *IdentityKeyUpdate {
+	mutation := newIdentityKeyMutation(c.config, OpUpdate)
+	return &IdentityKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IdentityKeyClient) UpdateOne(_m *IdentityKey) *IdentityKeyUpdateOne {
+	mutation := newIdentityKeyMutation(c.config, OpUpdateOne, withIdentityKey(_m))
+	return &IdentityKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IdentityKeyClient) UpdateOneID(id int) *IdentityKeyUpdateOne {
+	mutation := newIdentityKeyMutation(c.config, OpUpdateOne, withIdentityKeyID(id))
+	return &IdentityKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for IdentityKey.
+func (c *IdentityKeyClient) Delete() *IdentityKeyDelete {
+	mutation := newIdentityKeyMutation(c.config, OpDelete)
+	return &IdentityKeyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IdentityKeyClient) DeleteOne(_m *IdentityKey) *IdentityKeyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IdentityKeyClient) DeleteOneID(id int) *IdentityKeyDeleteOne {
+	builder := c.Delete().Where(identitykey.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IdentityKeyDeleteOne{builder}
+}
+
+// Query returns a query builder for IdentityKey.
+func (c *IdentityKeyClient) Query() *IdentityKeyQuery {
+	return &IdentityKeyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIdentityKey},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a IdentityKey entity by its id.
+func (c *IdentityKeyClient) Get(ctx context.Context, id int) (*IdentityKey, error) {
+	return c.Query().Where(identitykey.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IdentityKeyClient) GetX(ctx context.Context, id int) *IdentityKey {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *IdentityKeyClient) Hooks() []Hook {
+	return c.hooks.IdentityKey
+}
+
+// Interceptors returns the client interceptors.
+func (c *IdentityKeyClient) Interceptors() []Interceptor {
+	return c.inters.IdentityKey
+}
+
+func (c *IdentityKeyClient) mutate(ctx context.Context, m *IdentityKeyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IdentityKeyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IdentityKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IdentityKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IdentityKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown IdentityKey mutation op: %q", m.Op())
+	}
+}
+
 // LibraryPartProgressClient is a client for the LibraryPartProgress schema.
 type LibraryPartProgressClient struct {
 	config
@@ -2720,6 +2871,139 @@ func (c *PersonAliasClient) mutate(ctx context.Context, m *PersonAliasMutation) 
 		return (&PersonAliasDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown PersonAlias mutation op: %q", m.Op())
+	}
+}
+
+// ProgramStateClient is a client for the ProgramState schema.
+type ProgramStateClient struct {
+	config
+}
+
+// NewProgramStateClient returns a client for the ProgramState from the given config.
+func NewProgramStateClient(c config) *ProgramStateClient {
+	return &ProgramStateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `programstate.Hooks(f(g(h())))`.
+func (c *ProgramStateClient) Use(hooks ...Hook) {
+	c.hooks.ProgramState = append(c.hooks.ProgramState, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `programstate.Intercept(f(g(h())))`.
+func (c *ProgramStateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProgramState = append(c.inters.ProgramState, interceptors...)
+}
+
+// Create returns a builder for creating a ProgramState entity.
+func (c *ProgramStateClient) Create() *ProgramStateCreate {
+	mutation := newProgramStateMutation(c.config, OpCreate)
+	return &ProgramStateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProgramState entities.
+func (c *ProgramStateClient) CreateBulk(builders ...*ProgramStateCreate) *ProgramStateCreateBulk {
+	return &ProgramStateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProgramStateClient) MapCreateBulk(slice any, setFunc func(*ProgramStateCreate, int)) *ProgramStateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProgramStateCreateBulk{err: fmt.Errorf("calling to ProgramStateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProgramStateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProgramStateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProgramState.
+func (c *ProgramStateClient) Update() *ProgramStateUpdate {
+	mutation := newProgramStateMutation(c.config, OpUpdate)
+	return &ProgramStateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProgramStateClient) UpdateOne(_m *ProgramState) *ProgramStateUpdateOne {
+	mutation := newProgramStateMutation(c.config, OpUpdateOne, withProgramState(_m))
+	return &ProgramStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProgramStateClient) UpdateOneID(id string) *ProgramStateUpdateOne {
+	mutation := newProgramStateMutation(c.config, OpUpdateOne, withProgramStateID(id))
+	return &ProgramStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProgramState.
+func (c *ProgramStateClient) Delete() *ProgramStateDelete {
+	mutation := newProgramStateMutation(c.config, OpDelete)
+	return &ProgramStateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProgramStateClient) DeleteOne(_m *ProgramState) *ProgramStateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProgramStateClient) DeleteOneID(id string) *ProgramStateDeleteOne {
+	builder := c.Delete().Where(programstate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProgramStateDeleteOne{builder}
+}
+
+// Query returns a query builder for ProgramState.
+func (c *ProgramStateClient) Query() *ProgramStateQuery {
+	return &ProgramStateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProgramState},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProgramState entity by its id.
+func (c *ProgramStateClient) Get(ctx context.Context, id string) (*ProgramState, error) {
+	return c.Query().Where(programstate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProgramStateClient) GetX(ctx context.Context, id string) *ProgramState {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ProgramStateClient) Hooks() []Hook {
+	return c.hooks.ProgramState
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProgramStateClient) Interceptors() []Interceptor {
+	return c.inters.ProgramState
+}
+
+func (c *ProgramStateClient) mutate(ctx context.Context, m *ProgramStateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProgramStateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProgramStateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProgramStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProgramStateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProgramState mutation op: %q", m.Op())
 	}
 }
 
@@ -4345,15 +4629,17 @@ func (c *XrefLinkClient) mutate(ctx context.Context, m *XrefLinkMutation) (Value
 type (
 	hooks struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
-		FaninCursor, Hold, LibraryPartProgress, LibraryTombstone, MergeRecord, Org,
-		OrgName, Person, PersonAlias, Redirect, Release, ReleaseContent, Revision,
-		Takedown, Todo, Work, WorkPart, WorkTitle, XrefLink []ent.Hook
+		FaninCursor, Hold, IdentityKey, LibraryPartProgress, LibraryTombstone,
+		MergeRecord, Org, OrgName, Person, PersonAlias, ProgramState, Redirect,
+		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
+		XrefLink []ent.Hook
 	}
 	inters struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
-		FaninCursor, Hold, LibraryPartProgress, LibraryTombstone, MergeRecord, Org,
-		OrgName, Person, PersonAlias, Redirect, Release, ReleaseContent, Revision,
-		Takedown, Todo, Work, WorkPart, WorkTitle, XrefLink []ent.Interceptor
+		FaninCursor, Hold, IdentityKey, LibraryPartProgress, LibraryTombstone,
+		MergeRecord, Org, OrgName, Person, PersonAlias, ProgramState, Redirect,
+		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
+		XrefLink []ent.Interceptor
 	}
 )
 

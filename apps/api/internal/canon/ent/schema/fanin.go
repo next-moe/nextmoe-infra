@@ -58,6 +58,7 @@ func (CommitKey) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").Immutable(),
 		field.JSON("ids", map[string]int64{}),
+		field.String("batch").Default(""),
 		field.Time("created_at").Default(timeNow).Immutable(),
 	}
 }

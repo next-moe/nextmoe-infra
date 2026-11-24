@@ -29,6 +29,20 @@ func (_c *CommitKeyCreate) SetIds(v map[string]int64) *CommitKeyCreate {
 	return _c
 }
 
+// SetBatch sets the "batch" field.
+func (_c *CommitKeyCreate) SetBatch(v string) *CommitKeyCreate {
+	_c.mutation.SetBatch(v)
+	return _c
+}
+
+// SetNillableBatch sets the "batch" field if the given value is not nil.
+func (_c *CommitKeyCreate) SetNillableBatch(v *string) *CommitKeyCreate {
+	if v != nil {
+		_c.SetBatch(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *CommitKeyCreate) SetCreatedAt(v time.Time) *CommitKeyCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -84,6 +98,10 @@ func (_c *CommitKeyCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *CommitKeyCreate) defaults() {
+	if _, ok := _c.mutation.Batch(); !ok {
+		v := commitkey.DefaultBatch
+		_c.mutation.SetBatch(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := commitkey.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -94,6 +112,9 @@ func (_c *CommitKeyCreate) defaults() {
 func (_c *CommitKeyCreate) check() error {
 	if _, ok := _c.mutation.Ids(); !ok {
 		return &ValidationError{Name: "ids", err: errors.New(`ent: missing required field "CommitKey.ids"`)}
+	}
+	if _, ok := _c.mutation.Batch(); !ok {
+		return &ValidationError{Name: "batch", err: errors.New(`ent: missing required field "CommitKey.batch"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "CommitKey.created_at"`)}
@@ -137,6 +158,10 @@ func (_c *CommitKeyCreate) createSpec() (*CommitKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Ids(); ok {
 		_spec.SetField(commitkey.FieldIds, field.TypeJSON, value)
 		_node.Ids = value
+	}
+	if value, ok := _c.mutation.Batch(); ok {
+		_spec.SetField(commitkey.FieldBatch, field.TypeString, value)
+		_node.Batch = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(commitkey.FieldCreatedAt, field.TypeTime, value)
@@ -206,6 +231,18 @@ func (u *CommitKeyUpsert) UpdateIds() *CommitKeyUpsert {
 	return u
 }
 
+// SetBatch sets the "batch" field.
+func (u *CommitKeyUpsert) SetBatch(v string) *CommitKeyUpsert {
+	u.Set(commitkey.FieldBatch, v)
+	return u
+}
+
+// UpdateBatch sets the "batch" field to the value that was provided on create.
+func (u *CommitKeyUpsert) UpdateBatch() *CommitKeyUpsert {
+	u.SetExcluded(commitkey.FieldBatch)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
 // Using this option is equivalent to using:
 //
@@ -268,6 +305,20 @@ func (u *CommitKeyUpsertOne) SetIds(v map[string]int64) *CommitKeyUpsertOne {
 func (u *CommitKeyUpsertOne) UpdateIds() *CommitKeyUpsertOne {
 	return u.Update(func(s *CommitKeyUpsert) {
 		s.UpdateIds()
+	})
+}
+
+// SetBatch sets the "batch" field.
+func (u *CommitKeyUpsertOne) SetBatch(v string) *CommitKeyUpsertOne {
+	return u.Update(func(s *CommitKeyUpsert) {
+		s.SetBatch(v)
+	})
+}
+
+// UpdateBatch sets the "batch" field to the value that was provided on create.
+func (u *CommitKeyUpsertOne) UpdateBatch() *CommitKeyUpsertOne {
+	return u.Update(func(s *CommitKeyUpsert) {
+		s.UpdateBatch()
 	})
 }
 
@@ -500,6 +551,20 @@ func (u *CommitKeyUpsertBulk) SetIds(v map[string]int64) *CommitKeyUpsertBulk {
 func (u *CommitKeyUpsertBulk) UpdateIds() *CommitKeyUpsertBulk {
 	return u.Update(func(s *CommitKeyUpsert) {
 		s.UpdateIds()
+	})
+}
+
+// SetBatch sets the "batch" field.
+func (u *CommitKeyUpsertBulk) SetBatch(v string) *CommitKeyUpsertBulk {
+	return u.Update(func(s *CommitKeyUpsert) {
+		s.SetBatch(v)
+	})
+}
+
+// UpdateBatch sets the "batch" field to the value that was provided on create.
+func (u *CommitKeyUpsertBulk) UpdateBatch() *CommitKeyUpsertBulk {
+	return u.Update(func(s *CommitKeyUpsert) {
+		s.UpdateBatch()
 	})
 }
 

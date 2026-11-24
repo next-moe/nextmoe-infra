@@ -34,6 +34,34 @@ func (_c *TodoCreate) SetSubjectKey(v string) *TodoCreate {
 	return _c
 }
 
+// SetGroupKey sets the "group_key" field.
+func (_c *TodoCreate) SetGroupKey(v string) *TodoCreate {
+	_c.mutation.SetGroupKey(v)
+	return _c
+}
+
+// SetNillableGroupKey sets the "group_key" field if the given value is not nil.
+func (_c *TodoCreate) SetNillableGroupKey(v *string) *TodoCreate {
+	if v != nil {
+		_c.SetGroupKey(*v)
+	}
+	return _c
+}
+
+// SetProgram sets the "program" field.
+func (_c *TodoCreate) SetProgram(v string) *TodoCreate {
+	_c.mutation.SetProgram(v)
+	return _c
+}
+
+// SetNillableProgram sets the "program" field if the given value is not nil.
+func (_c *TodoCreate) SetNillableProgram(v *string) *TodoCreate {
+	if v != nil {
+		_c.SetProgram(*v)
+	}
+	return _c
+}
+
 // SetState sets the "state" field.
 func (_c *TodoCreate) SetState(v string) *TodoCreate {
 	_c.mutation.SetState(v)
@@ -76,9 +104,33 @@ func (_c *TodoCreate) SetNillableSource(v *string) *TodoCreate {
 	return _c
 }
 
+// SetWaiting sets the "waiting" field.
+func (_c *TodoCreate) SetWaiting(v []string) *TodoCreate {
+	_c.mutation.SetWaiting(v)
+	return _c
+}
+
 // SetSuggestion sets the "suggestion" field.
 func (_c *TodoCreate) SetSuggestion(v map[string]interface{}) *TodoCreate {
 	_c.mutation.SetSuggestion(v)
+	return _c
+}
+
+// SetChangeset sets the "changeset" field.
+func (_c *TodoCreate) SetChangeset(v map[string]interface{}) *TodoCreate {
+	_c.mutation.SetChangeset(v)
+	return _c
+}
+
+// SetQuestions sets the "questions" field.
+func (_c *TodoCreate) SetQuestions(v []map[string]interface{}) *TodoCreate {
+	_c.mutation.SetQuestions(v)
+	return _c
+}
+
+// SetNotes sets the "notes" field.
+func (_c *TodoCreate) SetNotes(v []map[string]interface{}) *TodoCreate {
+	_c.mutation.SetNotes(v)
 	return _c
 }
 
@@ -179,6 +231,14 @@ func (_c *TodoCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *TodoCreate) defaults() {
+	if _, ok := _c.mutation.GroupKey(); !ok {
+		v := todo.DefaultGroupKey
+		_c.mutation.SetGroupKey(v)
+	}
+	if _, ok := _c.mutation.Program(); !ok {
+		v := todo.DefaultProgram
+		_c.mutation.SetProgram(v)
+	}
 	if _, ok := _c.mutation.State(); !ok {
 		v := todo.DefaultState
 		_c.mutation.SetState(v)
@@ -212,6 +272,12 @@ func (_c *TodoCreate) check() error {
 	}
 	if _, ok := _c.mutation.SubjectKey(); !ok {
 		return &ValidationError{Name: "subject_key", err: errors.New(`ent: missing required field "Todo.subject_key"`)}
+	}
+	if _, ok := _c.mutation.GroupKey(); !ok {
+		return &ValidationError{Name: "group_key", err: errors.New(`ent: missing required field "Todo.group_key"`)}
+	}
+	if _, ok := _c.mutation.Program(); !ok {
+		return &ValidationError{Name: "program", err: errors.New(`ent: missing required field "Todo.program"`)}
 	}
 	if _, ok := _c.mutation.State(); !ok {
 		return &ValidationError{Name: "state", err: errors.New(`ent: missing required field "Todo.state"`)}
@@ -266,6 +332,14 @@ func (_c *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 		_spec.SetField(todo.FieldSubjectKey, field.TypeString, value)
 		_node.SubjectKey = value
 	}
+	if value, ok := _c.mutation.GroupKey(); ok {
+		_spec.SetField(todo.FieldGroupKey, field.TypeString, value)
+		_node.GroupKey = value
+	}
+	if value, ok := _c.mutation.Program(); ok {
+		_spec.SetField(todo.FieldProgram, field.TypeString, value)
+		_node.Program = value
+	}
 	if value, ok := _c.mutation.State(); ok {
 		_spec.SetField(todo.FieldState, field.TypeString, value)
 		_node.State = value
@@ -278,9 +352,25 @@ func (_c *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 		_spec.SetField(todo.FieldSource, field.TypeString, value)
 		_node.Source = value
 	}
+	if value, ok := _c.mutation.Waiting(); ok {
+		_spec.SetField(todo.FieldWaiting, field.TypeJSON, value)
+		_node.Waiting = value
+	}
 	if value, ok := _c.mutation.Suggestion(); ok {
 		_spec.SetField(todo.FieldSuggestion, field.TypeJSON, value)
 		_node.Suggestion = value
+	}
+	if value, ok := _c.mutation.Changeset(); ok {
+		_spec.SetField(todo.FieldChangeset, field.TypeJSON, value)
+		_node.Changeset = value
+	}
+	if value, ok := _c.mutation.Questions(); ok {
+		_spec.SetField(todo.FieldQuestions, field.TypeJSON, value)
+		_node.Questions = value
+	}
+	if value, ok := _c.mutation.Notes(); ok {
+		_spec.SetField(todo.FieldNotes, field.TypeJSON, value)
+		_node.Notes = value
 	}
 	if value, ok := _c.mutation.ResolvedBy(); ok {
 		_spec.SetField(todo.FieldResolvedBy, field.TypeString, value)
@@ -378,6 +468,30 @@ func (u *TodoUpsert) UpdateSubjectKey() *TodoUpsert {
 	return u
 }
 
+// SetGroupKey sets the "group_key" field.
+func (u *TodoUpsert) SetGroupKey(v string) *TodoUpsert {
+	u.Set(todo.FieldGroupKey, v)
+	return u
+}
+
+// UpdateGroupKey sets the "group_key" field to the value that was provided on create.
+func (u *TodoUpsert) UpdateGroupKey() *TodoUpsert {
+	u.SetExcluded(todo.FieldGroupKey)
+	return u
+}
+
+// SetProgram sets the "program" field.
+func (u *TodoUpsert) SetProgram(v string) *TodoUpsert {
+	u.Set(todo.FieldProgram, v)
+	return u
+}
+
+// UpdateProgram sets the "program" field to the value that was provided on create.
+func (u *TodoUpsert) UpdateProgram() *TodoUpsert {
+	u.SetExcluded(todo.FieldProgram)
+	return u
+}
+
 // SetState sets the "state" field.
 func (u *TodoUpsert) SetState(v string) *TodoUpsert {
 	u.Set(todo.FieldState, v)
@@ -414,6 +528,24 @@ func (u *TodoUpsert) UpdateSource() *TodoUpsert {
 	return u
 }
 
+// SetWaiting sets the "waiting" field.
+func (u *TodoUpsert) SetWaiting(v []string) *TodoUpsert {
+	u.Set(todo.FieldWaiting, v)
+	return u
+}
+
+// UpdateWaiting sets the "waiting" field to the value that was provided on create.
+func (u *TodoUpsert) UpdateWaiting() *TodoUpsert {
+	u.SetExcluded(todo.FieldWaiting)
+	return u
+}
+
+// ClearWaiting clears the value of the "waiting" field.
+func (u *TodoUpsert) ClearWaiting() *TodoUpsert {
+	u.SetNull(todo.FieldWaiting)
+	return u
+}
+
 // SetSuggestion sets the "suggestion" field.
 func (u *TodoUpsert) SetSuggestion(v map[string]interface{}) *TodoUpsert {
 	u.Set(todo.FieldSuggestion, v)
@@ -429,6 +561,60 @@ func (u *TodoUpsert) UpdateSuggestion() *TodoUpsert {
 // ClearSuggestion clears the value of the "suggestion" field.
 func (u *TodoUpsert) ClearSuggestion() *TodoUpsert {
 	u.SetNull(todo.FieldSuggestion)
+	return u
+}
+
+// SetChangeset sets the "changeset" field.
+func (u *TodoUpsert) SetChangeset(v map[string]interface{}) *TodoUpsert {
+	u.Set(todo.FieldChangeset, v)
+	return u
+}
+
+// UpdateChangeset sets the "changeset" field to the value that was provided on create.
+func (u *TodoUpsert) UpdateChangeset() *TodoUpsert {
+	u.SetExcluded(todo.FieldChangeset)
+	return u
+}
+
+// ClearChangeset clears the value of the "changeset" field.
+func (u *TodoUpsert) ClearChangeset() *TodoUpsert {
+	u.SetNull(todo.FieldChangeset)
+	return u
+}
+
+// SetQuestions sets the "questions" field.
+func (u *TodoUpsert) SetQuestions(v []map[string]interface{}) *TodoUpsert {
+	u.Set(todo.FieldQuestions, v)
+	return u
+}
+
+// UpdateQuestions sets the "questions" field to the value that was provided on create.
+func (u *TodoUpsert) UpdateQuestions() *TodoUpsert {
+	u.SetExcluded(todo.FieldQuestions)
+	return u
+}
+
+// ClearQuestions clears the value of the "questions" field.
+func (u *TodoUpsert) ClearQuestions() *TodoUpsert {
+	u.SetNull(todo.FieldQuestions)
+	return u
+}
+
+// SetNotes sets the "notes" field.
+func (u *TodoUpsert) SetNotes(v []map[string]interface{}) *TodoUpsert {
+	u.Set(todo.FieldNotes, v)
+	return u
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *TodoUpsert) UpdateNotes() *TodoUpsert {
+	u.SetExcluded(todo.FieldNotes)
+	return u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *TodoUpsert) ClearNotes() *TodoUpsert {
+	u.SetNull(todo.FieldNotes)
 	return u
 }
 
@@ -565,6 +751,34 @@ func (u *TodoUpsertOne) UpdateSubjectKey() *TodoUpsertOne {
 	})
 }
 
+// SetGroupKey sets the "group_key" field.
+func (u *TodoUpsertOne) SetGroupKey(v string) *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetGroupKey(v)
+	})
+}
+
+// UpdateGroupKey sets the "group_key" field to the value that was provided on create.
+func (u *TodoUpsertOne) UpdateGroupKey() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateGroupKey()
+	})
+}
+
+// SetProgram sets the "program" field.
+func (u *TodoUpsertOne) SetProgram(v string) *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetProgram(v)
+	})
+}
+
+// UpdateProgram sets the "program" field to the value that was provided on create.
+func (u *TodoUpsertOne) UpdateProgram() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateProgram()
+	})
+}
+
 // SetState sets the "state" field.
 func (u *TodoUpsertOne) SetState(v string) *TodoUpsertOne {
 	return u.Update(func(s *TodoUpsert) {
@@ -607,6 +821,27 @@ func (u *TodoUpsertOne) UpdateSource() *TodoUpsertOne {
 	})
 }
 
+// SetWaiting sets the "waiting" field.
+func (u *TodoUpsertOne) SetWaiting(v []string) *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetWaiting(v)
+	})
+}
+
+// UpdateWaiting sets the "waiting" field to the value that was provided on create.
+func (u *TodoUpsertOne) UpdateWaiting() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateWaiting()
+	})
+}
+
+// ClearWaiting clears the value of the "waiting" field.
+func (u *TodoUpsertOne) ClearWaiting() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearWaiting()
+	})
+}
+
 // SetSuggestion sets the "suggestion" field.
 func (u *TodoUpsertOne) SetSuggestion(v map[string]interface{}) *TodoUpsertOne {
 	return u.Update(func(s *TodoUpsert) {
@@ -625,6 +860,69 @@ func (u *TodoUpsertOne) UpdateSuggestion() *TodoUpsertOne {
 func (u *TodoUpsertOne) ClearSuggestion() *TodoUpsertOne {
 	return u.Update(func(s *TodoUpsert) {
 		s.ClearSuggestion()
+	})
+}
+
+// SetChangeset sets the "changeset" field.
+func (u *TodoUpsertOne) SetChangeset(v map[string]interface{}) *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetChangeset(v)
+	})
+}
+
+// UpdateChangeset sets the "changeset" field to the value that was provided on create.
+func (u *TodoUpsertOne) UpdateChangeset() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateChangeset()
+	})
+}
+
+// ClearChangeset clears the value of the "changeset" field.
+func (u *TodoUpsertOne) ClearChangeset() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearChangeset()
+	})
+}
+
+// SetQuestions sets the "questions" field.
+func (u *TodoUpsertOne) SetQuestions(v []map[string]interface{}) *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetQuestions(v)
+	})
+}
+
+// UpdateQuestions sets the "questions" field to the value that was provided on create.
+func (u *TodoUpsertOne) UpdateQuestions() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateQuestions()
+	})
+}
+
+// ClearQuestions clears the value of the "questions" field.
+func (u *TodoUpsertOne) ClearQuestions() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearQuestions()
+	})
+}
+
+// SetNotes sets the "notes" field.
+func (u *TodoUpsertOne) SetNotes(v []map[string]interface{}) *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetNotes(v)
+	})
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *TodoUpsertOne) UpdateNotes() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateNotes()
+	})
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *TodoUpsertOne) ClearNotes() *TodoUpsertOne {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearNotes()
 	})
 }
 
@@ -937,6 +1235,34 @@ func (u *TodoUpsertBulk) UpdateSubjectKey() *TodoUpsertBulk {
 	})
 }
 
+// SetGroupKey sets the "group_key" field.
+func (u *TodoUpsertBulk) SetGroupKey(v string) *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetGroupKey(v)
+	})
+}
+
+// UpdateGroupKey sets the "group_key" field to the value that was provided on create.
+func (u *TodoUpsertBulk) UpdateGroupKey() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateGroupKey()
+	})
+}
+
+// SetProgram sets the "program" field.
+func (u *TodoUpsertBulk) SetProgram(v string) *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetProgram(v)
+	})
+}
+
+// UpdateProgram sets the "program" field to the value that was provided on create.
+func (u *TodoUpsertBulk) UpdateProgram() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateProgram()
+	})
+}
+
 // SetState sets the "state" field.
 func (u *TodoUpsertBulk) SetState(v string) *TodoUpsertBulk {
 	return u.Update(func(s *TodoUpsert) {
@@ -979,6 +1305,27 @@ func (u *TodoUpsertBulk) UpdateSource() *TodoUpsertBulk {
 	})
 }
 
+// SetWaiting sets the "waiting" field.
+func (u *TodoUpsertBulk) SetWaiting(v []string) *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetWaiting(v)
+	})
+}
+
+// UpdateWaiting sets the "waiting" field to the value that was provided on create.
+func (u *TodoUpsertBulk) UpdateWaiting() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateWaiting()
+	})
+}
+
+// ClearWaiting clears the value of the "waiting" field.
+func (u *TodoUpsertBulk) ClearWaiting() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearWaiting()
+	})
+}
+
 // SetSuggestion sets the "suggestion" field.
 func (u *TodoUpsertBulk) SetSuggestion(v map[string]interface{}) *TodoUpsertBulk {
 	return u.Update(func(s *TodoUpsert) {
@@ -997,6 +1344,69 @@ func (u *TodoUpsertBulk) UpdateSuggestion() *TodoUpsertBulk {
 func (u *TodoUpsertBulk) ClearSuggestion() *TodoUpsertBulk {
 	return u.Update(func(s *TodoUpsert) {
 		s.ClearSuggestion()
+	})
+}
+
+// SetChangeset sets the "changeset" field.
+func (u *TodoUpsertBulk) SetChangeset(v map[string]interface{}) *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetChangeset(v)
+	})
+}
+
+// UpdateChangeset sets the "changeset" field to the value that was provided on create.
+func (u *TodoUpsertBulk) UpdateChangeset() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateChangeset()
+	})
+}
+
+// ClearChangeset clears the value of the "changeset" field.
+func (u *TodoUpsertBulk) ClearChangeset() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearChangeset()
+	})
+}
+
+// SetQuestions sets the "questions" field.
+func (u *TodoUpsertBulk) SetQuestions(v []map[string]interface{}) *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetQuestions(v)
+	})
+}
+
+// UpdateQuestions sets the "questions" field to the value that was provided on create.
+func (u *TodoUpsertBulk) UpdateQuestions() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateQuestions()
+	})
+}
+
+// ClearQuestions clears the value of the "questions" field.
+func (u *TodoUpsertBulk) ClearQuestions() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearQuestions()
+	})
+}
+
+// SetNotes sets the "notes" field.
+func (u *TodoUpsertBulk) SetNotes(v []map[string]interface{}) *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.SetNotes(v)
+	})
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *TodoUpsertBulk) UpdateNotes() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.UpdateNotes()
+	})
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *TodoUpsertBulk) ClearNotes() *TodoUpsertBulk {
+	return u.Update(func(s *TodoUpsert) {
+		s.ClearNotes()
 	})
 }
 
