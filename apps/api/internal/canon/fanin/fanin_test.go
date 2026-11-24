@@ -24,6 +24,7 @@ func TestFaninCommitsVerifiedRowsAndRefusesTheRest(t *testing.T) {
 	code, title := canontest.ISBN(), canontest.Title("の世界")
 	name := fresh("test")
 	pool := canontest.NewPool()
+	pool.NotFound = ErrNotFound
 	pool.AddRecord("ndl:1", "ndl", map[string]any{"title": title, "volume": "28", "isbn": code, "date": "2025.8", "label": "電撃文庫 ; 4347"})
 	page := pool.AddSnapshot("https://www.kadokawa.co.jp/product/322508000515/",
 		title+"28", "定価: 924円（本体840円+税）", "発売日：2025年08月08日", "ISBN："+code)
@@ -233,5 +234,68 @@ func TestTakedownsReachThePoolAndLiftOnRestore(t *testing.T) {
 	}
 	if lifted := mine(); len(lifted) != 2 || lifted[0].Active || lifted[1].Active {
 		t.Errorf("restore did not lift: %+v", lifted)
+	}
+}
+
+func TestAnUnreachablePoolIsNotAVerdict(t *testing.T) {
+	client, _ := canontest.Client(t)
+	canontest.Mode(t, client, "ln-pilot", registry.ModeAuto)
+	ctx := context.Background()
+	pool := canontest.NewPool()
+	pool.NotFound = ErrNotFound
+	title := canontest.Title("の庭")
+	pool.AddRecord("ndl:a", "ndl", map[string]any{"title": title})
+	pool.Changeset("l", canontest.New("w", "work", props{"medium": {Value: canontest.Val("novel")}}),
+		canontest.New("t", "work_title", props{"work_id": canontest.Ref("w"), "text": canontest.Cite("ndl:a", title, "title"), "lang": canontest.Cite("ndl:a", "ja", "title"), "kind": canontest.Cite("ndl:a", "official", "title")}))
+	f := New(fresh("down"), pool, client)
+	pool.Down = true
+	if _, err := f.RunOnce(ctx, 10); err == nil || len(pool.Take()) != 0 {
+		t.Error("a pool that cannot be read answered a row")
+	}
+	pool.Down = false
+	if _, err := f.RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	if a := pool.Take(); len(a) != 1 || a[0].Result != "written" {
+		t.Errorf("answers %+v", a)
+	}
+}
+
+func TestOrgNamesReachThePoolOnceUntilTheyChange(t *testing.T) {
+	client, _ := canontest.Client(t)
+	ctx := context.Background()
+	org, err := client.Org.Create().SetKind("label").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := canontest.Title("文庫")
+	if err := client.OrgName.Create().SetOrgID(org.ID).SetText(name).SetLang("ja").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	pool := canontest.NewPool()
+	f := New(fresh("refs"), pool, client)
+	for range 2 {
+		if _, err := f.RunOnce(ctx, 10); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(pool.Orgs) != 1 {
+		t.Fatalf("pushed %d times", len(pool.Orgs))
+	}
+	sent := false
+	for _, it := range pool.Orgs[0].Items {
+		sent = sent || it.ID == org.ID && it.Name == name
+	}
+	if !sent {
+		t.Error("the label is not in the list")
+	}
+	if err := client.Hold.Create().SetEntity("org").SetEntityID(org.ID).SetReason("dispute").SetCreatedBy("user:1").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	if len(pool.Orgs) != 2 {
+		t.Errorf("a held organization is withdrawn: %d pushes", len(pool.Orgs))
 	}
 }

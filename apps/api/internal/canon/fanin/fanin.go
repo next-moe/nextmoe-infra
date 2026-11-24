@@ -27,6 +27,8 @@ type Fanin struct {
 	Client *ent.Client
 	Commit *commit.Service
 	index  map[string]map[string]registry.Property
+	// pushed is the org list last sent, so an unchanged one is not sent again.
+	pushed string
 }
 
 func New(name string, pool Pool, client *ent.Client) *Fanin {
@@ -38,6 +40,9 @@ func New(name string, pool Pool, client *ent.Client) *Fanin {
 func (f *Fanin) RunOnce(ctx context.Context, limit int) (int, error) {
 	if err := f.pushBlocklist(ctx); err != nil {
 		return 0, fmt.Errorf("push blocklist: %w", err)
+	}
+	if err := f.pushRefs(ctx); err != nil {
+		return 0, fmt.Errorf("push refs: %w", err)
 	}
 	if err := f.answerSettled(ctx); err != nil {
 		return 0, fmt.Errorf("answer settled todos: %w", err)
@@ -124,7 +129,11 @@ func (f *Fanin) process(ctx context.Context, r *run, e contract.OutboxEntry, mod
 	} else if ok {
 		return written(e, prior.IDs), nil
 	}
+	r.broken = nil
 	it, rf, err := f.prepare(ctx, r, row)
+	if err == nil {
+		err = r.broken
+	}
 	if err != nil {
 		return contract.InboxRow{}, err
 	}

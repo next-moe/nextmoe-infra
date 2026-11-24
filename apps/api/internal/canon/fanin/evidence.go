@@ -42,6 +42,15 @@ type run struct {
 	// row is the changeset being checked; its own entities are named by their
 	// properties, not by canon.
 	row *contract.Changeset
+	// broken is a pool failure met while checking; a refusal built on it would
+	// be a verdict on evidence nobody read.
+	broken error
+}
+
+func (r *run) unreachable(err error) {
+	if !errors.Is(err, ErrNotFound) {
+		r.broken = err
+	}
 }
 
 func (r *run) snapshot(ctx context.Context, hash string) (contract.Snapshot, *refusal) {
@@ -50,6 +59,7 @@ func (r *run) snapshot(ctx context.Context, hash string) (contract.Snapshot, *re
 	}
 	s, err := r.pool.Snapshot(ctx, hash)
 	if err != nil {
+		r.unreachable(err)
 		return s, refuse("SNAPSHOT_MISSING", "snapshot %s: %v", hash, err)
 	}
 	sum := sha256.Sum256([]byte(strings.Join(s.Lines, "\n")))
@@ -66,6 +76,7 @@ func (r *run) record(ctx context.Context, id string) (contract.Record, *refusal)
 	}
 	rec, err := r.pool.Record(ctx, id)
 	if err != nil {
+		r.unreachable(err)
 		return rec, refuse("SNAPSHOT_MISSING", "record %s: %v", id, err)
 	}
 	r.recs[id] = rec

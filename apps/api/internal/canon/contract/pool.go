@@ -71,6 +71,7 @@ const (
 	PathRecord   = "/pool/v0/records/{id}"
 	PathInbox    = "/pool/v0/inbox"
 	PathBlock    = "/pool/v0/blocklist"
+	PathRefs     = "/pool/v0/refs"
 )
 
 type OutboxEntry struct {
@@ -121,4 +122,16 @@ type BlockItem struct {
 
 type BlockBatch struct {
 	Items []BlockItem `json:"items"`
+}
+
+// RefBatch is every canon id of one kind ingest may cite by name: fanin sends
+// the whole list whenever it changes, and the pool replaces its own.
+type RefBatch struct {
+	Kind  string    `json:"kind" enum:"org"`
+	Items []RefItem `json:"items"`
+}
+
+type RefItem struct {
+	Name string `json:"name"`
+	ID   int64  `json:"id"`
 }

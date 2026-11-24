@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -20,6 +21,7 @@ type Pool interface {
 	Record(ctx context.Context, id string) (contract.Record, error)
 	Answer(ctx context.Context, rows []contract.InboxRow) error
 	Block(ctx context.Context, items []contract.BlockItem) error
+	Refs(ctx context.Context, batch contract.RefBatch) error
 }
 
 type HTTPPool struct {
@@ -62,7 +64,13 @@ func (p *HTTPPool) Block(ctx context.Context, items []contract.BlockItem) error 
 	return p.do(ctx, http.MethodPost, contract.PathBlock, contract.BlockBatch{Items: items}, nil)
 }
 
-var errNotFound = fmt.Errorf("not in the pool")
+func (p *HTTPPool) Refs(ctx context.Context, batch contract.RefBatch) error {
+	return p.do(ctx, http.MethodPost, contract.PathRefs, batch, nil)
+}
+
+// ErrNotFound is the pool saying it has no such evidence; any other failure
+// is the pool being unreachable, and the row waits for the next run.
+var ErrNotFound = errors.New("not in the pool")
 
 func (p *HTTPPool) do(ctx context.Context, method, path string, body, out any) error {
 	var rd *bytes.Reader
@@ -89,7 +97,7 @@ func (p *HTTPPool) do(ctx context.Context, method, path string, body, out any) e
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
-		return errNotFound
+		return ErrNotFound
 	}
 	if resp.StatusCode/100 != 2 {
 		return fmt.Errorf("%s %s: %s", method, path, resp.Status)

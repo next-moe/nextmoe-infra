@@ -73,6 +73,7 @@ func Build() (Contract, error) {
 		"record":      reg.Schema(reflect.TypeFor[Record](), true, ""),
 		"inbox_batch": reg.Schema(reflect.TypeFor[InboxBatch](), true, ""),
 		"block_batch": reg.Schema(reflect.TypeFor[BlockBatch](), true, ""),
+		"ref_batch":   reg.Schema(reflect.TypeFor[RefBatch](), true, ""),
 	}
 	c.PoolAPI = map[string]string{
 		"outbox":   "GET " + PathOutbox + "?after=<id>&limit=<n>",
@@ -80,6 +81,7 @@ func Build() (Contract, error) {
 		"record":   "GET " + PathRecord,
 		"inbox":    "POST " + PathInbox,
 		"block":    "POST " + PathBlock,
+		"refs":     "POST " + PathRefs,
 		"auth":     "Authorization: Bearer <pool token>",
 	}
 	c.Sources = registry.Sources

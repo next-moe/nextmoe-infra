@@ -1442,6 +1442,9 @@
     "record": {
       "$ref": "#/$defs/Record"
     },
+    "ref_batch": {
+      "$ref": "#/$defs/RefBatch"
+    },
     "snapshot": {
       "$ref": "#/$defs/Snapshot"
     }
@@ -1452,6 +1455,7 @@
     "inbox": "POST /pool/v0/inbox",
     "outbox": "GET /pool/v0/outbox?after=\u003cid\u003e\u0026limit=\u003cn\u003e",
     "record": "GET /pool/v0/records/{id}",
+    "refs": "POST /pool/v0/refs",
     "snapshot": "GET /pool/v0/snapshots/{hash}"
   },
   "$defs": {
@@ -1847,6 +1851,48 @@
         "hash",
         "fetched_at",
         "fields"
+      ],
+      "type": "object"
+    },
+    "RefBatch": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/RefItem"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "org"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    "RefItem": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "id"
       ],
       "type": "object"
     },

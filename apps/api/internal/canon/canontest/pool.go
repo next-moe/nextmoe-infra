@@ -22,13 +22,26 @@ type Pool struct {
 	Recs    map[string]contract.Record
 	Answers []contract.InboxRow
 	Blocked []contract.BlockItem
+	Orgs    []contract.RefBatch
+	// NotFound is what a missing piece of evidence answers (fanin.ErrNotFound,
+	// which this package cannot import).
+	NotFound error
+	// Down makes evidence reads fail the way an unreachable pool does.
+	Down bool
 }
 
 func NewPool() *Pool {
-	return &Pool{Snaps: map[string]contract.Snapshot{}, Recs: map[string]contract.Record{}}
+	return &Pool{Snaps: map[string]contract.Snapshot{}, Recs: map[string]contract.Record{}, NotFound: errors.New("not in the pool")}
 }
 
-var errNoEvidence = errors.New("not in the pool")
+var errDown = errors.New("connection refused")
+
+func (p *Pool) missing() error {
+	if p.Down {
+		return errDown
+	}
+	return p.NotFound
+}
 
 func (p *Pool) Outbox(_ context.Context, after int64, limit int) (contract.OutboxPage, error) {
 	var page contract.OutboxPage
@@ -43,22 +56,27 @@ func (p *Pool) Outbox(_ context.Context, after int64, limit int) (contract.Outbo
 
 func (p *Pool) Snapshot(_ context.Context, h string) (contract.Snapshot, error) {
 	s, ok := p.Snaps[h]
-	if !ok {
-		return s, errNoEvidence
+	if !ok || p.Down {
+		return s, p.missing()
 	}
 	return s, nil
 }
 
 func (p *Pool) Record(_ context.Context, id string) (contract.Record, error) {
 	r, ok := p.Recs[id]
-	if !ok {
-		return r, errNoEvidence
+	if !ok || p.Down {
+		return r, p.missing()
 	}
 	return r, nil
 }
 
 func (p *Pool) Block(_ context.Context, items []contract.BlockItem) error {
 	p.Blocked = append(p.Blocked, items...)
+	return nil
+}
+
+func (p *Pool) Refs(_ context.Context, b contract.RefBatch) error {
+	p.Orgs = append(p.Orgs, b)
 	return nil
 }
 
