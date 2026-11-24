@@ -8,6 +8,7 @@ import (
 
 	"api/internal/canon/commit"
 	"api/internal/canon/contract"
+	"api/internal/canon/ent"
 	"api/internal/canon/ent/credit"
 	"api/internal/canon/ent/personalias"
 	"api/internal/canon/identity"
@@ -154,9 +155,11 @@ func (r *run) authority(name commit.Value) string {
 // identify resolves what a rule may decide (one authority is one person) and
 // lists the rest as questions.
 func (f *Fanin) identify(ctx context.Context, r *run, it *item) error {
-	if err := f.citeByAuthority(ctx, it); err != nil {
+	cs, err := CiteByAuthority(ctx, f.Client, it.cs)
+	if err != nil {
 		return err
 	}
+	it.cs = cs
 	for _, ch := range it.cs.Changes {
 		var q *Question
 		var err error
@@ -243,34 +246,47 @@ func (f *Fanin) asksAboutCited(ctx context.Context, r *run, it *item, ch commit.
 		Candidates: []identity.Candidate{{Origin: identity.OriginCanon, ID: alias, Label: a.Name}}}, nil
 }
 
-// citeByAuthority makes a new name under a known authority that person's:
-// the same alias when it is the same name, else a further alias of theirs.
-func (f *Fanin) citeByAuthority(ctx context.Context, it *item) error {
-	for i := 0; i < len(it.cs.Changes); i++ {
-		ch := it.cs.Changes[i]
+// CiteByAuthority makes a new name under a known authority that person's: the
+// same alias when it is the same name, else a further alias of theirs. The
+// review runs it again, as a todo accepted before it may have made the name.
+func CiteByAuthority(ctx context.Context, client *ent.Client, cs commit.Changeset) (commit.Changeset, error) {
+	for i := 0; i < len(cs.Changes); i++ {
+		ch := cs.Changes[i]
 		if ch.Entity != "person_alias" || ch.Authority == "" || ch.ID != 0 {
 			continue
 		}
-		known, err := identity.ByAuthority(ctx, f.Client, ch.Authority)
+		known, err := identity.ByAuthority(ctx, client, ch.Authority)
 		if err != nil {
-			return err
+			return cs, err
 		}
 		if known == 0 {
 			continue
 		}
-		a, err := f.Client.PersonAlias.Get(ctx, known)
+		a, err := client.PersonAlias.Get(ctx, known)
 		if err != nil {
-			return err
+			return cs, err
 		}
 		if identity.NameKey(a.Name) == identity.NameKey(str(ch.Values["name"])) {
-			it.cs = it.cs.Citing(ch.Ref, a.ID)
+			cs = cs.Citing(ch.Ref, a.ID)
 			i = -1
 		} else if p := str(ch.Values["person_id"]); p != "" {
-			it.cs = it.cs.Citing(strings.TrimPrefix(p, "ref:"), a.PersonID)
+			cs = cs.Citing(strings.TrimPrefix(p, "ref:"), a.PersonID)
 			i = -1
 		}
 	}
-	return nil
+	return cs, nil
+}
+
+// QuestionOf is the question a refused create asks, before its candidates.
+func QuestionOf(ch commit.Change) Question {
+	q := Question{Ref: ch.Ref, Entity: ch.Entity, Name: str(ch.Values["name"]), Why: "a new " + ch.Entity + " of this name"}
+	for parent, entity := range map[string]string{"work_title": "work", "org_name": "org"} {
+		if ch.Entity == parent {
+			q.Ref, q.Entity, q.Name = strings.TrimPrefix(str(ch.Values[entity+"_id"]), "ref:"), entity, str(ch.Values["text"])
+			q.Why = "a new " + entity + " of this name"
+		}
+	}
+	return q
 }
 
 func str(v commit.Value) string {

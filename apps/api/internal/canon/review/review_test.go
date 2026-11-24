@@ -423,3 +423,66 @@ func TestASheetShowsTheWordsAndWhatIsKnownOfACandidate(t *testing.T) {
 		t.Errorf("unsure leaves it open with a note: %s %v", got.State, got.Notes)
 	}
 }
+
+func TestWhatATodoAcceptedBeforeMadeIsFoundByTheNext(t *testing.T) {
+	w := newWorld(t, registry.ModeReview)
+	who, authority := author(), "2"+canontest.ISBN()
+	title := canontest.Title("の庭")
+	w.book("a", title, canontest.ISBN(), who, authority)
+	w.book("b", canontest.Title("の森"), canontest.ISBN(), who, authority)
+	w.book("c", title+" ５", canontest.ISBN(), author(), "")
+	w.run()
+	ts := w.open()
+	if len(ts) != 3 || ts[0].Kind != registry.TodoFirstWrite || ts[2].Kind != registry.TodoFirstWrite {
+		t.Fatalf("%d todos", len(ts))
+	}
+	first, err := review.Accept(ctx, w.client, ts[0].ID, grok, review.Decision{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := review.Accept(ctx, w.client, ts[1].ID, grok, review.Decision{})
+	if err != nil {
+		t.Fatalf("the same authority is the same person: %v", err)
+	}
+	if second["alias.a"] != first["alias.a"] || second["person.a"] != first["person.a"] {
+		t.Errorf("the pool learns the alias: %v, want %v", second, first)
+	}
+	var invalid review.Invalid
+	if _, err := review.Accept(ctx, w.client, ts[2].ID, grok, review.Decision{}); !errors.As(err, &invalid) {
+		t.Fatalf("a title made since: %v", err)
+	}
+	td, _ := w.client.Todo.Get(ctx, ts[2].ID)
+	if td.State != "open" || td.Kind != registry.TodoIdentity || len(td.Questions) != 1 || td.Questions[0]["ref"] != "work" {
+		t.Fatalf("the todo asks about it now: %s %s %v", td.State, td.Kind, td.Questions)
+	}
+	if _, err := review.Accept(ctx, w.client, td.ID, grok, review.Decision{Answers: map[string]review.Answer{"work": {Use: first["work"]}}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestALegacyIDTakenOverMeanwhileIsCited(t *testing.T) {
+	w := newWorld(t, registry.ModeReview)
+	who := author()
+	base := rand.Int64N(1_000_000_000) + 7_000_000_000
+	for _, q := range []string{
+		fmt.Sprintf(`INSERT INTO %s.catalog_credit_name (id, name) VALUES (%d, '%s')`, identity.LegacySchema, base, who),
+		fmt.Sprintf(`INSERT INTO %s.catalog_credit VALUES (%d, 1)`, identity.LegacySchema, base),
+	} {
+		if _, err := w.client.ExecContext(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w.book("a", canontest.Title("の庭"), canontest.ISBN(), who, "")
+	w.book("b", canontest.Title("の森"), canontest.ISBN(), who, "")
+	w.run()
+	for _, td := range w.open() {
+		ids, err := review.Accept(ctx, w.client, td.ID, grok, review.Decision{Answers: map[string]review.Answer{"alias.a": {Adopt: base}},
+			Evidence: []review.Found{{URL: "https://www.kadokawa.co.jp/product/1/", Quote: "著者紹介"}}})
+		if err != nil || ids["alias.a"] != base {
+			t.Errorf("todo %d: %v %v", td.ID, ids, err)
+		}
+	}
+	if n, _ := w.client.Credit.Query().Where(credit.AliasID(base)).Count(ctx); n != 2 {
+		t.Errorf("%d credits on the one alias", n)
+	}
+}
