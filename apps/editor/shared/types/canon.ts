@@ -1,38 +1,19 @@
-export type CanonTodoKind = 'identity' | 'agent_on_human'
+export type CanonTodoKind =
+  | 'identity'
+  | 'agent_on_human'
+  | 'first_write'
+  | 'conflict'
 
-export type CanonTodoState = 'open' | 'done' | 'rejected'
-
-export interface CanonCandidateValue {
-  value: unknown
-  tier?: string
-}
-
-export interface CanonNewEntity {
-  ref: string
-  entity: string
-  properties: Record<string, CanonCandidateValue>
-}
-
-export interface CanonOutboxRow {
-  kind: 'candidate' | 'changeset'
-  program?: string
-  candidate?: {
-    target: { entity: string; id: number }
-    property: string
-    value: unknown
-    tier?: string
-  }
-  changeset?: { lead_id: string; entities: CanonNewEntity[] }
-}
+export type CanonTodoState = 'open' | 'done' | 'rejected' | 'superseded'
 
 export interface CanonTodo {
   id: string
   kind: CanonTodoKind
   subject_key: string
+  program: string
   state: CanonTodoState
   detail: string
   source: string
-  suggestion: CanonOutboxRow
   resolved_by: string
   created_at: string
 }
@@ -45,4 +26,51 @@ export interface CanonTodoList {
 export interface CanonTodoResult {
   state: CanonTodoState
   ids?: Record<string, string>
+}
+
+export interface CanonSheetValue {
+  property: string
+  value: unknown
+  is?: string
+  tier?: string
+  evidence?: string[]
+}
+
+export interface CanonSheetChange {
+  ref: string
+  entity: string
+  id?: number
+  values: CanonSheetValue[] | null
+}
+
+export interface CanonSheetCandidate {
+  token: string
+  id: number
+  label: string
+  facts: string[]
+}
+
+export interface CanonSheetQuestion {
+  ref: string
+  entity: string
+  name: string
+  why: string
+  cites: boolean
+  candidates: CanonSheetCandidate[]
+}
+
+export interface CanonTodoSheet {
+  todo_id: number
+  kind: CanonTodoKind
+  program: string
+  detail: string
+  changes: CanonSheetChange[]
+  questions: CanonSheetQuestion[]
+  notes?: { by: string; note: string; at: string }[]
+}
+
+export interface CanonTodoAnswer {
+  use?: string
+  adopt?: string
+  new?: boolean
 }

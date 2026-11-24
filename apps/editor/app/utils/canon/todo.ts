@@ -1,59 +1,56 @@
-import type { CanonOutboxRow } from '#shared/types/canon'
-import { CANON_CITABLE_ENTITIES } from '~/constants/canon'
+import type {
+  CanonSheetCandidate,
+  CanonSheetQuestion,
+  CanonSheetValue,
+  CanonTodoAnswer
+} from '#shared/types/canon'
 
-export interface SuggestionValue {
-  key: string
-  value: string
-  tier?: string
-}
+export const NEW_ENTITY = 'new'
 
-export interface SuggestionLine {
-  ref: string
-  entity: string
-  values: SuggestionValue[]
-}
-
-export const showValue = (value: unknown) => {
+export const showValue = ({ value, is }: Pick<CanonSheetValue, 'value' | 'is'>) => {
   if (typeof value === 'string') {
     return value.startsWith('ref:') ? `→ ${value.slice(4)}` : value
   }
-  return JSON.stringify(value)
+  const text = JSON.stringify(value)
+  return is ? `${is}（${text}）` : text
 }
 
-export const suggestionLines = (row: CanonOutboxRow): SuggestionLine[] => {
-  if (row.candidate) {
-    const c = row.candidate
-    return [
-      {
-        ref: `${c.target.entity} ${c.target.id}`,
-        entity: c.target.entity,
-        values: [{ key: c.property, value: showValue(c.value), tier: c.tier }]
-      }
-    ]
+export const candidateOrigin = (candidate: CanonSheetCandidate) =>
+  candidate.token.startsWith('legacy:') ? '旧库' : 'canon'
+
+export const answerOptions = (question: CanonSheetQuestion) => [
+  ...question.candidates.map((c) => ({
+    value: c.token,
+    label: `${candidateOrigin(c)} #${c.id} ${c.label}`
+  })),
+  ...(question.cites ? [] : [{ value: NEW_ENTITY, label: '都不是，新建' }])
+]
+
+export const answerOf = (choice: string): CanonTodoAnswer => {
+  if (choice === NEW_ENTITY) {
+    return { new: true }
   }
-  return (row.changeset?.entities ?? []).map((e) => ({
-    ref: e.ref,
-    entity: e.entity,
-    values: Object.entries(e.properties).map(([key, c]) => ({
-      key,
-      value: showValue(c.value),
-      tier: c.tier
-    }))
-  }))
+  const [origin, id] = choice.split(':')
+  return origin === 'legacy' ? { adopt: id } : { use: id }
 }
 
-export const citableRefs = (row: CanonOutboxRow) =>
-  (row.changeset?.entities ?? [])
-    .filter((e) => CANON_CITABLE_ENTITIES.includes(e.entity))
-    .map((e) => ({ ref: e.ref, entity: e.entity }))
-
-export const useIDsFrom = (inputs: Record<string, string>) => {
-  const out: Record<string, string> = {}
-  for (const [ref, raw] of Object.entries(inputs)) {
-    const id = raw.trim()
-    if (/^[1-9][0-9]*$/.test(id)) {
-      out[ref] = id
+export const answersFrom = (
+  questions: CanonSheetQuestion[],
+  chosen: Record<string, string>,
+  omitted: string[]
+) => {
+  const out: Record<string, CanonTodoAnswer> = {}
+  for (const q of questions) {
+    const choice = chosen[q.ref]
+    if (choice && !omitted.includes(q.ref)) {
+      out[q.ref] = answerOf(choice)
     }
   }
   return out
 }
+
+export const unanswered = (
+  questions: CanonSheetQuestion[],
+  chosen: Record<string, string>,
+  omitted: string[]
+) => questions.filter((q) => !chosen[q.ref] && !omitted.includes(q.ref))

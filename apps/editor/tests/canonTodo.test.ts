@@ -1,52 +1,58 @@
 import { describe, expect, it } from 'vitest'
-import { citableRefs, suggestionLines, useIDsFrom } from '../app/utils/canon/todo'
+import {
+  answerOf,
+  answerOptions,
+  answersFrom,
+  showValue,
+  unanswered
+} from '../app/utils/canon/todo'
 
-const row = {
-  kind: 'changeset' as const,
-  changeset: {
-    lead_id: 'l',
-    entities: [
-      { ref: 'person.x', entity: 'person', properties: {} },
-      {
-        ref: 'alias.x',
-        entity: 'person_alias',
-        properties: {
-          person_id: { value: 'ref:person.x' },
-          name: { value: '川原 礫', tier: 'registry' }
-        }
-      },
-      {
-        ref: 'credit.0',
-        entity: 'credit',
-        properties: { work_id: { value: 42 }, role: { value: 'author' } }
-      }
-    ]
-  }
+const author = {
+  ref: 'alias.x',
+  entity: 'person_alias',
+  name: '川原 礫',
+  why: 'a new person_alias of this name',
+  cites: false,
+  candidates: [
+    { token: 'canon:12', id: 12, label: '川原礫', facts: [] },
+    { token: 'legacy:7', id: 7, label: '川原 礫', facts: [] }
+  ]
 }
 
-describe('canon todo suggestion', () => {
-  it('lists every entity with its values', () => {
-    const lines = suggestionLines(row)
-    expect(lines.map((l) => l.ref)).toEqual(['person.x', 'alias.x', 'credit.0'])
-    expect(lines[1]?.values).toContainEqual({ key: 'person_id', value: '→ person.x', tier: undefined })
-    expect(lines[2]?.values).toContainEqual({ key: 'work_id', value: '42', tier: undefined })
+describe('canon todo sheet', () => {
+  it('shows a cited id by its name', () => {
+    expect(showValue({ value: 'ref:work' })).toBe('→ work')
+    expect(showValue({ value: 5, is: '電撃文庫' })).toBe('電撃文庫（5）')
+    expect(showValue({ value: 28 })).toBe('28')
   })
 
-  it('reads a single candidate', () => {
-    const lines = suggestionLines({
-      kind: 'candidate',
-      candidate: { target: { entity: 'release', id: 9 }, property: 'released', value: '2025-08-08', tier: 'registry' }
-    })
-    expect(lines).toEqual([
-      { ref: 'release 9', entity: 'release', values: [{ key: 'released', value: '2025-08-08', tier: 'registry' }] }
+  it('offers every candidate and a new entity', () => {
+    expect(answerOptions(author).map((o) => o.value)).toEqual([
+      'canon:12',
+      'legacy:7',
+      'new'
     ])
   })
 
-  it('offers only entities a reviewer may cite', () => {
-    expect(citableRefs(row).map((r) => r.ref)).toEqual(['person.x', 'alias.x'])
+  it('offers no new entity where the row cites a known one', () => {
+    expect(answerOptions({ ...author, cites: true }).map((o) => o.value)).toEqual([
+      'canon:12',
+      'legacy:7'
+    ])
   })
 
-  it('keeps only positive decimal ids', () => {
-    expect(useIDsFrom({ 'person.x': ' 12 ', 'alias.x': '', 'org.y': 'abc', 'org.z': '0' })).toEqual({ 'person.x': '12' })
+  it('uses a canon id and takes over a legacy one', () => {
+    expect(answerOf('canon:12')).toEqual({ use: '12' })
+    expect(answerOf('legacy:7')).toEqual({ adopt: '7' })
+    expect(answerOf('new')).toEqual({ new: true })
+  })
+
+  it('asks nothing about what is left out', () => {
+    expect(unanswered([author], {}, [])).toHaveLength(1)
+    expect(unanswered([author], {}, ['alias.x'])).toHaveLength(0)
+    expect(answersFrom([author], { 'alias.x': 'new' }, ['alias.x'])).toEqual({})
+    expect(answersFrom([author], { 'alias.x': 'legacy:7' }, [])).toEqual({
+      'alias.x': { adopt: '7' }
+    })
   })
 })

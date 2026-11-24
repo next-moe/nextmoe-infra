@@ -16,7 +16,8 @@ const KIND_OPTIONS = [
 const STATE_OPTIONS = [
   { value: 'open', label: '待处理' },
   { value: 'done', label: '已接受' },
-  { value: 'rejected', label: '已驳回' }
+  { value: 'rejected', label: '已驳回' },
+  { value: 'superseded', label: '已被取代' }
 ]
 
 const api = useEditorApi()
@@ -80,7 +81,7 @@ onMounted(() => fetchPage(null))
   <div class="mx-auto max-w-6xl space-y-5">
     <KunHeader
       name="采集待办"
-      description="采集程序提交的数据认不出是哪个已有条目，或撞上了人写过的字段时，会停在这里等人裁决。接受即以你的名义写入；驳回会告诉采集端不再提交同样的数据。"
+      description="采集程序提交的数据要审核、认不出是哪个已有条目、与另一个来源矛盾，或撞上了人写过的字段时，会停在这里等裁决。驳回会告诉采集端不再提交同样的数据。"
     />
 
     <div class="flex flex-wrap items-center gap-3">
@@ -107,7 +108,7 @@ onMounted(() => fetchPage(null))
       color="warning"
       variant="flat"
       title="需要采集待办的审核权限"
-      description="身份待办需要 canon.todo.identity，取值待办需要 canon.todo.value；默认授予版主、管理员。"
+      description="身份待办需要 canon.todo.identity，其余待办需要 canon.todo.value；默认授予版主、管理员。"
     />
     <KunCard v-else bordered padding="none">
       <div v-if="loading && !items.length" class="p-4">

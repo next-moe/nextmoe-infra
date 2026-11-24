@@ -48,6 +48,13 @@ type TodoList struct {
 
 type TodoListOutput struct{ Body TodoList }
 
+type TodoInput struct {
+	AuthInput
+	ID int `path:"id" minimum:"1"`
+}
+
+type TodoSheetOutput struct{ Body review.Sheet }
+
 type TodoAcceptInput struct {
 	AuthInput
 	ID   int `path:"id" minimum:"1"`
@@ -129,6 +136,29 @@ func (a *API) todos(h huma.API) {
 				out.Items = append(out.Items, item)
 			}
 			return &TodoListOutput{Body: out}, nil
+		})
+	huma.Register(h, huma.Operation{OperationID: "getTodo", Method: http.MethodGet, Path: "/v3/catalog/todos/{id}",
+		Summary: "One todo with the words behind every value", Tags: []string{"review"}, Errors: errs},
+		func(ctx context.Context, in *TodoInput) (*TodoSheetOutput, error) {
+			s, err := a.staffOf(ctx, in.Authorization)
+			if err != nil {
+				return nil, err
+			}
+			t, err := a.client.Todo.Get(ctx, in.ID)
+			if ent.IsNotFound(err) {
+				return nil, huma.Error404NotFound("todo " + strconv.Itoa(in.ID) + " does not exist")
+			}
+			if err != nil {
+				return nil, err
+			}
+			if p, ok := perm.ForTodo(t.Kind); !ok || !s.can(p) {
+				return nil, forbidden(p)
+			}
+			sheet, err := review.SheetOf(ctx, a.client, t)
+			if err != nil {
+				return nil, err
+			}
+			return &TodoSheetOutput{Body: sheet}, nil
 		})
 	huma.Register(h, huma.Operation{OperationID: "acceptTodo", Method: http.MethodPost, Path: "/v3/catalog/todos/{id}/accept",
 		Summary: "Accept a todo and commit what it holds", Tags: []string{"review"}, Errors: errs},

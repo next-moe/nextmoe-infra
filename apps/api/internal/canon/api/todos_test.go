@@ -18,6 +18,7 @@ import (
 	"api/internal/canon/ent/credit"
 	"api/internal/canon/ent/todo"
 	"api/internal/canon/fanin"
+	"api/internal/canon/review"
 	"api/pkg/utils"
 )
 
@@ -92,6 +93,13 @@ func TestReviewAcceptCitesTheSamePerson(t *testing.T) {
 	}
 	if it := list.Items[0]; it.ID != strconv.Itoa(td.ID) || it.Program != "ln-pilot" || len(it.Questions) != 1 || it.Questions[0]["ref"] != "alias.x" {
 		t.Errorf("the todo carries its question: %+v", it)
+	}
+	var sheet review.Sheet
+	if c := call(t, h, http.MethodGet, "/v3/catalog/todos/"+strconv.Itoa(td.ID), "mod", "", &sheet); c != http.StatusOK || len(sheet.Questions) != 1 {
+		t.Errorf("one todo: %d %+v", c, sheet)
+	}
+	if c := call(t, h, http.MethodGet, "/v3/catalog/todos/"+strconv.Itoa(td.ID), "user", "", nil); c != http.StatusForbidden {
+		t.Errorf("one todo for an editor: %d", c)
 	}
 	path := "/v3/catalog/todos/" + strconv.Itoa(td.ID) + "/accept"
 	if c := call(t, h, http.MethodPost, path, "mod", `{}`, nil); c != http.StatusUnprocessableEntity {

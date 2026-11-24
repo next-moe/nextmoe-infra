@@ -45,10 +45,12 @@ type SheetValue struct {
 }
 
 type SheetQuestion struct {
-	Ref        string           `json:"ref"`
-	Entity     string           `json:"entity"`
-	Name       string           `json:"name"`
-	Why        string           `json:"why"`
+	Ref    string `json:"ref"`
+	Entity string `json:"entity"`
+	Name   string `json:"name"`
+	Why    string `json:"why"`
+	// Cites: the row already cites this candidate; it is confirmed or left out.
+	Cites      bool             `json:"cites"`
 	Candidates []SheetCandidate `json:"candidates"`
 }
 
@@ -67,7 +69,7 @@ func Sheets(ctx context.Context, client *ent.Client, kinds []string, limit int) 
 	}
 	out := make([]Sheet, 0, len(ts))
 	for _, t := range ts {
-		s, err := sheet(ctx, client, t)
+		s, err := SheetOf(ctx, client, t)
 		if err != nil {
 			return nil, fmt.Errorf("todo %d: %w", t.ID, err)
 		}
@@ -76,7 +78,7 @@ func Sheets(ctx context.Context, client *ent.Client, kinds []string, limit int) 
 	return out, nil
 }
 
-func sheet(ctx context.Context, client *ent.Client, t *ent.Todo) (Sheet, error) {
+func SheetOf(ctx context.Context, client *ent.Client, t *ent.Todo) (Sheet, error) {
 	out := Sheet{TodoID: t.ID, Kind: t.Kind, Program: t.Program, Detail: t.Detail, Notes: t.Notes, Questions: []SheetQuestion{}}
 	var cs commit.Changeset
 	var qs []fanin.Question
@@ -111,7 +113,7 @@ func sheet(ctx context.Context, client *ent.Client, t *ent.Todo) (Sheet, error) 
 		out.Changes = append(out.Changes, sc)
 	}
 	for _, q := range qs {
-		sq := SheetQuestion{Ref: q.Ref, Entity: q.Entity, Name: q.Name, Why: q.Why, Candidates: []SheetCandidate{}}
+		sq := SheetQuestion{Ref: q.Ref, Entity: q.Entity, Name: q.Name, Why: q.Why, Cites: q.Cites != 0, Candidates: []SheetCandidate{}}
 		for _, c := range q.Candidates {
 			facts, err := facts(ctx, client, q.Entity, c)
 			if err != nil {
