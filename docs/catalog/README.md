@@ -13,7 +13,7 @@
 | 01 | [service-and-contract.md](./01-service-and-contract.md) | 服务定位、registry/body 分界、admin 队列、鉴权形态、生成 spec、运维注记。**§2 S2S 与 §4 用户令牌面所述路由已于 2026-08-27 退役**,保留为历史记录 | 历史 + 在产混排 |
 | — | [admin-openapi.yaml](./admin-openapi.yaml) | admin review 队列的 OpenAPI 3.1(`gen-openapi -catalog-admin` 生成) | 生成物 |
 | — | [v2-openapi.yaml](./v2-openapi.yaml) | `/v2` 公开面的 OpenAPI 3.1(`gen-openapi -catalog-v2` 生成;Huma 真路由,契约测试打这些路由) | 生成物 |
-| 03 | [03-v3.md](./03-v3.md) | 自有目录 canon 的 v3 面：约定、读面、用户态、编辑与审核、权限 | 分支上，未上线 |
+| 02 | [02-v3.md](./02-v3.md) | 自有目录 canon 的 v3 面：约定、读面、用户态、编辑与审核、权限 | 分支上，未上线 |
 | — | [v3-openapi.yaml](./v3-openapi.yaml) | `/v3` 的 OpenAPI 3.1（`internal/canon/api` 的测试 `-update` 生成） | 生成物 |
 | — | [v2-implementation-notes.md](./v2-implementation-notes.md) | v2 各波实现札记,含 wave R3 的 v1 拆除清单 | 已完成 |
 
