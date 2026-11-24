@@ -84,16 +84,13 @@ func Accept(ctx context.Context, client *ent.Client, id int, by Reviewer, d Deci
 	if cs, err = resolve(ctx, client, cs, questions, by, d); err != nil {
 		return nil, err
 	}
-	if cs.Known, err = learnPersons(ctx, client, before, cs.Known); err != nil {
-		return nil, err
-	}
 	cs.Actor.Reviewer = by.Key
 	if t.Kind == registry.TodoAgentOnHuman {
 		// Taking the agent's value over a person's is that person's own edit.
 		cs.Actor = commit.Actor{Kind: commit.ActorHuman, Key: by.Key}
 	}
 	cs.Note = strings.TrimSpace(cs.Note + "; todo " + fmt.Sprint(t.ID) + " accepted: " + d.Note)
-	res, err := commit.New(client).Apply(ctx, cs)
+	res, err := apply(ctx, client, &cs)
 	var refused commit.Refused
 	if errors.As(err, &refused) && refused.Has("IDENTITY_UNSURE") {
 		return nil, ask(ctx, client, t, cs, questions, refused)
@@ -101,8 +98,46 @@ func Accept(ctx context.Context, client *ent.Client, id int, by Reviewer, d Deci
 	if err != nil {
 		return nil, err
 	}
+	if res.IDs, err = learnPersons(ctx, client, before, res.IDs); err != nil {
+		return nil, err
+	}
 	return res.IDs, client.Todo.UpdateOneID(t.ID).SetState("done").SetResolvedBy(by.Key).
 		SetResolution(map[string]any{"result": "written", "ids": res.IDs, "batch": res.Batch, "note": d.Note, "omitted": d.Omit, "evidence": d.Evidence}).Exec(ctx)
+}
+
+// apply commits, joining a work an earlier todo made when the ladder proves
+// it is this one, so that a queue of one series' volumes settles in any order.
+func apply(ctx context.Context, client *ent.Client, cs *commit.Changeset) (commit.Result, error) {
+	for {
+		res, err := commit.New(client).Apply(ctx, *cs)
+		var refused commit.Refused
+		if !errors.As(err, &refused) || !refused.Has("IDENTITY_UNSURE") {
+			return res, err
+		}
+		joined := false
+		for _, r := range refused {
+			if r.Code != "IDENTITY_UNSURE" || r.Change >= len(cs.Changes) {
+				continue
+			}
+			q := fanin.QuestionOf(cs.Changes[r.Change])
+			q.Candidates = r.Candidates
+			work, serr := fanin.SameWork(ctx, client, *cs, q)
+			if serr != nil {
+				return res, serr
+			}
+			if work == 0 {
+				continue
+			}
+			if *cs, serr = fanin.JoinWork(ctx, client, *cs, q.Ref, work); serr != nil {
+				return res, serr
+			}
+			joined = true
+			break
+		}
+		if !joined {
+			return res, err
+		}
+	}
 }
 
 // ask adds what turned up since the todo was filed to its questions: a todo
@@ -200,7 +235,14 @@ func resolve(ctx context.Context, client *ent.Client, cs commit.Changeset, quest
 		}
 		a, ok := d.Answers[q.Ref]
 		if !ok {
-			return cs, Invalid("question " + q.Ref + " is not answered")
+			work, err := fanin.SameWork(ctx, client, cs, q)
+			if err != nil {
+				return cs, err
+			}
+			if work == 0 {
+				return cs, Invalid("question " + q.Ref + " is not answered")
+			}
+			a = Answer{Use: work}
 		}
 		var err error
 		switch {

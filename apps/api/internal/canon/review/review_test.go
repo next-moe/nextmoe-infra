@@ -486,3 +486,42 @@ func TestALegacyIDTakenOverMeanwhileIsCited(t *testing.T) {
 		t.Errorf("%d credits on the one alias", n)
 	}
 }
+
+func TestVolumesOfOneSeriesSettleInAnyOrder(t *testing.T) {
+	w := newWorld(t, registry.ModeReview)
+	label, err := w.client.Org.Create().SetKind("label").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := canontest.Title("文庫")
+	if err := w.client.OrgName.Create().SetOrgID(label.ID).SetText(name).SetLang("ja").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	title, who := canontest.Title("の庭"), author()
+	for _, lead := range []string{"a", "b"} {
+		isbn := canontest.ISBN()
+		w.book(lead, title, isbn, who, "")
+		row := w.pool.Rows[len(w.pool.Rows)-1].Row.Changeset
+		rec := w.pool.Recs["ndl:"+isbn]
+		w.pool.AddRecord(rec.ID, "ndl", map[string]any{"title": title, "isbn": isbn, "label": name + "文庫", "name": name,
+			"creators": []map[string]any{{"name": who, "role_text": "著"}}})
+		for i, ne := range row.Entities {
+			if ne.Entity == "book_release" {
+				row.Entities[i].Properties["label_id"] = canontest.Cite("ndl:"+isbn, label.ID, "name")
+			}
+		}
+	}
+	w.run()
+	ts := w.open()
+	if len(ts) != 2 {
+		t.Fatalf("%d todos", len(ts))
+	}
+	first, err := review.Accept(ctx, w.client, ts[0].ID, grok, review.Decision{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := review.Accept(ctx, w.client, ts[1].ID, grok, review.Decision{})
+	if err != nil || second["work"] != first["work"] || second["alias.a"] != first["alias.a"] || second["person.a"] != first["person.a"] {
+		t.Errorf("second %v %v, first %v", second, err, first)
+	}
+}
