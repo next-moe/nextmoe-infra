@@ -89,7 +89,12 @@ type WalkthroughEnding struct {
 	Key           string                   `json:"key" pattern:"^[A-Za-z0-9_]+$" minLength:"1" maxLength:"32" doc:"Chart-local key that ending nodes refer to."`
 	Name          string                   `json:"name" maxLength:"512" doc:"The ending's name as the source page writes it. Must not be used as a discriminant."`
 	Localized     map[string]LocalizedText `json:"localized" doc:"BCP-47 keys: machine translations of name. Personal names without a sourced catalog translation stay in the original script. Empty object if none. Must not be used as a discriminant."`
-	EndingType    string                   `json:"ending_type" enum:"heroine,harem,true,normal,bad,after,other" doc:"heroine concludes one character's route, harem several; after is an after-story reached from another ending."`
+	EndingType    string                   `json:"ending_type" enum:"heroine,harem,true,normal,bad,after,other" doc:"route_type, outcome, after and other folded into one value, for a site that shows a single label: after when after is true, other when other is true, otherwise outcome when it is true, normal or bad, otherwise route_type when it is heroine or harem, otherwise other."`
+	RouteType     *string                  `json:"route_type" enum:"heroine,harem,common" doc:"Whose route the ending closes: heroine is one character's (character_keys holds at most one), harem several characters' together, common the shared trunk before routes split. null when other is true or the route is not recorded."`
+	Outcome       *string                  `json:"outcome" enum:"happy,true,normal,bad" doc:"How the ending turns out: happy (HE), true (TE), normal (NE) or bad (BE). null when other is true or the outcome is not recorded."`
+	After         bool                     `json:"after" doc:"true for an after-story, played on from another ending. Combines with route_type and outcome."`
+	Other         bool                     `json:"other" doc:"true when the ending fits no route_type or outcome; route_type and outcome are then null."`
+	OtherLabel    *string                  `json:"other_label" maxLength:"32" doc:"A short label an editor gave an ending marked other, such as 隐藏结局, in the language the editor wrote it. null when none. Must not be used as a discriminant."`
 	CharacterKeys []string                 `json:"character_keys" doc:"characters[].key of the characters whose route this ending concludes. Empty array, never null."`
 }
 

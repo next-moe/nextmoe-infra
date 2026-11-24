@@ -266,6 +266,7 @@ func (s *PublicService) WorkDetail(ctx context.Context, id int64, inc PublicIncl
 		OLang:         w.OLang,
 		ContentRating: contentRatingKey(w.ContentRating),
 		ContentLimit:  shelfLimitKey(w.Site, w.ProductWorkID, limits[w.ID], w.ContentRating),
+		SingleEnding:  w.SingleEnding,
 		ReleaseDate:   workReleaseDate(detail.Releases),
 		Titles:        publicTitles(detail.Titles),
 		Latin:         workLatin(detail.Titles, w.DisplayName),

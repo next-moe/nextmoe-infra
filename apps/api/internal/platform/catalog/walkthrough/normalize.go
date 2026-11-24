@@ -34,7 +34,7 @@ func Normalize(c *Chart) {
 
 	collectKeys := map[string]bool{}
 	for _, e := range c.Endings {
-		if e.EndingType == "other" && collectName.MatchString(strings.TrimSpace(e.Name)) {
+		if e.ImportType == "other" && collectName.MatchString(strings.TrimSpace(e.Name)) {
 			collectKeys[e.Key] = true
 		}
 	}
@@ -76,20 +76,20 @@ func Normalize(c *Chart) {
 
 	for i := range c.Endings {
 		e := &c.Endings[i]
-		if e.EndingType != "normal" && e.EndingType != "other" {
+		if e.ImportType != "normal" && e.ImportType != "other" {
 			continue
 		}
 		switch {
 		case badName.MatchString(e.Name):
-			e.EndingType = "bad"
+			e.ImportType = "bad"
 		case trueName.MatchString(e.Name):
-			e.EndingType = "true"
+			e.ImportType = "true"
 		case normalName.MatchString(e.Name):
-			e.EndingType = "normal"
+			e.ImportType = "normal"
 		case len(e.Characters) == 1:
-			e.EndingType = "heroine"
+			e.ImportType = "heroine"
 		case len(e.Characters) > 1:
-			e.EndingType = "harem"
+			e.ImportType = "harem"
 		}
 	}
 	fillBadEndingCharacters(c)
@@ -142,7 +142,7 @@ func fillBadEndingCharacters(c *Chart) {
 	}
 	for i := range c.Endings {
 		e := &c.Endings[i]
-		if e.EndingType != "bad" || len(e.Characters) > 0 {
+		if e.ImportType != "bad" || len(e.Characters) > 0 {
 			continue
 		}
 		if sec, ok := sections[sectionOf[e.Key]]; ok && len(sec.Characters) == 1 {
@@ -261,8 +261,19 @@ func Validate(c Chart) []string {
 		problems = append(problems, "no segments")
 	}
 	for _, e := range c.Endings {
-		if !slices.Contains(EndingTypes, e.EndingType) {
-			problems = append(problems, fmt.Sprintf("ending %s: ending_type %q", e.Key, e.EndingType))
+		switch {
+		case !e.classified() && !slices.Contains(EndingTypes, e.ImportType):
+			problems = append(problems, fmt.Sprintf("ending %s: no route_type, outcome, after or other (ending_type %q)", e.Key, e.ImportType))
+		case e.RouteType != nil && !slices.Contains(Routes, *e.RouteType):
+			problems = append(problems, fmt.Sprintf("ending %s: route_type %q", e.Key, *e.RouteType))
+		case e.Outcome != nil && !slices.Contains(Outcomes, *e.Outcome):
+			problems = append(problems, fmt.Sprintf("ending %s: outcome %q", e.Key, *e.Outcome))
+		case e.Other && (e.RouteType != nil || e.Outcome != nil):
+			problems = append(problems, fmt.Sprintf("ending %s: other takes no route_type or outcome", e.Key))
+		case e.OtherLabel != nil && !e.Other:
+			problems = append(problems, fmt.Sprintf("ending %s: other_label without other", e.Key))
+		case e.RouteType != nil && *e.RouteType == RouteHeroine && len(e.Characters) > 1:
+			problems = append(problems, fmt.Sprintf("ending %s: a heroine route belongs to one character", e.Key))
 		}
 		for _, k := range e.Characters {
 			if !chars[k] {

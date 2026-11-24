@@ -104,7 +104,7 @@ func TestSettleRepairsAChartFromItsSourceLines(t *testing.T) {
 	assert.Empty(t, c.Characters[0].Aliases)
 	assert.Equal(t, []string{"c1", "c3"}, c.Sections[0].Characters)
 	assert.Equal(t, []string{"c3"}, c.Endings[1].Characters)
-	assert.Equal(t, "heroine", c.Endings[1].EndingType)
+	assert.Equal(t, "heroine", walkthrough.EndingType(c.Endings[1]))
 }
 
 func TestRemarkLike(t *testing.T) {

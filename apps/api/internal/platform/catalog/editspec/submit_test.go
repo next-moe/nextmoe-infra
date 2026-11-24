@@ -31,7 +31,7 @@ func TestSubmissionFieldsMatchTheMatrix(t *testing.T) {
 	// submission form does not show. Route hints are learned by playing the
 	// game, not when listing it.
 	want := []string{
-		FieldWorkTitlesSuppr, FieldWorkRouteHints, FieldWorkTagIDsSuppr, FieldWorkCovers, FieldWorkScreenshots,
+		FieldWorkTitlesSuppr, FieldWorkRouteHints, FieldWorkSingleEnding, FieldWorkTagIDsSuppr, FieldWorkCovers, FieldWorkScreenshots,
 		FieldWorkCredits, FieldWorkCreditsSuppr,
 		FieldWorkRoster, FieldWorkRosterSuppr,
 		FieldWorkRelations, FieldWorkPlatforms, FieldWorkSeriesMembers, FieldWorkTagSpoilers,

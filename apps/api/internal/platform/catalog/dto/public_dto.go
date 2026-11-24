@@ -78,6 +78,7 @@ type PublicCatalogWork struct {
 	OLang          string                         `json:"olang"`
 	ContentRating  string                         `json:"content_rating"`
 	ContentLimit   string                         `json:"content_limit"`
+	SingleEnding   bool                           `json:"single_ending"`
 	ReleaseDate    *string                        `json:"release_date"`
 	Created        string                         `json:"created"`
 	Updated        string                         `json:"updated"`

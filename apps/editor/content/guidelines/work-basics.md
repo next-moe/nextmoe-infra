@@ -106,3 +106,4 @@ related: [titles, media, upstream-data]
 | 原语言           | `catalog.work.olang`          | 固定语言列表                         |
 | 分级             | `catalog.work.content_rating` | 全年龄 / 敏感 / R18                  |
 | 按 NSFW 内容显示 | `catalog.work.display_nsfw`   | 开关；只对已被站点收录的作品生效     |
+| 单结局           | `catalog.work.single_ending`  | 开关；修改总要等管理员审核           |

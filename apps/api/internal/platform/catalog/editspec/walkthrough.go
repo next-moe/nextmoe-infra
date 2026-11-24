@@ -34,21 +34,22 @@ const (
 )
 
 const (
-	maxChartBytes          = 400_000
-	maxChartCharacters     = 128
-	maxChartSections       = 400
-	maxChartLegend         = 32
-	maxChartEntries        = 200
-	maxChartSaves          = 600
-	maxChartEndings        = 600
-	maxChartSegments       = 2000
-	maxChartSteps          = 6000
-	maxChartAliases        = 32
-	maxChartAlts           = 16
-	maxChartNameRunes      = 512
-	maxChartLabelRunes     = 256
-	maxChartTextRunes      = 1024
-	maxChartConditionRunes = 1024
+	maxChartBytes           = 400_000
+	maxChartCharacters      = 128
+	maxChartSections        = 400
+	maxChartLegend          = 32
+	maxChartEntries         = 200
+	maxChartSaves           = 600
+	maxChartEndings         = 600
+	maxChartSegments        = 2000
+	maxChartSteps           = 6000
+	maxChartAliases         = 32
+	maxChartAlts            = 16
+	maxChartNameRunes       = 512
+	maxChartLabelRunes      = 256
+	maxChartTextRunes       = 1024
+	maxChartConditionRunes  = 1024
+	maxChartOtherLabelRunes = 32
 )
 
 var chartKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_]{1,32}$`)
@@ -219,6 +220,7 @@ func parseChart(v any) (*walkthrough.Chart, error) {
 		return nil, fmt.Errorf("chart: %w", err)
 	}
 	walkthrough.FillNil(&c)
+	walkthrough.ClassifyEndings(&c)
 	if err := checkChartLimits(&c); err != nil {
 		return nil, err
 	}
@@ -313,6 +315,9 @@ func checkChartLimits(c *walkthrough.Chart) error {
 	for i, e := range c.Endings {
 		text(fmt.Sprintf("endings[%d].name", i), e.Name, maxChartNameRunes, true)
 		optText(fmt.Sprintf("endings[%d].name_zh", i), e.NameZh, maxChartNameRunes)
+		if e.OtherLabel != nil {
+			text(fmt.Sprintf("endings[%d].other_label", i), *e.OtherLabel, maxChartOtherLabelRunes, true)
+		}
 	}
 	steps := 0
 	for i, s := range c.Segments {
@@ -531,6 +536,7 @@ func loadWalkthroughSnapshot(db *gorm.DB) func(context.Context, int64) (map[stri
 			return nil, fmt.Errorf("walkthrough %d chart: %w", entityID, err)
 		}
 		walkthrough.FillNil(&c)
+		walkthrough.ClassifyEndings(&c)
 		chart, err := toJSONValue(c)
 		if err != nil {
 			return nil, err

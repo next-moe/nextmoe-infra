@@ -6,8 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func ptr(s string) *string { return &s }
-
 func TestNormalizeCleansEntryLabelsAndSelfAlternatives(t *testing.T) {
 	c := Chart{
 		Entries: []Entry{{Key: "start", Label: "【START】から開始"}, {Key: "restart", Label: "【RESTART】"}},
@@ -34,7 +32,7 @@ func TestNormalizeKeepsMarksAndLeavesAchievementAlone(t *testing.T) {
 
 func TestNormalizeTurnsCollectionEndingsIntoCollectStops(t *testing.T) {
 	c := Chart{
-		Endings:  []Ending{{Key: "e1", Name: "差分CG回収後終了", EndingType: "other"}, {Key: "e2", Name: "寧々END", EndingType: "heroine"}},
+		Endings:  []Ending{{Key: "e1", Name: "差分CG回収後終了", ImportType: "other"}, {Key: "e2", Name: "寧々END", ImportType: "heroine"}},
 		Segments: []Segment{{Key: "g1", To: Node{NodeType: NodeEnding, Key: ptr("e1")}}, {Key: "g2", To: Node{NodeType: NodeEnding, Key: ptr("e2")}}},
 	}
 	Normalize(&c)
@@ -45,11 +43,11 @@ func TestNormalizeTurnsCollectionEndingsIntoCollectStops(t *testing.T) {
 
 func TestNormalizeRetypesEndingsTheModelCalledNormal(t *testing.T) {
 	c := Chart{Endings: []Ending{
-		{Key: "e1", Name: "寧々END1", EndingType: "normal", Characters: []string{"c1"}},
-		{Key: "e2", Name: "ノーマルEND", EndingType: "normal"},
-		{Key: "e3", Name: "ＢＡＤ ＥＮＤ", EndingType: "other", Characters: []string{"c1"}},
-		{Key: "e4", Name: "ハーレムEND", EndingType: "normal", Characters: []string{"c1", "c2"}},
-		{Key: "e5", Name: "END", EndingType: "after", Characters: []string{"c1"}},
+		{Key: "e1", Name: "寧々END1", ImportType: "normal", Characters: []string{"c1"}},
+		{Key: "e2", Name: "ノーマルEND", ImportType: "normal"},
+		{Key: "e3", Name: "ＢＡＤ ＥＮＤ", ImportType: "other", Characters: []string{"c1"}},
+		{Key: "e4", Name: "ハーレムEND", ImportType: "normal", Characters: []string{"c1", "c2"}},
+		{Key: "e5", Name: "END", ImportType: "after", Characters: []string{"c1"}},
 	}}
 	for i := range c.Endings {
 		c.Segments = append(c.Segments, Segment{To: Node{NodeType: NodeEnding, Key: ptr(c.Endings[i].Key)}})
@@ -57,7 +55,7 @@ func TestNormalizeRetypesEndingsTheModelCalledNormal(t *testing.T) {
 	Normalize(&c)
 	var got []string
 	for _, e := range c.Endings {
-		got = append(got, e.EndingType)
+		got = append(got, e.ImportType)
 	}
 	assert.Equal(t, []string{"heroine", "normal", "bad", "harem", "after"}, got)
 }
@@ -98,7 +96,7 @@ func TestNormalizeRetypesLinesThatAreNotChoices(t *testing.T) {
 }
 
 func TestNormalizeReadsRequiredEndingsFromConditions(t *testing.T) {
-	ending := func(key, name string) Ending { return Ending{Key: key, Name: name, EndingType: "other"} }
+	ending := func(key, name string) Ending { return Ending{Key: key, Name: name, ImportType: "other"} }
 	seg := func(key, cond, to string) Segment {
 		return Segment{Key: key, Condition: ptr(cond), To: Node{NodeType: NodeEnding, Key: ptr(to)}}
 	}
@@ -133,8 +131,8 @@ func TestNormalizeGivesABadEndingItsSectionsCharacter(t *testing.T) {
 	c := Chart{
 		Characters: []Character{{Key: "c1", Name: "鈴"}, {Key: "c2", Name: "小毬"}},
 		Sections:   []Section{{Key: "s1", Characters: []string{"c1"}}, {Key: "s2", Characters: []string{"c1", "c2"}}},
-		Endings: []Ending{{Key: "e1", Name: "ＢＡＤ ＥＮＤ", EndingType: "bad"}, {Key: "e2", Name: "ＢＡＤ ＥＮＤ", EndingType: "bad"},
-			{Key: "e3", Name: "ノーマルEND", EndingType: "normal"}},
+		Endings: []Ending{{Key: "e1", Name: "ＢＡＤ ＥＮＤ", ImportType: "bad"}, {Key: "e2", Name: "ＢＡＤ ＥＮＤ", ImportType: "bad"},
+			{Key: "e3", Name: "ノーマルEND", ImportType: "normal"}},
 		Segments: []Segment{
 			{Key: "g1", Section: ptr("s1"), To: Node{NodeType: NodeEnding, Key: ptr("e1")}},
 			{Key: "g2", Section: ptr("s2"), To: Node{NodeType: NodeEnding, Key: ptr("e2")}},
@@ -145,5 +143,5 @@ func TestNormalizeGivesABadEndingItsSectionsCharacter(t *testing.T) {
 	assert.Equal(t, []string{"c1"}, c.Endings[0].Characters)
 	assert.Empty(t, c.Endings[1].Characters, "a section about two characters names neither")
 	assert.Empty(t, c.Endings[2].Characters, "only bad endings are filled")
-	assert.Equal(t, "normal", c.Endings[2].EndingType)
+	assert.Equal(t, "normal", c.Endings[2].ImportType)
 }
