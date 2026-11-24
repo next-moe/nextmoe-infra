@@ -75,7 +75,7 @@ func (f *Fanin) prepare(ctx context.Context, r *run, row contract.OutboxRow) (*i
 			}
 		}
 		if ne.Entity == "person_alias" {
-			ch.Authority = r.authority(ctx, ch.Values["name"])
+			ch.Authority = r.authority(ch.Values["name"])
 		}
 		it.cs.Changes = append(it.cs.Changes, ch)
 	}
@@ -135,13 +135,13 @@ func parentPath(p string) string {
 
 // authority is the registry authority printed beside a name in the record
 // fanin itself resolved, prefixed by its source.
-func (r *run) authority(ctx context.Context, name commit.Value) string {
+func (r *run) authority(name commit.Value) string {
 	for _, e := range name.Evidence {
 		if e.Record == "" || !strings.HasSuffix(e.Path, ".name") {
 			continue
 		}
-		rec, rf := r.record(ctx, e.Record)
-		if rf != nil {
+		rec, ok := r.archived[e.Record]
+		if !ok {
 			continue
 		}
 		if a, ok := lookup(rec.Fields, parentPath(e.Path)+".authority"); ok && a != "" {
@@ -216,7 +216,7 @@ func (f *Fanin) asksAboutCited(ctx context.Context, r *run, it *item, ch commit.
 	if err != nil {
 		return nil, nil //nolint:nilerr // a missing alias is refused by the commit, with where it went
 	}
-	if auth := r.authority(ctx, ch.Values["alias_id"]); auth != "" {
+	if auth := r.authority(ch.Values["alias_id"]); auth != "" {
 		known, err := identity.ByAuthority(ctx, f.Client, auth)
 		if err != nil {
 			return nil, err

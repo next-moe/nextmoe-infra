@@ -39,6 +39,8 @@ type run struct {
 	pool    Pool
 	snaps   map[string]contract.Snapshot
 	recs    map[string]contract.Record
+	// archived is every cited record under the id canon archives it by.
+	archived map[string]contract.Record
 	// row is the changeset being checked; its own entities are named by their
 	// properties, not by canon.
 	row *contract.Changeset
@@ -134,7 +136,12 @@ func (r *run) check(ctx context.Context, p registry.Property, c contract.Candida
 		if rec != nil {
 			out.recs = append(out.recs, *rec)
 		}
-		out.value.Evidence = append(out.value.Evidence, commit.EvidenceRef{Snapshot: e.SnapshotID, LineFrom: e.LineFrom, LineTo: e.LineTo, Record: e.RecordID, Path: e.Path})
+		ref := commit.EvidenceRef{Snapshot: e.SnapshotID, LineFrom: e.LineFrom, LineTo: e.LineTo, Path: e.Path}
+		if rec != nil {
+			ref.Record = archiveID(*rec)
+			r.archived[ref.Record] = *rec
+		}
+		out.value.Evidence = append(out.value.Evidence, ref)
 	}
 	if best == "" {
 		return out, refuse("VALUE_NOT_ENTAILED", "no cited excerpt supports %s", string(c.Value))
@@ -211,6 +218,17 @@ func lookup(fields json.RawMessage, path string) (string, bool) {
 	}
 }
 
+// archiveID names a record by its content. The pool refreshes a record in
+// place under one id; archived by that id, the first version stayed and a
+// value read off a later one pointed at words that were not there.
+func archiveID(rec contract.Record) string {
+	var v any
+	_ = json.Unmarshal(rec.Fields, &v)
+	b, _ := json.Marshal(v)
+	sum := sha256.Sum256(b)
+	return rec.ID + "@" + hex.EncodeToString(sum[:8])
+}
+
 func archive(ctx context.Context, client *ent.Client, c checked) error {
 	for _, s := range c.snaps {
 		u, _ := url.Parse(s.FinalURL)
@@ -225,7 +243,7 @@ func archive(ctx context.Context, client *ent.Client, c checked) error {
 		at, _ := time.Parse(time.RFC3339, rec.FetchedAt)
 		var fields map[string]any
 		_ = json.Unmarshal(rec.Fields, &fields)
-		err := client.EvidenceRecord.Create().SetID(rec.ID).SetSource(rec.Source).SetKey(rec.Key).SetHash(rec.Hash).
+		err := client.EvidenceRecord.Create().SetID(archiveID(rec)).SetSource(rec.Source).SetKey(rec.Key).SetHash(rec.Hash).
 			SetFetchedAt(at).SetFields(fields).OnConflictColumns("id").DoNothing().Exec(ctx)
 		if err != nil && !errors.Is(err, errNoRows) {
 			return err

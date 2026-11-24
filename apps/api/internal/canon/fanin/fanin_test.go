@@ -9,6 +9,8 @@ import (
 	"api/internal/canon/canontest"
 	"api/internal/canon/contract"
 	"api/internal/canon/ent/bookrelease"
+	"api/internal/canon/ent/evidencerecord"
+	"api/internal/canon/ent/revision"
 	"api/internal/canon/registry"
 	"api/internal/canon/takedown"
 )
@@ -297,5 +299,44 @@ func TestOrgNamesReachThePoolOnceUntilTheyChange(t *testing.T) {
 	}
 	if len(pool.Orgs) != 2 {
 		t.Errorf("a held organization is withdrawn: %d pushes", len(pool.Orgs))
+	}
+}
+
+func TestARefreshedRecordIsArchivedAsItsOwnVersion(t *testing.T) {
+	client, _ := canontest.Client(t)
+	canontest.Mode(t, client, "ln-pilot", registry.ModeAuto)
+	ctx := context.Background()
+	pool := canontest.NewPool()
+	rec := "ndl:" + canontest.ISBN()
+	pool.AddRecord(rec, "ndl", map[string]any{"label": "電撃文庫", "date": "2025.8"})
+	pool.Changeset("l", canontest.New("r", "release", props{"lang": canontest.Cite(rec, "ja", "label"), "format": canontest.Cite(rec, "paperback", "label"), "released": canontest.Cite(rec, "2025-08", "date")}))
+	f := New(fresh("refresh"), pool, client)
+	if _, err := f.RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	release := pool.Take()[0].IDs["r"]
+	pool.AddRecord(rec, "ndl", map[string]any{"label": "電撃文庫", "date": "2025.8.8"})
+	c := canontest.Cite(rec, "2025-08-08", "date")
+	c.Target, c.Property = contract.Target{Entity: "release", ID: release}, "released"
+	pool.Candidate(c)
+	if _, err := f.RunOnce(ctx, 10); err != nil {
+		t.Fatal(err)
+	}
+	if a := pool.Take(); a[0].Result != "written" {
+		t.Fatalf("answer %+v", a)
+	}
+	versions, err := client.EvidenceRecord.Query().Where(evidencerecord.Key(rec)).All(ctx)
+	if err != nil || len(versions) != 2 {
+		t.Fatalf("%d versions %v", len(versions), err)
+	}
+	rev, err := client.Revision.Query().Where(revision.Entity("release"), revision.EntityID(release), revision.Action("update")).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cited := rev.Changes["released"].(map[string]any)["evidence"].([]any)[0].(map[string]any)["record"]
+	for _, v := range versions {
+		if v.ID == cited && v.Fields["date"] != "2025.8.8" {
+			t.Errorf("the cited version says %v", v.Fields["date"])
+		}
 	}
 }

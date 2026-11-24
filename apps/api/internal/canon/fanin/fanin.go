@@ -59,7 +59,7 @@ func (f *Fanin) RunOnce(ctx context.Context, limit int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	r := &run{client: f.Client, pool: f.Pool, snaps: map[string]contract.Snapshot{}, recs: map[string]contract.Record{}}
+	r := &run{client: f.Client, pool: f.Pool, snaps: map[string]contract.Snapshot{}, recs: map[string]contract.Record{}, archived: map[string]contract.Record{}}
 	answers := make([]contract.InboxRow, 0, len(page.Items))
 	for _, e := range page.Items {
 		if modes[e.Row.Program] == registry.ModeStopped {
