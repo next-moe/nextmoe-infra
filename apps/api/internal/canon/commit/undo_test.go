@@ -188,3 +188,28 @@ func TestAProgramPeopleKeepUndoingStops(t *testing.T) {
 		t.Errorf("two of 25 is over 2%%: %q", m)
 	}
 }
+
+func TestUndoingAPersonsEditLocksNothing(t *testing.T) {
+	client, _ := canontest.Client(t)
+	ctx := context.Background()
+	s := New(client)
+	made, err := s.Apply(ctx, book(isbn()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := made.IDs["w"]
+	edit, err := s.Apply(ctx, Changeset{Actor: person, Changes: []Change{{Entity: "work", ID: w, Values: map[string]Value{"olang": {Raw: raw("ja")}}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Undo(ctx, edit.Batch, person, "slip"); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := client.Work.Get(ctx, w)
+	if _, locked := got.FieldState["olang"]; got.Olang != "" || locked {
+		t.Errorf("after the undo: %q %v", got.Olang, got.FieldState["olang"])
+	}
+	if _, err := s.Apply(ctx, Changeset{Actor: agent, Changes: []Change{{Entity: "work", ID: w, Values: map[string]Value{"olang": official("ja")}}}}); err != nil {
+		t.Errorf("an agent may write it: %v", err)
+	}
+}

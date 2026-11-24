@@ -36,8 +36,8 @@ var ErrNothingToUndo = errors.New("no change to undo: the commit does not exist 
 // Undo takes back every change of one commit in one transaction (plan 07 §2):
 // updated fields return to what they were, created rows go away and their ids
 // stay retired. Anything written, referenced or collected by users since is a
-// conflict, and then nothing changes. A person's undo locks the fields it
-// restores, so an agent may only propose the value again (07 §3).
+// conflict, and then nothing changes. A person's undo of an agent's write locks
+// the fields it restores, so the agent may only propose them again (07 §3).
 func (s *Service) Undo(ctx context.Context, batch string, by Actor, note string) error {
 	if batch == "" {
 		return ErrNothingToUndo
@@ -169,7 +169,9 @@ func (u *undoer) restore(ctx context.Context, r *ent.Revision) error {
 		if was, ok := c["prior_state"].(map[string]any); ok {
 			state[key] = was
 		}
-		if u.by.Kind == ActorHuman {
+		// Only an agent's value is locked out: undoing a person's own edit would
+		// otherwise lock a field nobody meant to decide.
+		if u.by.Kind == ActorHuman && r.ActorKind == string(ActorAgent) {
 			state[key] = map[string]any{"by": string(ActorHuman), "key": u.by.Key, "at": u.s.now().UTC().Format(time.RFC3339), "undid": r.ID}
 		}
 		changes[key] = map[string]any{"value": c["prior"], "prior": c["value"]}
