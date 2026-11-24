@@ -74,3 +74,110 @@ export interface CanonTodoAnswer {
   adopt?: string
   new?: boolean
 }
+
+export interface CanonSchemaProperty {
+  key: string
+  shape: string
+  vocab?: string
+  ref?: string
+  doc: string
+  clauses: string[]
+  agent_may: boolean
+  immutable: boolean
+}
+
+export interface CanonSchemaEntity {
+  name: string
+  properties: CanonSchemaProperty[]
+  children: Record<string, string>
+}
+
+export interface CanonSchemas {
+  entities: CanonSchemaEntity[]
+  vocabularies: { name: string; terms: { key: string; doc?: string }[] }[]
+}
+
+export interface CanonFieldState {
+  by: 'agent' | 'human' | 'system'
+  key: string
+  tier: string
+  source: string
+  reviewed_by: string
+  at: string
+  evidence: string[]
+}
+
+export interface CanonRecord {
+  entity: string
+  id: string
+  version: number
+  values: Record<string, unknown>
+  state: Record<string, CanonFieldState>
+  held: boolean
+  children?: Record<string, CanonRecord[]>
+}
+
+export interface CanonEditChange {
+  ref?: string
+  entity: string
+  id?: string
+  expect_version?: number
+  values?: Record<string, unknown>
+  remove?: boolean
+  distinct?: string[]
+}
+
+export interface CanonProblemCandidate {
+  token: string
+  id: string
+  label: string
+}
+
+export interface CanonRevision {
+  id: string
+  entity: string
+  entity_id: string
+  action: string
+  actor_kind: string
+  actor_key: string
+  reviewed_by: string
+  batch: string
+  note: string
+  changes: Record<string, unknown>
+  undone: boolean
+  at: string
+}
+
+export interface CanonPatrolItem {
+  batch: string
+  program: string
+  reviewed_by: string
+  at: string
+  revisions: CanonRevision[]
+}
+
+export interface CanonProgram {
+  key: string
+  medium: string
+  doc: string
+  mode: 'review' | 'auto' | 'stopped'
+  set_by: string
+  note: string
+  set_at: string | null
+  todos: Record<string, number>
+  commits: number
+  undone: number
+  unpatrolled: number
+  last_write: string | null
+}
+
+export interface CanonPage<T> {
+  items: T[]
+  next_cursor?: string
+}
+
+export interface CanonWorkHit {
+  id: string
+  medium: string
+  titles: { text: string; lang: string; kind: string }[]
+}

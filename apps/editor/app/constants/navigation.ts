@@ -97,6 +97,18 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         icon: 'lucide:bot',
         to: '/review/ingest',
         reviewerOnly: true
+      },
+      {
+        label: '采集巡查',
+        icon: 'lucide:eye',
+        to: '/review/patrol',
+        reviewerOnly: true
+      },
+      {
+        label: '自有目录',
+        icon: 'lucide:library',
+        to: '/canon',
+        reviewerOnly: true
       }
     ]
   },
