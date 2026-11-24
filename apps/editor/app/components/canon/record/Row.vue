@@ -99,6 +99,7 @@ const remove = async () => {
         :property="p"
         :state="props.record.state[p.key]"
         :terms="terms(p.vocab)"
+        :cited="props.record.is[p.key]"
       />
     </div>
   </div>

@@ -131,6 +131,8 @@ export interface CanonRecord {
   version: number
   values: Record<string, unknown>
   state: Record<string, CanonFieldState>
+  called: string
+  is: Record<string, string>
   held: boolean
   children?: Record<string, CanonRecord[]>
 }

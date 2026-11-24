@@ -78,6 +78,8 @@ type Record struct {
 	Version  int                    `json:"version"`
 	Values   map[string]any         `json:"values"`
 	State    map[string]*FieldState `json:"state"`
+	Called   string                 `json:"called" doc:"What a person would call it; empty when it has no name."`
+	Is       map[string]string      `json:"is" doc:"What each cited id is called."`
 	Held     bool                   `json:"held"`
 	Children map[string][]Record    `json:"children,omitempty"`
 }
@@ -167,7 +169,7 @@ func schemas() Schemas {
 }
 
 func (a *API) record(ctx context.Context, entity string, n int64) (Record, bool, error) {
-	out := Record{Entity: entity, ID: id(n), Values: map[string]any{}, State: map[string]*FieldState{}}
+	out := Record{Entity: entity, ID: id(n), Values: map[string]any{}, State: map[string]*FieldState{}, Is: map[string]string{}}
 	rows, err := a.client.QueryContext(ctx, `SELECT to_jsonb(t) FROM canon.`+entity+` t WHERE id = $1`, n)
 	if err != nil {
 		return out, false, err
@@ -188,6 +190,9 @@ func (a *API) record(ctx context.Context, entity string, n int64) (Record, bool,
 	if v, ok := row["version"].(float64); ok {
 		out.Version = int(v)
 	}
+	if out.Called, err = review.Called(ctx, a.client, entity, n); err != nil {
+		return out, false, err
+	}
 	state, _ := row["field_state"].(map[string]any)
 	evidence, err := a.evidence(ctx, entity, n)
 	if err != nil {
@@ -198,6 +203,11 @@ func (a *API) record(ctx context.Context, entity string, n int64) (Record, bool,
 			continue
 		}
 		out.Values[key] = idText(p, row[key])
+		if f, ok := row[key].(float64); ok && p.Ref != "" {
+			if out.Is[key], err = review.Called(ctx, a.client, p.Ref, int64(f)); err != nil {
+				return out, false, err
+			}
+		}
 		st, ok := state[key].(map[string]any)
 		if !ok {
 			continue

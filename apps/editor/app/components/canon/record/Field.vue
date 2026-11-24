@@ -7,6 +7,8 @@ const props = defineProps<{
   property: CanonSchemaProperty
   state?: CanonFieldState
   terms?: { key: string; doc?: string }[]
+  /** What the cited id is called. */
+  cited?: string
   disabled?: boolean
 }>()
 const model = defineModel<string | boolean>({ required: true })
@@ -62,6 +64,7 @@ const origin = computed(() => {
       size="sm"
       @update:model-value="(v: string | number) => (model = String(v))"
     />
+    <p v-if="props.cited" class="text-foreground text-sm">{{ props.cited }}</p>
     <p v-if="origin" class="text-default-400 text-xs">{{ origin }}</p>
     <p
       v-for="e in props.state?.evidence ?? []"

@@ -73,7 +73,7 @@ onMounted(load)
 <template>
   <div class="mx-auto max-w-5xl space-y-5">
     <KunHeader
-      :name="`${CANON_ENTITY_LABELS[entity] ?? entity} #${id}`"
+      :name="record?.called || `${CANON_ENTITY_LABELS[entity] ?? entity} #${id}`"
       description="每个字段下面写着是谁写的、凭哪一句原文。改过的字段会锁定，采集程序只能提议。"
     />
     <KunNull v-if="missing" description="没有这个条目，或者它已经被合并、移除、下架" />

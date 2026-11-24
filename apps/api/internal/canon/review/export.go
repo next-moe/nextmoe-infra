@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"api/internal/canon/commit"
+	"api/internal/canon/contract"
 	"api/internal/canon/ent"
 	enttodo "api/internal/canon/ent/todo"
 	"api/internal/canon/fanin"
@@ -61,6 +62,8 @@ type SheetCandidate struct {
 	Facts []string `json:"facts"`
 }
 
+var refs = contract.Index()
+
 // Sheets lists the oldest open todos of the kinds a review agent may settle.
 func Sheets(ctx context.Context, client *ent.Client, kinds []string, limit int) ([]Sheet, error) {
 	ts, err := client.Todo.Query().Where(enttodo.State("open"), enttodo.KindIn(kinds...)).Order(ent.Asc(enttodo.FieldID)).Limit(limit).All(ctx)
@@ -101,12 +104,11 @@ func SheetOf(ctx context.Context, client *ent.Client, t *ent.Todo) (Sheet, error
 				sv.Evidence = append(sv.Evidence, words)
 			}
 			var id int64
-			if json.Unmarshal(v.Raw, &id) == nil && strings.HasSuffix(prop, "_id") {
-				is, err := called(ctx, client, strings.TrimSuffix(prop, "_id"), id)
-				if err != nil {
+			if ref := refs[ch.Entity][prop].Ref; ref != "" && json.Unmarshal(v.Raw, &id) == nil {
+				var err error
+				if sv.Is, err = Called(ctx, client, ref, id); err != nil {
 					return out, err
 				}
-				sv.Is = is
 			}
 			sc.Values = append(sc.Values, sv)
 		}
@@ -156,20 +158,18 @@ func Excerpt(ctx context.Context, client *ent.Client, e commit.EvidenceRef) (str
 }
 
 var calledBy = map[string]string{
-	"alias":     `SELECT name FROM canon.person_alias WHERE id = $1`,
-	"label":     `SELECT string_agg(text, ' / ') FROM canon.org_name WHERE org_id = $1`,
-	"publisher": `SELECT string_agg(text, ' / ') FROM canon.org_name WHERE org_id = $1`,
-	"org":       `SELECT string_agg(text, ' / ') FROM canon.org_name WHERE org_id = $1`,
-	"work":      `SELECT string_agg(text, ' / ') FROM canon.work_title WHERE work_id = $1`,
+	"work":         `SELECT string_agg(text, ' / ' ORDER BY kind <> 'official', position, id) FROM canon.work_title WHERE work_id = $1`,
+	"work_part":    `SELECT COALESCE(NULLIF(label, ''), kind || ' ' || COALESCE(ordinal::text, '')) FROM canon.work_part WHERE id = $1`,
+	"release":      `SELECT COALESCE(isbn13, jan, '') FROM canon.book_release WHERE release_id = $1`,
+	"person":       `SELECT string_agg(name, ' / ' ORDER BY id) FROM canon.person_alias WHERE person_id = $1`,
+	"person_alias": `SELECT name FROM canon.person_alias WHERE id = $1`,
+	"org":          `SELECT string_agg(text, ' / ' ORDER BY position, id) FROM canon.org_name WHERE org_id = $1`,
 }
 
-func called(ctx context.Context, client *ent.Client, what string, id int64) (string, error) {
-	q, ok := calledBy[what]
-	if !ok {
-		return "", nil
-	}
-	lines, err := lines(ctx, client, q, id)
-	return strings.Join(lines, " / "), err
+// Called is what a person would call an entity, or "" when it has no name.
+func Called(ctx context.Context, client *ent.Client, entity string, id int64) (string, error) {
+	out, err := lines(ctx, client, calledBy[entity], id)
+	return strings.Join(out, " / "), err
 }
 
 // facts is what tells two same-named candidates apart: what they are credited

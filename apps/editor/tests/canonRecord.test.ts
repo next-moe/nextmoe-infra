@@ -22,6 +22,8 @@ const record = {
   version: 3,
   values: { label: '28', ordinal: 28, released: null, work_id: '5', kind: 'volume' },
   state: {},
+  called: '28',
+  is: { work_id: '庭' },
   held: false
 }
 
