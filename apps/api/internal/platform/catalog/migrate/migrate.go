@@ -14,6 +14,7 @@ import (
 	"api/internal/platform/catalog/discussion"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/ratingsummary"
+	"api/internal/platform/catalog/workdir"
 	"api/internal/platform/editing"
 
 	"gorm.io/gorm"
@@ -1015,7 +1016,22 @@ func rawSQL(db *gorm.DB) error {
 	if err := db.Exec(`DROP INDEX IF EXISTS uq_catalog_work_engine`).Error; err != nil {
 		return fmt.Errorf("drop uq_catalog_work_engine: %w", err)
 	}
-	return backfillFolderItemPositions(db)
+	if err := backfillFolderItemPositions(db); err != nil {
+		return err
+	}
+
+	// (11) The work directory (2026-11-24, owned catalog 10 §3): user lists
+	// read a work through this view instead of catalog_work, so that a work
+	// served by canon can be kept, marked and rated. Where canon is not
+	// migrated yet the view is catalog_work alone; migrate canon replaces it.
+	var canon bool
+	if err := db.Raw(workdir.Present).Scan(&canon).Error; err != nil {
+		return fmt.Errorf("look for canon: %w", err)
+	}
+	if err := db.Exec(workdir.SQL(canon)).Error; err != nil {
+		return fmt.Errorf("create %s: %w", workdir.View, err)
+	}
+	return nil
 }
 
 // constraintExists reports whether a named constraint exists on a table.

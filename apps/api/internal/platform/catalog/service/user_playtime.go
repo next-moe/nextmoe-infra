@@ -47,7 +47,7 @@ func (s *UserPlaytimeService) Report(ctx context.Context, r PlaytimeReport) (*Pl
 	}
 	var row model.CatalogUserPlaytime
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := assertReportableWork(tx, r.WorkID); err != nil {
+		if err := assertLegacyWork(tx, r.WorkID); err != nil {
 			return err
 		}
 		var err error
@@ -269,9 +269,20 @@ func validateReport(r PlaytimeReport) error {
 	return nil
 }
 
+// assertReportableWork takes any work of the directory. Play time and v2
+// ratings hang on catalog_work by foreign key (assertLegacyWork); a canon
+// work is rated on v3, in its own medium's dimensions.
 func assertReportableWork(tx *gorm.DB, workID int64) error {
-	var work model.CatalogWork
-	err := tx.Select("status").Where("id = ?", workID).Take(&work).Error
+	return liveIn(tx, workDirectory, workID)
+}
+
+func assertLegacyWork(tx *gorm.DB, workID int64) error {
+	return liveIn(tx, "catalog_work", workID)
+}
+
+func liveIn(tx *gorm.DB, table string, workID int64) error {
+	var work struct{ Status int16 }
+	err := tx.Table(table).Select("status").Where("id = ?", workID).Take(&work).Error
 	switch {
 	case stderrors.Is(err, gorm.ErrRecordNotFound):
 		return ErrPlaytimeWorkUnavailable

@@ -161,7 +161,7 @@ func (s *BrowsingHistoryService) Record(ctx context.Context, uid int64, clientID
 
 func (s *BrowsingHistoryService) entries(ctx context.Context, uid int64, f BrowsingHistoryFilter) *gorm.DB {
 	q := s.db.WithContext(ctx).Table("catalog_user_work_view AS v").
-		Joins("JOIN catalog_work w ON w.id = v.work_id AND w.status = ? AND w.deleted_at IS NULL", model.WorkStatusLive).
+		Joins("JOIN "+workDirectory+" w ON w.id = v.work_id AND w.status = ? AND w.deleted_at IS NULL", model.WorkStatusLive).
 		Where("v.actor_uid = ? AND v.last_viewed_at > ?", uid, time.Now().Add(-BrowsingHistoryRetention))
 	if f.ClientID != "" {
 		q = q.Where("v.client_id = ?", f.ClientID)

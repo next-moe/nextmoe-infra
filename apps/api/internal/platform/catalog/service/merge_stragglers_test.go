@@ -16,6 +16,8 @@ func TestMergeRefsCoverTheSchema(t *testing.T) {
 	require.NoError(t, testDB.Raw(`
 		SELECT c.table_name || '.' || c.column_name
 		  FROM information_schema.columns c
+		  JOIN information_schema.tables b ON b.table_schema = c.table_schema AND b.table_name = c.table_name
+		   AND b.table_type = 'BASE TABLE'
 		 WHERE c.table_schema = 'public'
 		   AND (c.table_name LIKE 'catalog\_%' OR c.table_name LIKE 'edit\_%')
 		   AND (c.column_name ~ '(^|_)(label|work|character|person|credit_name)_id$'

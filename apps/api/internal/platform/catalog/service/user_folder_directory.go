@@ -42,8 +42,8 @@ type PublicFolderQuery struct {
 // catalog_work (122ms locally on 394k items); as a per-folder subplan it stops
 // at the first r18 work, which ~97% of works are (3ms).
 func folderHoldsRated(rating int16) string {
-	return fmt.Sprintf(`EXISTS (SELECT 1 FROM catalog_user_folder_item ri JOIN catalog_work rw ON rw.id = ri.work_id
-		WHERE ri.folder_id = catalog_user_folder.id AND rw.deleted_at IS NULL AND rw.content_rating = %d OFFSET 0)`, rating)
+	return fmt.Sprintf(`EXISTS (SELECT 1 FROM catalog_user_folder_item ri JOIN %s rw ON rw.id = ri.work_id
+		WHERE ri.folder_id = catalog_user_folder.id AND rw.deleted_at IS NULL AND rw.content_rating = %d OFFSET 0)`, workDirectory, rating)
 }
 
 type FolderExtra struct {
@@ -100,7 +100,7 @@ func (s *UserFolderService) FolderRecentWorks(ctx context.Context, folderIDs []i
 		  FROM catalog_user_folder f
 		  CROSS JOIN LATERAL (
 		        SELECT i.work_id, i.created_at FROM catalog_user_folder_item i
-		          JOIN catalog_work w ON w.id = i.work_id AND w.deleted_at IS NULL
+		          JOIN `+workDirectory+` w ON w.id = i.work_id AND w.deleted_at IS NULL
 		         WHERE i.folder_id = f.id
 		         ORDER BY i.created_at DESC, i.work_id DESC LIMIT ?) r
 		 WHERE f.id IN ?
@@ -136,7 +136,7 @@ func (s *UserFolderService) publicFolders(ctx context.Context, q PublicFolderQue
 			OR EXISTS (SELECT 1 FROM catalog_user_folder_tag t WHERE t.folder_id = catalog_user_folder.id AND t.tag ILIKE ?))`, like, like, like)
 	}
 	if q.ContainsWorkID > 0 {
-		db = db.Where(`EXISTS (SELECT 1 FROM catalog_user_folder_item ci JOIN catalog_work cw ON cw.id = ci.work_id
+		db = db.Where(`EXISTS (SELECT 1 FROM catalog_user_folder_item ci JOIN `+workDirectory+` cw ON cw.id = ci.work_id
 			WHERE ci.folder_id = catalog_user_folder.id AND ci.work_id = ? AND cw.deleted_at IS NULL)`, q.ContainsWorkID)
 	}
 	return db

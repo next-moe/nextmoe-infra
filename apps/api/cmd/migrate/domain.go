@@ -16,6 +16,7 @@ import (
 	aimigrate "api/internal/platform/ai/migrate"
 	catalogmigrate "api/internal/platform/catalog/migrate"
 	catalogseed "api/internal/platform/catalog/seed"
+	"api/internal/platform/catalog/workdir"
 	chatmigrate "api/internal/platform/chat/migrate"
 	communitymigrate "api/internal/platform/community/migrate"
 	newsmigrate "api/internal/platform/news/migrate"
@@ -138,5 +139,13 @@ func migrateCanon(ctx context.Context, dsn string) error {
 		return err
 	}
 	defer db.Close()
-	return canonmigrations.Up(ctx, db)
+	if err := canonmigrations.Up(ctx, db); err != nil {
+		return err
+	}
+	var legacy bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('public.catalog_work') IS NOT NULL`).Scan(&legacy); err != nil || !legacy {
+		return err
+	}
+	_, err = db.ExecContext(ctx, workdir.SQL(true))
+	return err
 }

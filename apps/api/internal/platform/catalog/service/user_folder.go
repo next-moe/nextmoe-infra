@@ -347,8 +347,8 @@ func ownedFolder(tx *gorm.DB, uid, folderID int64, dst *model.CatalogUserFolder)
 }
 
 func assertFolderableWork(tx *gorm.DB, workID int64) error {
-	var work model.CatalogWork
-	err := tx.Select("status").Where("id = ?", workID).Take(&work).Error
+	var work struct{ Status int16 }
+	err := tx.Table(workDirectory).Select("status").Where("id = ?", workID).Take(&work).Error
 	switch {
 	case stderrors.Is(err, gorm.ErrRecordNotFound):
 		return ErrFolderWorkUnavailable

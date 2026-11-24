@@ -81,8 +81,11 @@ func feedPrivacyTx(tx *gorm.DB, uid int64) (feedPrivacy, error) {
 }
 
 func feedWorkTx(tx *gorm.DB, workID int64) (title, contentLimit string, err error) {
-	var w model.CatalogWork
-	if err := tx.Select("display_name", "content_rating").Take(&w, "id = ?", workID).Error; err != nil {
+	var w struct {
+		DisplayName   string
+		ContentRating int16
+	}
+	if err := tx.Table(workDirectory).Select("display_name", "content_rating").Where("id = ?", workID).Take(&w).Error; err != nil {
 		return "", "", err
 	}
 	contentLimit = "nsfw"

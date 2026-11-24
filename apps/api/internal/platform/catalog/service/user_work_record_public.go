@@ -155,7 +155,7 @@ rec AS (
 		pt.minutes, rt.overall,
 		COALESCE(st.updated_at, GREATEST(pt.updated_at, rt.updated_at)) AS updated_at
 	FROM k
-	JOIN catalog_work w ON w.id = k.work_id AND w.status = ?
+	JOIN ` + workDirectory + ` w ON w.id = k.work_id AND w.status = ?
 	LEFT JOIN catalog_user_work_state st ON st.actor_uid = ? AND st.work_id = k.work_id
 	LEFT JOIN (SELECT work_id, max(minutes)::bigint AS minutes, max(updated_at) AS updated_at
 		FROM catalog_user_playtime WHERE actor_uid = ? GROUP BY work_id) pt ON pt.work_id = k.work_id

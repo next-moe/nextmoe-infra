@@ -176,7 +176,7 @@ func (s *UserFolderService) MarkFollowSeen(ctx context.Context, uid, folderID in
 }
 
 const followNewItemsSQL = `(SELECT count(*) FROM (SELECT 1 FROM catalog_user_folder_item i
-	JOIN catalog_work w ON w.id = i.work_id AND w.deleted_at IS NULL
+	JOIN ` + workDirectory + ` w ON w.id = i.work_id AND w.deleted_at IS NULL
 	WHERE i.folder_id = catalog_user_folder_follow.folder_id AND i.created_at > catalog_user_folder_follow.seen_at
 	LIMIT %d) n)`
 
@@ -215,7 +215,7 @@ func (s *UserFolderService) CountUpdatedFollows(ctx context.Context, uid int64) 
 		  SELECT 1 FROM catalog_user_folder_follow
 		   WHERE actor_uid = ? AND `+readableFollowedFolder+`
 		     AND EXISTS (SELECT 1 FROM catalog_user_folder_item i
-		                   JOIN catalog_work w ON w.id = i.work_id AND w.deleted_at IS NULL
+		                   JOIN `+workDirectory+` w ON w.id = i.work_id AND w.deleted_at IS NULL
 		                  WHERE i.folder_id = catalog_user_folder_follow.folder_id
 		                    AND i.created_at > catalog_user_folder_follow.seen_at)
 		   LIMIT ?) u`, uid, model.FolderNewItemsCap).Scan(&n).Error

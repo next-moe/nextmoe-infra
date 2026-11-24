@@ -40,7 +40,7 @@ func (s *UserFolderService) Progress(ctx context.Context, uid int64, folderIDs [
 		       count(i.work_id) FILTER (WHERE st.state = ?) AS on_hold,
 		       count(i.work_id) FILTER (WHERE st.state = ?) AS dropped
 		  FROM catalog_user_folder f
-		  LEFT JOIN (catalog_user_folder_item i JOIN catalog_work w ON w.id = i.work_id AND w.deleted_at IS NULL)
+		  LEFT JOIN (catalog_user_folder_item i JOIN `+workDirectory+` w ON w.id = i.work_id AND w.deleted_at IS NULL)
 		         ON i.folder_id = f.id
 		  LEFT JOIN catalog_user_work_state st ON st.actor_uid = ? AND st.work_id = i.work_id
 		 WHERE f.id IN ? AND (f.`+readableFolder+` OR f.owner_uid = ?)

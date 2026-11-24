@@ -157,7 +157,7 @@ func (s *UserRatingService) Set(ctx context.Context, uid, workID int64, clientID
 	}
 	var out *RatingRecord
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := assertReportableWork(tx, workID); err != nil {
+		if err := assertLegacyWork(tx, workID); err != nil {
 			if err == ErrPlaytimeWorkUnavailable {
 				return ErrRatingWorkUnavailable
 			}
