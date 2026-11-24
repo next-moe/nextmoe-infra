@@ -5,7 +5,7 @@ import type {
   CanonTodoSheet
 } from '#shared/types/canon'
 import { CANON_TODO_KINDS } from '~/constants/canon'
-import { answersFrom, unanswered } from '~/utils/canon/todo'
+import { answersFrom, todoAsks, todoTitle, unanswered } from '~/utils/canon/todo'
 import { formatRelative } from '~/utils/format'
 import { problemMessage } from '~/utils/review/problem'
 
@@ -81,9 +81,11 @@ const decide = async (action: 'accept' | 'reject') => {
       </KunChip>
       <div class="min-w-0 flex-1 space-y-1">
         <p class="text-foreground truncate font-medium">
-          {{ props.todo.subject_key }}
+          {{ todoTitle(props.todo) }}
         </p>
-        <p class="text-default-500 text-sm">{{ props.todo.detail }}</p>
+        <p class="text-default-500 text-sm">
+          {{ todoAsks(props.todo) || kind?.label || props.todo.detail }}
+        </p>
         <p class="text-default-400 text-xs">
           #{{ props.todo.id }} · {{ props.todo.program }} ·
           {{ props.todo.source }} ·

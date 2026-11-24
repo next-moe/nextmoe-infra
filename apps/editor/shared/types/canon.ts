@@ -14,8 +14,26 @@ export interface CanonTodo {
   state: CanonTodoState
   detail: string
   source: string
+  suggestion: CanonSuggestion
+  questions: { ref: string; entity: string; name: string }[]
   resolved_by: string
   created_at: string
+}
+
+/** The pool row as it arrived; only what the list line names is typed. */
+export interface CanonSuggestion {
+  candidate?: {
+    target: { entity: string; id: number }
+    property: string
+    value: unknown
+  }
+  changeset?: {
+    entities: {
+      ref: string
+      entity: string
+      properties: Record<string, { value: unknown }>
+    }[]
+  }
 }
 
 export interface CanonTodoList {

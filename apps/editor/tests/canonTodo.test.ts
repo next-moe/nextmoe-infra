@@ -4,6 +4,8 @@ import {
   answerOptions,
   answersFrom,
   showValue,
+  todoAsks,
+  todoTitle,
   unanswered
 } from '../app/utils/canon/todo'
 
@@ -54,5 +56,46 @@ describe('canon todo sheet', () => {
     expect(answersFrom([author], { 'alias.x': 'legacy:7' }, [])).toEqual({
       'alias.x': { adopt: '7' }
     })
+  })
+})
+
+describe('canon todo line', () => {
+  const todo = {
+    id: '1',
+    kind: 'first_write' as const,
+    subject_key: 'lead:p:l:abc',
+    program: 'ln-pilot',
+    state: 'open' as const,
+    detail: '',
+    source: '',
+    resolved_by: '',
+    created_at: '',
+    questions: [{ ref: 'alias.a', entity: 'person_alias', name: '鏡遊' }],
+    suggestion: {
+      changeset: {
+        entities: [
+          { ref: 'work', entity: 'work', properties: { medium: { value: 'novel' } } },
+          { ref: 't', entity: 'work_title', properties: { work_id: { value: 'ref:work' }, text: { value: '庭' } } },
+          { ref: 'b', entity: 'book_release', properties: { isbn13: { value: '9784049164671' } } }
+        ]
+      }
+    }
+  }
+
+  it('names the title and the ISBN, and what is asked', () => {
+    expect(todoTitle(todo)).toBe('庭 · 9784049164671')
+    expect(todoAsks(todo)).toBe('「鏡遊」是哪一个')
+  })
+
+  it('names the field of a single value, and falls back to the subject', () => {
+    expect(
+      todoTitle({
+        ...todo,
+        suggestion: {
+          candidate: { target: { entity: 'release', id: 9 }, property: 'released', value: '2025-08-08' }
+        }
+      })
+    ).toBe('release #9 · released = 2025-08-08')
+    expect(todoTitle({ ...todo, suggestion: {} })).toBe('lead:p:l:abc')
   })
 })
