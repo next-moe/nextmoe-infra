@@ -39,14 +39,20 @@ func runFanin(client *ent.Client, args []string) error {
 		return err
 	}
 	base, token := config.Env("KUN_CANON_POOL_URL", ""), config.Env("KUN_CANON_POOL_TOKEN", "")
-	if base == "" || token == "" {
+	// Canon goes live before there is a pool; until one is set the process
+	// only judges titles instead of restarting in a loop.
+	pooled := base != "" && token != ""
+	if !pooled && *once {
 		return errors.New("KUN_CANON_POOL_URL and KUN_CANON_POOL_TOKEN are required")
+	}
+	if !pooled {
+		slog.Warn("fanin: no pool is configured (KUN_CANON_POOL_URL, KUN_CANON_POOL_TOKEN)")
 	}
 	f := fanin.New(config.Env("KUN_CANON_POOL_NAME", "ingest"), fanin.NewHTTPPool(base, token), client)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	for {
-		for {
+		for pooled {
 			n, err := f.RunOnce(ctx, *limit)
 			if err != nil {
 				return err
