@@ -6,7 +6,11 @@ package idseq
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Family struct {
@@ -41,11 +45,53 @@ func Adopt(ctx context.Context, db *sql.DB, families []Family) error {
 		return err
 	}
 	for _, f := range families {
-		if err := adopt(ctx, db, f); err != nil {
+		if err := adoptWithin(ctx, db, f); err != nil {
 			return fmt.Errorf("%s: %w", f.Legacy, err)
 		}
 	}
 	return nil
+}
+
+// lockWait bounds how long an adoption queues for a legacy table. A waiting
+// lock blocks every later writer, so behind one long import transaction an
+// unbounded wait would be an outage of that table.
+var (
+	lockWait     = 2 * time.Second
+	lockPause    = 3 * time.Second
+	lockAttempts = 20
+)
+
+func adoptWithin(ctx context.Context, db *sql.DB, f Family) error {
+	done, err := adopted(ctx, db, f)
+	if err != nil || done {
+		return err
+	}
+	for attempt := 1; ; attempt++ {
+		err := adopt(ctx, db, f)
+		var pg *pgconn.PgError
+		if !errors.As(err, &pg) || pg.Code != "55P03" && pg.Code != "40P01" || attempt >= lockAttempts {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(lockPause):
+		}
+	}
+}
+
+// adopted is checked without a lock: the migration runs on every deploy, and
+// the first version locked all eleven legacy tables to learn nothing was due.
+func adopted(ctx context.Context, db *sql.DB, f Family) (bool, error) {
+	var sequence, table bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL, $2 <> '' AND to_regclass('public.' || $2) IS NOT NULL`,
+		QualifiedSequence(f), f.Legacy).Scan(&sequence, &table); err != nil || !sequence {
+		return false, err
+	}
+	if !table {
+		return true, nil
+	}
+	return DrawsFrom(ctx, db, f)
 }
 
 func adopt(ctx context.Context, db *sql.DB, f Family) error {
@@ -69,7 +115,13 @@ func adopt(ctx context.Context, db *sql.DB, f Family) error {
 		}
 		return tx.Commit()
 	}
-	if _, err := tx.ExecContext(ctx, `LOCK TABLE `+table+` IN SHARE ROW EXCLUSIVE MODE`); err != nil {
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`SET LOCAL lock_timeout = '%dms'`, lockWait.Milliseconds())); err != nil {
+		return err
+	}
+	// The strongest lock at once: SHARE ROW EXCLUSIVE here and the ALTER's
+	// upgrade below deadlocked with a transaction that had read the table and
+	// then wrote it, on the first statement of the 2026-11-24 rehearsal.
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE `+table+` IN ACCESS EXCLUSIVE MODE`); err != nil {
 		return err
 	}
 	var identity string

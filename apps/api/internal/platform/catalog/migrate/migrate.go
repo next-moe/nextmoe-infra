@@ -842,7 +842,14 @@ func rawSQL(db *gorm.DB) error {
 		{"catalog_user_work_state", "fk_catalog_user_work_state_work"},
 		{"catalog_user_work_view", "fk_catalog_user_work_view_work"},
 	} {
-		if err := db.Exec(`ALTER TABLE ` + fk.table + ` DROP CONSTRAINT IF EXISTS ` + fk.name).Error; err != nil {
+		exists, err := constraintExists(db, fk.table, fk.name)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		if err := db.Exec(`ALTER TABLE ` + fk.table + ` DROP CONSTRAINT ` + fk.name).Error; err != nil {
 			return fmt.Errorf("drop %s: %w", fk.name, err)
 		}
 	}
@@ -855,12 +862,17 @@ func rawSQL(db *gorm.DB) error {
 		END $$`).Error; err != nil {
 		return fmt.Errorf("user rows cascade function: %w", err)
 	}
-	if err := db.Exec(`DROP TRIGGER IF EXISTS catalog_work_user_rows_cascade ON catalog_work`).Error; err != nil {
+	// Created once: recreating it on every deploy would take catalog_work's
+	// exclusive lock each time, queued behind whatever import is running.
+	var cascading bool
+	if err := db.Raw(`SELECT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'catalog_work_user_rows_cascade' AND tgrelid = 'catalog_work'::regclass)`).Scan(&cascading).Error; err != nil {
 		return err
 	}
-	if err := db.Exec(`CREATE TRIGGER catalog_work_user_rows_cascade AFTER DELETE ON catalog_work
-		FOR EACH ROW EXECUTE FUNCTION catalog_work_user_rows_cascade()`).Error; err != nil {
-		return fmt.Errorf("user rows cascade trigger: %w", err)
+	if !cascading {
+		if err := db.Exec(`CREATE TRIGGER catalog_work_user_rows_cascade AFTER DELETE ON catalog_work
+			FOR EACH ROW EXECUTE FUNCTION catalog_work_user_rows_cascade()`).Error; err != nil {
+			return fmt.Errorf("user rows cascade trigger: %w", err)
+		}
 	}
 	// 2026-11-23 (plan 23 D27): a v3 rating keeps its medium's sub-scores in
 	// dimensions, keyed by the dimension (story, writing, …); the game set
