@@ -22,7 +22,7 @@ func SQL(canon bool) string {
 			(SELECT t.text FROM canon.work_title t WHERE t.work_id = c.id ORDER BY t.kind <> 'official', t.position, t.id LIMIT 1)::text,
 			(CASE c.content_rating WHEN 'r15' THEN 1 WHEN 'r18' THEN 2 ELSE 0 END)::smallint,
 			(CASE WHEN EXISTS (SELECT 1 FROM canon.takedown d WHERE d.entity = 'work' AND d.entity_id = c.id AND d.scope = 'entity' AND d.restored_at IS NULL) THEN 3 ELSE 0 END)::smallint,
-			NULL::timestamptz, c.display_safety = 'explicit', false, NULL::boolean, NULL::text, NULL::bigint
+			NULL::timestamptz, c.display_safety <> 'safe', false, NULL::boolean, NULL::text, NULL::bigint
 		FROM canon.work c WHERE NOT EXISTS (SELECT 1 FROM public.catalog_work w WHERE w.id = c.id)`
 }
 

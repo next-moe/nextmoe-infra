@@ -26,6 +26,7 @@ import (
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/revision"
 	"api/internal/canon/ent/takedown"
+	"api/internal/canon/ent/titleverdict"
 	"api/internal/canon/ent/todo"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
@@ -123,6 +124,7 @@ func checkColumn(t, c string) error {
 			releasecontent.Table:      releasecontent.ValidColumn,
 			revision.Table:            revision.ValidColumn,
 			takedown.Table:            takedown.ValidColumn,
+			titleverdict.Table:        titleverdict.ValidColumn,
 			todo.Table:                todo.ValidColumn,
 			work.Table:                work.ValidColumn,
 			workpart.Table:            workpart.ValidColumn,

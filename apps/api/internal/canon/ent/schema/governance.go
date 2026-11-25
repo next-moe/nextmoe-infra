@@ -111,3 +111,22 @@ func (Patrol) Fields() []ent.Field {
 		field.Time("at").Default(timeNow).Immutable(),
 	}
 }
+
+// TitleVerdict is a model's reading of one set of titles, keyed by the set, so
+// a work whose titles did not change is never judged twice.
+type TitleVerdict struct{ ent.Schema }
+
+func (TitleVerdict) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Table("title_verdict")}
+}
+
+func (TitleVerdict) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").Immutable(),
+		field.String("class"),
+		field.Float("confidence"),
+		field.String("model"),
+		field.String("prompt_version"),
+		field.Time("judged_at").Default(timeNow),
+	}
+}

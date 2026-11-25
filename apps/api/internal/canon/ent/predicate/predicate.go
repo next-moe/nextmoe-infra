@@ -75,6 +75,9 @@ type Revision func(*sql.Selector)
 // Takedown is the predicate function for takedown builders.
 type Takedown func(*sql.Selector)
 
+// TitleVerdict is the predicate function for titleverdict builders.
+type TitleVerdict func(*sql.Selector)
+
 // Todo is the predicate function for todo builders.
 type Todo func(*sql.Selector)
 

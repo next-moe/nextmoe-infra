@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"api/internal/platform/catalog/model"
+	"api/pkg/llmask"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -61,15 +62,15 @@ type rewriteReply struct {
 	} `json:"items"`
 }
 
-func JudgeIntros(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts, pending []IntroInput, kind IntroKind) (*IntroStats, error) {
+func JudgeIntros(ctx context.Context, db *gorm.DB, llm *llmask.Client, opts JudgeOpts, pending []IntroInput, kind IntroKind) (*IntroStats, error) {
 	if opts.Limit > 0 && len(pending) > opts.Limit {
 		pending = pending[:opts.Limit]
 	}
 	st := &IntroStats{Pending: len(pending), ByMode: map[string]int{}}
 	var mu sync.Mutex
-	batches := pack(pending, func(in IntroInput) int { return runeLen(in.Intro) }, 5000, 20)
+	batches := llmask.Pack(pending, func(in IntroInput) int { return runeLen(in.Intro) }, 5000, 20)
 	parallel(ctx, batches, opts.Concurrency, func(ctx context.Context, batch []IntroInput) {
-		rows, err := bisect(ctx, batch, func(ctx context.Context, b []IntroInput) ([]model.CatalogWorkIntroSafety, error) {
+		rows, err := llmask.Bisect(ctx, batch, func(ctx context.Context, b []IntroInput) ([]model.CatalogWorkIntroSafety, error) {
 			return judgeIntroBatch(ctx, llm, b, kind)
 		}, func(in IntroInput) model.CatalogWorkIntroSafety {
 			return model.CatalogWorkIntroSafety{
@@ -109,7 +110,7 @@ func JudgeIntros(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts, pen
 // judgeIntroBatch runs one batch through classify → redact → verify, then
 // rewrite → verify for what redaction could not save. An intro whose call
 // failed is left out and stays pending for the next run.
-func judgeIntroBatch(ctx context.Context, llm *LLM, batch []IntroInput, kind IntroKind) ([]model.CatalogWorkIntroSafety, error) {
+func judgeIntroBatch(ctx context.Context, llm *llmask.Client, batch []IntroInput, kind IntroKind) ([]model.CatalogWorkIntroSafety, error) {
 	verdicts, served, err := classifyIntros(ctx, llm, kind, introTexts(batch))
 	if err != nil {
 		return nil, err
@@ -204,7 +205,7 @@ func introTexts(batch []IntroInput) []string {
 
 // classifyIntros returns verdicts keyed by the index into texts; a text the
 // reply skipped or garbled is absent.
-func classifyIntros(ctx context.Context, llm *LLM, kind IntroKind, texts []string) (map[int]introVerdict, string, error) {
+func classifyIntros(ctx context.Context, llm *llmask.Client, kind IntroKind, texts []string) (map[int]introVerdict, string, error) {
 	segs := make([][]string, len(texts))
 	var b strings.Builder
 	for i, t := range texts {
@@ -237,7 +238,7 @@ func classifyIntros(ctx context.Context, llm *LLM, kind IntroKind, texts []strin
 	return out, served, nil
 }
 
-func rewriteIntros(ctx context.Context, llm *LLM, kind IntroKind, batch []IntroInput, idx []int) ([]string, error) {
+func rewriteIntros(ctx context.Context, llm *llmask.Client, kind IntroKind, batch []IntroInput, idx []int) ([]string, error) {
 	items := make([]any, len(idx))
 	for j, i := range idx {
 		items[j] = map[string]any{"id": j + 1, "title": batch[i].Title, "lang": batch[i].Lang, "description": batch[i].Intro}

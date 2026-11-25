@@ -21,7 +21,7 @@ func (Work) Fields() []ent.Field {
 		with(field.String("olang").Optional(), r.Fact(r.ShapeLang, "BCP-47 language of the original edition.", "R4.1")),
 		with(field.String("status").Default("unknown"), r.VocabFact("work_status", "Publication status of the whole work.", "R4.3")),
 		with(field.String("content_rating").Default("all_ages"), r.VocabFact("content_rating", "Age rating of the work itself.", "R1.3")),
-		with(field.String("display_safety").Default("safe"), r.Internal(r.ShapeVocab, "Whether cover and synopsis may show on public pages; set by the safety pipeline, never by ingest.")),
+		with(field.String("display_safety").Default("unjudged"), r.InternalVocab("display_safety", "Whether the titles may show on a safe-for-work page; set by the safety pipeline or a person, never by ingest. unjudged is not safe.")),
 	}, stamps()...)
 }
 

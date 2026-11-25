@@ -25,7 +25,7 @@ var internalTables = map[string]bool{
 	"todo": true, "hold": true, "takedown": true, "xref_link": true,
 	"redirect": true, "merge_record": true,
 	"library_part_progress": true, "library_tombstone": true,
-	"identity_key": true, "program_state": true, "patrol": true,
+	"identity_key": true, "program_state": true, "patrol": true, "title_verdict": true,
 }
 
 type Property struct {

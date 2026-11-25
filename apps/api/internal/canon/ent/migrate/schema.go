@@ -611,6 +611,21 @@ var (
 			},
 		},
 	}
+	// TitleVerdictColumns holds the columns for the "title_verdict" table.
+	TitleVerdictColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "class", Type: field.TypeString},
+		{Name: "confidence", Type: field.TypeFloat64},
+		{Name: "model", Type: field.TypeString},
+		{Name: "prompt_version", Type: field.TypeString},
+		{Name: "judged_at", Type: field.TypeTime},
+	}
+	// TitleVerdictTable holds the schema information for the "title_verdict" table.
+	TitleVerdictTable = &schema.Table{
+		Name:       "title_verdict",
+		Columns:    TitleVerdictColumns,
+		PrimaryKey: []*schema.Column{TitleVerdictColumns[0]},
+	}
 	// TodoColumns holds the columns for the "todo" table.
 	TodoColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -657,7 +672,7 @@ var (
 		{Name: "olang", Type: field.TypeString, Nullable: true},
 		{Name: "status", Type: field.TypeString, Default: "unknown"},
 		{Name: "content_rating", Type: field.TypeString, Default: "all_ages"},
-		{Name: "display_safety", Type: field.TypeString, Default: "safe"},
+		{Name: "display_safety", Type: field.TypeString, Default: "unjudged"},
 		{Name: "field_state", Type: field.TypeJSON},
 		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
@@ -784,6 +799,7 @@ var (
 		ReleaseContentTable,
 		RevisionTable,
 		TakedownTable,
+		TitleVerdictTable,
 		TodoTable,
 		WorkTable,
 		WorkPartTable,
@@ -884,6 +900,9 @@ func init() {
 	}
 	TakedownTable.Annotation = &entsql.Annotation{
 		Table: "takedown",
+	}
+	TitleVerdictTable.Annotation = &entsql.Annotation{
+		Table: "title_verdict",
 	}
 	TodoTable.Annotation = &entsql.Annotation{
 		Table: "todo",

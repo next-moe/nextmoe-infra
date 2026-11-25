@@ -26,7 +26,7 @@ var Vocabularies = []Vocabulary{
 		{Key: "unknown"},
 	}},
 	{Name: "content_rating", Terms: []Term{{Key: "all_ages"}, {Key: "r15", EntailedBy: []string{"R15", "R-15"}}, {Key: "r18", EntailedBy: []string{"18禁", "R18", "R-18", "成人向け"}}}},
-	{Name: "display_safety", Terms: []Term{{Key: "safe"}, {Key: "suggestive"}, {Key: "explicit"}}},
+	{Name: "display_safety", Terms: []Term{{Key: "unjudged"}, {Key: "safe"}, {Key: "suggestive"}, {Key: "explicit"}}},
 	{Name: "title_kind", Terms: []Term{{Key: "official"}, {Key: "alternative"}, {Key: "romanized"}, {Key: "translated"}}},
 	{Name: "part_kind", Terms: []Term{
 		{Key: "volume", Doc: "A bound volume; the part an ISBN edition contains, so a classification, not a page word."},

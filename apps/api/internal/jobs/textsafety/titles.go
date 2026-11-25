@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"api/internal/platform/catalog/model"
+	"api/pkg/llmask"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -39,7 +40,7 @@ type titleReply struct {
 	} `json:"items"`
 }
 
-func JudgeTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts) (*TitleStats, error) {
+func JudgeTitles(ctx context.Context, db *gorm.DB, llm *llmask.Client, opts JudgeOpts) (*TitleStats, error) {
 	works, err := loadWorkTitles(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("load titles: %w", err)
@@ -67,7 +68,7 @@ func JudgeTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts) (*T
 
 // JudgeReleaseTitles judges every release title that has no verdict yet, one
 // name per set.
-func JudgeReleaseTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts) (*TitleStats, error) {
+func JudgeReleaseTitles(ctx context.Context, db *gorm.DB, llm *llmask.Client, opts JudgeOpts) (*TitleStats, error) {
 	todo, err := loadPendingReleaseTitles(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("load release titles: %w", err)
@@ -80,7 +81,7 @@ func JudgeReleaseTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOp
 // the full run that bucket held ~2,700 works and about half were plain names
 // (Uncle Merton & Baby Mergle, Hooked) that grok-4.7 scored 0.66-0.78 because
 // it knew the game, not because of the name.
-func ReviewTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts) (*TitleStats, error) {
+func ReviewTitles(ctx context.Context, db *gorm.DB, llm *llmask.Client, opts JudgeOpts) (*TitleStats, error) {
 	var hashes []string
 	if err := db.WithContext(ctx).Model(&model.CatalogWorkTitleSafety{}).
 		Where("verdict = ? AND confidence < ? AND prompt_version <> ?", model.TitleSafetySafe, model.SafeTitleConfidence, TitleReviewVersion).
@@ -109,15 +110,15 @@ func ReviewTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts) (*
 	return judgeTitleSets(ctx, db, llm, opts, todo, TitleReviewVersion)
 }
 
-func judgeTitleSets(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts, todo []workTitles, promptVersion string) (*TitleStats, error) {
+func judgeTitleSets(ctx context.Context, db *gorm.DB, llm *llmask.Client, opts JudgeOpts, todo []workTitles, promptVersion string) (*TitleStats, error) {
 	if opts.Limit > 0 && len(todo) > opts.Limit {
 		todo = todo[:opts.Limit]
 	}
 	st := &TitleStats{Pending: len(todo), ByClass: map[string]int{}}
 	var mu sync.Mutex
-	batches := pack(todo, func(w workTitles) int { return runeLen(strings.Join(w.Names, " ")) }, 2500, 40)
+	batches := llmask.Pack(todo, func(w workTitles) int { return runeLen(strings.Join(w.Names, " ")) }, 2500, 40)
 	parallel(ctx, batches, opts.Concurrency, func(ctx context.Context, batch []workTitles) {
-		rows, err := bisect(ctx, batch, func(ctx context.Context, b []workTitles) ([]model.CatalogWorkTitleSafety, error) {
+		rows, err := llmask.Bisect(ctx, batch, func(ctx context.Context, b []workTitles) ([]model.CatalogWorkTitleSafety, error) {
 			return judgeTitleBatch(ctx, llm, b, promptVersion)
 		}, func(w workTitles) model.CatalogWorkTitleSafety {
 			return model.CatalogWorkTitleSafety{
@@ -147,7 +148,7 @@ func judgeTitleSets(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts, 
 	return st, ctx.Err()
 }
 
-func judgeTitleBatch(ctx context.Context, llm *LLM, batch []workTitles, promptVersion string) ([]model.CatalogWorkTitleSafety, error) {
+func judgeTitleBatch(ctx context.Context, llm *llmask.Client, batch []workTitles, promptVersion string) ([]model.CatalogWorkTitleSafety, error) {
 	items := make([]any, len(batch))
 	for i, w := range batch {
 		items[i] = map[string]any{"id": i + 1, "names": w.Names}

@@ -27,6 +27,7 @@ import (
 	"api/internal/canon/ent/revision"
 	"api/internal/canon/ent/schema"
 	"api/internal/canon/ent/takedown"
+	"api/internal/canon/ent/titleverdict"
 	"api/internal/canon/ent/todo"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
@@ -373,6 +374,12 @@ func init() {
 	takedownDescCreatedAt := takedownFields[7].Descriptor()
 	// takedown.DefaultCreatedAt holds the default value on creation for the created_at field.
 	takedown.DefaultCreatedAt = takedownDescCreatedAt.Default.(func() time.Time)
+	titleverdictFields := schema.TitleVerdict{}.Fields()
+	_ = titleverdictFields
+	// titleverdictDescJudgedAt is the schema descriptor for judged_at field.
+	titleverdictDescJudgedAt := titleverdictFields[5].Descriptor()
+	// titleverdict.DefaultJudgedAt holds the default value on creation for the judged_at field.
+	titleverdict.DefaultJudgedAt = titleverdictDescJudgedAt.Default.(func() time.Time)
 	todoFields := schema.Todo{}.Fields()
 	_ = todoFields
 	// todoDescGroupKey is the schema descriptor for group_key field.

@@ -1711,6 +1711,14 @@ components:
           type:
             - array
             - "null"
+        display_safety:
+          description: Whether the titles may show on a safe-for-work page; unjudged is not safe.
+          enum:
+            - unjudged
+            - safe
+            - suggestive
+            - explicit
+          type: string
         id:
           type: string
         medium:
@@ -1739,6 +1747,7 @@ components:
         - medium
         - status
         - content_rating
+        - display_safety
         - olang
         - titles
         - book

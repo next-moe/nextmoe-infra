@@ -1,6 +1,7 @@
 package textsafety
 
 import (
+	"api/pkg/llmask"
 	"fmt"
 	"strings"
 	"testing"
@@ -50,9 +51,9 @@ func TestNumberedTextSkipsBlankSegments(t *testing.T) {
 
 func TestPackRespectsBudgets(t *testing.T) {
 	size := func(n int) int { return n }
-	assert.Equal(t, [][]int{{3, 3}, {3, 3}, {9}, {1}}, pack([]int{3, 3, 3, 3, 9, 1}, size, 6, 10))
-	assert.Equal(t, [][]int{{1, 1}, {1}}, pack([]int{1, 1, 1}, size, 100, 2))
-	assert.Nil(t, pack([]int{}, size, 10, 10))
+	assert.Equal(t, [][]int{{3, 3}, {3, 3}, {9}, {1}}, llmask.Pack([]int{3, 3, 3, 3, 9, 1}, size, 6, 10))
+	assert.Equal(t, [][]int{{1, 1}, {1}}, llmask.Pack([]int{1, 1, 1}, size, 100, 2))
+	assert.Nil(t, llmask.Pack([]int{}, size, 10, 10))
 }
 
 func TestHashesMatchPostgresMD5(t *testing.T) {

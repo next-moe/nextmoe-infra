@@ -49,6 +49,7 @@ type Work struct {
 	Medium        string    `json:"medium"`
 	Status        string    `json:"status"`
 	ContentRating string    `json:"content_rating"`
+	DisplaySafety string    `json:"display_safety" enum:"unjudged,safe,suggestive,explicit" doc:"Whether the titles may show on a safe-for-work page; unjudged is not safe."`
 	Olang         string    `json:"olang"`
 	Titles        []Title   `json:"titles"`
 	Book          *BookWork `json:"book"`

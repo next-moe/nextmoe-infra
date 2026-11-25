@@ -14,6 +14,7 @@ import (
 	"api/internal/infrastructure/database"
 	"api/internal/jobs/textsafety"
 	"api/pkg/config"
+	"api/pkg/llmask"
 	"api/pkg/logger"
 )
 
@@ -45,11 +46,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	newLLM := func() *textsafety.LLM {
+	newLLM := func() *llmask.Client {
 		if *llmBase == "" || *llmToken == "" {
 			fail(fmt.Errorf("-llm-base and -llm-token are required for -mode %s", *mode))
 		}
-		return textsafety.NewLLM(*llmBase, *llmToken, *model)
+		return llmask.New(*llmBase, *llmToken, *model)
 	}
 	opts := textsafety.JudgeOpts{Limit: *limit, Concurrency: *conc}
 	if *sample > 0 {
@@ -137,7 +138,7 @@ func main() {
 	}
 }
 
-func printUsage(llm *textsafety.LLM) {
+func printUsage(llm *llmask.Client) {
 	calls, in, out := llm.Usage()
 	fmt.Printf("llm model=%s calls=%d prompt_tokens=%d completion_tokens=%d\n", llm.Model(), calls, in, out)
 }

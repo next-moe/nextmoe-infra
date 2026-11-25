@@ -947,6 +947,9 @@
       "name": "display_safety",
       "terms": [
         {
+          "key": "unjudged"
+        },
+        {
           "key": "safe"
         },
         {

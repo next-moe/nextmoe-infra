@@ -116,7 +116,7 @@ func (a *API) shapeWorks(ctx context.Context, ws []*ent.Work) ([]Work, error) {
 	}
 	out := make([]Work, 0, len(ws))
 	for _, w := range ws {
-		v := Work{ID: id(w.ID), Medium: w.Medium, Status: w.Status, ContentRating: w.ContentRating, Olang: w.Olang,
+		v := Work{ID: id(w.ID), Medium: w.Medium, Status: w.Status, ContentRating: w.ContentRating, DisplaySafety: w.DisplaySafety, Olang: w.Olang,
 			Titles: []Title{}, Parts: []Part{}, Credits: []Credit{}, UpdatedAt: w.UpdatedAt}
 		titles := w.Edges.Titles
 		sort.SliceStable(titles, func(i, j int) bool { return titles[i].Position < titles[j].Position })

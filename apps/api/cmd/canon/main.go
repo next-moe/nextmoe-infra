@@ -58,6 +58,7 @@ func main() {
 			"program":  func(a []string) error { return runProgram(context.Background(), client, a) },
 			"undo":     func(a []string) error { return runUndo(context.Background(), client, a) },
 			"rollback": func(a []string) error { return runRollback(context.Background(), client, a) },
+			"safety":   func([]string) error { return judgeTitles(context.Background(), client, 0) },
 			"org-seed": func([]string) error { return runOrgSeed(context.Background(), client) },
 			"xref-import": func([]string) error {
 				n, err := xref.ImportLegacy(context.Background(), db)

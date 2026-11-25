@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -202,56 +201,6 @@ func parallel[T any](ctx context.Context, batches [][]T, conc int, fn func(conte
 		}(b)
 	}
 	wg.Wait()
-}
-
-// pack groups items so no batch exceeds maxRunes of text or maxItems entries;
-// an item larger than maxRunes travels alone.
-func pack[T any](items []T, size func(T) int, maxRunes, maxItems int) [][]T {
-	var out [][]T
-	var cur []T
-	runes := 0
-	for _, it := range items {
-		n := size(it)
-		if len(cur) > 0 && (runes+n > maxRunes || len(cur) >= maxItems) {
-			out = append(out, cur)
-			cur, runes = nil, 0
-		}
-		cur = append(cur, it)
-		runes += n
-	}
-	if len(cur) > 0 {
-		out = append(out, cur)
-	}
-	return out
-}
-
-// bisect runs a batch and, when the provider refuses it or the reply is cut
-// off, halves it until the offending items stand alone: a refused item is
-// answered by refused, a lone cut-off item is left out and stays pending.
-func bisect[T, R any](ctx context.Context, batch []T, run func(context.Context, []T) ([]R, error), refused func(T) R) ([]R, error) {
-	out, err := run(ctx, batch)
-	switch {
-	case errors.Is(err, ErrBlocked):
-		if len(batch) == 1 {
-			return []R{refused(batch[0])}, nil
-		}
-	case errors.Is(err, ErrTruncated):
-		if len(batch) == 1 {
-			return nil, nil
-		}
-	default:
-		return out, err
-	}
-	mid := len(batch) / 2
-	left, err := bisect(ctx, batch[:mid], run, refused)
-	if err != nil {
-		return nil, err
-	}
-	right, err := bisect(ctx, batch[mid:], run, refused)
-	if err != nil {
-		return nil, err
-	}
-	return append(left, right...), nil
 }
 
 // Shard keeps the inputs whose hash falls in shard k of n ("k/n"), or in

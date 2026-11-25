@@ -1,4 +1,6 @@
-package textsafety
+// Package llmask asks an OpenAI-compatible gateway one question and decodes
+// the JSON object it answers with, splitting a batch a provider refuses.
+package llmask
 
 import (
 	"bytes"
@@ -14,7 +16,7 @@ import (
 	"time"
 )
 
-type LLM struct {
+type Client struct {
 	base  string
 	token string
 	model string
@@ -25,8 +27,8 @@ type LLM struct {
 	calls            atomic.Int64
 }
 
-func NewLLM(base, token, model string) *LLM {
-	return &LLM{
+func New(base, token, model string) *Client {
+	return &Client{
 		base:  strings.TrimRight(base, "/"),
 		token: token,
 		model: model,
@@ -34,9 +36,9 @@ func NewLLM(base, token, model string) *LLM {
 	}
 }
 
-func (c *LLM) Model() string { return c.model }
+func (c *Client) Model() string { return c.model }
 
-func (c *LLM) Usage() (calls, prompt, completion int64) {
+func (c *Client) Usage() (calls, prompt, completion int64) {
 	return c.calls.Load(), c.promptTokens.Load(), c.completionTokens.Load()
 }
 
@@ -81,7 +83,7 @@ var retrySchedule = []time.Duration{
 
 // Ask sends one user message, decodes the JSON object in the reply into out
 // and returns the model that served it (a gateway scene can fall back).
-func (c *LLM) Ask(ctx context.Context, prompt string, out any) (string, error) {
+func (c *Client) Ask(ctx context.Context, prompt string, out any) (string, error) {
 	raw, err := json.Marshal(map[string]any{
 		"model":       c.model,
 		"temperature": 0,
@@ -118,7 +120,7 @@ func (c *LLM) Ask(ctx context.Context, prompt string, out any) (string, error) {
 	}
 }
 
-func (c *LLM) post(ctx context.Context, raw []byte) (content, served string, retryable bool, err error) {
+func (c *Client) post(ctx context.Context, raw []byte) (content, served string, retryable bool, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/chat/completions", bytes.NewReader(raw))
 	if err != nil {
 		return "", "", false, err
@@ -187,4 +189,54 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+// Pack groups items so no batch exceeds maxRunes of text or maxItems entries;
+// an item larger than maxRunes travels alone.
+func Pack[T any](items []T, size func(T) int, maxRunes, maxItems int) [][]T {
+	var out [][]T
+	var cur []T
+	runes := 0
+	for _, it := range items {
+		n := size(it)
+		if len(cur) > 0 && (runes+n > maxRunes || len(cur) >= maxItems) {
+			out = append(out, cur)
+			cur, runes = nil, 0
+		}
+		cur = append(cur, it)
+		runes += n
+	}
+	if len(cur) > 0 {
+		out = append(out, cur)
+	}
+	return out
+}
+
+// Bisect runs a batch and, when the provider refuses it or the reply is cut
+// off, halves it until the offending items stand alone: a refused item is
+// answered by refused, a lone cut-off item is left out and stays pending.
+func Bisect[T, R any](ctx context.Context, batch []T, run func(context.Context, []T) ([]R, error), refused func(T) R) ([]R, error) {
+	out, err := run(ctx, batch)
+	switch {
+	case errors.Is(err, ErrBlocked):
+		if len(batch) == 1 {
+			return []R{refused(batch[0])}, nil
+		}
+	case errors.Is(err, ErrTruncated):
+		if len(batch) == 1 {
+			return nil, nil
+		}
+	default:
+		return out, err
+	}
+	mid := len(batch) / 2
+	left, err := Bisect(ctx, batch[:mid], run, refused)
+	if err != nil {
+		return nil, err
+	}
+	right, err := Bisect(ctx, batch[mid:], run, refused)
+	if err != nil {
+		return nil, err
+	}
+	return append(left, right...), nil
 }

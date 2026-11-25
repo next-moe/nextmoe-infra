@@ -60,6 +60,8 @@ type Tx struct {
 	Revision *RevisionClient
 	// Takedown is the client for interacting with the Takedown builders.
 	Takedown *TakedownClient
+	// TitleVerdict is the client for interacting with the TitleVerdict builders.
+	TitleVerdict *TitleVerdictClient
 	// Todo is the client for interacting with the Todo builders.
 	Todo *TodoClient
 	// Work is the client for interacting with the Work builders.
@@ -224,6 +226,7 @@ func (tx *Tx) init() {
 	tx.ReleaseContent = NewReleaseContentClient(tx.config)
 	tx.Revision = NewRevisionClient(tx.config)
 	tx.Takedown = NewTakedownClient(tx.config)
+	tx.TitleVerdict = NewTitleVerdictClient(tx.config)
 	tx.Todo = NewTodoClient(tx.config)
 	tx.Work = NewWorkClient(tx.config)
 	tx.WorkPart = NewWorkPartClient(tx.config)

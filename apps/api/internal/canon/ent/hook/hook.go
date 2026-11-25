@@ -284,6 +284,18 @@ func (f TakedownFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TakedownMutation", m)
 }
 
+// The TitleVerdictFunc type is an adapter to allow the use of ordinary
+// function as TitleVerdict mutator.
+type TitleVerdictFunc func(context.Context, *ent.TitleVerdictMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TitleVerdictFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TitleVerdictMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TitleVerdictMutation", m)
+}
+
 // The TodoFunc type is an adapter to allow the use of ordinary
 // function as Todo mutator.
 type TodoFunc func(context.Context, *ent.TodoMutation) (ent.Value, error)

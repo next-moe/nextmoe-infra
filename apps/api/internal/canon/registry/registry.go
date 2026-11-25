@@ -104,6 +104,10 @@ func NamedRefFact(entity, doc string, clauses ...string) Property {
 	return p
 }
 
+func InternalVocab(vocab, doc string) Property {
+	return Property{Shape: ShapeVocab, Vocab: vocab, Doc: doc}
+}
+
 func Internal(shape Shape, doc string) Property {
 	return Property{Shape: shape, Doc: doc}
 }

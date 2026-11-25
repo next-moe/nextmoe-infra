@@ -12,8 +12,23 @@ import (
 
 	"api/internal/canon/ent"
 	"api/internal/canon/fanin"
+	"api/internal/canon/safety"
 	"api/pkg/config"
+	"api/pkg/llmask"
 )
+
+func judgeTitles(ctx context.Context, client *ent.Client, limit int) error {
+	key := config.Env("KUN_LLM_GATEWAY_KEY", "")
+	if key == "" {
+		return nil
+	}
+	llm := llmask.New(config.Env("KUN_LLM_GATEWAY_URL", "http://127.0.0.1:9284/v1"), key, config.Env("KUN_CANON_TITLE_SAFETY_SCENE", "catalog.text-safety.title"))
+	st, err := safety.Run(ctx, client, llm, limit)
+	if st.Judged+st.Written+st.Failed > 0 {
+		slog.Info("title safety", "judged", st.Judged, "written", st.Written, "failed", st.Failed)
+	}
+	return err
+}
 
 func runFanin(client *ent.Client, args []string) error {
 	fs := flag.NewFlagSet("fanin", flag.ExitOnError)
@@ -40,6 +55,11 @@ func runFanin(client *ent.Client, args []string) error {
 			if n < *limit {
 				break
 			}
+		}
+		// Judged after each drain; a gateway that is down leaves new works
+		// unjudged, which is not safe, and never stops the fanin.
+		if err := judgeTitles(ctx, client, 400); err != nil {
+			slog.Warn("title safety", "error", err)
 		}
 		if *once {
 			return nil

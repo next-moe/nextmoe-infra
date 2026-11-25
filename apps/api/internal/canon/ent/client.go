@@ -34,6 +34,7 @@ import (
 	"api/internal/canon/ent/releasecontent"
 	"api/internal/canon/ent/revision"
 	"api/internal/canon/ent/takedown"
+	"api/internal/canon/ent/titleverdict"
 	"api/internal/canon/ent/todo"
 	"api/internal/canon/ent/work"
 	"api/internal/canon/ent/workpart"
@@ -99,6 +100,8 @@ type Client struct {
 	Revision *RevisionClient
 	// Takedown is the client for interacting with the Takedown builders.
 	Takedown *TakedownClient
+	// TitleVerdict is the client for interacting with the TitleVerdict builders.
+	TitleVerdict *TitleVerdictClient
 	// Todo is the client for interacting with the Todo builders.
 	Todo *TodoClient
 	// Work is the client for interacting with the Work builders.
@@ -143,6 +146,7 @@ func (c *Client) init() {
 	c.ReleaseContent = NewReleaseContentClient(c.config)
 	c.Revision = NewRevisionClient(c.config)
 	c.Takedown = NewTakedownClient(c.config)
+	c.TitleVerdict = NewTitleVerdictClient(c.config)
 	c.Todo = NewTodoClient(c.config)
 	c.Work = NewWorkClient(c.config)
 	c.WorkPart = NewWorkPartClient(c.config)
@@ -263,6 +267,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ReleaseContent:      NewReleaseContentClient(cfg),
 		Revision:            NewRevisionClient(cfg),
 		Takedown:            NewTakedownClient(cfg),
+		TitleVerdict:        NewTitleVerdictClient(cfg),
 		Todo:                NewTodoClient(cfg),
 		Work:                NewWorkClient(cfg),
 		WorkPart:            NewWorkPartClient(cfg),
@@ -310,6 +315,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ReleaseContent:      NewReleaseContentClient(cfg),
 		Revision:            NewRevisionClient(cfg),
 		Takedown:            NewTakedownClient(cfg),
+		TitleVerdict:        NewTitleVerdictClient(cfg),
 		Todo:                NewTodoClient(cfg),
 		Work:                NewWorkClient(cfg),
 		WorkPart:            NewWorkPartClient(cfg),
@@ -348,8 +354,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.IdentityKey,
 		c.LibraryPartProgress, c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName,
 		c.Patrol, c.Person, c.PersonAlias, c.ProgramState, c.Redirect, c.Release,
-		c.ReleaseContent, c.Revision, c.Takedown, c.Todo, c.Work, c.WorkPart,
-		c.WorkTitle, c.XrefLink,
+		c.ReleaseContent, c.Revision, c.Takedown, c.TitleVerdict, c.Todo, c.Work,
+		c.WorkPart, c.WorkTitle, c.XrefLink,
 	} {
 		n.Use(hooks...)
 	}
@@ -363,8 +369,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EvidenceSnapshot, c.FaninCursor, c.Hold, c.IdentityKey,
 		c.LibraryPartProgress, c.LibraryTombstone, c.MergeRecord, c.Org, c.OrgName,
 		c.Patrol, c.Person, c.PersonAlias, c.ProgramState, c.Redirect, c.Release,
-		c.ReleaseContent, c.Revision, c.Takedown, c.Todo, c.Work, c.WorkPart,
-		c.WorkTitle, c.XrefLink,
+		c.ReleaseContent, c.Revision, c.Takedown, c.TitleVerdict, c.Todo, c.Work,
+		c.WorkPart, c.WorkTitle, c.XrefLink,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -419,6 +425,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Revision.mutate(ctx, m)
 	case *TakedownMutation:
 		return c.Takedown.mutate(ctx, m)
+	case *TitleVerdictMutation:
+		return c.TitleVerdict.mutate(ctx, m)
 	case *TodoMutation:
 		return c.Todo.mutate(ctx, m)
 	case *WorkMutation:
@@ -3909,6 +3917,139 @@ func (c *TakedownClient) mutate(ctx context.Context, m *TakedownMutation) (Value
 	}
 }
 
+// TitleVerdictClient is a client for the TitleVerdict schema.
+type TitleVerdictClient struct {
+	config
+}
+
+// NewTitleVerdictClient returns a client for the TitleVerdict from the given config.
+func NewTitleVerdictClient(c config) *TitleVerdictClient {
+	return &TitleVerdictClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `titleverdict.Hooks(f(g(h())))`.
+func (c *TitleVerdictClient) Use(hooks ...Hook) {
+	c.hooks.TitleVerdict = append(c.hooks.TitleVerdict, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `titleverdict.Intercept(f(g(h())))`.
+func (c *TitleVerdictClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TitleVerdict = append(c.inters.TitleVerdict, interceptors...)
+}
+
+// Create returns a builder for creating a TitleVerdict entity.
+func (c *TitleVerdictClient) Create() *TitleVerdictCreate {
+	mutation := newTitleVerdictMutation(c.config, OpCreate)
+	return &TitleVerdictCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TitleVerdict entities.
+func (c *TitleVerdictClient) CreateBulk(builders ...*TitleVerdictCreate) *TitleVerdictCreateBulk {
+	return &TitleVerdictCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TitleVerdictClient) MapCreateBulk(slice any, setFunc func(*TitleVerdictCreate, int)) *TitleVerdictCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TitleVerdictCreateBulk{err: fmt.Errorf("calling to TitleVerdictClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TitleVerdictCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TitleVerdictCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TitleVerdict.
+func (c *TitleVerdictClient) Update() *TitleVerdictUpdate {
+	mutation := newTitleVerdictMutation(c.config, OpUpdate)
+	return &TitleVerdictUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TitleVerdictClient) UpdateOne(_m *TitleVerdict) *TitleVerdictUpdateOne {
+	mutation := newTitleVerdictMutation(c.config, OpUpdateOne, withTitleVerdict(_m))
+	return &TitleVerdictUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TitleVerdictClient) UpdateOneID(id string) *TitleVerdictUpdateOne {
+	mutation := newTitleVerdictMutation(c.config, OpUpdateOne, withTitleVerdictID(id))
+	return &TitleVerdictUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TitleVerdict.
+func (c *TitleVerdictClient) Delete() *TitleVerdictDelete {
+	mutation := newTitleVerdictMutation(c.config, OpDelete)
+	return &TitleVerdictDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TitleVerdictClient) DeleteOne(_m *TitleVerdict) *TitleVerdictDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TitleVerdictClient) DeleteOneID(id string) *TitleVerdictDeleteOne {
+	builder := c.Delete().Where(titleverdict.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TitleVerdictDeleteOne{builder}
+}
+
+// Query returns a query builder for TitleVerdict.
+func (c *TitleVerdictClient) Query() *TitleVerdictQuery {
+	return &TitleVerdictQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTitleVerdict},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TitleVerdict entity by its id.
+func (c *TitleVerdictClient) Get(ctx context.Context, id string) (*TitleVerdict, error) {
+	return c.Query().Where(titleverdict.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TitleVerdictClient) GetX(ctx context.Context, id string) *TitleVerdict {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *TitleVerdictClient) Hooks() []Hook {
+	return c.hooks.TitleVerdict
+}
+
+// Interceptors returns the client interceptors.
+func (c *TitleVerdictClient) Interceptors() []Interceptor {
+	return c.inters.TitleVerdict
+}
+
+func (c *TitleVerdictClient) mutate(ctx context.Context, m *TitleVerdictMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TitleVerdictCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TitleVerdictUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TitleVerdictUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TitleVerdictDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TitleVerdict mutation op: %q", m.Op())
+	}
+}
+
 // TodoClient is a client for the Todo schema.
 type TodoClient struct {
 	config
@@ -4772,15 +4913,15 @@ type (
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
 		FaninCursor, Hold, IdentityKey, LibraryPartProgress, LibraryTombstone,
 		MergeRecord, Org, OrgName, Patrol, Person, PersonAlias, ProgramState, Redirect,
-		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
-		XrefLink []ent.Hook
+		Release, ReleaseContent, Revision, Takedown, TitleVerdict, Todo, Work,
+		WorkPart, WorkTitle, XrefLink []ent.Hook
 	}
 	inters struct {
 		BookRelease, BookWork, CommitKey, Credit, EvidenceRecord, EvidenceSnapshot,
 		FaninCursor, Hold, IdentityKey, LibraryPartProgress, LibraryTombstone,
 		MergeRecord, Org, OrgName, Patrol, Person, PersonAlias, ProgramState, Redirect,
-		Release, ReleaseContent, Revision, Takedown, Todo, Work, WorkPart, WorkTitle,
-		XrefLink []ent.Interceptor
+		Release, ReleaseContent, Revision, Takedown, TitleVerdict, Todo, Work,
+		WorkPart, WorkTitle, XrefLink []ent.Interceptor
 	}
 )
 

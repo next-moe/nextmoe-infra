@@ -1,4 +1,4 @@
-package textsafety
+package llmask
 
 import (
 	"context"
@@ -25,7 +25,7 @@ func TestBisectIsolatesRefusedItems(t *testing.T) {
 		}
 		return out, nil
 	}
-	got, err := bisect(t.Context(), []int{1, 2, 3, 4, 5, 6, 7, 8}, run, func(int) string { return "refused" })
+	got, err := Bisect(t.Context(), []int{1, 2, 3, 4, 5, 6, 7, 8}, run, func(int) string { return "refused" })
 	require.NoError(t, err)
 	assert.Equal(t, []string{"ok", "ok", "ok", "ok", "refused", "refused", "ok", "ok"}, got)
 	assert.LessOrEqual(t, calls, 9, "only the refused halves split further")
@@ -33,7 +33,7 @@ func TestBisectIsolatesRefusedItems(t *testing.T) {
 
 func TestBisectPassesOtherErrorsThrough(t *testing.T) {
 	boom := errors.New("upstream down")
-	_, err := bisect(t.Context(), []int{1, 2}, func(context.Context, []int) ([]string, error) {
+	_, err := Bisect(t.Context(), []int{1, 2}, func(context.Context, []int) ([]string, error) {
 		return nil, boom
 	}, func(int) string { return "refused" })
 	assert.ErrorIs(t, err, boom)
@@ -48,7 +48,7 @@ func TestAskMapsUnprocessableToErrBlockedWithoutRetry(t *testing.T) {
 	}))
 	defer srv.Close()
 	var out map[string]any
-	_, err := NewLLM(srv.URL, "t", "m").Ask(t.Context(), "x", &out)
+	_, err := New(srv.URL, "t", "m").Ask(t.Context(), "x", &out)
 	assert.ErrorIs(t, err, ErrBlocked)
 	assert.Equal(t, 1, hits)
 }
@@ -62,7 +62,7 @@ func TestAskMapsTheGatewaysContentFilterToErrBlocked(t *testing.T) {
 	}))
 	defer srv.Close()
 	var out map[string]any
-	_, err := NewLLM(srv.URL, "t", "m").Ask(t.Context(), "x", &out)
+	_, err := New(srv.URL, "t", "m").Ask(t.Context(), "x", &out)
 	assert.ErrorIs(t, err, ErrBlocked)
 	assert.Equal(t, 1, hits)
 }
@@ -75,7 +75,7 @@ func TestAskReturnsATruncatedReplyAsErrTruncatedWithoutRetry(t *testing.T) {
 	}))
 	defer srv.Close()
 	var out map[string]any
-	llm := NewLLM(srv.URL, "t", "m")
+	llm := New(srv.URL, "t", "m")
 	_, err := llm.Ask(t.Context(), "x", &out)
 	assert.ErrorIs(t, err, ErrTruncated)
 	assert.Equal(t, 1, hits)
@@ -94,7 +94,7 @@ func TestBisectSplitsTruncatedBatchesAndLeavesALoneTruncatedItemPending(t *testi
 		}
 		return out, nil
 	}
-	got, err := bisect(t.Context(), []int{1, 2, 3, 4}, run, func(int) string { return "refused" })
+	got, err := Bisect(t.Context(), []int{1, 2, 3, 4}, run, func(int) string { return "refused" })
 	require.NoError(t, err)
 	assert.Equal(t, []string{"ok", "ok", "ok"}, got)
 }
@@ -109,7 +109,7 @@ func TestAskDecodesTheJSONObjectInsideProse(t *testing.T) {
 			ID int `json:"id"`
 		} `json:"items"`
 	}
-	llm := NewLLM(srv.URL, "t", "m")
+	llm := New(srv.URL, "t", "m")
 	served, err := llm.Ask(t.Context(), "x", &out)
 	require.NoError(t, err)
 	assert.Equal(t, "m", served, "a reply without a model names the requested one")
@@ -126,7 +126,7 @@ func TestAskTreatsRepeatedProseAsARefusal(t *testing.T) {
 	}))
 	defer srv.Close()
 	var out map[string]any
-	_, err := NewLLM(srv.URL, "t", "m").Ask(t.Context(), "x", &out)
+	_, err := New(srv.URL, "t", "m").Ask(t.Context(), "x", &out)
 	assert.ErrorIs(t, err, ErrBlocked)
 	assert.Equal(t, 2, hits)
 }
@@ -137,7 +137,7 @@ func TestAskReportsTheModelTheGatewayServedFrom(t *testing.T) {
 	}))
 	defer srv.Close()
 	var out map[string]any
-	served, err := NewLLM(srv.URL, "t", "catalog.text-safety.title").Ask(t.Context(), "x", &out)
+	served, err := New(srv.URL, "t", "catalog.text-safety.title").Ask(t.Context(), "x", &out)
 	require.NoError(t, err)
 	assert.Equal(t, "grok-4.7:low:fast", served)
 }
