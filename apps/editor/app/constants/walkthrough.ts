@@ -1,7 +1,8 @@
 import type {
-  WtEndingType,
   WtLang,
   WtNodeType,
+  WtOutcome,
+  WtRoute,
   WtStepType
 } from '#shared/types/walkthrough'
 
@@ -21,6 +22,7 @@ export const WT_LIMITS = {
   labelRunes: 256,
   textRunes: 1024,
   conditionRunes: 1024,
+  otherLabelRunes: 32,
   aliases: 32,
   legend: 32,
   alts: 16,
@@ -29,19 +31,26 @@ export const WT_LIMITS = {
   steps: 6000
 }
 
-export const WT_ENDING_TYPES: { value: WtEndingType; label: string }[] = [
+export const WT_ROUTES: { value: WtRoute; label: string }[] = [
   { value: 'heroine', label: '个人线' },
   { value: 'harem', label: '后宫' },
-  { value: 'true', label: '真结局' },
-  { value: 'normal', label: '普通结局' },
-  { value: 'bad', label: '坏结局' },
-  { value: 'after', label: '后日谈' },
-  { value: 'other', label: '其他' }
+  { value: 'common', label: '共通' }
 ]
 
-export const WT_ENDING_LABEL = Object.fromEntries(
-  WT_ENDING_TYPES.map((entry) => [entry.value, entry.label])
-) as Record<WtEndingType, string>
+export const WT_OUTCOMES: { value: WtOutcome; label: string }[] = [
+  { value: 'happy', label: 'HE' },
+  { value: 'true', label: 'TE' },
+  { value: 'normal', label: 'NE' },
+  { value: 'bad', label: 'BE' }
+]
+
+export const WT_ROUTE_LABEL = Object.fromEntries(
+  WT_ROUTES.map((entry) => [entry.value, entry.label])
+) as Record<WtRoute, string>
+
+export const WT_OUTCOME_LABEL = Object.fromEntries(
+  WT_OUTCOMES.map((entry) => [entry.value, entry.label])
+) as Record<WtOutcome, string>
 
 export const WT_STEP_META: Record<
   WtStepType,

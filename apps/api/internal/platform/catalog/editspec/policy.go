@@ -14,6 +14,8 @@ func ownedEntityPolicy(review authz.Permission) editing.Policy {
 	}
 }
 
+func reviewedOnly(p editing.Policy) *editing.Policy { return &p }
+
 // A character or vocabulary row is shared by every work that references it, so
 // even a reviewer's own edit waits for a second pair of eyes.
 func sharedEntityPolicy(review authz.Permission) editing.Policy {

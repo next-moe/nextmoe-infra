@@ -268,6 +268,16 @@ type ImageServiceConfig struct {
 	Port        int
 	CDNBase     string
 	PresetsPath string
+	// Purge is read here, at load, and not where the purger is built: the
+	// boot snapshot is taken before handlers are wired, so a key read later
+	// never reached the console or the config-watch alert (2026-11-23).
+	Purge ImagePurgeConfig
+}
+
+type ImagePurgeConfig struct {
+	ZoneID string
+	Token  string
+	Bases  string
 }
 
 type S3Config struct {
@@ -530,6 +540,11 @@ func LoadService(service string) (*Config, error) {
 		Port:        imagePort,
 		CDNBase:     getEnv("KUN_IMAGE_PUBLIC_BASE_URL", "http://127.0.0.1:9000/kun-images-dev"),
 		PresetsPath: getEnv("KUN_IMAGE_PRESETS_PATH", "apps/api/configs/image_presets.yaml"),
+		Purge: ImagePurgeConfig{
+			ZoneID: getEnv("KUN_IMAGE_CF_ZONE_ID", ""),
+			Token:  getEnv("KUN_IMAGE_CF_PURGE_TOKEN", ""),
+			Bases:  getEnv("KUN_IMAGE_PURGE_BASES", ""),
+		},
 	}
 
 	s3UsePathStyle, _ := strconv.ParseBool(getEnv("KUN_IMAGE_S3_FORCE_PATH_STYLE", "true"))

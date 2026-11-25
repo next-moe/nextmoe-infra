@@ -43,7 +43,8 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
       'olang',
       'content_rating',
       'display_nsfw',
-      'route_hints'
+      'route_hints',
+      'single_ending'
     ].map(work)
   },
   {

@@ -44,6 +44,12 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       control: 'switch',
       help: '游戏里能打开路线或选项提示（例如 2024 年的 ToHeart 重制版）时打开。攻略页会先提示读者可以使用游戏自带的提示，再让读者选择是否查看攻略。'
     },
+    'catalog.work.single_ending': {
+      label: '单结局',
+      group: 'basic',
+      control: 'switch',
+      help: '游戏只有一个结局、没有路线需要攻略时打开。攻略页会提示读者本作无需攻略。这一项的修改总是要等管理员审核通过才会生效。'
+    },
     'catalog.work.titles': {
       label: '标题',
       group: 'titles',

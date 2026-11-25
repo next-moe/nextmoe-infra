@@ -190,6 +190,7 @@ func TestOnlyDeclaredFieldsStampProvenance(t *testing.T) {
 		"catalog.work.screenshots_upstream -> catalog_work_screenshot.violence",
 		"catalog.work.series_members -> catalog_series_member.kind",
 		"catalog.work.series_members -> catalog_series_member.position",
+		"catalog.work.single_ending -> catalog_work.single_ending",
 		"catalog.work.tag_spoilers -> catalog_work_tag.spoiler",
 	}
 	if len(got) != len(want) {

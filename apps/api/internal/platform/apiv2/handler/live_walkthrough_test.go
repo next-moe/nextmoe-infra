@@ -44,9 +44,15 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 				Localized map[string]map[string]any `json:"localized"`
 			} `json:"saves"`
 			Endings []struct {
-				Name      string                    `json:"name"`
-				Localized map[string]map[string]any `json:"localized"`
-				Keys      []string                  `json:"character_keys"`
+				Name       string                    `json:"name"`
+				Localized  map[string]map[string]any `json:"localized"`
+				Keys       []string                  `json:"character_keys"`
+				EndingType string                    `json:"ending_type"`
+				RouteType  *string                   `json:"route_type"`
+				Outcome    *string                   `json:"outcome"`
+				After      bool                      `json:"after"`
+				Other      bool                      `json:"other"`
+				OtherLabel *string                   `json:"other_label"`
 			} `json:"endings"`
 			Segments []struct {
 				RequiresEndingKeys []string `json:"requires_ending_keys"`
@@ -85,6 +91,15 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	assert.Equal(t, "直播END", w.Chart.Endings[0].Localized["zh-Hans"]["value"])
 	assert.Equal(t, true, w.Chart.Endings[0].Localized["zh-Hans"]["is_machine"])
 	assert.Equal(t, []string{"c1"}, w.Chart.Endings[0].Keys)
+	ending := w.Chart.Endings[0]
+	assert.Equal(t, "heroine", ending.EndingType, "a chart stored with ending_type alone still serves it")
+	require.NotNil(t, ending.RouteType)
+	require.NotNil(t, ending.Outcome)
+	assert.Equal(t, "heroine", *ending.RouteType)
+	assert.Equal(t, "happy", *ending.Outcome)
+	assert.False(t, ending.After)
+	assert.False(t, ending.Other)
+	assert.Nil(t, ending.OtherLabel)
 	require.Len(t, w.Chart.Saves, 1)
 	assert.Equal(t, "存档01", w.Chart.Saves[0].Localized["zh-Hans"]["value"])
 	require.Len(t, w.Chart.Entries, 1)
@@ -111,6 +126,15 @@ func TestLiveWalkthroughFaces(t *testing.T) {
 	status, body = get("/v2/catalog/walkthroughs/" + idstr(fx.Walkthrough))
 	require.Equal(t, http.StatusOK, status, string(body))
 	assert.Contains(t, string(body), `"work_route_hints":true`)
+
+	status, body = get("/v2/catalog/works/" + idstr(fx.Work))
+	require.Equal(t, http.StatusOK, status, string(body))
+	assert.Contains(t, string(body), `"single_ending":false`)
+	require.NoError(t, env.db.Exec(`UPDATE catalog_work SET single_ending = true WHERE id = ?`, fx.Work).Error)
+	t.Cleanup(func() { env.db.Exec(`UPDATE catalog_work SET single_ending = false WHERE id = ?`, fx.Work) })
+	status, body = get("/v2/catalog/works/" + idstr(fx.Work) + "?fields=display_name,single_ending")
+	require.Equal(t, http.StatusOK, status, string(body))
+	assert.Contains(t, string(body), `"single_ending":true`)
 
 	limitOf := map[string]string{}
 	list := func(qs string) []string {

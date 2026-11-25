@@ -260,6 +260,18 @@ func TestWalkthroughRefusesBrokenCharts(t *testing.T) {
 		"required ending twice": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) {
 			c["segments"].([]any)[1].(map[string]any)["requires_endings"] = []any{"n1", "n1"}
 		})},
+		"heroine route of two characters": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) {
+			c["endings"] = []any{map[string]any{"key": "n1", "name": "寧々END", "name_zh": nil, "route_type": "heroine", "outcome": "happy",
+				"after": false, "other": false, "other_label": nil, "characters": []any{"c1", "c2"}}}
+		})},
+		"other with a route": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) {
+			c["endings"] = []any{map[string]any{"key": "n1", "name": "END", "name_zh": nil, "route_type": "common", "outcome": nil,
+				"after": false, "other": true, "other_label": nil, "characters": []any{}}}
+		})},
+		"ending with no type": {editspec.FieldWalkthroughChart: chartValue(t, func(c map[string]any) {
+			c["endings"] = []any{map[string]any{"key": "n1", "name": "END", "name_zh": nil, "route_type": nil, "outcome": nil,
+				"after": false, "other": false, "other_label": nil, "characters": []any{}}}
+		})},
 		"pin of a key the chart lacks": {editspec.FieldWalkthroughPins: []any{map[string]any{"chart_key": "c9", "character_id": float64(1)}}},
 		"bad lang":                     {editspec.FieldWalkthroughLang: "en"},
 		"missing work":                 {editspec.FieldWalkthroughWork: float64(999999)},

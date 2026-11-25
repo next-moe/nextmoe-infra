@@ -73,21 +73,20 @@ func (n *noop) Purge(_ context.Context, urls []string) error {
 }
 
 // FromConfig returns the Cloudflare purger when its zone and token are set.
-func FromConfig() Purger {
-	zone, token := config.Env("KUN_IMAGE_CF_ZONE_ID", ""), config.Env("KUN_IMAGE_CF_PURGE_TOKEN", "")
-	if zone == "" || token == "" {
+func FromConfig(c config.ImagePurgeConfig) Purger {
+	if c.ZoneID == "" || c.Token == "" {
 		return &noop{}
 	}
-	return &Cloudflare{ZoneID: zone, Token: token, HTTP: &http.Client{Timeout: 20 * time.Second}}
+	return &Cloudflare{ZoneID: c.ZoneID, Token: c.Token, HTTP: &http.Client{Timeout: 20 * time.Second}}
 }
 
 // Bases are every public host the bucket is served from; a client may have
 // its own (oauth_clients.image_cdn_base), so the list is configured, not
 // derived from the default base alone.
-func Bases(defaultBase string) []string {
+func Bases(c config.ImageServiceConfig) []string {
 	out := []string{}
 	seen := map[string]bool{}
-	for _, b := range append(strings.Split(config.Env("KUN_IMAGE_PURGE_BASES", ""), ","), defaultBase) {
+	for _, b := range append(strings.Split(c.Purge.Bases, ","), c.CDNBase) {
 		b = strings.TrimRight(strings.TrimSpace(b), "/")
 		if b != "" && !seen[b] {
 			seen[b] = true

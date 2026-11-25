@@ -270,7 +270,9 @@ func walkthroughChartFrom(c walkthrough.Chart, walkthroughLocalized func(*string
 	}
 	for _, e := range c.Endings {
 		out.Endings = append(out.Endings, repr.WalkthroughEnding{
-			Key: e.Key, Name: e.Name, Localized: walkthroughLocalized(e.NameZh), EndingType: e.EndingType, CharacterKeys: orEmptyStrings(e.Characters),
+			Key: e.Key, Name: e.Name, Localized: walkthroughLocalized(e.NameZh), EndingType: walkthrough.EndingType(e),
+			RouteType: e.RouteType, Outcome: e.Outcome, After: e.After, Other: e.Other, OtherLabel: e.OtherLabel,
+			CharacterKeys: orEmptyStrings(e.Characters),
 		})
 	}
 	for _, s := range c.Segments {

@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import type { WtEnding, WtEndingType } from '#shared/types/walkthrough'
-import {
-  WT_ENDING_LABEL,
-  WT_ENDING_TYPES,
-  wtTone
-} from '~/constants/walkthrough'
+import type { WtEnding, WtOutcome, WtRoute } from '#shared/types/walkthrough'
+import { WT_OUTCOMES, WT_ROUTES, wtTone } from '~/constants/walkthrough'
 import {
   characterTones,
   keysOf,
@@ -12,6 +8,7 @@ import {
   referencesOf,
   removeEnding
 } from '~/utils/walkthrough/doc'
+import { endingLabel } from '~/utils/walkthrough/endings'
 
 const doc = useWalkthroughDocument()
 const chart = doc.chart
@@ -34,7 +31,11 @@ const add = async () => {
       key,
       name: '',
       name_zh: null,
-      ending_type: 'heroine',
+      route_type: 'heroine',
+      outcome: 'happy',
+      after: false,
+      other: false,
+      other_label: null,
       characters: []
     })
   )
@@ -70,9 +71,17 @@ const toggle = (key: string) => {
   doc.expanded.value = doc.expanded.value === id ? null : id
 }
 
+const toggleOther = (e: WtEnding) =>
+  update(
+    e.key,
+    e.other
+      ? { other: false, other_label: null }
+      : { other: true, route_type: null, outcome: null }
+  )
+
 const subtitle = (e: WtEnding) =>
   [
-    WT_ENDING_LABEL[e.ending_type],
+    endingLabel(e),
     e.characters
       .map((k) => chart.value.characters.find((c) => c.key === k)?.name || k)
       .join('、')
@@ -140,22 +149,78 @@ const subtitle = (e: WtEnding) =>
         "
         @blur="doc.breakCoalescing"
       />
-      <KunSelect
-        :model-value="e.ending_type"
-        :options="WT_ENDING_TYPES"
+      <div class="grid grid-cols-2 gap-2">
+        <KunSelect
+          :model-value="e.route_type"
+          :options="WT_ROUTES"
+          size="sm"
+          label="线路类型"
+          placeholder="未选"
+          clearable
+          :disabled="doc.readonly.value || e.other"
+          @update:model-value="
+            update(e.key, { route_type: ($event as WtRoute | null) || null })
+          "
+        />
+        <KunSelect
+          :model-value="e.outcome"
+          :options="WT_OUTCOMES"
+          size="sm"
+          label="结局类型"
+          placeholder="未选"
+          clearable
+          :disabled="doc.readonly.value || e.other"
+          @update:model-value="
+            update(e.key, { outcome: ($event as WtOutcome | null) || null })
+          "
+        />
+      </div>
+      <div class="flex gap-2">
+        <KunButton
+          size="sm"
+          :variant="e.after ? 'flat' : 'bordered'"
+          :color="e.after ? 'primary' : 'default'"
+          :disabled="doc.readonly.value"
+          @click="update(e.key, { after: !e.after })"
+        >
+          后日谈
+        </KunButton>
+        <KunButton
+          size="sm"
+          :variant="e.other ? 'flat' : 'bordered'"
+          :color="e.other ? 'primary' : 'default'"
+          :disabled="doc.readonly.value"
+          @click="toggleOther(e)"
+        >
+          其他
+        </KunButton>
+      </div>
+      <KunInput
+        v-if="e.other"
+        :model-value="e.other_label ?? ''"
         size="sm"
-        label="类型"
+        label="备注"
+        placeholder="可选，例如「隐藏结局」"
         :disabled="doc.readonly.value"
         @update:model-value="
-          update(e.key, { ending_type: $event as WtEndingType })
+          update(
+            e.key,
+            { other_label: String($event).trim() ? String($event) : null },
+            `ending-other:${e.key}`
+          )
         "
+        @blur="doc.breakCoalescing"
       />
       <KunSelect
         :model-value="e.characters"
         :options="characterOptions"
         size="sm"
         label="归属角色"
-        placeholder="后宫结局可以选多个"
+        :placeholder="
+          e.route_type === 'heroine'
+            ? '个人线只能选一个角色'
+            : '后宫结局可以选多个'
+        "
         multiple
         :disabled="doc.readonly.value || !characterOptions.length"
         @update:model-value="

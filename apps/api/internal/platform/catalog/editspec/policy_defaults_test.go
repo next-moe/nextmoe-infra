@@ -34,6 +34,9 @@ func TestOnePlatformPolicyForEveryType(t *testing.T) {
 	reviewerOnly := map[string]bool{
 		editspec.FieldTagTier: true, editspec.FieldTagSexual: true, editspec.FieldTraitSexual: true,
 	}
+	// single_ending tells readers a game needs no walkthrough, so anyone may
+	// propose it but it waits for a reviewer, the owning site's included.
+	alwaysReviewed := map[string]string{editspec.FieldWorkSingleEnding: "edit.catalog.work.review"}
 	if len(owned)+len(shared) != len(reg.Types()) {
 		t.Fatalf("registered types %v: every one must be classified owned or shared here", reg.Types())
 	}
@@ -46,6 +49,13 @@ func TestOnePlatformPolicyForEveryType(t *testing.T) {
 				if got.Propose != editing.ProposePerm(shared[typ]) || got.Review != editing.ReviewPerm(shared[typ]) ||
 					got.Automerge != editing.AutomergeNever {
 					t.Errorf("%s: %+v, want {perm:%s, perm:%s, never}", key, got, shared[typ], shared[typ])
+				}
+				continue
+			}
+			if review, ok := alwaysReviewed[key]; ok {
+				if got.Propose != editing.ProposeOpen || got.Review != editing.ReviewPerm(review) ||
+					got.Automerge != editing.AutomergeNever || got.OwnerReview {
+					t.Errorf("%s: %+v, want {open, perm:%s, never}", key, got, review)
 				}
 				continue
 			}

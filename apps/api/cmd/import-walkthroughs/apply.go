@@ -137,6 +137,7 @@ func runApply(ctx context.Context, src, cat *gorm.DB, entries []sourceEntry, app
 }
 
 func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Chart, pins map[string]characterPin, st *applyStats) error {
+	walkthrough.ClassifyEndings(&c)
 	var existing model.CatalogWalkthrough
 	curatedPins := false
 	err := tx.Where("source_id = ? AND source_url = ?", w.SourceID, w.SourceURL).Take(&existing).Error
@@ -175,7 +176,9 @@ func writeWalkthrough(tx *gorm.DB, w model.CatalogWalkthrough, c walkthrough.Cha
 	w.Chart = datatypes.JSON(chart)
 	if w.ID != 0 {
 		var prev walkthrough.Chart
-		if json.Unmarshal(existing.Chart, &prev) == nil && reflect.DeepEqual(prev, c) &&
+		decoded := json.Unmarshal(existing.Chart, &prev) == nil
+		walkthrough.ClassifyEndings(&prev)
+		if decoded && reflect.DeepEqual(prev, c) &&
 			existing.WorkID == w.WorkID && existing.Status == w.Status && existing.SourceHash == w.SourceHash && existing.TranslateModel == w.TranslateModel &&
 			sameReview(existing.ImportReview, w.ImportReview) && (curatedPins || pinsLinked(pins, links)) {
 			st.Unchanged++
