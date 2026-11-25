@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 
 	"api/internal/canon/commit"
 	"api/internal/canon/ent"
@@ -14,6 +15,7 @@ import (
 	"api/internal/canon/ent/revision"
 	"api/internal/canon/identity"
 	"api/internal/canon/perm"
+	"api/internal/canon/review"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -92,6 +94,15 @@ func (a *API) edits(h huma.API) {
 					return nil, huma.Error422UnprocessableEntity(err.Error())
 				}
 				cs.Changes = append(cs.Changes, ch)
+			}
+			for _, ch := range cs.Changes {
+				var person string
+				if ch.Entity != "person_alias" || ch.AdoptID == 0 || json.Unmarshal(ch.Values["person_id"].Raw, &person) != nil {
+					continue
+				}
+				if cs, err = review.AdoptPerson(ctx, a.client, cs, strings.TrimPrefix(person, "ref:"), ch.AdoptID); err != nil {
+					return nil, err
+				}
 			}
 			res, err := a.commit.Apply(ctx, cs)
 			if err != nil {

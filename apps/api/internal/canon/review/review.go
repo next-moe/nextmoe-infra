@@ -379,22 +379,31 @@ func adopt(ctx context.Context, client *ent.Client, cs *commit.Changeset, q fani
 	if q.Entity != "person_alias" || personRef == "" {
 		return nil
 	}
-	person, err := identity.LegacyPerson(ctx, client, id)
+	var err error
+	*cs, err = AdoptPerson(ctx, client, *cs, personRef, id)
+	return err
+}
+
+// AdoptPerson gives the person of a legacy credit name taken over by a new
+// alias the legacy person's id: cited when canon has it, else taken over too
+// (D19). A credit name that stands alone gets a person of its own.
+func AdoptPerson(ctx context.Context, client *ent.Client, cs commit.Changeset, personRef string, creditName int64) (commit.Changeset, error) {
+	person, err := identity.LegacyPerson(ctx, client, creditName)
 	if err != nil || person == 0 {
-		return err
+		return cs, err
 	}
 	if _, err := client.Person.Get(ctx, person); err == nil {
-		*cs = cs.Citing(personRef, person)
-		return nil
+		return cs.Citing(personRef, person), nil
 	} else if !ent.IsNotFound(err) {
-		return err
+		return cs, err
 	}
+	cs.Changes = slices.Clone(cs.Changes)
 	for i, ch := range cs.Changes {
 		if ch.Ref == personRef {
 			cs.Changes[i].AdoptID = person
 		}
 	}
-	return nil
+	return cs, nil
 }
 
 func inCanon(ctx context.Context, client *ent.Client, entity string, id int64) (bool, error) {

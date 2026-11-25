@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CanonEditChange, CanonRecord, CanonSchemas } from '#shared/types/canon'
 import { CANON_ENTITY_LABELS } from '~/constants/canon'
+import { CANON_CREATE_CHILDREN } from '~/constants/canonCreate'
 import { canonCandidates, canonMessage } from '~/utils/canon/record'
 import { problemStatus } from '~/utils/review/problem'
 
@@ -66,6 +67,11 @@ const save = async (change: CanonEditChange) => {
   }
 }
 
+const reload = async () => {
+  await load()
+  history.value?.reload()
+}
+
 watch([entity, id], load)
 onMounted(load)
 </script>
@@ -87,6 +93,13 @@ onMounted(load)
           @save="save"
         />
       </KunCard>
+      <CanonCreateAdd
+        v-if="CANON_CREATE_CHILDREN[entity]?.length"
+        :templates="CANON_CREATE_CHILDREN[entity]!"
+        :schemas="schemas"
+        :context="{ [entity]: id }"
+        @created="reload"
+      />
       <section v-for="g in groups" :key="g.child" class="space-y-2">
         <h2 class="text-foreground font-medium">
           {{ CANON_ENTITY_LABELS[g.child] ?? g.child }}（{{ g.rows.length }}）

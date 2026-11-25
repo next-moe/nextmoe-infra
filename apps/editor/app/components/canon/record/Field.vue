@@ -10,13 +10,23 @@ const props = defineProps<{
   /** What the cited id is called. */
   cited?: string
   disabled?: boolean
+  /** Creating: what is fixed at creation can still be chosen. */
+  creating?: boolean
 }>()
 const model = defineModel<string | boolean>({ required: true })
 
 const label = computed(
   () => CANON_PROPERTY_LABELS[props.property.key] ?? props.property.key
 )
-const readOnly = computed(() => props.disabled || props.property.immutable)
+const LOOKUP_ENTITIES = ['work', 'person', 'person_alias', 'org']
+
+const refText = computed({
+  get: () => String(model.value ?? ''),
+  set: (v: string) => {
+    model.value = v
+  }
+})
+const readOnly = computed(() => props.disabled || (props.property.immutable && !props.creating))
 const options = computed(() =>
   (props.terms ?? []).map((t) => ({ value: t.key, label: t.key }))
 )
@@ -55,6 +65,13 @@ const origin = computed(() => {
       :aria-label="label"
       size="sm"
       @update:model-value="(v: string | string[] | null) => (model = String(v ?? ''))"
+    />
+    <CanonRefInput
+      v-else-if="props.property.shape === 'ref' && LOOKUP_ENTITIES.includes(props.property.ref ?? '')"
+      v-model="refText"
+      :entity="props.property.ref!"
+      :label="label"
+      :disabled="readOnly"
     />
     <KunInput
       v-else

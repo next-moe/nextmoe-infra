@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"api/internal/canon/commit"
@@ -56,6 +57,24 @@ type Schemas struct {
 
 type SchemasOutput struct{ Body Schemas }
 
+type LookupInput struct {
+	AuthInput
+	Entity string `query:"entity" required:"true" enum:"work,person,person_alias,org"`
+	Q      string `query:"q" required:"true" minLength:"1" maxLength:"100"`
+	Limit  int    `query:"limit" minimum:"1" maximum:"50" default:"15"`
+}
+
+type LookupItem struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
+type LookupOutput struct {
+	Body struct {
+		Items []LookupItem `json:"items"`
+	}
+}
+
 type RecordInput struct {
 	AuthInput
 	Entity string `path:"entity"`
@@ -91,6 +110,15 @@ func (a *API) records(h huma.API) {
 		Summary: "What every entity is made of", Description: "Derived from the property registry; the editor renders from it.", Tags: []string{"editing"}},
 		func(ctx context.Context, _ *struct{}) (*SchemasOutput, error) {
 			return &SchemasOutput{Body: schemas()}, nil
+		})
+	huma.Register(h, huma.Operation{OperationID: "lookupNames", Method: http.MethodGet, Path: "/v3/catalog/lookup",
+		Summary: "Find what to cite by name", Description: "Needs canon.edit. Matches titles, person names or organization names, exact first.", Tags: []string{"editing"},
+		Errors: []int{http.StatusUnauthorized, http.StatusForbidden}},
+		func(ctx context.Context, in *LookupInput) (*LookupOutput, error) {
+			if _, err := a.require(ctx, in.Authorization, perm.Edit); err != nil {
+				return nil, err
+			}
+			return a.lookup(ctx, in)
 		})
 	huma.Register(h, huma.Operation{OperationID: "getRecord", Method: http.MethodGet, Path: "/v3/catalog/records/{entity}/{id}",
 		Summary: "An entity as the editor sees it: every field, who wrote it and from what words", Tags: []string{"editing"},
@@ -226,6 +254,35 @@ func (a *API) record(ctx context.Context, entity string, n int64) (Record, bool,
 	out.Held = held.Next()
 	held.Close()
 	return out, true, held.Err()
+}
+
+var lookups = map[string]string{
+	"work":         `SELECT work_id AS id, text AS label FROM canon.work_title`,
+	"person":       `SELECT person_id AS id, name AS label FROM canon.person_alias`,
+	"person_alias": `SELECT id, name AS label FROM canon.person_alias`,
+	"org":          `SELECT org_id AS id, text AS label FROM canon.org_name`,
+}
+
+func (a *API) lookup(ctx context.Context, in *LookupInput) (*LookupOutput, error) {
+	like := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.TrimSpace(in.Q))
+	rows, err := a.client.QueryContext(ctx, `SELECT id, min(label) FROM (`+lookups[in.Entity]+`) x
+		WHERE label ILIKE '%' || $1 || '%' GROUP BY id ORDER BY min(CASE WHEN lower(label) = lower($2) THEN 0 ELSE 1 END), min(length(label)), id LIMIT $3`,
+		like, strings.TrimSpace(in.Q), in.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := &LookupOutput{}
+	out.Body.Items = []LookupItem{}
+	for rows.Next() {
+		var n int64
+		var label string
+		if err := rows.Scan(&n, &label); err != nil {
+			return nil, err
+		}
+		out.Body.Items = append(out.Body.Items, LookupItem{ID: id(n), Label: label})
+	}
+	return out, rows.Err()
 }
 
 // idText keeps a cited id a decimal string, as everywhere on this face.

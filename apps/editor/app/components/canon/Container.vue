@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CanonPage, CanonWorkHit } from '#shared/types/canon'
+import { CANON_CREATE_ROOTS, CANON_CREATE_TEMPLATES } from '~/constants/canonCreate'
 import { canonMessage } from '~/utils/canon/record'
 
 useHead({ title: '自有目录 · 未萌编辑台' })
@@ -36,6 +37,17 @@ const search = async () => {
       name="自有目录"
       description="自有目录（canon）里的作品。改动直接生效，写入的字段采集程序不能覆盖，只能提议。"
     />
+    <div class="flex flex-wrap gap-2">
+      <KunButton
+        v-for="key in CANON_CREATE_ROOTS"
+        :key="key"
+        variant="bordered"
+        size="sm"
+        @click="navigateTo(`/canon/new?kind=${key}`)"
+      >
+        {{ CANON_CREATE_TEMPLATES[key]!.label }}
+      </KunButton>
+    </div>
     <form class="flex gap-2" @submit.prevent="search">
       <KunInput
         v-model="query"

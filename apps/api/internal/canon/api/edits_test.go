@@ -3,11 +3,14 @@ package api
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"api/internal/canon/canontest"
 	"api/internal/canon/commit"
+	"api/internal/canon/identity"
 	"api/internal/canon/registry"
 )
 
@@ -42,6 +45,12 @@ func TestEditingThroughTheFace(t *testing.T) {
 		t.Errorf("a second work of that title: %d %+v", c, p)
 	}
 
+	var found struct {
+		Items []LookupItem `json:"items"`
+	}
+	if c := call(t, h, http.MethodGet, "/v3/catalog/lookup?entity=work&q="+url.QueryEscape(title[:len(title)-3]), "mod", "", &found); c != http.StatusOK || len(found.Items) != 1 || found.Items[0].ID != made.IDs["w"] {
+		t.Errorf("lookup %d %+v", c, found)
+	}
 	var rec Record
 	if c := call(t, h, http.MethodGet, "/v3/catalog/records/work/"+made.IDs["w"], "mod", "", &rec); c != http.StatusOK {
 		t.Fatalf("record %d", c)
@@ -156,5 +165,44 @@ func TestPatrolAndProgramModes(t *testing.T) {
 	if c := call(t, h, http.MethodGet, "/v3/catalog/programs", "mod", "", &programs); c != http.StatusOK || len(programs.Items) == 0 ||
 		programs.Items[0].Mode != registry.ModeAuto || programs.Items[0].SetBy != "user:u-adm" || programs.Items[0].Commits == 0 {
 		t.Errorf("programs %d %+v", c, programs.Items)
+	}
+}
+
+func TestAPersonTakesOverALegacyNameWithItsPerson(t *testing.T) {
+	client, db := canontest.Client(t)
+	canontest.Legacy(t, db)
+	h, _ := New(client, Options{Verifier: fakeVerifier{"mod": {"moderator"}}})
+	base := rand.Int64N(1_000_000_000) + 6_000_000_000
+	name := "名義" + canontest.ISBN() + "郎"
+	for _, q := range []string{
+		fmt.Sprintf(`INSERT INTO %s.catalog_person VALUES (%d, NULL)`, identity.LegacySchema, base),
+		fmt.Sprintf(`INSERT INTO %s.catalog_credit_name (id, person_id, name) VALUES (%d, %d, '%s')`, identity.LegacySchema, base+1, base, name),
+		fmt.Sprintf(`INSERT INTO %s.catalog_credit VALUES (%d, 1)`, identity.LegacySchema, base+1),
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	create := func(extra string) (int, Problem, map[string]string) {
+		var p Problem
+		var out struct {
+			IDs map[string]string `json:"ids"`
+		}
+		body := fmt.Sprintf(`{"note":"n","changes":[{"ref":"p","entity":"person","values":{}},{"ref":"a","entity":"person_alias","values":{"person_id":"ref:p","name":%q}%s}]}`, name, extra)
+		c := call(t, h, http.MethodPost, "/v3/catalog/commits", "mod", body, &p)
+		if c == http.StatusCreated {
+			a, _ := client.PersonAlias.Get(context.Background(), base+1)
+			if a != nil {
+				out.IDs = map[string]string{"a": id(a.ID), "p": id(a.PersonID)}
+			}
+		}
+		return c, p, out.IDs
+	}
+	if c, p, _ := create(""); c != http.StatusConflict || len(p.Candidates) != 1 || p.Candidates[0].Token != fmt.Sprintf("legacy:%d", base+1) {
+		t.Fatalf("the legacy name is a candidate: %d %+v", c, p)
+	}
+	c, p, ids := create(fmt.Sprintf(`,"adopt_id":"%d"`, base+1))
+	if c != http.StatusCreated || ids["a"] != id(base+1) || ids["p"] != id(base) {
+		t.Errorf("take over: %d %+v %v", c, p, ids)
 	}
 }

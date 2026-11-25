@@ -144,6 +144,7 @@ export interface CanonEditChange {
   expect_version?: number
   values?: Record<string, unknown>
   remove?: boolean
+  adopt_id?: string
   distinct?: string[]
 }
 
