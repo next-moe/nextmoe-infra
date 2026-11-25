@@ -1035,6 +1035,22 @@ func rawSQL(db *gorm.DB) error {
 		return err
 	}
 
+	// (12) 2026-11-24, owned catalog: canon asks whether a new name is already
+	// in the legacy catalog, inside the commit that would create it. The keys
+	// are the expressions internal/canon/identity compares by; the book index
+	// is partial because two media out of seven are collected.
+	for _, q := range []string{
+		`CREATE INDEX IF NOT EXISTS idx_catalog_credit_name_key ON catalog_credit_name (replace(name_norm, ' ', ''))`,
+		`CREATE INDEX IF NOT EXISTS idx_catalog_name_alias_key ON catalog_name_alias (replace(name_norm, ' ', ''))`,
+		`CREATE INDEX IF NOT EXISTS idx_catalog_label_key ON catalog_label (replace(display_name_norm, ' ', ''))`,
+		`CREATE INDEX IF NOT EXISTS idx_catalog_label_alias_key ON catalog_label_alias (replace(name_norm, ' ', ''))`,
+		`CREATE INDEX IF NOT EXISTS idx_catalog_work_book ON catalog_work (medium_id, id) WHERE medium_id IN (2, 3)`,
+	} {
+		if err := db.Exec(q).Error; err != nil {
+			return fmt.Errorf("identity key index: %w", err)
+		}
+	}
+
 	// (11) The work directory (2026-11-24, owned catalog 10 §3): user lists
 	// read a work through this view instead of catalog_work, so that a work
 	// served by canon can be kept, marked and rated. Where canon is not

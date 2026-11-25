@@ -54,16 +54,21 @@ func findLegacy(ctx context.Context, q Querier, entity, medium string, keys []st
 		return legacyWorks(ctx, q, medium, keys, alive)
 	case "person_alias":
 		// A credit name nothing credits is not migrated (D19).
-		return legacyNames(ctx, q, `SELECT DISTINCT t.id, t.name FROM `+LegacySchema+`.catalog_credit_name t
-			LEFT JOIN `+LegacySchema+`.catalog_name_alias a ON a.credit_name_id = t.id
-			WHERE (replace(t.name_norm, ' ', '') = ANY($1) OR replace(a.name_norm, ' ', '') = ANY($1))
-			AND EXISTS (SELECT 1 FROM `+LegacySchema+`.catalog_credit c WHERE c.credit_name_id = t.id) AND `+alive+` ORDER BY 1`, keys)
+		return legacyNames(ctx, q, hits("catalog_credit_name", "name_norm", "catalog_name_alias", "credit_name_id")+
+			` SELECT t.id, t.name FROM hit JOIN `+LegacySchema+`.catalog_credit_name t ON t.id = hit.id
+			WHERE EXISTS (SELECT 1 FROM `+LegacySchema+`.catalog_credit c WHERE c.credit_name_id = t.id) AND `+alive+` ORDER BY 1`, keys)
 	case "org":
-		return legacyNames(ctx, q, `SELECT DISTINCT t.id, t.display_name FROM `+LegacySchema+`.catalog_label t
-			LEFT JOIN `+LegacySchema+`.catalog_label_alias a ON a.label_id = t.id
-			WHERE (replace(t.display_name_norm, ' ', '') = ANY($1) OR replace(a.name_norm, ' ', '') = ANY($1)) AND `+alive+` ORDER BY 1`, keys)
+		return legacyNames(ctx, q, hits("catalog_label", "display_name_norm", "catalog_label_alias", "label_id")+
+			` SELECT t.id, t.display_name FROM hit JOIN `+LegacySchema+`.catalog_label t ON t.id = hit.id WHERE `+alive+` ORDER BY 1`, keys)
 	}
 	return nil, nil
+}
+
+// hits finds owners by their own name or an alias's. Two arms, not one OR over a
+// join: each arm uses its expression index (catalog migrate, section 12).
+func hits(owner, norm, alias, ownerID string) string {
+	return fmt.Sprintf(`WITH hit AS MATERIALIZED (SELECT id FROM %[1]s.%[2]s WHERE replace(%[3]s, ' ', '') = ANY($1)
+		UNION SELECT %[5]s FROM %[1]s.%[4]s WHERE replace(name_norm, ' ', '') = ANY($1))`, LegacySchema, owner, norm, alias, ownerID)
 }
 
 // legacyWorks compares keys in Go: the key drops punctuation Postgres classes
