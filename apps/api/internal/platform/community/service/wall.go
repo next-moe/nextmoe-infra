@@ -67,23 +67,31 @@ type PinResult struct {
 func (s *PostService) Pin(ctx context.Context, postID, actorID int64) (PinResult, error) {
 	var out PinResult
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		post, thread, err := s.reachablePost(ctx, tx, postID)
+		_, thread, err := s.reachablePost(ctx, tx, postID)
 		if err != nil {
 			return err
 		}
 		if thread.Kind != model.ThreadKindComments {
 			return &InvalidError{Reason: "only comments can be pinned"}
 		}
-		if post.RootPostID != nil {
-			return &InvalidError{Reason: "only a top-level comment can be pinned"}
-		}
-		if post.Status != model.PostStatusVisible {
-			return &ConflictError{Reason: "only a visible comment can be pinned"}
-		}
-		site := deliverySite(ctx, thread.Site)
 		if _, err := repository.LockThreadTx(tx, thread.ID); err != nil {
 			return err
 		}
+		post, err := repository.GetPostTx(tx, postID)
+		if err != nil {
+			return err
+		}
+		switch {
+		case post == nil:
+			return ErrPostNotFound
+		case post.ThreadID != thread.ID:
+			return &ConflictError{Reason: "the comment moved to another wall; retry"}
+		case post.RootPostID != nil:
+			return &InvalidError{Reason: "only a top-level comment can be pinned"}
+		case post.Status != model.PostStatusVisible:
+			return &ConflictError{Reason: "only a visible comment can be pinned"}
+		}
+		site := deliverySite(ctx, thread.Site)
 		out.Post = post
 		existing, err := repository.GetPostPinTx(tx, site, post.ID)
 		if err != nil {
@@ -134,12 +142,16 @@ func (s *PostService) Restore(ctx context.Context, postID, actorID int64) (*mode
 	var post *model.CommunityPost
 	changed := false
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if _, _, err := s.reachablePost(ctx, tx, postID); err != nil {
+		_, thread, err := s.reachablePost(ctx, tx, postID)
+		if err != nil {
 			return err
 		}
 		p, err := repository.LockPostTx(tx, postID)
 		if err != nil {
 			return err
+		}
+		if p == nil {
+			return ErrPostNotFound
 		}
 		post = p
 		switch {
@@ -149,11 +161,18 @@ func (s *PostService) Restore(ctx context.Context, postID, actorID int64) (*mode
 			return &ConflictError{Reason: "a hidden post is released through the review queue"}
 		case !model.DeleteRestorable(p.DeleteSource):
 			return &ConflictError{Reason: "only a post removed by a moderator or by review can be restored"}
+		case p.DeletedSite != nil && *p.DeletedSite != deliverySite(ctx, thread.Site):
+			return &ForbiddenError{Reason: "the post was removed by another site"}
 		}
-		if err := repository.SetPostStatusTx(tx, postID, model.PostStatusVisible); err != nil {
+		status := model.PostStatusVisible
+		if p.DeleteSource == model.DeleteSourceModerator {
+			status = p.DeletedFromStatus
+		}
+		if err := repository.SetPostStatusTx(tx, postID, status); err != nil {
 			return err
 		}
-		p.Status, p.DeleteSource, p.DeletedBy, changed = model.PostStatusVisible, model.DeleteSourceUnknown, nil, true
+		p.Status, p.DeleteSource, p.DeletedBy, p.DeletedSite, p.DeletedFromStatus, changed =
+			status, model.DeleteSourceUnknown, nil, nil, model.PostStatusVisible, true
 		return nil
 	})
 	if err != nil {

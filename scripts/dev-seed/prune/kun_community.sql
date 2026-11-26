@@ -70,13 +70,15 @@ TRUNCATE community_notification, community_thread_user, community_anchor_user,
          account_purge_cursor, community_write_request, community_event;
 
 -- 2026-10-21: the comment-rehoming log keeps read state, notification ids and
--- subscriptions of the threads it moved.
+-- subscriptions of the threads it moved. 2026-11-26: comment pins name the
+-- moderators who set them. Guarded: a dump taken before the release that
+-- created a table does not have it.
 DO $$
 DECLARE
     present text;
 BEGIN
     SELECT string_agg(format('public.%I', t), ', ') INTO present
-    FROM unnest(ARRAY['community_rehome_log']) AS t
+    FROM unnest(ARRAY['community_rehome_log', 'community_post_pin']) AS t
     WHERE to_regclass('public.' || t) IS NOT NULL;
     IF present IS NOT NULL THEN
         EXECUTE 'TRUNCATE TABLE ' || present;

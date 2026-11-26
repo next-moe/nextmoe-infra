@@ -24,11 +24,10 @@ func Run(db *gorm.DB) error {
 		// community_thread first: community_post's thread_id FK and the thread
 		// self-reference (merged_into_id) both point at it.
 		&model.CommunityThread{},
-		// 2026-11-26: community_post gains delete_source (NOT NULL DEFAULT 0 =
-		// unknown, a metadata-only add), deleted_by and mentioned_user_ids
-		// (nullable, NULL on every existing row). postBackfillSQL fills what the
-		// existing rows can still tell: the review rejections and the mentions
-		// already announced.
+		// 2026-11-26: community_post gains delete_source and deleted_from_status
+		// (NOT NULL DEFAULT 0 = unknown / visible, metadata-only adds),
+		// deleted_by, deleted_site and mentioned_user_ids (nullable, NULL on
+		// every existing row). postBackfillSQL fills mentioned_user_ids only.
 		&model.CommunityPost{},
 		&model.CommunityReaction{},
 		&model.CommunityThreadUser{},
@@ -363,28 +362,20 @@ func rawSQL(db *gorm.DB) error {
 	return projectionSQL(db)
 }
 
-// postBackfillSQL (2026-11-26) fills the two post columns that arrived with
-// moderator restore and edit-time mentions. Both statements only touch rows
-// still at their pre-release value, so a rerun changes nothing.
+// postBackfillSQL (2026-11-26) fills mentioned_user_ids, the set of users
+// already told about a post, which an edit must not tell again. The only
+// record of it is the mention_user_ids of post_created events (pruned after 7
+// days) and the kind-2 rows (read ones pruned after 90 days); a mention older
+// than both is not recovered, and an edit that keeps it notifies that user
+// once more. The statement only fills NULLs, so a rerun changes nothing.
 //
-// A tombstone written before delete_source existed does not say who removed
-// it, and stays 0 (unknown, not restorable), except where a rejected review
-// item names the post: that one was removed by review. A purged post is
-// blanked, so it is left out even when a review rejected it first.
-//
-// mentioned_user_ids is the set of users already told about a post, which an
-// edit must not tell again. The only record of it is the mention_user_ids of
-// post_created events (pruned after 7 days) and the kind-2 rows (read ones
-// pruned after 90 days); a mention older than both is not recovered, and an
-// edit that keeps it notifies that user once more.
+// delete_source is deliberately not backfilled. A rejected review item next to
+// a tombstone looked like "removed by review", but before 1.4.0 a rejection
+// also landed on posts their author had already deleted, and a trust hide
+// closed items as rejected; marking those review would let a moderator restore
+// what an author deleted. Every tombstone from before stays unknown.
 func postBackfillSQL(db *gorm.DB) error {
 	for _, st := range []struct{ name, stmt string }{
-		{"backfill review delete source", `
-			UPDATE community_post AS p
-			   SET delete_source = 3
-			 WHERE p.status = 2 AND p.delete_source = 0 AND p.content_raw <> ''
-			   AND EXISTS (SELECT 1 FROM community_review_item AS ri
-			                WHERE ri.post_id = p.id AND ri.status = 2)`},
 		{"backfill announced mentions", `
 			UPDATE community_post AS p
 			   SET mentioned_user_ids = m.ids

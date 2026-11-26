@@ -129,8 +129,8 @@ func PinnedPosts(db *gorm.DB, site string, threadID int64) ([]PinnedPost, error)
 		SELECT p.*, pin.pinned_at FROM community_post_pin AS pin
 		  JOIN community_post AS p ON p.id = pin.post_id
 		 WHERE pin.site = ? AND p.thread_id = ? AND p.status = ?
-		 ORDER BY pin.pinned_at DESC, p.id DESC LIMIT ?`,
-		site, threadID, model.PostStatusVisible, model.PostPinLimit).Scan(&rows).Error
+		 ORDER BY pin.pinned_at DESC, p.id DESC`,
+		site, threadID, model.PostStatusVisible).Scan(&rows).Error
 	return rows, err
 }
 

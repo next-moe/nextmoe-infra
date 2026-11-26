@@ -117,7 +117,8 @@ func (r *PostRepository) TopAuthors(site string, kind, anchorKind int16, limit i
 func PurgeAuthorPostsTx(tx *gorm.DB, site string, authorID int64) (int64, error) {
 	return archiveTx(tx, site, authorID, model.PurgeStepPost, `
 		UPDATE community_post AS p
-		   SET status = ?, content_raw = '', content_html = '', delete_source = ?, deleted_by = NULL
+		   SET status = ?, content_raw = '', content_html = '', delete_source = ?, deleted_by = NULL,
+		       deleted_site = NULL, deleted_from_status = 0
 		  FROM (SELECT p0.* FROM community_post AS p0
 		          JOIN community_thread AS t ON t.id = p0.thread_id
 		         WHERE t.site = ?

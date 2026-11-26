@@ -153,7 +153,7 @@ func (s *Server) register(api huma.API) {
 	huma.Register(api, huma.Operation{OperationID: "listReview", Method: http.MethodGet, Path: "/api/v1/community/review",
 		Summary: "List the site's pending moderation-queue items", Tags: review}, s.listReview)
 	huma.Register(api, huma.Operation{OperationID: "approveReview", Method: http.MethodPost, Path: "/api/v1/community/review/{id}/approve",
-		Summary: "Approve a queue item (keep the content; restore the post)", Tags: review}, s.approveReview)
+		Summary: "Approve a queue item (keep the content; restore the post unless it was deleted meanwhile)", Tags: review}, s.approveReview)
 	huma.Register(api, huma.Operation{OperationID: "rejectReview", Method: http.MethodPost, Path: "/api/v1/community/review/{id}/reject",
 		Summary: "Reject a queue item (remove the content; tombstone the post)", Tags: review}, s.rejectReview)
 

@@ -61,17 +61,22 @@ const (
 	DeleteSourceModerator int16 = 2
 	DeleteSourceReview    int16 = 3
 	DeleteSourcePurge     int16 = 4
+	DeleteSourceTrust     int16 = 5
 )
 
 var DeleteSourceNames = map[int16]string{
 	DeleteSourceAuthor: "author", DeleteSourceModerator: "moderator", DeleteSourceReview: "review", DeleteSourcePurge: "purge",
+	DeleteSourceTrust: "trust",
 }
 
 func DeleteRestorable(source int16) bool {
 	return source == DeleteSourceModerator || source == DeleteSourceReview
 }
 
-const PostPinLimit = 3
+const (
+	PostPinLimit                  = 3
+	MentionsAnnouncedPerPostLimit = 40
+)
 
 const (
 	ReactionKindLike int16 = 0

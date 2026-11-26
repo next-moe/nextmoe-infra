@@ -64,6 +64,8 @@ type CommunityPost struct {
 	EditedByModerator bool       `gorm:"not null;default:false;column:edited_by_moderator" json:"edited_by_moderator"`
 	DeleteSource      int16      `gorm:"not null;default:0;column:delete_source" json:"delete_source"`
 	DeletedBy         *int64     `gorm:"column:deleted_by" json:"deleted_by"`
+	DeletedSite       *string    `gorm:"column:deleted_site" json:"deleted_site"`
+	DeletedFromStatus int16      `gorm:"not null;default:0;column:deleted_from_status" json:"deleted_from_status"`
 	CreatedAt         time.Time  `json:"created_at"`
 
 	MentionedUserIDs datatypes.JSON `gorm:"type:jsonb;column:mentioned_user_ids" json:"mentioned_user_ids"`

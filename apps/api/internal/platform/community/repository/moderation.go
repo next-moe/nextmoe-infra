@@ -207,6 +207,14 @@ func (r *ReviewRepository) ListPending(site string, source int16, limit int) ([]
 }
 
 func GetReviewItemTx(tx *gorm.DB, id int64) (*model.CommunityReviewItem, error) {
+	return getReviewItem(tx, id)
+}
+
+func LockReviewItemTx(tx *gorm.DB, id int64) (*model.CommunityReviewItem, error) {
+	return getReviewItem(tx.Clauses(clause.Locking{Strength: LockUpdate}), id)
+}
+
+func getReviewItem(tx *gorm.DB, id int64) (*model.CommunityReviewItem, error) {
 	var item model.CommunityReviewItem
 	err := tx.First(&item, id).Error
 	if err == gorm.ErrRecordNotFound {

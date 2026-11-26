@@ -34,7 +34,7 @@ func (s *ReviewService) Reject(ctx context.Context, id, decidedBy int64) error {
 func (s *ReviewService) decide(ctx context.Context, id, decidedBy int64, approve bool) error {
 	var forwarded bool
 	txErr := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		item, err := repository.GetReviewItemTx(tx, id)
+		item, err := repository.LockReviewItemTx(tx, id)
 		if err != nil {
 			return err
 		}
@@ -60,7 +60,7 @@ func (s *ReviewService) decide(ctx context.Context, id, decidedBy int64, approve
 			case approve:
 				err = repository.SetPostStatusTx(tx, postID, model.PostStatusVisible)
 			default:
-				err = repository.TombstonePostTx(tx, postID, model.DeleteSourceReview, &decidedBy)
+				err = repository.TombstonePostTx(tx, postID, repository.Removal{Source: model.DeleteSourceReview, By: &decidedBy, Site: item.Site})
 			}
 			if err != nil {
 				return err

@@ -413,9 +413,10 @@ func (s *PostService) Delete(ctx context.Context, postID, actorID int64, asModer
 			return nil
 		}
 		if modActed {
-			return repository.TombstonePostTx(tx, postID, model.DeleteSourceModerator, &actorID)
+			site := deliverySite(ctx, thread.Site)
+			return repository.TombstonePostTx(tx, postID, repository.Removal{Source: model.DeleteSourceModerator, By: &actorID, Site: &site})
 		}
-		return repository.TombstonePostTx(tx, postID, model.DeleteSourceAuthor, nil)
+		return repository.TombstonePostTx(tx, postID, repository.Removal{Source: model.DeleteSourceAuthor})
 	})
 	if err != nil {
 		return err
@@ -441,7 +442,7 @@ func announceEditMentionsTx(tx *gorm.DB, site string, threadID int64, post *mode
 	}
 	var added []int64
 	for _, id := range ids {
-		if !seen[id] {
+		if !seen[id] && len(known)+len(added) < model.MentionsAnnouncedPerPostLimit {
 			added = append(added, id)
 		}
 	}

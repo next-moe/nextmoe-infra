@@ -2797,11 +2797,12 @@ components:
           format: date-time
           type: string
         delete_source:
-          description: "on a tombstone: who removed it; absent on a tombstone written before community 1.4.0 that no record names. moderator and review can be undone with POST /posts/{id}/restore"
+          description: "on a tombstone: who removed it; absent on a tombstone written before community 1.4.0. moderator and review can be undone with POST /posts/{id}/restore by the site that removed it"
           enum:
             - author
             - moderator
             - review
+            - trust
             - purge
           type: string
         edited_at:
@@ -5166,7 +5167,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/HouseError"
           description: Error
-      summary: Approve a queue item (keep the content; restore the post)
+      summary: Approve a queue item (keep the content; restore the post unless it was deleted meanwhile)
       tags:
         - community-review
   /api/v1/community/review/{id}/reject:

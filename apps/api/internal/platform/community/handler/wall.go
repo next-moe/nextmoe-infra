@@ -117,16 +117,16 @@ func (s *Server) wallPage(site string, q repository.WallQuery, preview int, view
 		page.NextCursor = encodeWallCursor(q.Sort, rows[len(rows)-1])
 	}
 
-	pinnedAt := map[int64]time.Time{}
-	if q.Cursor.PostNumber == 0 {
-		pinned, err := s.posts.PinnedPosts(site, q.ThreadID)
-		if err != nil {
-			return nil, err
-		}
-		for i := range pinned {
+	pinned, err := s.posts.PinnedPosts(site, q.ThreadID)
+	if err != nil {
+		return nil, err
+	}
+	pinnedAt := make(map[int64]time.Time, len(pinned))
+	for i := range pinned {
+		pinnedAt[pinned[i].ID] = pinned[i].PinnedAt
+		if q.Cursor.PostNumber == 0 {
 			v := toPostView(&pinned[i].CommunityPost)
 			v.PinnedAt = &pinned[i].PinnedAt
-			pinnedAt[v.ID] = pinned[i].PinnedAt
 			page.PinnedPosts = append(page.PinnedPosts, v)
 		}
 	}
@@ -242,7 +242,7 @@ func (s *Server) pinChange(ctx context.Context, op string, postID, actorID int64
 	}
 	views := []dto.PostView{toPostView(res.Post)}
 	views[0].PinnedAt = res.PinnedAt
-	if err := s.hydratePostReactions(0, views); err != nil {
+	if err := s.hydratePostReactions(actorID, views); err != nil {
 		return nil, mapErr(op+" reactions", err)
 	}
 	return &postChangeOutput{Body: okEnvelope(dto.PostChangeResponse{Post: views[0], Changed: res.Changed})}, nil
@@ -263,7 +263,7 @@ func (s *Server) restorePost(ctx context.Context, in *restorePostInput) (*postCh
 		return nil, mapErr("restore post", err)
 	}
 	views := []dto.PostView{toPostView(post)}
-	if err := s.hydratePostReactions(0, views); err != nil {
+	if err := s.hydratePostReactions(in.Body.ActorID, views); err != nil {
 		return nil, mapErr("restore post reactions", err)
 	}
 	return &postChangeOutput{Body: okEnvelope(dto.PostChangeResponse{Post: views[0], Changed: changed})}, nil

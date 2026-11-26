@@ -72,12 +72,20 @@ func AuthorHasPostedTx(tx *gorm.DB, threadID, authorID int64) (bool, error) {
 func SetPostStatusTx(tx *gorm.DB, postID int64, status int16) error {
 	return tx.Model(&model.CommunityPost{}).Where("id = ?", postID).Updates(map[string]any{
 		"status": status, "delete_source": model.DeleteSourceUnknown, "deleted_by": nil,
+		"deleted_site": nil, "deleted_from_status": model.PostStatusVisible,
 	}).Error
 }
 
-func TombstonePostTx(tx *gorm.DB, postID int64, source int16, by *int64) error {
+type Removal struct {
+	Source int16
+	By     *int64
+	Site   *string
+}
+
+func TombstonePostTx(tx *gorm.DB, postID int64, r Removal) error {
 	return tx.Model(&model.CommunityPost{}).Where("id = ?", postID).Updates(map[string]any{
-		"status": model.PostStatusDeleted, "delete_source": source, "deleted_by": by,
+		"status": model.PostStatusDeleted, "delete_source": r.Source, "deleted_by": r.By,
+		"deleted_site": r.Site, "deleted_from_status": gorm.Expr("status"),
 	}).Error
 }
 

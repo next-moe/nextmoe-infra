@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"api/internal/platform/community/model"
@@ -176,6 +177,98 @@ func TestReviewLeavesAnAuthorsDeleteAlone(t *testing.T) {
 		testDB.First(&decided, item.ID)
 		if decided.Status == model.ReviewStatusPending {
 			t.Fatalf("approve=%v: the item is still decided", approve)
+		}
+	}
+}
+
+func TestRestoreGivesBackTheStatusBeforeTheDelete(t *testing.T) {
+	cleanTables(t)
+	ts := NewThreadService(testDB, NoopSink{})
+	ps := NewPostService(testDB, NoopSink{})
+	ctx := letmoeCtx()
+	const A, N, M int64 = 100, 500, 900
+
+	th := openTopic(t, ts, "letmoe", A, "b1", "opening")
+	seedTrust(t, N, model.TrustLevelNew, 1)
+	held, err := ps.Reply(ctx, ReplyParams{ThreadID: th.ID, AuthorID: N, BodyRaw: "held"})
+	if err != nil {
+		t.Fatalf("held reply: %v", err)
+	}
+	if err := ps.Delete(ctx, held.ID, M, true); err != nil {
+		t.Fatalf("mod delete: %v", err)
+	}
+	back, changed, err := ps.Restore(ctx, held.ID, M)
+	if err != nil || !changed || back.Status != model.PostStatusHidden {
+		t.Fatalf("a held post comes back held, still waiting for its review: %+v %v", back, err)
+	}
+
+	trusted := replyTo(t, ps, ctx, th.ID, A, nil, nil, "removed by trust")
+	if _, err := NewCallbackService(testDB).Handle(context.Background(), callback(trusted.ID, trustActionRemove)); err != nil {
+		t.Fatalf("trust remove: %v", err)
+	}
+	if _, _, err := ps.Restore(ctx, trusted.ID, M); err == nil {
+		t.Fatalf("a trust removal is not a site moderator's to undo")
+	}
+}
+
+func TestEditMentionsStopAtThePostLimit(t *testing.T) {
+	cleanTables(t)
+	ts := NewThreadService(testDB, NoopSink{})
+	ps := NewPostService(testDB, NoopSink{})
+	ctx := letmoeCtx()
+	const A int64 = 100
+
+	th := openTopic(t, ts, "letmoe", A, "b1", "opening")
+	post := replyTo(t, ps, ctx, th.ID, A, nil, nil, "x")
+	for round := range 3 {
+		ids := make([]int64, 20)
+		for i := range ids {
+			ids[i] = int64(1000 + round*20 + i)
+		}
+		if _, err := ps.Edit(ctx, EditParams{PostID: post.ID, AuthorID: A, BodyRaw: "x", MentionUserIDs: ids}); err != nil {
+			t.Fatalf("edit %d: %v", round, err)
+		}
+	}
+	if got := mentionsOf(t, post.ID); len(got) != model.MentionsAnnouncedPerPostLimit {
+		t.Fatalf("a post announces at most %d users over its edits, got %d", model.MentionsAnnouncedPerPostLimit, len(got))
+	}
+}
+
+func TestConcurrentDecisionsAgreeWithThePost(t *testing.T) {
+	for round := range 8 {
+		cleanTables(t)
+		ts := NewThreadService(testDB, NoopSink{})
+		ps := NewPostService(testDB, NoopSink{})
+		rs := NewReviewService(testDB, NoopSink{})
+		ctx := letmoeCtx()
+		th := openTopic(t, ts, "letmoe", 100, "b1", "opening")
+		seedTrust(t, 500, model.TrustLevelNew, 1)
+		held, err := ps.Reply(ctx, ReplyParams{ThreadID: th.ID, AuthorID: 500, BodyRaw: "held"})
+		if err != nil {
+			t.Fatalf("held reply: %v", err)
+		}
+		var item model.CommunityReviewItem
+		testDB.Where("post_id = ?", held.ID).Take(&item)
+
+		var wg sync.WaitGroup
+		for _, decide := range []func(context.Context, int64, int64) error{rs.Approve, rs.Reject} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := decide(ctx, item.ID, 900); err != nil {
+					t.Errorf("decide: %v", err)
+				}
+			}()
+		}
+		wg.Wait()
+
+		var p model.CommunityPost
+		var decided model.CommunityReviewItem
+		testDB.First(&p, held.ID)
+		testDB.First(&decided, item.ID)
+		approved := decided.Status == model.ReviewStatusApproved
+		if approved != (p.Status == model.PostStatusVisible) {
+			t.Fatalf("round %d: item status %d but post status %d", round, decided.Status, p.Status)
 		}
 	}
 }

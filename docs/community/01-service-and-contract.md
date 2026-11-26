@@ -70,22 +70,30 @@
     caller that predates `sort` keeps working; `after` with any other sort, or
     beside a `cursor`, is a `422`.
   - **`roots_only=true`** lists top-level posts only (`root_post_id` absent),
-    each with **`reply_count`** — its visible replies. **`reply_preview=n`**
-    (1–5, needs `roots_only`) adds each listed root's first `n` replies, any
-    status, oldest first, as one flat **`reply_previews`** list the site groups
-    by `root_post_id`. The rest of a root's replies come from
+    each with **`reply_count`** — its **visible** replies. **`reply_preview=n`**
+    (1–5, needs `roots_only`) adds each listed root's first `n` replies,
+    oldest first, as one flat **`reply_previews`** list the site groups by
+    `root_post_id`. The rest of a root's replies come from
     `GET /posts/{id}/replies?after=` (keyset by `post_number`, oldest first;
-    the id-addressed guard; a reply's id is a `422`).
+    the id-addressed guard; a reply's id is a `422`). Both return replies of
+    **every status**, like the wall itself: a site drops other users' held
+    posts, or held content leaks. So `reply_count` and what `/replies` returns
+    can differ; a site stops offering more when `/replies` has no
+    `next_cursor`, not when it has shown `reply_count` replies.
   - **`pinned_posts`** — on the first page only (no cursor, no `after`), the
-    calling site's pinned comments, newest pin first: visible posts only, at
-    most 3. They also appear in `posts` at their own place, carrying
-    `pinned_at`, so a site that renders the pinned block above the list drops
-    them from the list by id. Pins are per **site** — see §5.
+    calling site's pinned comments, newest pin first: visible posts only,
+    normally at most 3, but a restore or a merge can leave more, and all are
+    listed. They also appear in `posts` at their own place, on whatever page,
+    carrying `pinned_at`, so a site that renders the pinned block above the
+    list drops them from the list by id or by `pinned_at`. Pins are per
+    **site** — see §5.
   - Statuses are as before: every post comes back whatever its status, and a
     tombstone says who removed it in **`delete_source`** — `author`,
-    `moderator`, `review` (a review rejection, or a trust disposition that
-    removes it) or `purge`. A tombstone from before community 1.4.0 carries
-    none, unless a rejected review item names it (`review`).
+    `moderator`, `review` (a rejected queue item), `trust` (a trust
+    disposition that removes it) or `purge`. A tombstone from before
+    community 1.4.0 carries none: a rejected review item next to one does not
+    say who removed it, since a rejection also landed on posts their author
+    had already deleted.
 - `POST /comments/resolve` — **deprecated**, kept only until the consuming sites
   move off it. Same first screen, but it *get-or-creates* the thread, so a page
   view mints a row: 110,918 of kungal's 114,070 comments threads were minted by
@@ -296,13 +304,15 @@ escape hatch out of the newcomer sandbox); the daily create-rate caps do not (an
 edit is not a new post).
 
 **Mentions in an edit.** `mention_user_ids` on the edit is every user the
-edited body mentions (≤20, the same rules as on a new post). Community keeps,
+edited body mentions (≤20 a call, the same rules as on a new post). Community keeps,
 per post, the set of users it has already told (`mentioned_user_ids`: written
 by the post's creation and grown by each edit), and notifies only those not in
 it, as kind 2 `mentioned` through an outbox event `post_mentioned`. The set
 never shrinks, so taking a mention out and putting it back does not notify
 twice. A mod-actor edit of someone else's post notifies nobody and records
-nothing: the moderator is not the one speaking. The set was backfilled from
+nothing: the moderator is not the one speaking. A post announces at most 40
+users over all its edits; mentions past that are neither notified nor
+recorded, and the edit still succeeds. The set was backfilled from
 what the outbox still held when it shipped — `post_created` events (kept 7
 days) and kind-2 rows (read ones kept 90 days) — so an edit of an older post
 that keeps an older mention can tell that user once more.
@@ -357,8 +367,8 @@ blanks its content, and deletes their reactions and the rows §6 lists. In the
 same transaction it keeps every row it changed or deleted, as it was, in
 `community_purge_archive`, and the service prunes those rows 30 days later.
 Until then `POST /authors/{id}/purge/restore` undoes this site's purges of the
-author. Posts get their status and content back unless their status has changed
-since, as when a moderator approved one. Deleted rows are reinserted unless the
+author. Posts get their status, content and record of who removed them back, unless
+their status has changed since. Deleted rows are reinserted unless the
 user has recreated the same row since. The actor ids and event recipients the
 purge cleared are put back. The response counts mirror the purge's. The call
 returns `404` when nothing is left to restore: the author was never purged here,
@@ -472,23 +482,34 @@ so only its own site moderates it, as with `POST /feedback/{id}/status`.
   site pins its own, so one site's pin never shows on another's. Only a
   visible top-level post of a comments thread can be pinned (`422` for a reply
   or another thread kind, `409` for a hidden or deleted post), at most **3** per
-  wall per site (`409 pin limit reached`). Both are idempotent and answer
-  `{post, changed}`; pinning a pinned post keeps its `pinned_at`. Unlike the
+  wall per site: a fourth is a `409` whose message starts with
+  `pin limit reached` — stable wording, the way to tell it from the other
+  `409`s. A post a catalog merge moved mid-call is a `409` to retry. Both are
+  idempotent and answer `{post, changed}`, with `viewer_reacted` for the
+  acting moderator; pinning a pinned post keeps its `pinned_at`. Unlike the
   thread faces, it takes the id-addressed guard, like a mod-actor edit: a pin
   changes nothing another site sees. A pin names the post,
   not the thread, so it follows the post when a catalog merge rehomes the wall;
   it stays while the post is hidden or deleted and shows again when the post
-  is restored, but only visible pins count toward the limit and the read.
+  is restored. Only visible pins count toward the limit, so a restore, or a
+  merge of two pinned walls, can leave more than 3; the read lists them all
+  and a new pin is refused until enough are unpinned.
 - `POST /posts/{id}/restore` `{actor_id}` — undoes a removal by a moderator
-  (`DELETE ?as_moderator=true`) or by review (a rejected queue item, or a
-  trust disposition that removed it): the post is visible again, with its
-  number, content and likes. An author's own delete is theirs and a purged post
-  is blank — the purge restore gives that one back — so both are a `409`, as
-  is a hidden post (the review queue releases it) and a tombstone whose remover
-  is unknown. A visible post answers `changed: false`. A restored post raises
-  no notification, and a review item it came from stays decided as it was, its
-  reporters' accuracy included. It reaches what the mod-actor delete reaches
-  (the id-addressed guard) and leaves an audit log line like it.
+  (`DELETE ?as_moderator=true`) or by the review queue (a rejected item), with
+  the post's number, content and likes. A moderator's removal is undone to
+  the status the post had before it — a held post goes back to being held,
+  its review item still pending, so a delete and a restore never route around
+  the queue; a rejection is undone to visible. Only the **site that removed
+  it** may restore it (`403` from another site — on a shared catalog wall,
+  another site's queue decision is not yours to reverse). An author's own
+  delete is theirs, a trust removal is trust's, a purged post is blank — the
+  purge restore gives that one back — and a tombstone whose remover is
+  unknown says nothing to go on: all `409`, as is a hidden post (the review
+  queue releases it). A visible post answers `changed: false`; the answer is
+  `{post, changed}` with `viewer_reacted` for the acting moderator. A restored
+  post raises no notification, and a review item it came from stays decided as
+  it was, its reporters' accuracy included. Reachable under the id-addressed
+  guard, with an audit log line like the mod-actor delete's.
 - `POST /threads/{id}/answer` `{post_id, as_moderator?}` — marks the reply that
   answers a topic on a Q&A board, or a feedback thread; `post_id: 0` clears it.
   The thread's author marks it, or a moderator with `as_moderator`. The answer
@@ -835,7 +856,10 @@ site's events whose actor is the user, and removes the user as reply target and
 mention from that site's pending events (the last three are logged, not
 reported). It also deletes that site's activities by the user, tombstones
 included, and their groups (`activities_deleted`), and retracts the kind-10
-rows they raised. Activities are a projection of the site's content, so the
+rows they raised. The user's id stays where it names someone else's
+record, as `target_user_id` always has: in other posts' `mentioned_user_ids`,
+and in `deleted_by` and a pin's `pinned_by` when the user was a moderator.
+Activities are a projection of the site's content, so the
 purge archive does not keep them: a site that restores the author's content
 pushes them again. The account purge does all this on every site and drops the
 user's seen mark and activity setting. The purge waits for a running dispatch batch, so no batch can
@@ -884,9 +908,10 @@ deliver to the user after the purge has cleared their rows.
   whose text matched). It is `[]` for a flags item and for every item enqueued
   before community 1.1.0 — the check's answer was not kept until then. A
   decision is about the CONTENT: `approve` keeps it (post restored to visible),
-  `reject` removes it (post tombstoned). A post its author deleted while it
-  waited stays deleted under either decision — until community 1.4.0 an
-  approve brought it back. A decision on a flags item **backfills
+  `reject` removes it (post tombstoned). A post deleted while it waited — by its
+  author, a moderator, trust or a purge — stays as it is under either decision:
+  until community 1.4.0 an approve brought it back. Two decisions on one item
+  are serialised on the item, so the first one wins. A decision on a flags item **backfills
   every reporter's accuracy** (approve → the reports were wrong → `flags_disagreed`;
   reject → right → `flags_agreed`), which feeds their future weight — the
   reputation loop. Releasing a `first_post_hold` item does not refund the hold

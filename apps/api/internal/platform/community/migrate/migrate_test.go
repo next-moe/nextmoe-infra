@@ -494,8 +494,8 @@ func TestColumnAudit(t *testing.T) {
 			"id", "thread_id", "post_number", "root_post_id", "reply_to_post_id",
 			"target_user_id", "author_id", "content_raw", "content_html",
 			"sanitizer_version", "content_rating", "status", "edited_at",
-			"edited_by_moderator", "delete_source", "deleted_by", "created_at",
-			"mentioned_user_ids",
+			"edited_by_moderator", "delete_source", "deleted_by", "deleted_site",
+			"deleted_from_status", "created_at", "mentioned_user_ids",
 		},
 		"community_reaction": {"post_id", "user_id", "kind", "created_at"},
 		"community_post_pin": {"site", "post_id", "pinned_by", "pinned_at"},
@@ -903,9 +903,10 @@ func TestPostBackfill(t *testing.T) {
 	if err := testDB.Order("post_number").Find(&rows).Error; err != nil {
 		t.Fatalf("read posts: %v", err)
 	}
-	if got := []int16{rows[0].DeleteSource, rows[1].DeleteSource, rows[2].DeleteSource}; got[0] != model.DeleteSourceReview ||
-		got[1] != model.DeleteSourceUnknown || got[2] != model.DeleteSourceUnknown {
-		t.Fatalf("only a rejected, unblanked tombstone becomes review: %v", got)
+	for _, r := range rows[:3] {
+		if r.DeleteSource != model.DeleteSourceUnknown {
+			t.Fatalf("a tombstone from before the release stays unknown, even next to a rejected item: %+v", r)
+		}
 	}
 	if got := string(rows[3].MentionedUserIDs); got != "[7, 8, 9]" {
 		t.Fatalf("mentions come from events and kind-2 rows: %s", got)

@@ -175,6 +175,18 @@ func TestWall_Pins(t *testing.T) {
 		t.Fatalf("the removed post's pin no longer counts toward the limit: %v", err)
 	}
 
+	if _, err := s.restorePost(ctx, &restorePostInput{ID: b.ID, Body: dto.PostActorRequest{ActorID: 9}}); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	over := readWall(t, s, ctx, commentsPageInput{Limit: 2})
+	if len(over.PinnedPosts) != 4 {
+		t.Fatalf("a restore can leave more than 3 pins, and the read shows them all: %d", len(over.PinnedPosts))
+	}
+	later := readWall(t, s, ctx, commentsPageInput{Limit: 2, Cursor: over.NextCursor})
+	if later.Posts[1].PostNumber != c.PostNumber || later.Posts[1].PinnedAt == nil {
+		t.Fatalf("a pinned post on a later page still carries pinned_at: %+v", later.Posts)
+	}
+
 	un, err := s.unpinPost(ctx, &unpinPostInput{ID: a.ID, ActorID: 9})
 	if err != nil || !un.Body.Data.Changed || un.Body.Data.Post.PinnedAt != nil {
 		t.Fatalf("unpin: %+v %v", un, err)
@@ -234,5 +246,16 @@ func TestWall_Restore(t *testing.T) {
 	}
 	if _, err := s.restorePost(clientCtx("kungal"), &restorePostInput{ID: modded.ID, Body: dto.PostActorRequest{ActorID: 9}}); err == nil {
 		t.Fatalf("another site cannot reach a site-local post")
+	}
+
+	shared := wallComment(t, s, ctx, model.AnchorKindCatalogWork, "42", 102, nil)
+	if _, err := s.deletePost(ctx, &deletePostInput{ID: shared.ID, AuthorID: 9, AsModerator: true}); err != nil {
+		t.Fatalf("mod delete on a shared wall: %v", err)
+	}
+	if _, err := s.restorePost(clientCtx("kungal"), &restorePostInput{ID: shared.ID, Body: dto.PostActorRequest{ActorID: 8}}); err == nil {
+		t.Fatalf("only the site that removed a post restores it")
+	}
+	if _, err := restore(shared.ID); err != nil {
+		t.Fatalf("the removing site restores it: %v", err)
 	}
 }

@@ -44,7 +44,7 @@ type PostView struct {
 	Status            int16      `json:"status" doc:"0=visible 1=hidden 2=deleted"`
 	EditedAt          *time.Time `json:"edited_at,omitempty"`
 	EditedByModerator bool       `json:"edited_by_moderator,omitempty" doc:"true when the latest edit was a mod-actor edit (as_moderator)"`
-	DeleteSource      string     `json:"delete_source,omitempty" enum:"author,moderator,review,purge" doc:"on a tombstone: who removed it; absent on a tombstone written before community 1.4.0 that no record names. moderator and review can be undone with POST /posts/{id}/restore"`
+	DeleteSource      string     `json:"delete_source,omitempty" enum:"author,moderator,review,trust,purge" doc:"on a tombstone: who removed it; absent on a tombstone written before community 1.4.0. moderator and review can be undone with POST /posts/{id}/restore by the site that removed it"`
 	CreatedAt         time.Time  `json:"created_at"`
 	PinnedAt          *time.Time `json:"pinned_at,omitempty" doc:"GET /comments and the pin faces: when the caller's site pinned this comment"`
 	ReplyCount        *int32     `json:"reply_count,omitempty" doc:"GET /comments with roots_only: the top-level post's visible replies"`
