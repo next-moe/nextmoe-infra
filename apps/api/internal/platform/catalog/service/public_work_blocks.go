@@ -205,7 +205,7 @@ func (s *PublicService) publicRoster(rows []WorkCharacterRow, meta map[string]Im
 		for _, v := range ch.Va {
 			pc.Voices = append(pc.Voices, dto.PublicRosterVoice{
 				ID: v.CreditNameID, DisplayName: v.Name, Lang: v.Lang, Latin: derefStrPub(v.Latin),
-				PersonID: derefI64Pub(v.PersonID),
+				PersonID: derefI64Pub(v.PersonID), Note: v.Note,
 			})
 		}
 		out = append(out, pc)

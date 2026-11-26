@@ -4968,6 +4968,11 @@ export const docsModel: DocsModel = {
                                           }
                                         },
                                         {
+                                          "name": "note",
+                                          "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                          "type": "string"
+                                        },
+                                        {
                                           "name": "object",
                                           "required": true,
                                           "doc": "Type discriminant. Always credit_name.",
@@ -14158,6 +14163,11 @@ export const docsModel: DocsModel = {
                                     }
                                   },
                                   {
+                                    "name": "note",
+                                    "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
                                     "name": "object",
                                     "required": true,
                                     "doc": "Type discriminant. Always credit_name.",
@@ -14798,6 +14808,11 @@ export const docsModel: DocsModel = {
                                                   }
                                                 ]
                                               }
+                                            },
+                                            {
+                                              "name": "note",
+                                              "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                              "type": "string"
                                             },
                                             {
                                               "name": "object",
@@ -25364,6 +25379,11 @@ export const docsModel: DocsModel = {
                               }
                             },
                             {
+                              "name": "note",
+                              "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
                               "name": "object",
                               "required": true,
                               "doc": "Type discriminant. Always credit_name.",
@@ -27103,6 +27123,11 @@ export const docsModel: DocsModel = {
                             }
                           ]
                         }
+                      },
+                      {
+                        "name": "note",
+                        "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                        "type": "string"
                       },
                       {
                         "name": "object",
@@ -29423,6 +29448,11 @@ export const docsModel: DocsModel = {
                                                   }
                                                 ]
                                               }
+                                            },
+                                            {
+                                              "name": "note",
+                                              "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                              "type": "string"
                                             },
                                             {
                                               "name": "object",
@@ -42666,6 +42696,11 @@ export const docsModel: DocsModel = {
                               }
                             },
                             {
+                              "name": "note",
+                              "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
                               "name": "object",
                               "required": true,
                               "doc": "Type discriminant. Always credit_name.",
@@ -49160,6 +49195,11 @@ export const docsModel: DocsModel = {
                                                   }
                                                 ]
                                               }
+                                            },
+                                            {
+                                              "name": "note",
+                                              "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                              "type": "string"
                                             },
                                             {
                                               "name": "object",
@@ -88960,6 +89000,11 @@ export const docsModel: DocsModel = {
                                           }
                                         },
                                         {
+                                          "name": "note",
+                                          "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                          "type": "string"
+                                        },
+                                        {
                                           "name": "object",
                                           "required": true,
                                           "doc": "Type discriminant. Always credit_name.",
@@ -92579,6 +92624,11 @@ export const docsModel: DocsModel = {
                                         }
                                       ]
                                     }
+                                  },
+                                  {
+                                    "name": "note",
+                                    "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                    "type": "string"
                                   },
                                   {
                                     "name": "object",
@@ -96275,6 +96325,11 @@ export const docsModel: DocsModel = {
                                         }
                                       ]
                                     }
+                                  },
+                                  {
+                                    "name": "note",
+                                    "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                    "type": "string"
                                   },
                                   {
                                     "name": "object",
@@ -108907,6 +108962,11 @@ export const docsModel: DocsModel = {
                                                   }
                                                 ]
                                               }
+                                            },
+                                            {
+                                              "name": "note",
+                                              "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                              "type": "string"
                                             },
                                             {
                                               "name": "object",
@@ -147761,6 +147821,11 @@ export const docsModel: DocsModel = {
                                               }
                                             ]
                                           }
+                                        },
+                                        {
+                                          "name": "note",
+                                          "doc": "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant.",
+                                          "type": "string"
                                         },
                                         {
                                           "name": "object",
