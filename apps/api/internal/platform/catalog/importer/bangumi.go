@@ -213,9 +213,22 @@ func (im *Importer) runBangumi() (Stats, error) {
 		}
 	}
 
+	worksOf := map[string][]int64{}
+	for _, p := range plans {
+		if p.charExtID != "" {
+			worksOf[p.charExtID] = append(worksOf[p.charExtID], p.workID)
+		}
+	}
+	targets, err := im.sameWorkCharacters(bangumiSource, newChars, worksOf)
+	if err != nil {
+		return st, err
+	}
+	newChars, attachChars := splitAttach(newChars, targets)
+
 	st.NamesCreated = len(newNames)
 	st.LabelsCreated = len(newLabels)
 	st.CharactersCreated = len(newChars)
+	st.CharactersAttached = len(attachChars)
 	if im.dryRun {
 		st.CreditsWritten = len(plans)
 		return st, nil
@@ -233,6 +246,12 @@ func (im *Importer) runBangumi() (Stats, error) {
 		charIDs, err := im.createCharacters(tx, bangumiSource, ruleBangumiChar, newChars)
 		if err != nil {
 			return err
+		}
+		if err := im.attachCharAnchors(tx, bangumiSource, ruleSameWorkCharName, attachChars); err != nil {
+			return err
+		}
+		for ext, id := range targets {
+			charIDs[ext] = id
 		}
 		cnResolve := resolver(cnAnchor, bangumiSource, nameIDs)
 		labelResolve := resolver(labelAnchor, bangumiSource, labelIDs)

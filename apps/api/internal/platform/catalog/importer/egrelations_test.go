@@ -86,3 +86,28 @@ func TestEGRelations(t *testing.T) {
 	assert.Equal(t, 4, st2.AlreadyInDB, "sequel + dup + fandisc + transplant all in db now")
 	assert.Equal(t, st2.Mapped, st2.Edges+st2.Folded+st2.AlreadyInDB+st2.SkippedUnanchored+st2.SkippedSelf)
 }
+
+// 212193 (EG 19150) is a transplant of EG 14276, which 458 holds only as an
+// eg-xlink-twin of its exact 16470.
+func TestEGRelationsReachATwinHolder(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	clean(t)
+	require.NoError(t, testDB.Exec(`CREATE TABLE IF NOT EXISTS game_relations
+		(raw text, game_subject bigint, game_object bigint, synced_at timestamptz, pk bigint)`).Error)
+	require.NoError(t, testDB.Exec(`TRUNCATE game_relations`).Error)
+
+	orig := seedEGWork(t, "16470")
+	require.NoError(t, testDB.Exec(`INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by)
+		VALUES (5, ?, 5, '14276', 2, 'rule:eg-xlink-twin')`, orig).Error)
+	port := seedEGWork(t, "19150")
+	seedEGRel(t, 1, 19150, 14276, "transplant")
+
+	st, err := New(testDB, testDB, Options{}).RunEGRelations()
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.EdgesWritten)
+	assert.Equal(t, int64(1), scalarInt(t, fmt.Sprintf(
+		`SELECT count(*) FROM catalog_work_relation WHERE a_work_id=%d AND b_work_id=%d AND relation_type_id=12 AND source_id=5`,
+		min(orig, port), max(orig, port))))
+}

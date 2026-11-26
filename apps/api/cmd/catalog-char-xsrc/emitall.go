@@ -12,7 +12,7 @@ import (
 // that proposes both rounds on the same night has no such gap, and two separate
 // worklists would each claim a character that sits in an auto group and in a
 // panel pair (A–B auto, B–C accepted by the panel).
-func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, worklistPath, residualPath string, out io.Writer) error {
+func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, sameworkPath, worklistPath, residualPath string, out io.Writer) error {
 	pairs, err := loadPairs(pairsPath)
 	if err != nil {
 		return err
@@ -72,6 +72,18 @@ func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, worklistPath
 	}
 	edges = append(edges, accepted...)
 
+	var sameWork []pairMeta
+	if sameworkPath != "" {
+		if sameWork, err = loadPairs(sameworkPath); err != nil {
+			return err
+		}
+	}
+	for _, p := range sameWork {
+		sourcesBySide[p.A], sourcesBySide[p.B] = p.ASources, p.BSources
+		richBySide[p.A], richBySide[p.B] = p.ARich, p.BRich
+		edges = append(edges, mergeEdge{panelPair{pairMeta: p, Cat: catAuto, R1Conf: 1}, 1})
+	}
+
 	groups, conflicts, applied := unionEdges(edges, declinedPairs(judged, edges), sourcesBySide, richBySide, stats)
 	residual = append(append(residual, conflicts...), held...)
 	if err := writeGroups(worklistPath, groups); err != nil {
@@ -82,9 +94,9 @@ func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, worklistPath
 	}
 	fmt.Fprintf(out, "pairs=%d judged=%d auto_edges=%d held_qualified=%d panel_pairs=%d panel_accepted=%d "+
 		"closed_distinct=%d closed_instance=%d residual=%d panel_unjudged=%d edge_conflict=%d edge_declined=%d "+
-		"edges_applied=%d groups_emitted=%d\n",
+		"edges_applied=%d groups_emitted=%d same_work_edges=%d\n",
 		len(pairs), judgedR1, autoEdges, len(held), len(ppairs)-countCat(ppairs, catSameSource), len(accepted),
 		stats["closed_distinct"], stats["closed_instance"], stats["residual"], stats["unjudged"],
-		stats["edge_conflict"], stats["edge_declined"], applied, len(groups))
+		stats["edge_conflict"], stats["edge_declined"], applied, len(groups), len(sameWork))
 	return nil
 }

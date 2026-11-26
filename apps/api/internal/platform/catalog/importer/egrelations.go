@@ -114,6 +114,11 @@ func (im *Importer) RunEGRelations() (EGRelationStats, error) {
 	return st, nil
 }
 
+// loadEGWorkAnchors falls back to the sole holder of an EG id carried as an
+// eg-xlink-twin when no work holds it exact. The twin is another EG record of
+// the same VNDB game, and EG often files the port relation against it: 212193
+// (EG 19150) is a transplant of 14276, which 458 holds only as a twin, so the
+// edge was never written and the pair went unseen.
 func (im *Importer) loadEGWorkAnchors() (map[string]int64, error) {
 	var rows []struct {
 		ExternalID string `gorm:"column:external_id"`
@@ -128,6 +133,26 @@ func (im *Importer) loadEGWorkAnchors() (map[string]int64, error) {
 	m := make(map[string]int64, len(rows))
 	for _, r := range rows {
 		m[r.ExternalID] = r.EntityID
+	}
+
+	var twins []struct {
+		ExternalID string `gorm:"column:external_id"`
+		EntityID   int64  `gorm:"column:entity_id"`
+	}
+	if err := im.catalog.Raw(`
+		SELECT r.external_id, min(r.entity_id) AS entity_id
+		FROM catalog_external_ref r
+		JOIN catalog_work w ON w.id = r.entity_id AND w.deleted_at IS NULL
+		WHERE r.entity_type = ? AND r.source_id = ? AND r.link_kind = ? AND r.matched_by = ? AND r.dead_at IS NULL
+		GROUP BY r.external_id
+		HAVING count(DISTINCT r.entity_id) = 1`,
+		model.EntityTypeWork, egSource, model.LinkKindRelated, ruleEGXlinkTwin).Scan(&twins).Error; err != nil {
+		return nil, err
+	}
+	for _, t := range twins {
+		if _, held := m[t.ExternalID]; !held {
+			m[t.ExternalID] = t.EntityID
+		}
 	}
 	return m, nil
 }

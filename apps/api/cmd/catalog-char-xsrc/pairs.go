@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"api/internal/platform/catalog/charname"
 	"api/internal/platform/catalog/editspec"
 
 	"gorm.io/gorm"
@@ -46,11 +47,12 @@ type charInfo struct {
 	NAnchors int
 }
 
-func buildPairs(db *gorm.DB) ([]pairMeta, map[int64]*charInfo, error) {
+func buildPairs(db *gorm.DB, decided map[int64]int64) ([]pairMeta, map[int64]*charInfo, error) {
 	type rawPair struct {
-		A     int64  `gorm:"column:a"`
-		B     int64  `gorm:"column:b"`
-		Works string `gorm:"column:works"`
+		A         int64  `gorm:"column:a"`
+		B         int64  `gorm:"column:b"`
+		Works     string `gorm:"column:works"`
+		ViaCredit bool   `gorm:"column:via_credit"`
 	}
 	var raws []rawPair
 	if err := db.Raw(`
@@ -60,18 +62,15 @@ func buildPairs(db *gorm.DB) ([]pairMeta, map[int64]*charInfo, error) {
 			JOIN catalog_character c ON c.id = er.entity_id AND c.deleted_at IS NULL
 			WHERE er.entity_type = 4
 			GROUP BY er.entity_id
-		)
-		SELECT wa.character_id AS a, wb.character_id AS b,
-		       string_agg(DISTINCT wa.work_id::text, ',') AS works
-		FROM catalog_work_character wa
-		JOIN catalog_work_character wb
-		  ON wb.work_id = wa.work_id AND wb.character_id > wa.character_id
-		JOIN anchored sa ON sa.id = wa.character_id
-		JOIN anchored sb ON sb.id = wb.character_id AND NOT (sa.sids && sb.sids)
-		WHERE ` + editspec.NotSuppressedRosterSQL("wa") + `
-		  AND ` + editspec.NotSuppressedRosterSQL("wb") + `
-		  AND ` + editspec.MachineRosterSQL("wa") + `
-		  AND ` + editspec.MachineRosterSQL("wb") + `
+		),
+		present AS (` + presentOnWorkSQL() + `)
+		SELECT pa.character_id AS a, pb.character_id AS b,
+		       string_agg(DISTINCT pa.work_id::text, ',') AS works,
+		       bool_and(pa.credit_only OR pb.credit_only) AS via_credit
+		FROM present pa
+		JOIN present pb ON pb.work_id = pa.work_id AND pb.character_id > pa.character_id
+		JOIN anchored sa ON sa.id = pa.character_id
+		JOIN anchored sb ON sb.id = pb.character_id AND NOT (sa.sids && sb.sids)
 		GROUP BY 1, 2`).Scan(&raws).Error; err != nil {
 		return nil, nil, fmt.Errorf("co-resident pairs: %w", err)
 	}
@@ -92,7 +91,7 @@ func buildPairs(db *gorm.DB) ([]pairMeta, map[int64]*charInfo, error) {
 	var pairs []pairMeta
 	for _, r := range raws {
 		a, b := info[r.A], info[r.B]
-		if a == nil || b == nil {
+		if a == nil || b == nil || decided[r.A] == r.B || decided[r.B] == r.A {
 			continue
 		}
 		aNames := append([]string{a.Name}, a.Aliases...)
@@ -107,6 +106,13 @@ func buildPairs(db *gorm.DB) ([]pairMeta, map[int64]*charInfo, error) {
 		case namesSimilar(aNames, bNames):
 			tier = 3
 		default:
+			continue
+		}
+		// A voice-credit-only co-residence is weak: 153,507 such pairs on
+		// 2026-11-26, nearly all two different characters of one cast. Only a
+		// folded-equal name earns the judge's time, and only when -mode
+		// same-work cannot decide it.
+		if r.ViaCredit && tier != 1 {
 			continue
 		}
 		var works []int64
@@ -134,14 +140,36 @@ func buildPairs(db *gorm.DB) ([]pairMeta, map[int64]*charInfo, error) {
 	return pairs, info, nil
 }
 
+// presentOnWorkSQL lists every character on a work, through the roster or
+// through a voice credit alone. The EG and Bangumi credit lanes minted their
+// own character for each cast row (テトメト 237605 beside the roster's 2118 on
+// work 2452), so a roster-only join never paired 11,619 same-name twins that
+// the page shows under "other characters". A credit whose character also has
+// a roster row is left to the roster branch, which drops curated and
+// suppressed rows on purpose.
+func presentOnWorkSQL() string {
+	return `
+		SELECT wc.work_id, wc.character_id, false AS credit_only
+		FROM catalog_work_character wc
+		WHERE ` + editspec.NotSuppressedRosterSQL("wc") + `
+		  AND ` + editspec.MachineRosterSQL("wc") + `
+		UNION
+		SELECT cr.work_id, cr.character_id, true
+		FROM catalog_credit cr
+		WHERE cr.character_id IS NOT NULL
+		  AND ` + editspec.NotSuppressedCreditSQL("cr") + `
+		  AND NOT EXISTS (SELECT 1 FROM catalog_work_character r
+		                  WHERE r.work_id = cr.work_id AND r.character_id = cr.character_id)`
+}
+
 func foldedEqual(aNames, bNames []string) bool {
 	for _, an := range aNames {
-		fa := foldName(an)
+		fa := charname.Fold(an)
 		if fa == "" {
 			continue
 		}
 		for _, bn := range bNames {
-			if fa == foldName(bn) {
+			if fa == charname.Fold(bn) {
 				return true
 			}
 		}

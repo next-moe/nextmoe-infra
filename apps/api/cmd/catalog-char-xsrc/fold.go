@@ -4,35 +4,10 @@ import (
 	"regexp"
 	"strings"
 
+	"api/internal/platform/catalog/charname"
+
 	"golang.org/x/text/unicode/norm"
 )
-
-func foldName(s string) string {
-	s = norm.NFKC.String(s)
-	s = strings.ToLower(s)
-	var b strings.Builder
-	b.Grow(len(s))
-	for _, r := range s {
-		switch r {
-		case ' ', '\t', '　', '・', '･', '·', '•', '=', '＝':
-			continue
-		}
-		if v, ok := itaiji[r]; ok {
-			r = v
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
-var itaiji = map[rune]rune{
-	'佛': '仏', '嶋': '島', '嶌': '島', '彥': '彦', '髙': '高', '﨑': '崎', '嵜': '崎',
-	'澤': '沢', '邊': '辺', '邉': '辺', '齊': '斉', '齋': '斎', '龍': '竜', '國': '国',
-	'櫻': '桜', '圓': '円', '廣': '広', '惠': '恵', '瀨': '瀬', '賴': '頼', '與': '与',
-	'萬': '万', '亞': '亜', '榮': '栄', '實': '実', '壽': '寿', '濱': '浜', '彌': '弥',
-	'靜': '静', '眞': '真', '樂': '楽', '鐵': '鉄', '藝': '芸', '會': '会', '學': '学',
-	'內': '内', '黑': '黒', '德': '徳', '淺': '浅', '繪': '絵', '禮': '礼', '鹽': '塩',
-}
 
 func nameSegments(s string) []string {
 	s = norm.NFKC.String(s)
@@ -48,9 +23,7 @@ func nameSegments(s string) []string {
 	for _, seg := range strings.FieldsFunc(s, f) {
 		var b strings.Builder
 		for _, r := range seg {
-			if v, ok := itaiji[r]; ok {
-				r = v
-			}
+			r = charname.Itaiji(r)
 			b.WriteRune(r)
 		}
 		if b.Len() > 0 {
@@ -99,7 +72,7 @@ func lcsRunes(a, b string) int {
 func namesSimilar(aNames, bNames []string) bool {
 	for _, an := range aNames {
 		aSegs := nameSegments(an)
-		aFold := foldName(an)
+		aFold := charname.Fold(an)
 		for _, bn := range bNames {
 			for _, as := range aSegs {
 				if len([]rune(as)) < 2 {
@@ -111,7 +84,7 @@ func namesSimilar(aNames, bNames []string) bool {
 					}
 				}
 			}
-			bFold := foldName(bn)
+			bFold := charname.Fold(bn)
 			if aFold == "" || bFold == "" {
 				continue
 			}
@@ -142,11 +115,11 @@ var qualifierRe = regexp.MustCompile(`[(（【\[［][^)）】\]］]+[)）】\]�
 // the two intros describe the same person. Such a pair never merges
 // automatically.
 func qualifiedPair(a, b string) bool {
-	fa, fb := foldName(a), foldName(b)
+	fa, fb := charname.Fold(a), charname.Fold(b)
 	for _, side := range [][2]string{{a, fb}, {b, fa}} {
 		for _, q := range qualifierRe.FindAllString(side[0], -1) {
 			rs := []rune(q)
-			inner := foldName(string(rs[1 : len(rs)-1]))
+			inner := charname.Fold(string(rs[1 : len(rs)-1]))
 			if inner != "" && !strings.Contains(side[1], inner) {
 				return true
 			}

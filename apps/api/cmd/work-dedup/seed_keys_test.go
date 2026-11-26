@@ -11,6 +11,7 @@ import (
 
 	"api/internal/platform/catalog/model"
 	srcb "api/internal/platform/catalog/srcbangumi"
+	"api/internal/platform/catalog/srcvndb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -243,4 +244,39 @@ func TestSeedKeysSecondRunWritesNothing(t *testing.T) {
 	assert.Equal(t, 1, second["existing_skips"])
 	assert.Equal(t, 0, second["written"])
 	assert.Equal(t, int64(1), countRows(t, `SELECT count(*) FROM catalog_match_candidate`))
+}
+
+// 458 and 212193 were never a candidate: VNDB r104272 on 458 lists DLsite
+// VJ009575, which 212193 holds, and EG files 212193's game as a transplant of
+// 458's.
+func TestSeedKeysFilesUpstreamPairs(t *testing.T) {
+	requireDB(t)
+	cleanPipeline(t)
+	medium := galgameMedium(t)
+	orig := mkWork(t, medium, "妹ぱらだいす！ Hアニメ増量版", nil)
+	port := mkWork(t, medium, "【Android版】妹ぱらだいす！ ポータブル", nil)
+	rel := &model.CatalogRelease{WorkID: orig, Kind: model.ReleaseKindDefault}
+	require.NoError(t, testDB.Create(rel).Error)
+	require.NoError(t, testDB.Create(&model.CatalogExternalRef{
+		EntityType: model.EntityTypeRelease, EntityID: rel.ID, SourceID: model.SourceVNDB,
+		ExternalID: "r104272", LinkKind: model.LinkKindExact, MatchedBy: "test:seed-keys",
+	}).Error)
+	require.NoError(t, testDB.Create(&srcvndb.ReleaseVN{ID: "r104272", VID: "v5295", RType: "complete"}).Error)
+	require.NoError(t, testDB.Create(&srcvndb.Extlink{ID: 344686, Site: "dlsite", Value: "VJ009575"}).Error)
+	require.NoError(t, testDB.Create(&srcvndb.ReleaseExtlink{ID: "r104272", Link: 344686}).Error)
+	mkDLsiteRelease(t, port, "VJ009575")
+
+	pcOrig := mkWork(t, medium, "switch original", nil)
+	switchPort := mkWork(t, medium, "switch port", nil)
+	eg := model.SourceErogameScape
+	require.NoError(t, testDB.Create(&model.CatalogWorkRelation{
+		AWorkID: pcOrig, BWorkID: switchPort, RelationTypeID: 12, SourceID: &eg,
+	}).Error)
+
+	sum := parseSeedKeysSummary(t, runSeedKeysBuf(t, 10, true))
+	assert.Equal(t, 1, sum["upstream_declared_pairs"])
+	assert.Equal(t, 1, sum["port_pairs"])
+	assert.Equal(t, 2, sum["written"])
+	assert.Equal(t, model.CandidateReasonSharedExternalID, candidateOf(t, orig, port).Reason)
+	assert.Equal(t, model.CandidateReasonImporterSuggest, candidateOf(t, pcOrig, switchPort).Reason)
 }

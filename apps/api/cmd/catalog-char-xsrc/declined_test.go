@@ -107,7 +107,7 @@ func TestRunEmitAllNeverGroupsADeclinedPair(t *testing.T) {
 	writeJSONL(t, paths["verdicts2"], verdicts2)
 
 	var out strings.Builder
-	if err := runEmitAll(paths["pairs"], paths["verdicts"], paths["pairs2"], paths["verdicts2"],
+	if err := runEmitAll(paths["pairs"], paths["verdicts"], paths["pairs2"], paths["verdicts2"], paths["samework"],
 		paths["worklist"], paths["residual"], &out); err != nil {
 		t.Fatal(err)
 	}
