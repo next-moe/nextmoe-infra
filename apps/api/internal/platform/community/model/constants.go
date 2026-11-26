@@ -56,6 +56,29 @@ const (
 )
 
 const (
+	DeleteSourceUnknown   int16 = 0
+	DeleteSourceAuthor    int16 = 1
+	DeleteSourceModerator int16 = 2
+	DeleteSourceReview    int16 = 3
+	DeleteSourcePurge     int16 = 4
+	DeleteSourceTrust     int16 = 5
+)
+
+var DeleteSourceNames = map[int16]string{
+	DeleteSourceAuthor: "author", DeleteSourceModerator: "moderator", DeleteSourceReview: "review", DeleteSourcePurge: "purge",
+	DeleteSourceTrust: "trust",
+}
+
+func DeleteRestorable(source int16) bool {
+	return source == DeleteSourceModerator || source == DeleteSourceReview
+}
+
+const (
+	PostPinLimit                  = 3
+	MentionsAnnouncedPerPostLimit = 40
+)
+
+const (
 	ReactionKindLike int16 = 0
 )
 
@@ -75,6 +98,7 @@ const (
 	EventKindUserFollowed          int16 = 5
 	EventKindActivityPublished     int16 = 6
 	EventKindActivityChanged       int16 = 7
+	EventKindPostMentioned         int16 = 8
 )
 
 const (

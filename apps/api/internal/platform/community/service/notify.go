@@ -141,7 +141,8 @@ func (s *NotificationService) dispatchEvent(tx *gorm.DB, ev *model.CommunityEven
 		return s.dispatchActivityChanged(tx, ev)
 	}
 	switch ev.Kind {
-	case model.EventKindPostCreated, model.EventKindPostLiked, model.EventKindFeedbackStatusChanged, model.EventKindAnswerAccepted:
+	case model.EventKindPostCreated, model.EventKindPostMentioned, model.EventKindPostLiked,
+		model.EventKindFeedbackStatusChanged, model.EventKindAnswerAccepted:
 	default:
 		return 0, fmt.Errorf("community: unknown event kind %d", ev.Kind)
 	}
@@ -158,7 +159,8 @@ func (s *NotificationService) dispatchEvent(tx *gorm.DB, ev *model.CommunityEven
 	}
 
 	var post *model.CommunityPost
-	if ev.Kind == model.EventKindPostCreated || ev.Kind == model.EventKindPostLiked || ev.Kind == model.EventKindAnswerAccepted {
+	switch ev.Kind {
+	case model.EventKindPostCreated, model.EventKindPostMentioned, model.EventKindPostLiked, model.EventKindAnswerAccepted:
 		if ev.PostID == nil {
 			if err := repository.MarkEventProcessedTx(tx, ev.ID); err != nil {
 				return 0, err

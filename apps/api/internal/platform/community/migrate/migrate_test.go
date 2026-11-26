@@ -65,7 +65,7 @@ func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"community_activity_projection", "community_activity_site", "community_anchor_presentation", "community_activity_setting", "community_feed_seen", "community_activity_group", "community_activity",
-		"community_user_block", "community_user_follow", "community_write_request", "community_purge_archive", "community_notification", "community_event",
+		"community_post_pin", "community_user_block", "community_user_follow", "community_write_request", "community_purge_archive", "community_notification", "community_event",
 		"community_review_item", "community_flag", "community_trust",
 		"community_board", "community_anchor_user", "community_thread_user", "community_reaction",
 		"community_post", "community_thread",
@@ -494,9 +494,11 @@ func TestColumnAudit(t *testing.T) {
 			"id", "thread_id", "post_number", "root_post_id", "reply_to_post_id",
 			"target_user_id", "author_id", "content_raw", "content_html",
 			"sanitizer_version", "content_rating", "status", "edited_at",
-			"edited_by_moderator", "created_at",
+			"edited_by_moderator", "delete_source", "deleted_by", "deleted_site",
+			"deleted_from_status", "created_at", "mentioned_user_ids",
 		},
 		"community_reaction": {"post_id", "user_id", "kind", "created_at"},
+		"community_post_pin": {"site", "post_id", "pinned_by", "pinned_at"},
 		"community_thread_user": {
 			"thread_id", "user_id", "site", "last_read_post_number", "notification_level",
 			"last_visited_at",
@@ -856,5 +858,57 @@ func TestMigrateCreatesActivityTables(t *testing.T) {
 
 	if err := Run(testDB); err != nil {
 		t.Fatalf("second migrate.Run: %v", err)
+	}
+}
+
+func TestPostBackfill(t *testing.T) {
+	cleanTables(t)
+	th := mustThread(t, model.ThreadKindComments, model.AnchorKindSiteGame, "g1", model.ThreadStatusOpen)
+	post := func(n int, status int16, raw string) int64 {
+		t.Helper()
+		p := model.CommunityPost{ThreadID: th.ID, PostNumber: int32(n), AuthorID: 1, ContentRaw: raw,
+			ContentHTML: raw, ContentRating: model.ContentRatingAll, Status: status}
+		if err := testDB.Create(&p).Error; err != nil {
+			t.Fatalf("insert post: %v", err)
+		}
+		return p.ID
+	}
+	rejected := post(1, model.PostStatusDeleted, "x")
+	purged := post(2, model.PostStatusDeleted, "")
+	post(3, model.PostStatusDeleted, "x")
+	mentioned := post(4, model.PostStatusVisible, "x")
+	for _, id := range []int64{rejected, purged} {
+		if err := testDB.Exec(`INSERT INTO community_review_item (site, post_id, source, status, created_at)
+			VALUES ('letmoe', ?, 0, 2, now())`, id).Error; err != nil {
+			t.Fatalf("insert review item: %v", err)
+		}
+	}
+	if err := testDB.Exec(`
+		INSERT INTO community_event (site, kind, thread_id, post_id, actor_id, mention_user_ids, attempt_after, created_at)
+		VALUES ('letmoe', 1, ?, ?, 1, '[7, 8]', now(), now())`, th.ID, mentioned).Error; err != nil {
+		t.Fatalf("insert event: %v", err)
+	}
+	if err := testDB.Exec(`
+		INSERT INTO community_notification (site, user_id, kind, thread_id, anchor_kind, anchor_id, post_id, actor_count, item_count, seq, created_at, updated_at)
+		VALUES ('letmoe', 9, 2, ?, 1, 'g1', ?, 1, 1, 1, now(), now()),
+		       ('letmoe', 8, 2, ?, 1, 'g1', ?, 1, 1, 2, now(), now())`, th.ID, mentioned, th.ID, mentioned).Error; err != nil {
+		t.Fatalf("insert notifications: %v", err)
+	}
+	for i := range 2 {
+		if err := Run(testDB); err != nil {
+			t.Fatalf("migrate run %d: %v", i, err)
+		}
+	}
+	var rows []model.CommunityPost
+	if err := testDB.Order("post_number").Find(&rows).Error; err != nil {
+		t.Fatalf("read posts: %v", err)
+	}
+	for _, r := range rows[:3] {
+		if r.DeleteSource != model.DeleteSourceUnknown {
+			t.Fatalf("a tombstone from before the release stays unknown, even next to a rejected item: %+v", r)
+		}
+	}
+	if got := string(rows[3].MentionedUserIDs); got != "[7, 8, 9]" {
+		t.Fatalf("mentions come from events and kind-2 rows: %s", got)
 	}
 }

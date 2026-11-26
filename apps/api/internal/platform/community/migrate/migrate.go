@@ -24,6 +24,10 @@ func Run(db *gorm.DB) error {
 		// community_thread first: community_post's thread_id FK and the thread
 		// self-reference (merged_into_id) both point at it.
 		&model.CommunityThread{},
+		// 2026-11-26: community_post gains delete_source and deleted_from_status
+		// (NOT NULL DEFAULT 0 = unknown / visible, metadata-only adds),
+		// deleted_by, deleted_site and mentioned_user_ids (nullable, NULL on
+		// every existing row). postBackfillSQL fills mentioned_user_ids only.
 		&model.CommunityPost{},
 		&model.CommunityReaction{},
 		&model.CommunityThreadUser{},
@@ -82,6 +86,8 @@ func Run(db *gorm.DB) error {
 		// table with no rows, so the first run reads platform_notices from the
 		// start, which is empty until this release raises its first notice.
 		&notice.Cursor{},
+		// 2026-11-26: a site's pinned comments. A new table with no rows.
+		&model.CommunityPostPin{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}
@@ -350,7 +356,47 @@ func rawSQL(db *gorm.DB) error {
 	if err := boardsSQL(db); err != nil {
 		return err
 	}
+	if err := postBackfillSQL(db); err != nil {
+		return err
+	}
 	return projectionSQL(db)
+}
+
+// postBackfillSQL (2026-11-26) fills mentioned_user_ids, the set of users
+// already told about a post, which an edit must not tell again. The only
+// record of it is the mention_user_ids of post_created events (pruned after 7
+// days) and the kind-2 rows (read ones pruned after 90 days); a mention older
+// than both is not recovered, and an edit that keeps it notifies that user
+// once more. The statement only fills NULLs, so a rerun changes nothing.
+//
+// delete_source is deliberately not backfilled. A rejected review item next to
+// a tombstone looked like "removed by review", but before 1.4.0 a rejection
+// also landed on posts their author had already deleted, and a trust hide
+// closed items as rejected; marking those review would let a moderator restore
+// what an author deleted. Every tombstone from before stays unknown.
+func postBackfillSQL(db *gorm.DB) error {
+	for _, st := range []struct{ name, stmt string }{
+		{"backfill announced mentions", `
+			UPDATE community_post AS p
+			   SET mentioned_user_ids = m.ids
+			  FROM (SELECT post_id, jsonb_agg(DISTINCT user_id ORDER BY user_id) AS ids
+			          FROM (SELECT ev.post_id, e::bigint AS user_id
+			                  FROM community_event AS ev,
+			                       jsonb_array_elements_text(ev.mention_user_ids) AS e
+			                 WHERE ev.kind = 1 AND ev.post_id IS NOT NULL
+			                   AND jsonb_typeof(ev.mention_user_ids) = 'array'
+			                UNION
+			                SELECT n.post_id, n.user_id
+			                  FROM community_notification AS n
+			                 WHERE n.kind = 2 AND n.post_id IS NOT NULL) AS u
+			         GROUP BY post_id) AS m
+			 WHERE p.id = m.post_id AND p.mentioned_user_ids IS NULL`},
+	} {
+		if err := db.Exec(st.stmt).Error; err != nil {
+			return fmt.Errorf("%s: %w", st.name, err)
+		}
+	}
+	return nil
 }
 
 // boardsSQL (wave 15) turns community_board, which no face had ever written,

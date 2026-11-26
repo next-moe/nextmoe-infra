@@ -44,7 +44,10 @@ type PostView struct {
 	Status            int16      `json:"status" doc:"0=visible 1=hidden 2=deleted"`
 	EditedAt          *time.Time `json:"edited_at,omitempty"`
 	EditedByModerator bool       `json:"edited_by_moderator,omitempty" doc:"true when the latest edit was a mod-actor edit (as_moderator)"`
+	DeleteSource      string     `json:"delete_source,omitempty" enum:"author,moderator,review,trust,purge" doc:"on a tombstone: who removed it; absent on a tombstone written before community 1.4.0. moderator and review can be undone with POST /posts/{id}/restore by the site that removed it"`
 	CreatedAt         time.Time  `json:"created_at"`
+	PinnedAt          *time.Time `json:"pinned_at,omitempty" doc:"GET /comments and the pin faces: when the caller's site pinned this comment"`
+	ReplyCount        *int32     `json:"reply_count,omitempty" doc:"GET /comments with roots_only: the top-level post's visible replies"`
 
 	ReactionCount int32 `json:"reaction_count" doc:"likes on this post (reaction kind 0)"`
 	ViewerReacted bool  `json:"viewer_reacted,omitempty" doc:"whether viewer_id has liked this post; always false when the request named no viewer"`
@@ -109,9 +112,10 @@ type ReplyRequest struct {
 }
 
 type EditPostRequest struct {
-	AuthorID    int64  `json:"author_id" doc:"the acting user (the post author, or the moderator when as_moderator)"`
-	Body        string `json:"body" doc:"new markdown source; re-cooked + sanitized on write"`
-	AsModerator bool   `json:"as_moderator,omitempty" doc:"mod-actor variant: skip the author match; the site vouches author_id is its moderator"`
+	AuthorID       int64   `json:"author_id" doc:"the acting user (the post author, or the moderator when as_moderator)"`
+	Body           string  `json:"body" doc:"new markdown source; re-cooked + sanitized on write"`
+	AsModerator    bool    `json:"as_moderator,omitempty" doc:"mod-actor variant: skip the author match; the site vouches author_id is its moderator"`
+	MentionUserIDs []int64 `json:"mention_user_ids,omitempty" maxItems:"20" doc:"every user the edited body mentions; those this post has not mentioned before are notified. Ignored on an as_moderator edit of someone else's post"`
 }
 
 type ReactionToggleRequest struct {
@@ -142,9 +146,20 @@ type ThreadWithPosts struct {
 }
 
 type CommentsPage struct {
-	Thread     *ThreadView `json:"thread,omitempty" doc:"absent until the anchor's first comment creates the thread; posts is then empty too"`
-	Posts      []PostView  `json:"posts"`
-	NextCursor string      `json:"next_cursor,omitempty" doc:"post_number to pass as after for the next page; empty = last page"`
+	Thread        *ThreadView `json:"thread,omitempty" doc:"absent until the anchor's first comment creates the thread; posts is then empty too"`
+	PinnedPosts   []PostView  `json:"pinned_posts" doc:"the caller's site's pinned comments, newest pin first, on the first page only; they also appear in posts at their own place"`
+	Posts         []PostView  `json:"posts"`
+	ReplyPreviews []PostView  `json:"reply_previews,omitempty" doc:"with roots_only and reply_preview: the first replies of each listed top-level post (pinned ones included), oldest first, grouped by root_post_id"`
+	NextCursor    string      `json:"next_cursor,omitempty" doc:"pass as cursor for the next page; empty = last page. Under sort=oldest it is a post_number, which after also accepts"`
+}
+
+type PostActorRequest struct {
+	ActorID int64 `json:"actor_id" doc:"the moderator; recorded in the audit log"`
+}
+
+type PostChangeResponse struct {
+	Post    PostView `json:"post"`
+	Changed bool     `json:"changed" doc:"false when the post was already as asked (a retry)"`
 }
 
 type ThreadListResponse struct {

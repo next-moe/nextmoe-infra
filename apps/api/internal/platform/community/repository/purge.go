@@ -29,7 +29,9 @@ func archivedRows(table string) string {
 func RestorePurgedPostsTx(tx *gorm.DB, site string, authorID int64) (int64, error) {
 	res := tx.Exec(`
 		UPDATE community_post AS p
-		   SET status = r.status, content_raw = r.content_raw, content_html = r.content_html
+		   SET status = r.status, content_raw = r.content_raw, content_html = r.content_html,
+		       delete_source = COALESCE(r.delete_source, 0), deleted_by = r.deleted_by,
+		       deleted_site = r.deleted_site, deleted_from_status = COALESCE(r.deleted_from_status, 0)
 		  FROM (SELECT DISTINCT ON (r.id) r.* FROM `+archivedRows("community_post")+`
 		         ORDER BY r.id, a.id) AS r
 		 WHERE p.id = r.id AND p.status = ?`,

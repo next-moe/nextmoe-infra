@@ -60,7 +60,7 @@ func (s *CallbackService) Handle(ctx context.Context, cb TrustCallback) (Callbac
 			}
 		case trustActionRemove:
 			if post.Status != model.PostStatusDeleted {
-				if err := repository.SetPostStatusTx(tx, postID, model.PostStatusDeleted); err != nil {
+				if err := repository.TombstonePostTx(tx, postID, repository.Removal{Source: model.DeleteSourceTrust}); err != nil {
 					return err
 				}
 			}

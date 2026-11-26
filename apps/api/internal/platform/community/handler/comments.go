@@ -14,11 +14,15 @@ import (
 )
 
 type commentsPageInput struct {
-	AnchorKind int16  `query:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
-	AnchorID   string `query:"anchor_id"`
-	After      int32  `query:"after" doc:"post_number to read after (0 = from the top)"`
-	Limit      int    `query:"limit" doc:"page size (max 100, default 50)"`
-	ViewerID   int64  `query:"viewer_id" doc:"fill viewer_reacted for this user; 0 = no viewer"`
+	AnchorKind   int16  `query:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person 5=catalog_folder"`
+	AnchorID     string `query:"anchor_id"`
+	Sort         string `query:"sort" default:"oldest" enum:"oldest,newest,top" doc:"oldest (post_number ascending) | newest | top (most likes, then newest; a mutable key, so a post can move between pages)"`
+	RootsOnly    bool   `query:"roots_only" doc:"only top-level posts, each with reply_count; read a root's replies with GET /posts/{id}/replies"`
+	ReplyPreview int    `query:"reply_preview" minimum:"0" maximum:"5" doc:"with roots_only: also return each root's first n replies in reply_previews"`
+	Cursor       string `query:"cursor" doc:"next_cursor of the previous page; it is bound to the sort that minted it"`
+	After        int32  `query:"after" doc:"sort=oldest only: post_number to read after (0 = from the top); cursor replaces it"`
+	Limit        int    `query:"limit" doc:"page size (max 100, default 50)"`
+	ViewerID     int64  `query:"viewer_id" doc:"fill viewer_reacted for this user; 0 = no viewer"`
 }
 
 type commentsPageOutput struct {
@@ -33,26 +37,25 @@ func (s *Server) getComments(ctx context.Context, in *commentsPageInput) (*comme
 	if he := checkEntityAnchor(in.AnchorKind, in.AnchorID); he != nil {
 		return nil, he
 	}
+	q, he := wallQuery(in)
+	if he != nil {
+		return nil, he
+	}
 	thread, err := s.threads.FindCommentsThread(site, in.AnchorKind, in.AnchorID)
 	if err != nil {
 		return nil, mapErr("find comments thread", err)
 	}
 	if thread == nil {
-		return &commentsPageOutput{Body: okEnvelope(dto.CommentsPage{Posts: []dto.PostView{}})}, nil
+		return &commentsPageOutput{Body: okEnvelope(dto.CommentsPage{PinnedPosts: []dto.PostView{}, Posts: []dto.PostView{}})}, nil
 	}
-	limit := clampLimit(in.Limit)
-	posts, err := s.posts.ListPosts(thread.ID, in.After, limit)
+	q.ThreadID = thread.ID
+	page, err := s.wallPage(site, q, in.ReplyPreview, in.ViewerID)
 	if err != nil {
 		return nil, mapErr("list comments", err)
 	}
-	views := toPostViews(posts)
-	if err := s.hydratePostReactions(in.ViewerID, views); err != nil {
-		return nil, mapErr("hydrate comment reactions", err)
-	}
 	view := toThreadView(thread)
-	return &commentsPageOutput{Body: okEnvelope(dto.CommentsPage{
-		Thread: &view, Posts: views, NextCursor: postsPageCursor(views, limit),
-	})}, nil
+	page.Thread = &view
+	return &commentsPageOutput{Body: okEnvelope(*page)}, nil
 }
 
 type commentInput struct {

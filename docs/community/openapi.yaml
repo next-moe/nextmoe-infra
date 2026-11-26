@@ -926,9 +926,19 @@ components:
       additionalProperties: false
       properties:
         next_cursor:
-          description: post_number to pass as after for the next page; empty = last page
+          description: pass as cursor for the next page; empty = last page. Under sort=oldest it is a post_number, which after also accepts
           type: string
+        pinned_posts:
+          description: the caller's site's pinned comments, newest pin first, on the first page only; they also appear in posts at their own place
+          items:
+            $ref: "#/components/schemas/PostView"
+          type: array
         posts:
+          items:
+            $ref: "#/components/schemas/PostView"
+          type: array
+        reply_previews:
+          description: "with roots_only and reply_preview: the first replies of each listed top-level post (pinned ones included), oldest first, grouped by root_post_id"
           items:
             $ref: "#/components/schemas/PostView"
           type: array
@@ -936,6 +946,7 @@ components:
           $ref: "#/components/schemas/ThreadView"
           description: absent until the anchor's first comment creates the thread; posts is then empty too
       required:
+        - pinned_posts
         - posts
       type: object
     CommentsResolveRequest:
@@ -1055,6 +1066,15 @@ components:
         body:
           description: new markdown source; re-cooked + sanitized on write
           type: string
+        mention_user_ids:
+          description: every user the edited body mentions; those this post has not mentioned before are notified. Ignored on an as_moderator edit of someone else's post
+          items:
+            format: int64
+            type: integer
+          maxItems: 20
+          type:
+            - array
+            - "null"
       required:
         - author_id
         - body
@@ -1599,6 +1619,27 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/OKResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopePostChangeResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopePostChangeResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/PostChangeResponse"
         message:
           type: string
       required:
@@ -2653,6 +2694,35 @@ components:
         - actor_id
         - scope
       type: object
+    PostActorRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PostActorRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        actor_id:
+          description: the moderator; recorded in the audit log
+          format: int64
+          type: integer
+      required:
+        - actor_id
+      type: object
+    PostChangeResponse:
+      additionalProperties: false
+      properties:
+        changed:
+          description: false when the post was already as asked (a retry)
+          type: boolean
+        post:
+          $ref: "#/components/schemas/PostView"
+      required:
+        - post
+        - changed
+      type: object
     PostFeedResponse:
       additionalProperties: false
       properties:
@@ -2726,6 +2796,15 @@ components:
         created_at:
           format: date-time
           type: string
+        delete_source:
+          description: "on a tombstone: who removed it; absent on a tombstone written before community 1.4.0. moderator and review can be undone with POST /posts/{id}/restore by the site that removed it"
+          enum:
+            - author
+            - moderator
+            - review
+            - trust
+            - purge
+          type: string
         edited_at:
           format: date-time
           type: string
@@ -2735,11 +2814,19 @@ components:
         id:
           format: int64
           type: integer
+        pinned_at:
+          description: "GET /comments and the pin faces: when the caller's site pinned this comment"
+          format: date-time
+          type: string
         post_number:
           format: int32
           type: integer
         reaction_count:
           description: likes on this post (reaction kind 0)
+          format: int32
+          type: integer
+        reply_count:
+          description: "GET /comments with roots_only: the top-level post's visible replies"
           format: int32
           type: integer
         reply_to_post_id:
@@ -3613,7 +3700,7 @@ components:
       type: object
 info:
   title: KUN Community Service
-  version: 1.3.0
+  version: 1.4.0
 openapi: 3.1.0
 paths:
   /api/v1/community/activities:
@@ -4245,12 +4332,48 @@ paths:
           name: anchor_id
           schema:
             type: string
-        - description: post_number to read after (0 = from the top)
+        - description: oldest (post_number ascending) | newest | top (most likes, then newest; a mutable key, so a post can move between pages)
+          explode: false
+          in: query
+          name: sort
+          schema:
+            default: oldest
+            description: oldest (post_number ascending) | newest | top (most likes, then newest; a mutable key, so a post can move between pages)
+            enum:
+              - oldest
+              - newest
+              - top
+            type: string
+        - description: only top-level posts, each with reply_count; read a root's replies with GET /posts/{id}/replies
+          explode: false
+          in: query
+          name: roots_only
+          schema:
+            description: only top-level posts, each with reply_count; read a root's replies with GET /posts/{id}/replies
+            type: boolean
+        - description: "with roots_only: also return each root's first n replies in reply_previews"
+          explode: false
+          in: query
+          name: reply_preview
+          schema:
+            description: "with roots_only: also return each root's first n replies in reply_previews"
+            format: int64
+            maximum: 5
+            minimum: 0
+            type: integer
+        - description: next_cursor of the previous page; it is bound to the sort that minted it
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: next_cursor of the previous page; it is bound to the sort that minted it
+            type: string
+        - description: "sort=oldest only: post_number to read after (0 = from the top); cursor replaces it"
           explode: false
           in: query
           name: after
           schema:
-            description: post_number to read after (0 = from the top)
+            description: "sort=oldest only: post_number to read after (0 = from the top); cursor replaces it"
             format: int32
             type: integer
         - description: page size (max 100, default 50)
@@ -4728,6 +4851,71 @@ paths:
       summary: Report a post
       tags:
         - community-write
+  /api/v1/community/posts/{id}/pin:
+    delete:
+      operationId: unpinPost
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - description: the moderator; recorded in the audit log
+          explode: false
+          in: query
+          name: actor_id
+          schema:
+            description: the moderator; recorded in the audit log
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePostChangeResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Unpin a comment for the caller's site (idempotent)
+      tags:
+        - community-moderation
+    put:
+      operationId: pinPost
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostActorRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePostChangeResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Pin a top-level comment on its wall for the caller's site (idempotent; at most 3 per wall)
+      tags:
+        - community-moderation
   /api/v1/community/posts/{id}/reaction:
     delete:
       operationId: unsetReaction
@@ -4833,6 +5021,88 @@ paths:
       summary: "Add a reaction to a post (idempotent: repeating it changes nothing)"
       tags:
         - community-write
+  /api/v1/community/posts/{id}/replies:
+    get:
+      operationId: listReplies
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - description: post_number to read after (0 = from the first reply)
+          explode: false
+          in: query
+          name: after
+          schema:
+            description: post_number to read after (0 = from the first reply)
+            format: int32
+            type: integer
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+        - description: fill viewer_reacted for this user; 0 = no viewer
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: fill viewer_reacted for this user; 0 = no viewer
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePostListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List a top-level post's replies (keyset by post_number, oldest first)
+      tags:
+        - community-read
+  /api/v1/community/posts/{id}/restore:
+    post:
+      operationId: restorePost
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostActorRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePostChangeResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Undo a moderator's or the review queue's removal of a post (idempotent)
+      tags:
+        - community-moderation
   /api/v1/community/review:
     get:
       operationId: listReview
@@ -4897,7 +5167,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/HouseError"
           description: Error
-      summary: Approve a queue item (keep the content; restore the post)
+      summary: Approve a queue item (keep the content; restore the post unless it was deleted meanwhile)
       tags:
         - community-review
   /api/v1/community/review/{id}/reject:

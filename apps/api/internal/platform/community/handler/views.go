@@ -58,6 +58,7 @@ func toPostView(p *model.CommunityPost) dto.PostView {
 		AuthorID: p.AuthorID, ContentRaw: p.ContentRaw, ContentHTML: p.ContentHTML,
 		ContentRating: p.ContentRating, Status: p.Status,
 		EditedAt: p.EditedAt, EditedByModerator: p.EditedByModerator, CreatedAt: p.CreatedAt,
+		DeleteSource: model.DeleteSourceNames[p.DeleteSource],
 	}
 }
 

@@ -230,8 +230,9 @@ func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writ
 		RootPostID: rootPostID, ReplyToPostID: d.replyToPostID, TargetUserID: targetUserID,
 		AuthorID:   d.authorID,
 		ContentRaw: d.bodyRaw, ContentHTML: d.cooked.HTML, SanitizerVersion: int32(d.cooked.Version),
-		ContentRating: thread.ContentRating,
-		Status:        postStatus(held),
+		ContentRating:    thread.ContentRating,
+		Status:           postStatus(held),
+		MentionedUserIDs: mentionIDsJSON(d.mentionUserIDs),
 	}
 	if err := repository.CreatePostTx(tx, &out.post); err != nil {
 		return out, err
@@ -286,13 +287,18 @@ func (s *PostService) ListPosts(threadID int64, afterNumber int32, limit int) ([
 }
 
 type EditParams struct {
-	PostID      int64
-	AuthorID    int64
-	BodyRaw     string
-	AsModerator bool
+	PostID         int64
+	AuthorID       int64
+	BodyRaw        string
+	AsModerator    bool
+	MentionUserIDs []int64
 }
 
 func (s *PostService) Edit(ctx context.Context, p EditParams) (*model.CommunityPost, error) {
+	mentions, err := normalizeMentionIDs(p.AuthorID, p.MentionUserIDs)
+	if err != nil {
+		return nil, err
+	}
 	cooked := sanitize.Cook(p.BodyRaw)
 	level, err := trustLevel(s.trusts, p.AuthorID)
 	if err != nil {
@@ -316,7 +322,7 @@ func (s *PostService) Edit(ctx context.Context, p EditParams) (*model.CommunityP
 	var enqueuedItemID int64
 	modActed := false
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		existing, err := repository.GetPostTx(tx, p.PostID)
+		existing, err := repository.LockPostTx(tx, p.PostID)
 		if err != nil {
 			return err
 		}
@@ -338,6 +344,11 @@ func (s *PostService) Edit(ctx context.Context, p EditParams) (*model.CommunityP
 		}
 		if existing.Status != model.PostStatusVisible {
 			return ErrPostNotEditable
+		}
+		if !modActed {
+			if err := announceEditMentionsTx(tx, deliverySite(ctx, thread.Site), thread.ID, existing, mentions); err != nil {
+				return err
+			}
 		}
 		if err := repository.UpdatePostContentTx(tx, p.PostID, p.BodyRaw, cooked.HTML, int32(cooked.Version), now, modActed); err != nil {
 			return err
@@ -401,7 +412,11 @@ func (s *PostService) Delete(ctx context.Context, postID, actorID int64, asModer
 		if existing.Status == model.PostStatusDeleted {
 			return nil
 		}
-		return repository.SetPostStatusTx(tx, postID, model.PostStatusDeleted)
+		if modActed {
+			site := deliverySite(ctx, thread.Site)
+			return repository.TombstonePostTx(tx, postID, repository.Removal{Source: model.DeleteSourceModerator, By: &actorID, Site: &site})
+		}
+		return repository.TombstonePostTx(tx, postID, repository.Removal{Source: model.DeleteSourceAuthor})
 	})
 	if err != nil {
 		return err
@@ -411,4 +426,38 @@ func (s *PostService) Delete(ctx context.Context, postID, actorID int64, asModer
 			"post_author_id", authorID, "moderator_id", actorID)
 	}
 	return nil
+}
+
+func announceEditMentionsTx(tx *gorm.DB, site string, threadID int64, post *model.CommunityPost, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	known, err := parseMentionIDs(post.MentionedUserIDs)
+	if err != nil {
+		return err
+	}
+	seen := make(map[int64]bool, len(known))
+	for _, id := range known {
+		seen[id] = true
+	}
+	var added []int64
+	for _, id := range ids {
+		if !seen[id] && len(known)+len(added) < model.MentionsAnnouncedPerPostLimit {
+			added = append(added, id)
+		}
+	}
+	if len(added) == 0 {
+		return nil
+	}
+	all := mentionIDsJSON(append(known, added...))
+	if err := repository.SetMentionedUsersTx(tx, post.ID, all); err != nil {
+		return err
+	}
+	post.MentionedUserIDs = all
+	postID := post.ID
+	return repository.EnqueueEventTx(tx, &model.CommunityEvent{
+		Site: site, Kind: model.EventKindPostMentioned,
+		ThreadID: threadID, PostID: &postID, ActorID: post.AuthorID,
+		MentionUserIDs: mentionIDsJSON(added), AttemptAfter: time.Now(),
+	})
 }

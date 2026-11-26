@@ -5,7 +5,9 @@ import (
 
 	"api/internal/platform/community/model"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PostRepository struct{ db *gorm.DB }
@@ -66,7 +68,40 @@ func AuthorHasPostedTx(tx *gorm.DB, threadID, authorID int64) (bool, error) {
 	return n > 0, nil
 }
 
+// A tombstone goes through TombstonePostTx: restore decides by who removed it.
 func SetPostStatusTx(tx *gorm.DB, postID int64, status int16) error {
+	return tx.Model(&model.CommunityPost{}).Where("id = ?", postID).Updates(map[string]any{
+		"status": status, "delete_source": model.DeleteSourceUnknown, "deleted_by": nil,
+		"deleted_site": nil, "deleted_from_status": model.PostStatusVisible,
+	}).Error
+}
+
+type Removal struct {
+	Source int16
+	By     *int64
+	Site   *string
+}
+
+func TombstonePostTx(tx *gorm.DB, postID int64, r Removal) error {
+	return tx.Model(&model.CommunityPost{}).Where("id = ?", postID).Updates(map[string]any{
+		"status": model.PostStatusDeleted, "delete_source": r.Source, "deleted_by": r.By,
+		"deleted_site": r.Site, "deleted_from_status": gorm.Expr("status"),
+	}).Error
+}
+
+func LockPostTx(tx *gorm.DB, id int64) (*model.CommunityPost, error) {
+	var p model.CommunityPost
+	err := tx.Clauses(clause.Locking{Strength: LockUpdate}).First(&p, id).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func SetMentionedUsersTx(tx *gorm.DB, postID int64, ids datatypes.JSON) error {
 	return tx.Model(&model.CommunityPost{}).Where("id = ?", postID).
-		Update("status", status).Error
+		Update("mentioned_user_ids", ids).Error
 }
