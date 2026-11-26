@@ -14,6 +14,7 @@ import (
 	"api/internal/platform/catalog/seed"
 	"api/internal/platform/catalog/service"
 	srcb "api/internal/platform/catalog/srcbangumi"
+	"api/internal/platform/catalog/srcvndb"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func TestMain(m *testing.M) {
 			fmt.Fprintln(os.Stderr, "FAIL: cannot connect to the assigned test database")
 			os.Exit(1)
 		}
-		for _, step := range []func(*gorm.DB) error{migrate.Run, seed.Run, srcb.EnsureSchema} {
+		for _, step := range []func(*gorm.DB) error{migrate.Run, seed.Run, srcb.EnsureSchema, srcvndb.EnsureSchema} {
 			if err := step(db); err != nil {
 				fmt.Fprintf(os.Stderr, "FAIL: catalog test setup: %v\n", err)
 				os.Exit(1)
@@ -59,7 +60,8 @@ func cleanPipeline(t *testing.T) {
 		"catalog_match_candidate", "catalog_merge_proposal", "catalog_merge_archive", "catalog_redirect",
 		"catalog_external_ref", "catalog_revision", "catalog_entity_usage",
 		"catalog_work_label", "catalog_work_title", "catalog_release", "catalog_work",
-		"src_bangumi.subject",
+		"src_bangumi.subject", "catalog_work_relation",
+		"src_vndb.releases_vn", "src_vndb.releases_extlinks", "src_vndb.extlinks",
 	} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" RESTART IDENTITY CASCADE").Error)
 	}

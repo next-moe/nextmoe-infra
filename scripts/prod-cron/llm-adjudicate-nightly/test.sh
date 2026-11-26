@@ -141,7 +141,7 @@ case "$1" in
     else
       case "$name" in
         adj-seed-keys)
-          echo "APPLIED [seed-keys] stripped_pairs=0 declared_pairs=0 existing_skips=0 conflict_skips=0 limited=0 written=0"
+          echo "APPLIED [seed-keys] stripped_pairs=0 declared_pairs=0 upstream_declared_pairs=0 port_pairs=0 existing_skips=0 conflict_skips=0 limited=0 written=0"
           ;;
         adj-judge-workpair)
           echo "2026/09/17 10:52:40 INFO queue-workpair done judged=10 errors=0 dry=false"

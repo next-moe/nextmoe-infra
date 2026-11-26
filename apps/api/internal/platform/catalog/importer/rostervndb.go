@@ -261,6 +261,11 @@ func (im *Importer) loadCharRefsByKind(source, linkKind int16) (map[string]int64
 // not render it", not "this name does not exist": the attach test asks whether
 // this vndb character is already in the roster under any spelling, and hiding a
 // name from it would mint a second character row for the same person.
+//
+// A character the work carries only through a voice credit counts as being on
+// it: the Bangumi credit lane had minted 吉宮舞冬 onto work 1894's cast before
+// this lane ran, and a roster-only test minted 吉宮 舞冬 beside it — 6,299
+// VNDB/Bangumi pairs like it on 2026-11-26.
 func (im *Importer) loadVNDBAttachTargets() (map[string]int64, error) {
 	var rows []struct {
 		CharID     string `gorm:"column:char_id"`
@@ -268,26 +273,32 @@ func (im *Importer) loadVNDBAttachTargets() (map[string]int64, error) {
 	}
 	if err := im.catalog.Raw(`
 		WITH vndb_norms AS (
-			SELECT id, lower(normalize(name, NFKC)) AS norm FROM src_vndb.chars_names WHERE btrim(name) <> ''
+			SELECT id, `+sqlNameFold("name")+` AS norm FROM src_vndb.chars_names WHERE btrim(name) <> ''
 			UNION
-			SELECT id, lower(normalize(latin, NFKC)) AS norm FROM src_vndb.chars_names WHERE btrim(latin) <> ''
+			SELECT id, `+sqlNameFold("latin")+` AS norm FROM src_vndb.chars_names WHERE btrim(latin) <> ''
+		),
+		on_work AS (
+			SELECT work_id, character_id FROM catalog_work_character WHERE matched_by <> 'curated'
+			UNION
+			SELECT work_id, character_id FROM catalog_credit WHERE character_id IS NOT NULL
 		),
 		existing AS (
-			SELECT wc.work_id, wc.character_id, ch.display_name_norm AS norm
-			FROM catalog_work_character wc JOIN catalog_character ch ON ch.id = wc.character_id AND ch.deleted_at IS NULL
-			WHERE wc.matched_by <> 'curated'
+			SELECT o.work_id, o.character_id, `+sqlNameFold("ch.display_name")+` AS norm
+			FROM on_work o JOIN catalog_character ch ON ch.id = o.character_id AND ch.deleted_at IS NULL
 			UNION
-			SELECT wc.work_id, wc.character_id, al.name_norm AS norm
-			FROM catalog_work_character wc JOIN catalog_character_alias al ON al.character_id = wc.character_id
-			WHERE wc.matched_by <> 'curated'
+			SELECT o.work_id, o.character_id, `+sqlNameFold("al.name")+` AS norm
+			FROM on_work o JOIN catalog_character_alias al ON al.character_id = o.character_id
 		)
 		SELECT cv.id AS char_id, min(e.character_id) AS existing_id
 		FROM src_vndb.chars_vns cv
 		JOIN catalog_external_ref r ON r.entity_type = ? AND r.source_id = ? AND r.link_kind = ? AND r.external_id = cv.vid
 		JOIN vndb_norms vn ON vn.id = cv.id
 		JOIN existing e ON e.work_id = r.entity_id AND e.norm = vn.norm
-		GROUP BY cv.id`,
-		model.EntityTypeWork, vndbSource, model.LinkKindExact).Scan(&rows).Error; err != nil {
+		WHERE NOT EXISTS (SELECT 1 FROM catalog_external_ref x
+		                  WHERE x.entity_type = ? AND x.entity_id = e.character_id AND x.source_id = ?)
+		GROUP BY cv.id
+		HAVING count(DISTINCT e.character_id) = 1`,
+		model.EntityTypeWork, vndbSource, model.LinkKindExact, model.EntityTypeCharacter, vndbSource).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[string]int64, len(rows))
@@ -401,4 +412,10 @@ func capGatesByWork(gates []vndbGateRow, n int) []vndbGateRow {
 		}
 	}
 	return out
+}
+
+// sqlNameFold is charname.Fold without the itaiji table: NFKC, lower case, no
+// separators.
+func sqlNameFold(col string) string {
+	return `regexp_replace(lower(normalize(` + col + `, NFKC)), '[[:space:]　・･·•=＝]', '', 'g')`
 }

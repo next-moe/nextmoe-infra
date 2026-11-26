@@ -72,6 +72,9 @@ type pairEvidence struct {
 	StoreSourceKey string
 	StoreID        string
 	StoreHolders   int
+
+	UpstreamDeclared string
+	UpstreamPort     bool
 }
 
 func (e pairEvidence) exclusive() bool { return e.Name != "" && e.Holders == exclusiveNameHolders }
@@ -100,13 +103,23 @@ var registryRecordKeys = []string{"vndb", "bangumi", "erogamescape"}
 // and release years that agree. On 2026-11-06 the unsure-plus-exclusive-name
 // rule was about to merge Doll House (VNDB, 2020) into Dollhouse (Bangumi,
 // 2026) at confidence 0.2, and The Censor (2015) into The Censor (2025). Those
-// pairs had been held back only because both works were claimed.
+// pairs had been held back only because both works were claimed. An upstream
+// declaration or port record needs the same verdict but not agreeing years: a
+// port ships later, so 212193 (2015 Android) never agrees with 458 (2010).
 func (e pairEvidence) acceptReason(verdict string, conf, minAccept float64) string {
 	shared := fmt.Sprintf("shares %s:%s", e.SharedSourceKey, e.SharedExternalID)
 	if e.exclusiveShared() && slices.Contains(registryRecordKeys, e.SharedSourceKey) {
 		return shared
 	}
-	if verdict != VerdictSame || conf < minAccept || e.YearsClash {
+	if verdict != VerdictSame || conf < minAccept {
+		return ""
+	}
+	switch {
+	case e.UpstreamDeclared != "":
+		return e.UpstreamDeclared
+	case e.UpstreamPort:
+		return "erogamescape records one as a port of the other"
+	case e.YearsClash:
 		return ""
 	}
 	switch {
@@ -148,6 +161,9 @@ func loadPairEvidence(db *gorm.DB, rows []QueueVerdict) (map[int64]pairEvidence,
 		return nil, err
 	}
 	if err := attachDatedEvidence(db, rows, out); err != nil {
+		return nil, err
+	}
+	if err := attachUpstreamEvidence(db, rows, out); err != nil {
 		return nil, err
 	}
 	return out, nil

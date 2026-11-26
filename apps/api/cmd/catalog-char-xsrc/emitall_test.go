@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"api/internal/jobs/personadj"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRunEmitAllClaimsEachCharacterOnce(t *testing.T) {
@@ -73,7 +76,7 @@ func TestRunEmitAllClaimsEachCharacterOnce(t *testing.T) {
 	writeJSONL(t, paths["verdicts2"], verdicts2)
 
 	var out strings.Builder
-	if err := runEmitAll(paths["pairs"], paths["verdicts"], paths["pairs2"], paths["verdicts2"],
+	if err := runEmitAll(paths["pairs"], paths["verdicts"], paths["pairs2"], paths["verdicts2"], paths["samework"],
 		paths["worklist"], paths["residual"], &out); err != nil {
 		t.Fatal(err)
 	}
@@ -148,4 +151,28 @@ func TestRunEmitAllClaimsEachCharacterOnce(t *testing.T) {
 			t.Errorf("stats missing %q: %s", w, stats)
 		}
 	}
+}
+
+func TestEmitAllFoldsSameWorkMerges(t *testing.T) {
+	dir := t.TempDir()
+	paths := map[string]string{}
+	for _, name := range []string{"pairs", "verdicts", "pairs2", "verdicts2", "samework", "worklist", "residual"} {
+		paths[name] = filepath.Join(dir, name)
+	}
+	judged := pairMeta{A: 2, B: 3, Tier: 1, ASources: []string{"vndb"}, BSources: []string{"bangumi"}}
+	writeJSONL(t, paths["pairs"], []any{judged})
+	writeJSONL(t, paths["verdicts"], []any{personadj.Verdict{Key: "xsrc:2:3", Verdict: "merge", Confidence: 0.99}})
+	writeJSONL(t, paths["pairs2"], []any{})
+	writeJSONL(t, paths["verdicts2"], []any{})
+	writeJSONL(t, paths["samework"], []any{
+		pairMeta{A: 1, B: 2, ASources: []string{"erogamescape"}, BSources: []string{"vndb"}, BRich: richness{Img: true}},
+	})
+
+	var out strings.Builder
+	require.NoError(t, runEmitAll(paths["pairs"], paths["verdicts"], paths["pairs2"], paths["verdicts2"], paths["samework"],
+		paths["worklist"], paths["residual"], &out))
+	assert.Contains(t, out.String(), "groups_emitted=1 same_work_edges=1")
+	data, err := os.ReadFile(paths["worklist"])
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"class":"character","survivor":2,"sources":[1,3]}`, strings.TrimSpace(string(data)))
 }

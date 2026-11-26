@@ -9,9 +9,11 @@
 # been judged, and the roster lanes in source-import had to be fenced off every
 # work another source already cast (11,375 same-work twins on 2026-09-16).
 #
-# Pipeline, all idempotent: build pairs → judge round one → build the
-# three-vote panel for the uncertain tail → judge the panel → one worklist →
-# propose+approve (48h cooling) → execute what cooled. Verdicts accumulate in
+# Pipeline, all idempotent: build pairs (and the same-work merges no judge
+# needs: a credit-only character and the one roster character of that work
+# with its folded name) → judge round one → build the three-vote panel for the
+# uncertain tail → judge the panel → one worklist → propose+approve (48h
+# cooling) → execute what cooled. Verdicts accumulate in
 # state/ and a judged key is never asked again, so a quiet night costs no
 # model calls.
 #
@@ -114,7 +116,8 @@ judge() {
 }
 
 echo "--- 1/7 build round-one pairs ---"
-catalog catalog-char-xsrc -mode packets -pairs /w/work/pairs.jsonl -packets /w/work/packets.jsonl
+catalog catalog-char-xsrc -mode packets -pairs /w/work/pairs.jsonl -packets /w/work/packets.jsonl \
+  -samework /w/work/samework.jsonl
 
 echo "--- 2/7 judge round one ---"
 judge r1 packets.jsonl verdicts.jsonl errors.jsonl
@@ -128,7 +131,7 @@ judge panel packets2.jsonl verdicts2.jsonl errors2.jsonl
 
 echo "--- 5/7 emit one worklist ---"
 catalog catalog-char-xsrc -mode emit-all -pairs /w/work/pairs.jsonl -verdicts /w/state/verdicts.jsonl \
-  -pairs2 /w/work/pairs2.jsonl -verdicts2 /w/state/verdicts2.jsonl \
+  -pairs2 /w/work/pairs2.jsonl -verdicts2 /w/state/verdicts2.jsonl -samework /w/work/samework.jsonl \
   -worklist /w/work/worklist.jsonl -residual /w/work/residual.txt
 
 echo "--- 6/7 propose ---"

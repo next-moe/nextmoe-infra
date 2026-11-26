@@ -27,6 +27,7 @@ const (
 	ruleDLsiteMaker   = "rule:dlsite-maker-import"
 	ruleDLsiteCreater = "rule:dlsite-creater-import"
 	ruleBangumiXmedia = "rule:bangumi-xmedia-import"
+	ruleEGXlinkTwin   = "rule:eg-xlink-twin"
 
 	roleVoiceActor int64 = 1
 	mediumASMR     int16 = 5
@@ -45,6 +46,7 @@ type Stats struct {
 	NamesCreated               int
 	LabelsCreated              int
 	CharactersCreated          int
+	CharactersAttached         int
 	CreditsWritten             int
 	SkippedUnmappedRole        int
 	SkippedGate                int
@@ -59,6 +61,7 @@ func (s *Stats) add(o Stats) {
 	s.NamesCreated += o.NamesCreated
 	s.LabelsCreated += o.LabelsCreated
 	s.CharactersCreated += o.CharactersCreated
+	s.CharactersAttached += o.CharactersAttached
 	s.CreditsWritten += o.CreditsWritten
 	s.SkippedUnmappedRole += o.SkippedUnmappedRole
 	s.SkippedGate += o.SkippedGate

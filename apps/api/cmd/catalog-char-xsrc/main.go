@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "", "packets | emit | panel-packets | panel-emit | emit-all")
+	mode := flag.String("mode", "", "packets | emit | panel-packets | panel-emit | emit-all | same-work")
 	pairsPath := flag.String("pairs", "pairs.jsonl", "pair metadata JSONL (written by packets, read by emit)")
 	packetsPath := flag.String("packets", "packets.jsonl", "evidence packets JSONL for catalog-adjudicate (packets mode)")
 	verdictsPath := flag.String("verdicts", "", "verdicts JSONL from catalog-adjudicate (emit mode)")
@@ -26,9 +26,28 @@ func main() {
 	packets2Path := flag.String("packets2", "packets2.jsonl", "panel vote packets JSONL (panel-packets mode)")
 	verdicts2Path := flag.String("verdicts2", "", "panel verdicts JSONL from catalog-adjudicate (panel-emit mode)")
 	residualPath := flag.String("residual", "residual.txt", "panel residual tail (panel-emit mode)")
+	sameworkPath := flag.String("samework", "", "same-work merges as pair metadata JSONL: written by packets, folded into the worklist by emit-all")
 	flag.Parse()
 
 	switch *mode {
+	case "same-work":
+		_ = godotenv.Load("apps/api/.env")
+		cfg, err := config.Load()
+		if err != nil {
+			slog.Error("load config", "error", err)
+			os.Exit(1)
+		}
+		logger.Init(cfg.Server.Env)
+		catalogDB, err := database.NewPostgresDB(cfg.CatalogDatabase)
+		if err != nil {
+			slog.Error("catalog db connect", "error", err)
+			os.Exit(1)
+		}
+		defer catalogDB.Close()
+		if err := runSameWork(catalogDB.DB(), *worklistPath, os.Stdout); err != nil {
+			slog.Error("same-work", "error", err)
+			os.Exit(1)
+		}
 	case "packets", "panel-packets":
 		_ = godotenv.Load("apps/api/.env")
 		cfg, err := config.Load()
@@ -55,7 +74,7 @@ func main() {
 			}
 			return
 		}
-		if err := runPackets(catalogDB.DB(), *pairsPath, *packetsPath); err != nil {
+		if err := runPackets(catalogDB.DB(), *pairsPath, *packetsPath, *sameworkPath); err != nil {
 			slog.Error("packets", "error", err)
 			os.Exit(1)
 		}
@@ -75,7 +94,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "-verdicts and -verdicts2 are required in emit-all mode")
 			os.Exit(2)
 		}
-		if err := runEmitAll(*pairsPath, *verdictsPath, *pairs2Path, *verdicts2Path,
+		if err := runEmitAll(*pairsPath, *verdictsPath, *pairs2Path, *verdicts2Path, *sameworkPath,
 			*worklistPath, *residualPath, os.Stdout); err != nil {
 			slog.Error("emit-all", "error", err)
 			os.Exit(1)
@@ -91,13 +110,23 @@ func main() {
 			os.Exit(1)
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "unknown -mode %q (packets | emit | panel-packets | panel-emit | emit-all)\n", *mode)
+		fmt.Fprintf(os.Stderr, "unknown -mode %q (packets | emit | panel-packets | panel-emit | emit-all | same-work)\n", *mode)
 		os.Exit(2)
 	}
 }
 
-func runPackets(db *gorm.DB, pairsPath, packetsPath string) error {
-	pairs, info, err := buildPairs(db)
+func runPackets(db *gorm.DB, pairsPath, packetsPath, sameworkPath string) error {
+	decided, decidedInfo, sw, err := buildSameWork(db)
+	if err != nil {
+		return err
+	}
+	if sameworkPath == "" {
+		decided = nil
+	} else if err := writePairs(sameworkPath, sameWorkPairs(decided, decidedInfo)); err != nil {
+		return err
+	}
+	slog.Info("same-work decided", "merges", len(decided), "ambiguous", sw.Ambiguous, "conflicting", sw.Conflicting)
+	pairs, info, err := buildPairs(db, decided)
 	if err != nil {
 		return err
 	}

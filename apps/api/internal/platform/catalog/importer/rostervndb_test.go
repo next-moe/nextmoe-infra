@@ -205,3 +205,37 @@ func vndbCharID(t *testing.T, extID string) int64 {
 	t.Helper()
 	return scalarInt(t, `SELECT entity_id FROM catalog_external_ref WHERE entity_type=4 AND source_id=2 AND external_id='`+extID+`'`)
 }
+
+func seedCreditOnlyChar(t *testing.T, workID int64, name string, source int16, ext string) int64 {
+	t.Helper()
+	var id, cn int64
+	require.NoError(t, testDB.Raw(`INSERT INTO catalog_character (display_name, lang, description, field_provenance)
+		VALUES (?,'ja','','{}') RETURNING id`, name).Scan(&id).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by)
+		VALUES (4, ?, ?, ?, 0, 'rule:test')`, id, source, ext).Error)
+	require.NoError(t, testDB.Raw(`INSERT INTO catalog_credit_name (name, lang, kind, link_visibility) VALUES ('声優'||?::text, 'ja', 0, 0) RETURNING id`, ext).Scan(&cn).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO catalog_credit (work_id, credit_name_id, role_id, character_id, spoiler, note, source_id)
+		VALUES (?, ?, 1, ?, 0, '', ?)`, workID, cn, id, source).Error)
+	return id
+}
+
+// Work 1894: the Bangumi credit lane had put 吉宮舞冬 on the cast before the
+// VNDB roster ran, and the roster-only attach test minted 吉宮 舞冬 beside it.
+func TestRosterVNDBAttachesToACreditOnlyCharacter(t *testing.T) {
+	clean(t)
+	work := seedVNDBWork(t, "v300")
+	credited := seedCreditOnlyChar(t, work, "吉宮舞冬", 3, "220440")
+	seedCreditOnlyChar(t, work, "少女", 2, "c999")
+
+	seedVNDBChar(t, "c43843", "吉宮 舞冬", "Yoshimiya Mafuyu", "")
+	seedCharVN(t, "c43843", "v300", "primary", 0)
+	seedVNDBChar(t, "c1000", "少女", "", "")
+	seedCharVN(t, "c1000", "v300", "side", 0)
+
+	st, err := New(testDB, nil, Options{Source: "vndb"}).RunRoster("vndb")
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.AttachedExisting)
+	assert.Equal(t, 1, st.CharactersCreated, "少女 already carries another VNDB id")
+	assert.Equal(t, credited, scalarInt(t, `SELECT entity_id FROM catalog_external_ref WHERE entity_type=4 AND source_id=2 AND external_id='c43843'`))
+	assert.Equal(t, int64(1), scalarInt(t, fmt.Sprintf(`SELECT count(*) FROM catalog_work_character WHERE work_id=%d AND character_id=%d`, work, credited)))
+}

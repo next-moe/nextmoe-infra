@@ -78,16 +78,18 @@ func (im *Importer) runEG() (Stats, error) {
 		}
 	}
 	newChars, seenChar := []charItem{}, map[int64]bool{}
-	addChar := func(id int64) {
-		if seenChar[id] {
-			return
-		}
+	worksOf := map[string][]int64{}
+	addChar := func(id, workID int64) {
 		name, ok := charName[id]
 		if !ok {
 			return
 		}
-		seenChar[id] = true
 		ext := strconv.FormatInt(id, 10)
+		worksOf[ext] = append(worksOf[ext], workID)
+		if seenChar[id] {
+			return
+		}
+		seenChar[id] = true
 		if charAnchor[anchorKey(egSource, ext)] == 0 {
 			newChars = append(newChars, charItem{extID: ext, name: name, lang: "ja"})
 		}
@@ -115,8 +117,8 @@ func (im *Importer) runEG() (Stats, error) {
 		plans = append(plans, creditPlan{workID: workID, cnExtID: strconv.FormatInt(s.Creater, 10), roleID: roleID})
 	}
 	for _, a := range apps {
-		if _, ok := workMap[a.Game]; ok {
-			addChar(a.Char)
+		if workID, ok := workMap[a.Game]; ok {
+			addChar(a.Char, workID)
 		}
 	}
 	for _, v := range vas {
@@ -131,15 +133,22 @@ func (im *Importer) runEG() (Stats, error) {
 			continue
 		}
 		addCreater(v.Actor)
-		addChar(v.Char)
+		addChar(v.Char, workID)
 		plans = append(plans, creditPlan{
 			workID: workID, cnExtID: strconv.FormatInt(v.Actor, 10), roleID: roleVoiceActor,
 			charExtID: strconv.FormatInt(v.Char, 10),
 		})
 	}
 
+	targets, err := im.sameWorkCharacters(egSource, newChars, worksOf)
+	if err != nil {
+		return st, err
+	}
+	newChars, attachChars := splitAttach(newChars, targets)
+
 	st.NamesCreated = len(newNames)
 	st.CharactersCreated = len(newChars)
+	st.CharactersAttached = len(attachChars)
 	if im.dryRun {
 		st.CreditsWritten = len(plans)
 		return st, nil
@@ -153,6 +162,12 @@ func (im *Importer) runEG() (Stats, error) {
 		charIDs, err := im.createCharacters(tx, egSource, ruleEGChar, newChars)
 		if err != nil {
 			return err
+		}
+		if err := im.attachCharAnchors(tx, egSource, ruleSameWorkCharName, attachChars); err != nil {
+			return err
+		}
+		for ext, id := range targets {
+			charIDs[ext] = id
 		}
 		cnResolve := resolver(cnAnchor, egSource, nameIDs)
 		charResolve := resolver(charAnchor, egSource, charIDs)

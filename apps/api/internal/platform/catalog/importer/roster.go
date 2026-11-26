@@ -179,6 +179,7 @@ func (im *Importer) runRosterBangumi() (RosterStats, error) {
 
 	var newChars []charItem
 	seenChar := map[int64]bool{}
+	worksOf := map[string][]int64{}
 	var plans []rosterPlan
 	for _, sc := range scs {
 		workID, ok := workMap[sc.SubjectID]
@@ -200,6 +201,7 @@ func (im *Importer) runRosterBangumi() (RosterStats, error) {
 		}
 		name := *sc.Name
 		ext := strconv.FormatInt(sc.CharacterID, 10)
+		worksOf[ext] = append(worksOf[ext], workID)
 		if !seenChar[sc.CharacterID] {
 			seenChar[sc.CharacterID] = true
 			if charAnchor[anchorKey(bangumiSource, ext)] == 0 {
@@ -209,7 +211,13 @@ func (im *Importer) runRosterBangumi() (RosterStats, error) {
 		plans = append(plans, rosterPlan{workID: workID, charExtID: ext, kind: bangumiRosterKind(sc.Type)})
 	}
 
+	targets, err := im.sameWorkCharacters(bangumiSource, newChars, worksOf)
+	if err != nil {
+		return st, err
+	}
+	newChars, attachChars := splitAttach(newChars, targets)
 	st.CharactersCreated = len(newChars)
+	st.AttachedExisting = len(attachChars)
 	if im.dryRun {
 		st.EdgesWritten = len(plans)
 		return st, nil
@@ -219,6 +227,12 @@ func (im *Importer) runRosterBangumi() (RosterStats, error) {
 		charIDs, err := im.createCharacters(tx, bangumiSource, ruleBangumiChar, newChars)
 		if err != nil {
 			return err
+		}
+		if err := im.attachCharAnchors(tx, bangumiSource, ruleSameWorkCharName, attachChars); err != nil {
+			return err
+		}
+		for ext, id := range targets {
+			charIDs[ext] = id
 		}
 		charResolve := resolver(charAnchor, bangumiSource, charIDs)
 		edges, dropped := materializeRoster(plans, charResolve, ruleRosterBangumi)
@@ -272,6 +286,7 @@ func (im *Importer) runRosterEG() (RosterStats, error) {
 
 	var newChars []charItem
 	seenChar := map[int64]bool{}
+	worksOf := map[string][]int64{}
 	var plans []rosterPlan
 	for _, a := range apps {
 		workID, ok := workMap[a.Game]
@@ -293,6 +308,7 @@ func (im *Importer) runRosterEG() (RosterStats, error) {
 			continue
 		}
 		ext := strconv.FormatInt(a.Char, 10)
+		worksOf[ext] = append(worksOf[ext], workID)
 		if !seenChar[a.Char] {
 			seenChar[a.Char] = true
 			if charAnchor[anchorKey(egSource, ext)] == 0 {
@@ -302,7 +318,13 @@ func (im *Importer) runRosterEG() (RosterStats, error) {
 		plans = append(plans, rosterPlan{workID: workID, charExtID: ext, kind: model.WorkCharacterKindUnknown})
 	}
 
+	targets, err := im.sameWorkCharacters(egSource, newChars, worksOf)
+	if err != nil {
+		return st, err
+	}
+	newChars, attachChars := splitAttach(newChars, targets)
 	st.CharactersCreated = len(newChars)
+	st.AttachedExisting = len(attachChars)
 	if im.dryRun {
 		st.EdgesWritten = len(plans)
 		return st, nil
@@ -312,6 +334,12 @@ func (im *Importer) runRosterEG() (RosterStats, error) {
 		charIDs, err := im.createCharacters(tx, egSource, ruleEGChar, newChars)
 		if err != nil {
 			return err
+		}
+		if err := im.attachCharAnchors(tx, egSource, ruleSameWorkCharName, attachChars); err != nil {
+			return err
+		}
+		for ext, id := range targets {
+			charIDs[ext] = id
 		}
 		charResolve := resolver(charAnchor, egSource, charIDs)
 		edges, dropped := materializeRoster(plans, charResolve, ruleRosterEG)

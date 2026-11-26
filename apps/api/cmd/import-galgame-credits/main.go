@@ -52,6 +52,7 @@ func main() {
 		"names_created", stats.NamesCreated,
 		"labels_created", stats.LabelsCreated,
 		"characters_created", stats.CharactersCreated,
+		"characters_attached", stats.CharactersAttached,
 		"credits_written", stats.CreditsWritten,
 		"skipped_unmapped_role", stats.SkippedUnmappedRole,
 		"skipped_gate", stats.SkippedGate,

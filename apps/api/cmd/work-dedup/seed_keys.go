@@ -22,9 +22,19 @@ func runSeedKeys(ctx context.Context, db *gorm.DB, w io.Writer, _ int64, limit i
 	if err != nil {
 		return err
 	}
+	upstreamDeclared, ports, err := discoverUpstreamPairs(ctx, db)
+	if err != nil {
+		return err
+	}
 	union := map[[2]int64]int16{}
 	for k := range stripped {
 		union[k] = model.CandidateReasonNameFuzzy
+	}
+	for k := range ports {
+		union[k] = model.CandidateReasonImporterSuggest
+	}
+	for k := range upstreamDeclared {
+		union[k] = model.CandidateReasonSharedExternalID
 	}
 	for k := range declared {
 		union[k] = model.CandidateReasonSharedExternalID
@@ -87,8 +97,8 @@ func runSeedKeys(ctx context.Context, db *gorm.DB, w io.Writer, _ int64, limit i
 	if run {
 		mode = "APPLIED"
 	}
-	fmt.Fprintf(w, "%s [seed-keys] stripped_pairs=%d declared_pairs=%d existing_skips=%d conflict_skips=%d limited=%d written=%d\n",
-		mode, len(stripped), len(declared), existingSkips, conflictSkips, limited, written)
+	fmt.Fprintf(w, "%s [seed-keys] stripped_pairs=%d declared_pairs=%d upstream_declared_pairs=%d port_pairs=%d existing_skips=%d conflict_skips=%d limited=%d written=%d\n",
+		mode, len(stripped), len(declared), len(upstreamDeclared), len(ports), existingSkips, conflictSkips, limited, written)
 	return nil
 }
 
@@ -164,6 +174,43 @@ func discoverSeedKeyPairs(ctx context.Context, db *gorm.DB) (stripped, declared 
 		declared[[2]int64{p[0], p[1]}] = struct{}{}
 	}
 	return stripped, declared, nil
+}
+
+func discoverUpstreamPairs(ctx context.Context, db *gorm.DB) (declared, ports map[[2]int64]struct{}, err error) {
+	idx, err := llmsuggest.LoadUpstreamIndex(db.WithContext(ctx))
+	if err != nil {
+		return nil, nil, err
+	}
+	galgame, err := loadSeedEligibleWorks(ctx, db)
+	if err != nil {
+		return nil, nil, err
+	}
+	keep := func(pairs [][2]int64) map[[2]int64]struct{} {
+		out := map[[2]int64]struct{}{}
+		for _, p := range pairs {
+			if galgame[p[0]] && galgame[p[1]] {
+				out[p] = struct{}{}
+			}
+		}
+		return out
+	}
+	return keep(idx.DeclaredPairs()), keep(idx.PortPairs()), nil
+}
+
+func loadSeedEligibleWorks(ctx context.Context, db *gorm.DB) (map[int64]bool, error) {
+	var ids []int64
+	if err := db.WithContext(ctx).Raw(`
+		SELECT w.id FROM catalog_work w
+		JOIN catalog_medium m ON m.id = w.medium_id AND m.key = 'galgame'
+		WHERE w.deleted_at IS NULL AND w.status IN (?, ?)`,
+		model.WorkStatusLive, model.WorkStatusStub).Scan(&ids).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out, nil
 }
 
 func loadExistingWorkPairs(ctx context.Context, db *gorm.DB) (map[[2]int64]bool, error) {
