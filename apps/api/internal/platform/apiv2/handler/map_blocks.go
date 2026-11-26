@@ -147,7 +147,7 @@ func rosterVoicesFrom(in []dto.PublicRosterVoice) []repr.CreditName {
 		out = append(out, repr.CreditName{
 			Object: "credit_name", ID: repr.ID(v.ID), DisplayName: v.DisplayName,
 			Latin: optString(v.Latin), Lang: optString(v.Lang),
-			Localized: localizedFrom(v.Localized), PersonID: optID(v.PersonID),
+			Localized: localizedFrom(v.Localized), PersonID: optID(v.PersonID), Note: optString(v.Note),
 		})
 	}
 	return out

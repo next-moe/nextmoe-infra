@@ -162,6 +162,7 @@ type WorkCharacterVARow struct {
 	Lang         string
 	Latin        *string
 	PersonID     *int64
+	Note         string
 }
 
 type RefDetail struct {
@@ -725,17 +726,18 @@ func (s *ReadService) loadWorkCharacters(ctx context.Context, workID int64) ([]W
 		NameLang     string  `gorm:"column:name_lang"`
 		NameLatin    *string `gorm:"column:name_latin"`
 		PersonID     *int64  `gorm:"column:person_id"`
+		Note         string  `gorm:"column:note"`
 	}
 	// The person link follows link_visibility here exactly as the credit-name
 	// detail face applies it: a hidden link publishes no person_id.
 	if err := db.Raw(`SELECT DISTINCT c.character_id, ch.display_name, ch.latin, ch.gender, ch.image_hash, ch.figure_hash,
 		cn.id AS credit_name_id, cn.name, cn.lang AS name_lang, cn.latin AS name_latin,
-		CASE WHEN cn.link_visibility = 0 THEN cn.person_id END AS person_id
+		CASE WHEN cn.link_visibility = 0 THEN cn.person_id END AS person_id, `+editspec.VoiceNoteSQL("c")+` AS note
 		FROM catalog_credit c
 		JOIN catalog_character ch ON ch.id = c.character_id
 		JOIN catalog_credit_name cn ON cn.id = c.credit_name_id
 		WHERE c.work_id = ? AND c.character_id IS NOT NULL AND ch.deleted_at IS NULL
-		  AND `+editspec.NotSuppressedCreditSQL("c"), workID).Scan(&creds).Error; err != nil {
+		  AND `+editspec.ShownCreditSQL("c"), workID).Scan(&creds).Error; err != nil {
 		return nil, err
 	}
 
@@ -759,7 +761,7 @@ func (s *ReadService) loadWorkCharacters(ctx context.Context, workID int64) ([]W
 		}
 		row.Va = append(row.Va, WorkCharacterVARow{
 			CreditNameID: c.CreditNameID, Name: c.Name, Lang: c.NameLang,
-			Latin: c.NameLatin, PersonID: c.PersonID,
+			Latin: c.NameLatin, PersonID: c.PersonID, Note: c.Note,
 		})
 	}
 
@@ -971,7 +973,7 @@ type SiblingNameRow struct {
 // pages out 38 is a defect on its own.
 var nameWorkScope = `FROM catalog_credit c JOIN catalog_work w ON w.id = c.work_id
 	WHERE c.credit_name_id = ? AND w.deleted_at IS NULL AND w.status = ` + strconv.Itoa(int(model.WorkStatusLive)) +
-	` AND ` + editspec.NotSuppressedCreditSQL("c")
+	` AND ` + editspec.ShownCreditSQL("c")
 
 type NameWorkRoleRow struct {
 	WorkID      int64   `gorm:"column:work_id"`
@@ -1052,7 +1054,7 @@ func (s *ReadService) NameWorks(ctx context.Context, nameID int64, gate EntityWo
 		JOIN catalog_role ro ON ro.id = c.role_id
 		LEFT JOIN catalog_character ch ON ch.id = c.character_id
 		WHERE c.credit_name_id = ? AND c.work_id IN ?
-		  AND `+editspec.NotSuppressedCreditSQL("c")+`
+		  AND `+editspec.ShownCreditSQL("c")+`
 		ORDER BY c.work_id, c.role_id, character_nm NULLS FIRST`, nameID, workIDs).Scan(&roleRows).Error; err != nil {
 		return nil, err
 	}
@@ -1092,6 +1094,7 @@ type VoiceNameRow struct {
 	Lang         string `gorm:"column:lang"`
 	Latin        *string
 	PersonID     *int64 `gorm:"column:person_id"`
+	Note         string `gorm:"column:note"`
 }
 
 type CharacterWorkDetail struct {
@@ -1171,19 +1174,20 @@ func (s *ReadService) CharacterWorks(ctx context.Context, characterID int64, gat
 		Lang         string `gorm:"column:lang"`
 		Latin        *string
 		PersonID     *int64 `gorm:"column:person_id"`
+		Note         string `gorm:"column:note"`
 	}
 	if err := db.Raw(`SELECT DISTINCT c.work_id, cn.id AS credit_name_id, cn.name, cn.lang, cn.latin,
-			CASE WHEN cn.link_visibility = 0 THEN cn.person_id END AS person_id
+			CASE WHEN cn.link_visibility = 0 THEN cn.person_id END AS person_id, `+editspec.VoiceNoteSQL("c")+` AS note
 		FROM catalog_credit c JOIN catalog_credit_name cn ON cn.id = c.credit_name_id
 		WHERE c.character_id = ? AND c.work_id IN ?
-		  AND `+editspec.NotSuppressedCreditSQL("c")+`
+		  AND `+editspec.ShownCreditSQL("c")+`
 		ORDER BY c.work_id, cn.id`, characterID, workIDs).Scan(&voiceRows).Error; err != nil {
 		return nil, err
 	}
 	voicesByWork := make(map[int64][]VoiceNameRow, len(workIDs))
 	for _, v := range voiceRows {
 		voicesByWork[v.WorkID] = append(voicesByWork[v.WorkID], VoiceNameRow{
-			CreditNameID: v.CreditNameID, Name: v.Name, Lang: v.Lang, Latin: v.Latin, PersonID: v.PersonID,
+			CreditNameID: v.CreditNameID, Name: v.Name, Lang: v.Lang, Latin: v.Latin, PersonID: v.PersonID, Note: v.Note,
 		})
 	}
 	for _, wid := range workIDs {
@@ -1390,7 +1394,7 @@ func (s *ReadService) workCreditsFor(ctx context.Context, workIDs []int64) (map[
 		LEFT JOIN catalog_character ch ON ch.id = c.character_id
 		LEFT JOIN catalog_label la ON la.id = c.label_id
 		LEFT JOIN catalog_source src ON src.id = c.source_id
-		WHERE c.work_id IN ? AND `+editspec.NotSuppressedCreditSQL("c")+`
+		WHERE c.work_id IN ? AND `+editspec.ShownCreditSQL("c")+`
 		ORDER BY c.work_id ASC, c.role_id ASC, `+editspec.HumanLaneFirstNoProvenanceSQL("c.source_id")+
 		`, src.key COLLATE "C" ASC NULLS LAST, cn.id ASC, COALESCE(c.character_id, 0) ASC, c.id ASC`,
 		workIDs).Scan(&rows).Error; err != nil {

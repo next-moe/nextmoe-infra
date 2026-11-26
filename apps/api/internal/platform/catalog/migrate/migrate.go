@@ -745,6 +745,14 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_catalog_activity_item_pending", `
 			CREATE INDEX IF NOT EXISTS idx_catalog_activity_item_pending
 			    ON catalog_activity_item(revision) WHERE pushed_revision < revision`},
+		// editspec.ShownCreditSQL probes it once per Bangumi voice row; its
+		// predicate must stay the list editspec.creditedVoiceSourceIDs names
+		// (VNDB, ErogameScape, user, curated) or the probe falls back to a scan.
+		// Built CONCURRENTLY on prod by hand 2026-11-26, so a no-op there.
+		{"idx_catalog_credit_credited_voice", `
+			CREATE INDEX IF NOT EXISTS idx_catalog_credit_credited_voice
+			    ON catalog_credit (work_id, character_id, role_id)
+			    WHERE character_id IS NOT NULL AND source_id IN (2, 5, 1, 12)`},
 		{"idx_catalog_work_updated_id", `
 			CREATE INDEX IF NOT EXISTS idx_catalog_work_updated_id
 			    ON catalog_work(updated_at, id)`},

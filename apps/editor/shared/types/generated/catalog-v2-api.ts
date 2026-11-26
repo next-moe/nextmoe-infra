@@ -4621,6 +4621,8 @@ export interface components {
             localized: {
                 [key: string]: components["schemas"]["LocalizedText"];
             };
+            /** @description On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant. */
+            note?: string;
             /**
              * @description Type discriminant. Always credit_name.
              * @enum {string}

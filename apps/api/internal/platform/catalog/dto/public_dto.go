@@ -201,6 +201,7 @@ type PublicVoiceName struct {
 	Lang        string                         `json:"lang"`
 	Latin       string                         `json:"latin,omitempty"`
 	PersonID    int64                          `json:"person_id,omitempty" doc:"catalog person this credited name resolves to; absent when unlinked or the link is hidden"`
+	Note        string                         `json:"note,omitempty" doc:"version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it; absent when unrecorded"`
 	Localized   map[string]PublicLocalizedName `json:"localized" doc:"preferred name per locale, keyed by canonically-cased BCP-47 tag; {} when none — render localized[yourLocale] ?? display_name ?? latin"`
 }
 
@@ -347,6 +348,7 @@ type PublicRosterVoice struct {
 	Lang        string                         `json:"lang,omitempty"`
 	Latin       string                         `json:"latin,omitempty"`
 	PersonID    int64                          `json:"person_id,omitempty" doc:"catalog person this credited name resolves to; absent when unlinked or the link is hidden"`
+	Note        string                         `json:"note,omitempty" doc:"version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it; absent when unrecorded"`
 	Localized   map[string]PublicLocalizedName `json:"localized" doc:"preferred name per locale, keyed by canonically-cased BCP-47 tag; {} when none — render localized[yourLocale] ?? display_name ?? latin"`
 }
 

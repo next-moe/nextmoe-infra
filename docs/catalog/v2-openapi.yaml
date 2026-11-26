@@ -2039,6 +2039,10 @@ components:
             $ref: "#/components/schemas/LocalizedText"
           description: BCP-47 keys. Empty object if none. Must not be used as a discriminant.
           type: object
+        note:
+          description: "On a voices[] entry only: the version or language this voicing is credited for (PS2, English, Remake...), as the source wrote it. Absent when unrecorded. Show it beside the name when a character has more than one voice on the work. Must not be used as a discriminant."
+          maxLength: 512
+          type: string
         object:
           description: Type discriminant. Always credit_name.
           enum:
@@ -15378,7 +15382,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.91.0
+  version: 2.92.0
   x-stability: stable
 openapi: 3.1.0
 paths:

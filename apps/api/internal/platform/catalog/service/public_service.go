@@ -759,7 +759,7 @@ func (s *PublicService) Character(ctx context.Context, id int64, withWorks bool,
 			for _, v := range w.Voices {
 				row.Voices = append(row.Voices, dto.PublicVoiceName{
 					ID: v.CreditNameID, DisplayName: v.Name, Lang: v.Lang, Latin: derefStrPub(v.Latin),
-					PersonID: derefI64Pub(v.PersonID),
+					PersonID: derefI64Pub(v.PersonID), Note: v.Note,
 				})
 			}
 			ch.Works = append(ch.Works, row)
