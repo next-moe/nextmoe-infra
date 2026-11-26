@@ -224,6 +224,7 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, p openThread) (*m
 			ThreadID: thread.ID, PostNumber: 1, AuthorID: p.authorID,
 			ContentRaw: p.bodyRaw, ContentHTML: cooked.HTML, SanitizerVersion: int32(cooked.Version),
 			ContentRating: p.contentRating, Status: postStatus(held),
+			MentionedUserIDs: mentionIDsJSON(p.mentionUserIDs),
 		}
 		if err := repository.CreatePostTx(tx, &post); err != nil {
 			return err

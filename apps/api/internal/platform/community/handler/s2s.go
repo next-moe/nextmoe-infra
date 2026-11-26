@@ -57,7 +57,7 @@ type Services struct {
 func Setup(app *fiber.App, svc Services) huma.API {
 	InstallErrorEnvelope()
 
-	cfg := huma.DefaultConfig("KUN Community Service", "1.3.0")
+	cfg := huma.DefaultConfig("KUN Community Service", "1.4.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -164,6 +164,7 @@ func (s *Server) register(api huma.API) {
 	s.registerAnchorPresentations(api)
 	s.registerBoards(api)
 	s.registerThreadModeration(api)
+	s.registerWall(api)
 	s.registerNotifications(api)
 }
 
@@ -445,6 +446,7 @@ func (s *Server) editPost(ctx context.Context, in *editPostInput) (*postOutput, 
 	ctx = service.WithCallerSite(ctx, site)
 	post, err := s.posts.Edit(ctx, service.EditParams{
 		PostID: in.ID, AuthorID: in.Body.AuthorID, BodyRaw: in.Body.Body, AsModerator: in.Body.AsModerator,
+		MentionUserIDs: in.Body.MentionUserIDs,
 	})
 	if err != nil {
 		return nil, mapErr("edit post", err)

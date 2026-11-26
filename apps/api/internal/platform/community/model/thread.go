@@ -62,7 +62,11 @@ type CommunityPost struct {
 	Status            int16      `gorm:"not null;column:status" json:"status"`
 	EditedAt          *time.Time `gorm:"column:edited_at" json:"edited_at"`
 	EditedByModerator bool       `gorm:"not null;default:false;column:edited_by_moderator" json:"edited_by_moderator"`
+	DeleteSource      int16      `gorm:"not null;default:0;column:delete_source" json:"delete_source"`
+	DeletedBy         *int64     `gorm:"column:deleted_by" json:"deleted_by"`
 	CreatedAt         time.Time  `json:"created_at"`
+
+	MentionedUserIDs datatypes.JSON `gorm:"type:jsonb;column:mentioned_user_ids" json:"mentioned_user_ids"`
 
 	Thread *CommunityThread `gorm:"foreignKey:ThreadID" json:"thread,omitempty"`
 }
@@ -77,3 +81,14 @@ type CommunityReaction struct {
 }
 
 func (CommunityReaction) TableName() string { return "community_reaction" }
+
+// A pin names the post, not its thread: a catalog merge rehomes posts into the
+// survivor's thread (repository.RehomeCommentsThreadTx), and the pin follows.
+type CommunityPostPin struct {
+	Site     string    `gorm:"primaryKey;column:site" json:"site"`
+	PostID   int64     `gorm:"primaryKey;autoIncrement:false;column:post_id" json:"post_id"`
+	PinnedBy int64     `gorm:"not null;column:pinned_by" json:"pinned_by"`
+	PinnedAt time.Time `gorm:"not null;column:pinned_at" json:"pinned_at"`
+}
+
+func (CommunityPostPin) TableName() string { return "community_post_pin" }

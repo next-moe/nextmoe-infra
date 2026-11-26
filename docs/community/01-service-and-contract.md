@@ -61,6 +61,31 @@
   `post_number` like every other post page (the embed read-first-screen; Coral
   story model). Until someone comments there is **no thread**, and the face says
   so: `thread` is absent and `posts` is empty. It reads; it never writes.
+  - **`sort`** — `oldest` (default, `post_number` ascending), `newest`, or
+    `top` (most likes, ties newest first). `top` orders on a mutable key, so a
+    post can move between pages while a caller pages through it. Page with
+    **`cursor`** = the previous `next_cursor`; a cursor is bound to the sort
+    that minted it (another sort's is a `400`). Under `oldest` the cursor is the
+    bare `post_number`, which the older **`after`** parameter also takes, so a
+    caller that predates `sort` keeps working; `after` with any other sort, or
+    beside a `cursor`, is a `422`.
+  - **`roots_only=true`** lists top-level posts only (`root_post_id` absent),
+    each with **`reply_count`** — its visible replies. **`reply_preview=n`**
+    (1–5, needs `roots_only`) adds each listed root's first `n` replies, any
+    status, oldest first, as one flat **`reply_previews`** list the site groups
+    by `root_post_id`. The rest of a root's replies come from
+    `GET /posts/{id}/replies?after=` (keyset by `post_number`, oldest first;
+    the id-addressed guard; a reply's id is a `422`).
+  - **`pinned_posts`** — on the first page only (no cursor, no `after`), the
+    calling site's pinned comments, newest pin first: visible posts only, at
+    most 3. They also appear in `posts` at their own place, carrying
+    `pinned_at`, so a site that renders the pinned block above the list drops
+    them from the list by id. Pins are per **site** — see §5.
+  - Statuses are as before: every post comes back whatever its status, and a
+    tombstone says who removed it in **`delete_source`** — `author`,
+    `moderator`, `review` (a review rejection, or a trust disposition that
+    removes it) or `purge`. A tombstone from before community 1.4.0 carries
+    none, unless a rejected review item names it (`review`).
 - `POST /comments/resolve` — **deprecated**, kept only until the consuming sites
   move off it. Same first screen, but it *get-or-creates* the thread, so a page
   view mints a row: 110,918 of kungal's 114,070 comments threads were minted by
@@ -181,7 +206,7 @@
 `POST /topics`, `POST /feedback` (each opens a thread with its opening post;
 a topic opens on a board, a feedback thread on an entity anchor `1..4`),
 `POST /comments` (comment on an anchor), `POST /threads/{id}/posts` (reply),
-`PATCH /posts/{id}` (author edit),
+`PATCH /posts/{id}` (author edit, which may mention new users),
 `DELETE /posts/{id}` (author self-delete), `POST /posts/{id}/reaction` (toggle),
 `PUT` / `DELETE /posts/{id}/reaction` (set / unset, idempotent),
 `POST /posts/{id}/flag` (report), `POST /feedback/{id}/status`,
@@ -269,6 +294,18 @@ removed; a held post is released via the review queue, not an edit). The TL0
 sandbox **per-post content caps apply to the edited body too** (editing is not an
 escape hatch out of the newcomer sandbox); the daily create-rate caps do not (an
 edit is not a new post).
+
+**Mentions in an edit.** `mention_user_ids` on the edit is every user the
+edited body mentions (≤20, the same rules as on a new post). Community keeps,
+per post, the set of users it has already told (`mentioned_user_ids`: written
+by the post's creation and grown by each edit), and notifies only those not in
+it, as kind 2 `mentioned` through an outbox event `post_mentioned`. The set
+never shrinks, so taking a mention out and putting it back does not notify
+twice. A mod-actor edit of someone else's post notifies nobody and records
+nothing: the moderator is not the one speaking. The set was backfilled from
+what the outbox still held when it shipped — `post_created` events (kept 7
+days) and kind-2 rows (read ones kept 90 days) — so an edit of an older post
+that keeps an older mention can tell that user once more.
 
 #### Post delete — `DELETE /posts/{id}`
 
@@ -429,6 +466,29 @@ so only its own site moderates it, as with `POST /feedback/{id}/status`.
 - `POST /threads/{id}/close` `{closed}` — closes a thread of any kind to new
   posts (`409 thread is not open` on a reply) or reopens it. A merged feedback
   thread stays closed.
+- `PUT /posts/{id}/pin` `{actor_id}` / `DELETE /posts/{id}/pin?actor_id=` —
+  pins a comment on its wall, or unpins it, **for the calling site**: a
+  catalog wall (kinds 3–5) is one conversation shared by every site, and each
+  site pins its own, so one site's pin never shows on another's. Only a
+  visible top-level post of a comments thread can be pinned (`422` for a reply
+  or another thread kind, `409` for a hidden or deleted post), at most **3** per
+  wall per site (`409 pin limit reached`). Both are idempotent and answer
+  `{post, changed}`; pinning a pinned post keeps its `pinned_at`. Unlike the
+  thread faces, it takes the id-addressed guard, like a mod-actor edit: a pin
+  changes nothing another site sees. A pin names the post,
+  not the thread, so it follows the post when a catalog merge rehomes the wall;
+  it stays while the post is hidden or deleted and shows again when the post
+  is restored, but only visible pins count toward the limit and the read.
+- `POST /posts/{id}/restore` `{actor_id}` — undoes a removal by a moderator
+  (`DELETE ?as_moderator=true`) or by review (a rejected queue item, or a
+  trust disposition that removed it): the post is visible again, with its
+  number, content and likes. An author's own delete is theirs and a purged post
+  is blank — the purge restore gives that one back — so both are a `409`, as
+  is a hidden post (the review queue releases it) and a tombstone whose remover
+  is unknown. A visible post answers `changed: false`. A restored post raises
+  no notification, and a review item it came from stays decided as it was, its
+  reporters' accuracy included. It reaches what the mod-actor delete reaches
+  (the id-addressed guard) and leaves an audit log line like it.
 - `POST /threads/{id}/answer` `{post_id, as_moderator?}` — marks the reply that
   answers a topic on a Q&A board, or a feedback thread; `post_id: 0` clears it.
   The thread's author marks it, or a moderator with `as_moderator`. The answer
@@ -634,7 +694,7 @@ An item's fields: title — the thread's title, else the presentation's; url —
 
 ### Notifications
 
-Writes that should notify someone (`post_created`, `post_liked`,
+Writes that should notify someone (`post_created`, `post_mentioned`, `post_liked`,
 `feedback_status_changed`, `answer_accepted`, `user_followed`,
 `activity_published`, `activity_changed`) insert a
 `community_event` row **in the same transaction** as the write. A crash after
@@ -667,7 +727,9 @@ post of a non-comments thread and `posted` otherwise; `watching first post` is
 `thread_created` only on that first non-comments post (a comment wall's first
 comment is not a new thread). The first post of a **topic** (not feedback, not
 a comment wall) also notifies every follower of the author
-(`followee_thread_created`). A like notifies the post's author (`liked`). A
+(`followee_thread_created`). A `post_mentioned` event (an edit's new mentions,
+§4) notifies only those ids (`mentioned`), and is parked or dropped by the
+post's state exactly like `post_created`. A like notifies the post's author (`liked`). A
 feedback status change notifies the thread creator (while they still have a
 thread row — a purge removes it) and watching thread rows
 (`feedback_status`); a call that leaves the status and the response as they
@@ -822,7 +884,9 @@ deliver to the user after the purge has cleared their rows.
   whose text matched). It is `[]` for a flags item and for every item enqueued
   before community 1.1.0 — the check's answer was not kept until then. A
   decision is about the CONTENT: `approve` keeps it (post restored to visible),
-  `reject` removes it (post tombstoned). A decision on a flags item **backfills
+  `reject` removes it (post tombstoned). A post its author deleted while it
+  waited stays deleted under either decision — until community 1.4.0 an
+  approve brought it back. A decision on a flags item **backfills
   every reporter's accuracy** (approve → the reports were wrong → `flags_disagreed`;
   reject → right → `flags_agreed`), which feeds their future weight — the
   reputation loop. Releasing a `first_post_hold` item does not refund the hold
@@ -881,9 +945,6 @@ it in:
 
 - **Push delivery** (webhook or SSE red dot). Trigger: a site needs lower
   latency than polling the feed.
-- **Mentions added by an edit.** The outbox records mentions at write time of
-  a new post; an edit does not enqueue. Trigger: a site needs edit-time
-  mentions to notify.
 - **Anchor-level tracking.** Tracking (`2`) is thread-only. Trigger: a product
   wants "new posts on this board" without watching every thread.
 - **A per-board default level.** New threads inherit nothing from the board

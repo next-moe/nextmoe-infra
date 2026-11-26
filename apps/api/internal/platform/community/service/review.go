@@ -49,11 +49,20 @@ func (s *ReviewService) decide(ctx context.Context, id, decidedBy int64, approve
 		}
 		if item.PostID != nil {
 			postID := *item.PostID
-			newStatus := model.PostStatusDeleted
-			if approve {
-				newStatus = model.PostStatusVisible
+			post, err := repository.LockPostTx(tx, postID)
+			if err != nil {
+				return err
 			}
-			if err := repository.SetPostStatusTx(tx, postID, newStatus); err != nil {
+			// An approve set every post visible, so a held post its author had
+			// deleted came back once a moderator approved it.
+			switch {
+			case post == nil || post.Status == model.PostStatusDeleted:
+			case approve:
+				err = repository.SetPostStatusTx(tx, postID, model.PostStatusVisible)
+			default:
+				err = repository.TombstonePostTx(tx, postID, model.DeleteSourceReview, &decidedBy)
+			}
+			if err != nil {
 				return err
 			}
 			if item.Source != nil && *item.Source == model.ReviewSourceFlags {

@@ -151,6 +151,14 @@ func recipientsForEvent(tx *gorm.DB, ev *model.CommunityEvent, thread *model.Com
 				}
 			}
 		}
+	case model.EventKindPostMentioned:
+		mentions, err := parseMentionIDs(ev.MentionUserIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, uid := range mentions {
+			add(notifyCandidate{site: deliveryFor(uid), userID: uid, kind: model.NotificationKindMentioned})
+		}
 	case model.EventKindPostLiked:
 		if post != nil {
 			add(notifyCandidate{site: deliveryFor(post.AuthorID), userID: post.AuthorID, kind: model.NotificationKindLiked})
