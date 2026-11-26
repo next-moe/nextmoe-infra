@@ -59,6 +59,13 @@ func TestBangumiVoiceYieldsToTheCreditedName(t *testing.T) {
 	createSourcedCredit(t, work.ID, credited.ID, role, &heroine.ID, model.SourceVNDB, "")
 	createSourcedCredit(t, work.ID, main.ID, role, &heroine.ID, model.SourceBangumi, "主角")
 	createSourcedCredit(t, work.ID, other.ID, role, &heroine.ID, model.SourceBangumi, "主角")
+	egAlias := createCreditName(t, &person.ID, "藤咲ウサ(桜咲千依)")
+	createSourcedCredit(t, work.ID, egAlias.ID, role, &heroine.ID, model.SourceErogameScape, "")
+	egOnly := createCharacter(t, "EGだけキャラ")
+	createWorkCharacter(t, work.ID, egOnly.ID, model.WorkCharacterKindMain, model.SpoilerNone)
+	egName := createCreditName(t, nil, "EG声優")
+	createSourcedCredit(t, work.ID, egName.ID, role, &egOnly.ID, model.SourceErogameScape, "")
+	createSourcedCredit(t, work.ID, createCreditName(t, nil, "BGM声優").ID, role, &egOnly.ID, model.SourceBangumi, "主角")
 
 	createSourcedCredit(t, work.ID, english.ID, role, &dubbed.ID, model.SourceVNDB, "English")
 	createSourcedCredit(t, work.ID, japanese.ID, role, &dubbed.ID, model.SourceBangumi, "配角")
@@ -68,7 +75,8 @@ func TestBangumiVoiceYieldsToTheCreditedName(t *testing.T) {
 
 	rows, err := read.loadWorkCharacters(ctx, work.ID)
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{"藤咲ウサ": ""}, voiceNames(rows, heroine.ID), "every Bangumi voice yields to the credited one")
+	assert.Equal(t, map[string]string{"藤咲ウサ": ""}, voiceNames(rows, heroine.ID), "Bangumi and ErogameScape yield to VNDB")
+	assert.Equal(t, map[string]string{"EG声優": ""}, voiceNames(rows, egOnly.ID), "Bangumi yields to ErogameScape")
 	assert.Equal(t, map[string]string{"Y. Chang": "English", "杉田智和": ""}, voiceNames(rows, dubbed.ID),
 		"an English dub does not cover the original, and Bangumi's appearance kind is not a version note")
 	assert.Equal(t, map[string]string{"PC声優": "PC", "PS2声優": "PS2"}, voiceNames(rows, ported.ID))
@@ -81,7 +89,7 @@ func TestBangumiVoiceYieldsToTheCreditedName(t *testing.T) {
 
 	credits, err := read.WorkCredits(ctx, work.ID)
 	require.NoError(t, err)
-	assert.Len(t, credits, 5, "the two outvoiced Bangumi rows leave the credit list")
+	assert.Len(t, credits, 6, "the outvoiced Bangumi and ErogameScape rows leave the credit list")
 
 	nw, err := read.NameWorks(ctx, main.ID, EntityWorksGate{NSFW: true, WithTotal: true}, 50, 0)
 	require.NoError(t, err)
