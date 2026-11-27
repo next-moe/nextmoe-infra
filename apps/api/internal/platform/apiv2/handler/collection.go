@@ -348,7 +348,7 @@ func v2Security(path string) (schemes []string, scope string, anonymous bool) {
 			return []string{securityAppKey}, devapi.ScopeCatalogRead, false
 		}
 		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead, true
-	case path == folderHoldersPath:
+	case path == folderHoldersPath, path == historyChangesPath:
 		return []string{securityAppKey}, devapi.ScopeCatalogRead, false
 	case path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/"),
 		path == "/v2/ratings" || strings.HasPrefix(path, "/v2/ratings/"),
@@ -415,6 +415,19 @@ const claimEventsPath = "/v2/catalog/claim-events"
 
 const folderHoldersPath = "/v2/folders/holders"
 
+// The scope an operator grants on top of catalog:read, per key-only path.
+var operatorScopes = map[string]string{
+	claimEventsPath:    devapi.ScopeClaimEventsRead,
+	folderHoldersPath:  devapi.ScopeFolderHoldersRead,
+	historyChangesPath: devapi.ScopeHistoryChangesRead,
+}
+
+// claim-events keeps its 401 for a user token; see catalogAuth.
+var userTokenRefusedScopes = map[string]string{
+	folderHoldersPath:  devapi.ScopeFolderHoldersRead,
+	historyChangesPath: devapi.ScopeHistoryChangesRead,
+}
+
 // The dispatch key is the token's own prefix, not a second header and not a
 // try-one-then-the-other: an application key that fails its lane must never get
 // a second reading as a user token, or a revoked key would fall through to
@@ -467,9 +480,9 @@ func catalogAuth(
 		// is the same refusal as "your credential lacks the scope", and a caller
 		// holding a perfectly valid user token must not read it as "my token
 		// expired" and go round the refresh loop forever.
-		if path == folderHoldersPath {
+		if extra, ok := userTokenRefusedScopes[path]; ok {
 			return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
-				"this operation requires an application key holding "+devapi.ScopeFolderHoldersRead+"; a user access token is not a credential here."))
+				"this operation requires an application key holding "+extra+"; a user access token is not a credential here."))
 		}
 		return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
 			"Authorization Bearer token is invalid."))
@@ -501,13 +514,9 @@ func catalogAppKeyAuth(c fiber.Ctx, path, scope, token string, lookup func(conte
 		return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
 			"this operation requires the "+scope+" scope."))
 	}
-	if path == claimEventsPath && !cred.HasScope(devapi.ScopeClaimEventsRead) {
+	if extra, ok := operatorScopes[path]; ok && !cred.HasScope(extra) {
 		return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
-			"this operation additionally requires the claim_events:read scope."))
-	}
-	if path == folderHoldersPath && !cred.HasScope(devapi.ScopeFolderHoldersRead) {
-		return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
-			"this operation additionally requires the folder_holders:read scope."))
+			"this operation additionally requires the "+extra+" scope."))
 	}
 	devapi.WithCredential(c, cred)
 	c.Locals(ctxCatalogAuthz, catalogAuthz{

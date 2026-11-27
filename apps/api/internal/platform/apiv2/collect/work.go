@@ -242,6 +242,15 @@ func BrowsingHistorySpec() Spec {
 	}
 }
 
+func BrowsingHistoryChangeSpec() Spec {
+	return Spec{
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "user_id", "browsing_history", "cleared_at", "changed_at"},
+		NoBatch: true,
+	}
+}
+
 func CompanyFollowSpec() Spec {
 	return Spec{
 		Sort:    []string{"followed_desc"},

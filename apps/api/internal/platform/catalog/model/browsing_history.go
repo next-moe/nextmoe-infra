@@ -13,3 +13,11 @@ type CatalogUserWorkView struct {
 }
 
 func (CatalogUserWorkView) TableName() string { return "catalog_user_work_view" }
+
+type CatalogUserHistoryControl struct {
+	ActorUID  int64     `gorm:"column:actor_uid;primaryKey;autoIncrement:false;index:idx_catalog_user_history_control_changed,priority:2" json:"actor_uid"`
+	ClearedAt time.Time `gorm:"not null" json:"cleared_at"`
+	ChangedAt time.Time `gorm:"not null;index:idx_catalog_user_history_control_changed,priority:1" json:"changed_at"`
+}
+
+func (CatalogUserHistoryControl) TableName() string { return "catalog_user_history_control" }

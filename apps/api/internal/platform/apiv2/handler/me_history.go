@@ -67,7 +67,7 @@ func registerMeHistory(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "clearMyBrowsingHistory", Method: http.MethodDelete, Path: "/v2/me/history",
 		Summary: "Clear my browsing history",
-		Description: "Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. " +
+		Description: "Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. scope=all also moves browsing_history_cleared_at on /v2/me/privacy, and apps that keep their own history (topics, resources) delete theirs when /v2/browsing-history/changes delivers it. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. " +
 			"Requires a user access token. Any app may call this; no scope is required.",
 		Tags: me, Errors: errs, DefaultStatus: http.StatusNoContent, SkipValidateParams: true,
 	}, clearMyBrowsingHistory(cat))

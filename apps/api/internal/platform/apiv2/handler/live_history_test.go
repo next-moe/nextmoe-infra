@@ -117,3 +117,79 @@ func TestLiveBrowsingHistoryLifecycle(t *testing.T) {
 	code, _, raw = liveDo(t, env, http.MethodGet, "/v2/me/history?scope=everyone", liveUserToken, "")
 	require.Equal(t, http.StatusBadRequest, code, string(raw))
 }
+
+type liveHistoryChangesPage struct {
+	Items []struct {
+		Object          string `json:"object"`
+		UserID          string `json:"user_id"`
+		BrowsingHistory string `json:"browsing_history"`
+		ClearedAt       string `json:"cleared_at"`
+		ChangedAt       string `json:"changed_at"`
+	} `json:"items"`
+	NextCursor *string `json:"next_cursor"`
+}
+
+func TestLiveBrowsingHistoryChangesFeed(t *testing.T) {
+	env := liveCatalog(t)
+	reset := func() {
+		env.db.Exec("DELETE FROM catalog_user_history_control")
+		env.db.Exec("DELETE FROM catalog_user_privacy WHERE actor_uid = ?", liveUID)
+	}
+	reset()
+	t.Cleanup(reset)
+
+	for _, tc := range []struct {
+		name, token string
+		want        int
+		code        string
+	}{
+		{"no credential", "", http.StatusUnauthorized, problem.CodeMissingCredential},
+		{"user token", liveUserToken, http.StatusForbidden, problem.CodeScopeRequired},
+		{"key without the operator scope", liveAppKey, http.StatusForbidden, problem.CodeScopeRequired},
+	} {
+		code, _, raw := liveDo(t, env, http.MethodGet, historyChangesPath, tc.token, "")
+		require.Equal(t, tc.want, code, "%s: %s", tc.name, raw)
+		require.Equal(t, tc.code, liveProblemCode(t, raw), tc.name)
+	}
+
+	code, _, raw := liveDo(t, env, http.MethodGet, "/v2/me/privacy", liveUserToken, "")
+	require.Equal(t, http.StatusOK, code, string(raw))
+	var privacy map[string]any
+	require.NoError(t, json.Unmarshal(raw, &privacy))
+	require.Contains(t, privacy, "browsing_history_cleared_at")
+	require.Nil(t, privacy["browsing_history_cleared_at"])
+
+	code, body, raw := livePatchPrivacy(t, env, liveThirdPartyToken, `{"browsing_history":"off"}`)
+	require.Equal(t, http.StatusOK, code, string(raw))
+	clearedAt, _ := body["browsing_history_cleared_at"].(string)
+	require.NotEmpty(t, clearedAt, "off moves cleared_at")
+
+	feed := func(query string) liveHistoryChangesPage {
+		t.Helper()
+		code, _, raw := liveDo(t, env, http.MethodGet, historyChangesPath+query, liveAppKeyFeed, "")
+		require.Equal(t, http.StatusOK, code, string(raw))
+		var page liveHistoryChangesPage
+		require.NoError(t, json.Unmarshal(raw, &page), string(raw))
+		return page
+	}
+	require.Empty(t, feed("").Items, "a change surfaces only after the settle window")
+	require.NoError(t, env.db.Exec(`UPDATE catalog_user_history_control SET changed_at = changed_at - interval '1 minute'`).Error)
+
+	page := feed("")
+	require.Len(t, page.Items, 1)
+	require.Equal(t, "browsing_history_change", page.Items[0].Object)
+	require.Equal(t, strconv.FormatInt(liveUID, 10), page.Items[0].UserID)
+	require.Equal(t, "off", page.Items[0].BrowsingHistory)
+	require.Equal(t, clearedAt, page.Items[0].ClearedAt, "the feed and /v2/me/privacy name the same instant")
+	require.Nil(t, page.NextCursor, "a partial page carries no cursor")
+
+	full := feed("?limit=1")
+	require.Len(t, full.Items, 1)
+	require.NotNil(t, full.NextCursor)
+	require.Empty(t, feed("?limit=1&cursor="+*full.NextCursor).Items)
+
+	code, _, raw = liveDo(t, env, http.MethodGet, historyChangesPath+"?limit=101", liveAppKeyFeed, "")
+	require.Equal(t, http.StatusBadRequest, code, string(raw))
+	code, _, raw = liveDo(t, env, http.MethodGet, historyChangesPath+"?cursor=nonsense", liveAppKeyFeed, "")
+	require.Equal(t, http.StatusBadRequest, code, string(raw))
+}

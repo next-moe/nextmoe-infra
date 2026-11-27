@@ -149,6 +149,12 @@ func Run(db *gorm.DB) error {
 		// followed-companies list was promised private to its owner, so every
 		// existing account stays private until it opts in on /v2/me/privacy.
 		&model.CatalogUserWorkView{},
+		// 2026-11-26: one row per account whose browsing history every app
+		// must act on: switched off or on, or cleared across apps. Sites that
+		// keep their own history (forum topics, moyu resources) read it from
+		// /v2/browsing-history/changes. Accounts already off get a row from
+		// backfillHistoryControl below, stamped at their privacy updated_at.
+		&model.CatalogUserHistoryControl{},
 		// 2026-11-15: the feed items catalog pushes to community as tenant
 		// catalog (play states, playtime days, public folders and their works,
 		// company follows). New and empty: writes fill it from this release on,
@@ -330,7 +336,25 @@ func Run(db *gorm.DB) error {
 	if err := rawSQL(db); err != nil {
 		return err
 	}
+	if err := backfillHistoryControl(db); err != nil {
+		return err
+	}
 	return cookRatingSummaries(db)
+}
+
+// Accounts that switched browsing history off before 2026-11-26 had no
+// control row, so a site mirroring /v2/browsing-history/changes would have
+// kept recording them. Each gets one, stamped at its privacy updated_at. An
+// account that already has a row is left alone, so re-running is a no-op.
+func backfillHistoryControl(db *gorm.DB) error {
+	if err := db.Exec(`
+		INSERT INTO catalog_user_history_control (actor_uid, cleared_at, changed_at)
+		SELECT actor_uid, coalesce(updated_at, now()), coalesce(updated_at, now()) FROM catalog_user_privacy
+		 WHERE browsing_history_off
+		ON CONFLICT (actor_uid) DO NOTHING`).Error; err != nil {
+		return fmt.Errorf("backfill history control: %w", err)
+	}
+	return nil
 }
 
 func cookRatingSummaries(db *gorm.DB) error {

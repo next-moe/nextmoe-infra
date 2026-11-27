@@ -12,7 +12,7 @@ import (
 
 func newBrowsingHistorySvc(t *testing.T) *BrowsingHistoryService {
 	t.Helper()
-	require.NoError(t, testDB.Exec("TRUNCATE catalog_user_work_view, catalog_user_privacy RESTART IDENTITY").Error)
+	require.NoError(t, testDB.Exec("TRUNCATE catalog_user_work_view, catalog_user_privacy, catalog_user_history_control RESTART IDENTITY").Error)
 	return NewBrowsingHistoryService(testDB)
 }
 
@@ -121,7 +121,9 @@ func TestBrowsingHistorySettingsKeepPlayRecordsAndEachOther(t *testing.T) {
 	off := true
 	got, err := svc.SetSettings(ctx, 7, &off, nil)
 	require.NoError(t, err)
-	require.Equal(t, BrowsingHistorySettings{Off: true, Shared: true}, got)
+	require.True(t, got.Off)
+	require.True(t, got.Shared)
+	require.NotNil(t, got.ClearedAt)
 
 	p, err := NewUserWorkRecordService(testDB).Privacy(ctx, 7)
 	require.NoError(t, err)
@@ -222,4 +224,116 @@ func TestBrowsingHistoryDisplayLimit(t *testing.T) {
 
 	require.Equal(t, []int64{safe.ID}, historyWorkIDs(t, svc, 7, BrowsingHistoryFilter{DisplayLimits: []string{model.DisplayLimitKeySFW}}))
 	require.Equal(t, []int64{adult.ID}, historyWorkIDs(t, svc, 7, BrowsingHistoryFilter{DisplayLimits: []string{model.DisplayLimitKeyNSFW}}))
+}
+
+// settleHistoryChanges moves the rows changed just now past the feed's settle
+// window.
+func settleHistoryChanges(t *testing.T) {
+	t.Helper()
+	require.NoError(t, testDB.Exec(`UPDATE catalog_user_history_control
+		SET changed_at = changed_at - interval '1 minute' WHERE changed_at > now() - interval '30 seconds'`).Error)
+}
+
+func historyChanges(t *testing.T, svc *BrowsingHistoryService) []BrowsingHistoryChange {
+	t.Helper()
+	rows, err := svc.Changes(context.Background(), time.Time{}, 0, 100)
+	require.NoError(t, err)
+	return rows
+}
+
+func TestBrowsingHistoryChangesFollowOffOnAndClearAll(t *testing.T) {
+	svc := newBrowsingHistorySvc(t)
+	ctx := context.Background()
+	w := createWork(t, "hist-changes")
+	yes, no := true, false
+
+	_, err := svc.SetSettings(ctx, 7, nil, &yes)
+	require.NoError(t, err)
+	_, err = svc.Forget(ctx, 7, "forum", 0)
+	require.NoError(t, err)
+	_, err = svc.Forget(ctx, 7, "", w.ID)
+	require.NoError(t, err)
+	_, err = svc.SetSettings(ctx, 7, &no, nil)
+	require.NoError(t, err)
+	settleHistoryChanges(t)
+	require.Empty(t, historyChanges(t, svc), "sharing, one app's clear, one work's removal and a no-op on reach no other app")
+	got, err := svc.Settings(ctx, 7)
+	require.NoError(t, err)
+	require.Nil(t, got.ClearedAt)
+
+	_, err = svc.SetSettings(ctx, 7, &yes, nil)
+	require.NoError(t, err)
+	got, err = svc.Settings(ctx, 7)
+	require.NoError(t, err)
+	require.NotNil(t, got.ClearedAt)
+	require.Empty(t, historyChanges(t, svc), "a change inside the settle window is not served yet")
+	settleHistoryChanges(t)
+	rows := historyChanges(t, svc)
+	require.Len(t, rows, 1)
+	require.True(t, rows[0].Off)
+	require.EqualValues(t, 7, rows[0].UID)
+	offClearedAt := rows[0].ClearedAt
+
+	_, err = svc.SetSettings(ctx, 7, &yes, nil)
+	require.NoError(t, err)
+	settleHistoryChanges(t)
+	again := historyChanges(t, svc)
+	require.Len(t, again, 1)
+	require.True(t, again[0].ChangedAt.Equal(rows[0].ChangedAt), "switching off twice moves nothing")
+
+	_, err = svc.SetSettings(ctx, 7, &no, nil)
+	require.NoError(t, err)
+	settleHistoryChanges(t)
+	rows = historyChanges(t, svc)
+	require.Len(t, rows, 1)
+	require.False(t, rows[0].Off)
+	require.True(t, rows[0].ClearedAt.Equal(offClearedAt), "switching back on keeps cleared_at")
+
+	require.NoError(t, svc.Record(ctx, 7, "forum", w.ID))
+	_, err = svc.Forget(ctx, 7, "", 0)
+	require.NoError(t, err)
+	settleHistoryChanges(t)
+	rows = historyChanges(t, svc)
+	require.Len(t, rows, 1)
+	require.False(t, rows[0].Off)
+	require.True(t, rows[0].ClearedAt.After(offClearedAt), "a clear across apps moves cleared_at")
+	require.Empty(t, historyWorkIDs(t, svc, 7, BrowsingHistoryFilter{}))
+
+	_, err = svc.Forget(ctx, 9, "", 0)
+	require.NoError(t, err)
+	settleHistoryChanges(t)
+	require.Len(t, historyChanges(t, svc), 2, "an account with no privacy row can clear too")
+	fresh, err := svc.Settings(ctx, 9)
+	require.NoError(t, err)
+	require.False(t, fresh.Off)
+	require.NotNil(t, fresh.ClearedAt)
+}
+
+func TestBrowsingHistoryChangesResumeInOrder(t *testing.T) {
+	svc := newBrowsingHistorySvc(t)
+	ctx := context.Background()
+	for _, uid := range []int64{31, 32, 33} {
+		_, err := svc.Forget(ctx, uid, "", 0)
+		require.NoError(t, err)
+	}
+	require.NoError(t, testDB.Exec(`UPDATE catalog_user_history_control
+		SET changed_at = now() - make_interval(mins => 40 - actor_uid::int)`).Error)
+
+	first, err := svc.Changes(ctx, time.Time{}, 0, 2)
+	require.NoError(t, err)
+	require.Len(t, first, 2)
+	require.EqualValues(t, 31, first[0].UID)
+	require.EqualValues(t, 32, first[1].UID)
+	rest, err := svc.Changes(ctx, first[1].ChangedAt, first[1].UID, 2)
+	require.NoError(t, err)
+	require.Len(t, rest, 1)
+	require.EqualValues(t, 33, rest[0].UID)
+
+	_, err = svc.Forget(ctx, 31, "", 0)
+	require.NoError(t, err)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_user_history_control SET changed_at = now() - interval '1 minute' WHERE actor_uid = 31`).Error)
+	moved, err := svc.Changes(ctx, rest[0].ChangedAt, rest[0].UID, 10)
+	require.NoError(t, err)
+	require.Len(t, moved, 1, "an account that changes again comes back once, after the cursor")
+	require.EqualValues(t, 31, moved[0].UID)
 }

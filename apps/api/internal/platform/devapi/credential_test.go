@@ -107,6 +107,15 @@ func TestScopeFolderHoldersReadIsNotSelfService(t *testing.T) {
 	}
 }
 
+func TestScopeHistoryChangesReadIsNotSelfService(t *testing.T) {
+	if slices.Contains(selfServiceScopes, ScopeHistoryChangesRead) || slices.Contains(defaultKeyScopes, ScopeHistoryChangesRead) {
+		t.Errorf("%q must be granted by an operator, never minted", ScopeHistoryChangesRead)
+	}
+	if err := checkMintScopes([]string{ScopeHistoryChangesRead}); err != ErrScopeNotAllowed {
+		t.Errorf("minting history_changes:read = %v, want ErrScopeNotAllowed", err)
+	}
+}
+
 func TestScopeGalgameWriteSelfServiceExcluded(t *testing.T) {
 	if ScopeGalgameWrite != "galgame:write" {
 		t.Errorf("ScopeGalgameWrite = %q, want %q", ScopeGalgameWrite, "galgame:write")

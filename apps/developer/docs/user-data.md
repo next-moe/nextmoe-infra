@@ -28,6 +28,7 @@ description: 用 OAuth 用户访问令牌接入 /v2/me。游玩记录与收藏�
 | 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                                     | [本页](#followed-companies)                  |
 | 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                                     | [本页](#blocked-tags)                        |
 | 浏览记录                       | `/v2/me/history`                                                                  | 用户令牌，无 scope；`scope=all` 读要 `history:read`    | [本页](#history)                             |
+| 站点自己的浏览记录             | `/v2/browsing-history/changes`                                                    | 应用密钥 + 运营授予的 `history_changes:read`           | [本页](#site-history)                        |
 | 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                                     | [本页](#calendar)                            |
 | 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                                         | [本页](#edit-capabilities)                   |
 | 编辑配额                       | `/v2/me/edit-quota`                                                               | `catalog:edit`                                         | [本页](#edit-quota)                          |
@@ -101,6 +102,44 @@ DELETE /v2/me/history
 `scope=all` 按作品合并所有应用的记录。读要同时满足两件事：令牌带 `history:read`，并且用户在 `/v2/me/privacy` 把 `browsing_history_sharing` 设成了 `shared`。缺前者是 `403 SCOPE_REQUIRED`，缺后者是 `403 BROWSING_HISTORY_NOT_SHARED`。删除带 `scope=all` 时两者都不需要。
 
 用户在 `/v2/me/privacy` 把 `browsing_history` 设成 `off`，会立刻删掉所有应用的浏览记录；之后 `PUT` 仍然是 204，但服务器上什么都不存。站点可以读 `/v2/me/privacy` 来决定要不要显示「最近浏览」。第三方应用只能把这两个开关往更私密的方向改（关闭记录、取消共享），反过来改是 `422`，reason 为 `NOT_PERMITTED`。
+
+关闭记录和 `DELETE /v2/me/history?scope=all` 都会推进 `/v2/me/privacy` 的 `browsing_history_cleared_at`：所有应用都要删掉这个时间及以前的浏览记录，包括站点存在自己库里的那些，见[下一节](#site-history)。
+
+## 站点自己的浏览记录 {#site-history}
+
+```http
+GET /v2/browsing-history/changes
+```
+
+`/v2/me/history` 只收目录里的作品。话题、资源这类站点自己的东西，浏览记录存在站点自己的数据库里：只有站点知道它们还在不在、谁能看。中央只管两条每个站点都得守的规则：
+
+- 用户关闭了浏览记录，哪个站点都不留。
+- 用户清空所有应用的浏览记录（`DELETE /v2/me/history?scope=all`，在哪个站点点的都算），每个站点都清空。
+
+做法分三处。
+
+**记录。** 一条记录一行：用户 id（中央登录的用户 id）、对象 id、第一次和最近一次浏览时间、次数，`(用户, 对象)` 唯一，再建 `(用户, 最近浏览时间)` 索引。规则和 `/v2/me/history` 一致最省事：一分钟内重复只算一次，保留 90 天，每人最多 500 条。用户在页面上真正停留之后，由前端发请求记录（`fetch(…, { keepalive: true })`，失败就算了），不要在服务端渲染或预取时记。用户关闭了就不写：看下面同步到本地的开关，不要每次浏览都去问中央。
+
+**展示。** 渲染「最近浏览」时，用用户令牌读一次 `/v2/me/privacy`。`browsing_history` 是 `off` 就显示为空；否则只显示 `last_viewed_at` 晚于 `browsing_history_cleared_at` 的条目（它是 `null` 时全部显示）。这样用户在别的站点刚清空，你的页面马上就不显示了，不用等同步。
+
+**同步。** 定期拉 `/v2/browsing-history/changes`，按顺序处理每一条：
+
+| 字段               | 怎么处理                                                                          |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `browsing_history` | `off`：删掉这个用户的全部记录，并在本地记下「关闭」，此后不再记录。`on`：恢复记录 |
+| `cleared_at`       | 删掉这个用户最近浏览时间不晚于它的记录                                            |
+
+每个账号只出现一次，位置是它最近一次变化，内容是它的当前状态，所以同一条处理两遍结果不变。第一次不带 `cursor`，从头读完，所有关闭过或清空过的账号都在里面；不在流里的账号就是开着的、也没清空过。之后**原样传回上一次收到的 `next_cursor`**，并把它存下来。`next_cursor` 只在满页时给，所以末尾那页不满时，下次从上一个游标起会再读一遍，按上面的规则处理不会出错。变化在提交五秒后才出现在流里。每分钟拉一次就够了：展示已经靠 `/v2/me/privacy` 即时生效，同步只是把数据真正删掉。
+
+这个面只收**应用密钥**，在 `catalog:read` 之外还要运营方授予的 `history_changes:read`。这个 scope 不能在控制台自助勾选，因为它列出了谁在什么时候关闭或清空了浏览记录。用户令牌来是 `403 SCOPE_REQUIRED`，不要把它当成令牌过期去刷新。
+
+还有三件事：
+
+- 用户在你的站点关闭浏览记录：照常 `PATCH /v2/me/privacy`，同时立刻删掉本地记录、记下关闭，不必等同步。
+- 用户在你的站点清空：只清本站，就直接删本地记录（作品的部分用 `DELETE /v2/me/history`）。要清空所有站点，就调 `DELETE /v2/me/history?scope=all`，别的站点会从这个流里收到。
+- 注销的账号不在这个流里。按登录服务的已注销账号流（`GET https://account.nextmoe.com/api/v1/users/deleted`，client Basic auth）清理。
+
+`cleared_at` 用的是中央的时钟。两边都用 NTP 校时就行，差几秒没有影响。
 
 ## 我的发售月历 {#calendar}
 

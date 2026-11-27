@@ -41,6 +41,7 @@ var customCollectionFaces = map[string]string{
 	"/v2/catalog/proposals":                 "edit-history feed: no refs=, nsfw or facets",
 	"/v2/catalog/revisions":                 "edit-history feed: no refs=, nsfw or facets",
 	"/v2/folders/holders":                   "s2s fan-out lane: work_id=, cursor= and limit= and nothing else — every other parameter would widen what the uid list discloses",
+	"/v2/browsing-history/changes":          "s2s mirror lane: an oldest-change-first keyset, cursor= and limit= only",
 	"/v2/me/merge-requests":                 "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
 	"/v2/moderation/merge-requests":         "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
 	"/v2/me/deletion-requests":              "deletion-request queue: state=/target_id=/origin_site= filters over a small keyset feed, no refs=, nsfw or facets",
@@ -63,7 +64,7 @@ func bindingApp(t *testing.T) (*fiber.App, huma.API, string, string) {
 					KeyID: 1,
 					Scopes: []string{
 						devapi.ScopeCatalogRead, devapi.ScopeStoreRead, devapi.ScopeClaimEventsRead,
-						devapi.ScopeFolderHoldersRead,
+						devapi.ScopeFolderHoldersRead, devapi.ScopeHistoryChangesRead,
 					},
 				}, nil
 			}

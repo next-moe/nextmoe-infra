@@ -18,11 +18,12 @@ var (
 )
 
 const (
-	BrowsingHistoryRetention  = 90 * 24 * time.Hour
-	BrowsingHistoryPerApp     = 500
-	browsingHistoryRevisitGap = time.Minute
-	browsingHistoryLockClass  = 0x7669_6577
-	browsingHistorySweepBatch = 5000
+	BrowsingHistoryRetention    = 90 * 24 * time.Hour
+	BrowsingHistoryPerApp       = 500
+	browsingHistoryRevisitGap   = time.Minute
+	browsingHistoryLockClass    = 0x7669_6577
+	browsingHistorySweepBatch   = 5000
+	browsingHistoryChangeSettle = "5 seconds"
 )
 
 type BrowsingHistoryService struct{ db *gorm.DB }
@@ -32,8 +33,9 @@ func NewBrowsingHistoryService(db *gorm.DB) *BrowsingHistoryService {
 }
 
 type BrowsingHistorySettings struct {
-	Off    bool
-	Shared bool
+	Off       bool
+	Shared    bool
+	ClearedAt *time.Time
 }
 
 type BrowsingHistoryEntry struct {
@@ -56,11 +58,24 @@ func lockBrowsingHistoryTx(tx *gorm.DB, uid int64) error {
 }
 
 func browsingHistorySettingsTx(tx *gorm.DB, uid int64) (BrowsingHistorySettings, error) {
-	var rows []model.CatalogUserPrivacy
-	if err := tx.Where("actor_uid = ?", uid).Limit(1).Find(&rows).Error; err != nil || len(rows) == 0 {
-		return BrowsingHistorySettings{}, err
-	}
-	return BrowsingHistorySettings{Off: rows[0].BrowsingHistoryOff, Shared: rows[0].BrowsingHistoryShared}, nil
+	var out BrowsingHistorySettings
+	err := tx.Raw(`
+		SELECT coalesce(p.browsing_history_off, false) AS off,
+		       coalesce(p.browsing_history_shared, false) AS shared,
+		       c.cleared_at
+		  FROM (SELECT ?::bigint AS actor_uid) u
+		  LEFT JOIN catalog_user_privacy p ON p.actor_uid = u.actor_uid
+		  LEFT JOIN catalog_user_history_control c ON c.actor_uid = u.actor_uid`, uid).Scan(&out).Error
+	return out, err
+}
+
+func stampHistoryControlTx(tx *gorm.DB, uid int64, clear bool) error {
+	return tx.Exec(`
+		INSERT INTO catalog_user_history_control AS c (actor_uid, cleared_at, changed_at)
+		VALUES (?, now(), now())
+		ON CONFLICT (actor_uid) DO UPDATE
+		SET changed_at = excluded.changed_at,
+		    cleared_at = CASE WHEN ? THEN excluded.cleared_at ELSE c.cleared_at END`, uid, clear).Error
 }
 
 func (s *BrowsingHistoryService) Settings(ctx context.Context, uid int64) (BrowsingHistorySettings, error) {
@@ -84,6 +99,10 @@ func (s *BrowsingHistoryService) SetSettings(ctx context.Context, uid int64, off
 		if err := lockBrowsingHistoryTx(tx, uid); err != nil {
 			return err
 		}
+		before, err := browsingHistorySettingsTx(tx, uid)
+		if err != nil {
+			return err
+		}
 		row := model.CatalogUserPrivacy{ActorUID: uid}
 		set := map[string]any{"updated_at": time.Now()}
 		var changed []clause.Expression
@@ -104,12 +123,16 @@ func (s *BrowsingHistoryService) SetSettings(ctx context.Context, uid int64, off
 		}).Create(&row).Error; err != nil {
 			return err
 		}
+		if off != nil && *off != before.Off {
+			if err := stampHistoryControlTx(tx, uid, *off); err != nil {
+				return err
+			}
+		}
 		if off != nil && *off {
 			if err := tx.Where("actor_uid = ?", uid).Delete(&model.CatalogUserWorkView{}).Error; err != nil {
 				return err
 			}
 		}
-		var err error
 		out, err = browsingHistorySettingsTx(tx, uid)
 		return err
 	})
@@ -200,20 +223,63 @@ func (s *BrowsingHistoryService) Count(ctx context.Context, uid int64, f Browsin
 }
 
 // Forget deletes the user's entries for one work, or every work when workID
-// is 0, in one app or, with clientID "", in every app.
+// is 0, in one app or, with clientID "", in every app. Clearing every work in
+// every app also reaches the apps that keep their own history, through
+// /v2/browsing-history/changes.
 func (s *BrowsingHistoryService) Forget(ctx context.Context, uid int64, clientID string, workID int64) (int64, error) {
 	if uid <= 0 {
 		return 0, ErrHistoryActorRequired
 	}
-	q := s.db.WithContext(ctx).Where("actor_uid = ?", uid)
-	if clientID != "" {
-		q = q.Where("client_id = ?", clientID)
-	}
-	if workID > 0 {
-		q = q.Where("work_id = ?", workID)
-	}
-	res := q.Delete(&model.CatalogUserWorkView{})
-	return res.RowsAffected, res.Error
+	everything := clientID == "" && workID == 0
+	var n int64
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if everything {
+			if err := lockBrowsingHistoryTx(tx, uid); err != nil {
+				return err
+			}
+		}
+		q := tx.Where("actor_uid = ?", uid)
+		if clientID != "" {
+			q = q.Where("client_id = ?", clientID)
+		}
+		if workID > 0 {
+			q = q.Where("work_id = ?", workID)
+		}
+		res := q.Delete(&model.CatalogUserWorkView{})
+		if res.Error != nil {
+			return res.Error
+		}
+		n = res.RowsAffected
+		if !everything {
+			return nil
+		}
+		return stampHistoryControlTx(tx, uid, true)
+	})
+	return n, err
+}
+
+type BrowsingHistoryChange struct {
+	UID       int64
+	Off       bool
+	ClearedAt time.Time
+	ChangedAt time.Time
+}
+
+// Changes lists accounts by the time their control row last moved, oldest
+// first. The settle is /v2/ratings/changes's: now() is stamped at the start
+// of a transaction, so a slow commit can land behind a cursor that has
+// already passed its timestamp.
+func (s *BrowsingHistoryService) Changes(ctx context.Context, afterAt time.Time, afterUID int64, limit int) ([]BrowsingHistoryChange, error) {
+	var out []BrowsingHistoryChange
+	err := s.db.WithContext(ctx).Raw(`
+		SELECT c.actor_uid AS uid, coalesce(p.browsing_history_off, false) AS off, c.cleared_at, c.changed_at
+		  FROM catalog_user_history_control c
+		  LEFT JOIN catalog_user_privacy p ON p.actor_uid = c.actor_uid
+		 WHERE (c.changed_at, c.actor_uid) > (?, ?)
+		   AND c.changed_at < now() - interval '`+browsingHistoryChangeSettle+`'
+		 ORDER BY c.changed_at, c.actor_uid
+		 LIMIT ?`, afterAt, afterUID, limit).Scan(&out).Error
+	return out, err
 }
 
 // SweepExpired deletes entries past the retention window in batches.
