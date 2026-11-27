@@ -3122,3 +3122,17 @@ On work 2452 the heroine showed two voices, 桜咲千依 and 藤咲ウサ. They 
 - The rest (two names from one source, or two lanes that disagree) are left to editors, who hide a row on the work's credits.
 
 Spec 2.92.0: `CreditName` gains optional `note`, set on `voices[]` entries only. **One additive migration:** `go run ./cmd/migrate catalog` adds the partial index `idx_catalog_credit_credited_voice` (work_id, character_id, role_id) over credited-source voice rows, which the rule probes. It was built CONCURRENTLY on prod by hand on 2026-11-26, so the `migrate-catalog` job finds it present.
+
+## Sites that keep their own browsing history (spec 2.93.0, 2026-11-26)
+
+`/v2/me/history` holds catalog works only. A forum topic or a moyu resource is not a catalog object: the catalog cannot tell whether it still exists, who may see it or how it is rated. So each site keeps that history in its own database, and the catalog keeps only the account's controls, which must hold on every site: browsing history off means nothing is kept anywhere, and a clear across apps empties every site. Until now a site could learn of either only by reading `/v2/me/privacy` with the person's token.
+
+- **`catalog_user_history_control`**, one row per account: `cleared_at` and `changed_at`. Switching `browsing_history` off or back on moves `changed_at`; switching off and `DELETE /v2/me/history?scope=all` also move `cleared_at`. Switching sharing, clearing one app's history and removing one work do not touch it. Both writes run under the per-user advisory lock that recording takes. The row is separate from `catalog_user_privacy` because a clear on an account that never changed a switch would otherwise create a privacy row and set its `updated_at`, which `/v2/me/privacy` defines as the last switch change.
+- **`GET /v2/browsing-history/changes`** lists one entry per account, `{user_id, browsing_history, cleared_at, changed_at}`, oldest change first. It reuses `/v2/ratings/changes`'s rules: `(changed_at, user_id)` keyset, a five-second settle, `next_cursor` only on a full page. The entry is the account's current state, so a consumer that applies it twice gets the same result. It takes an application key only, with `catalog:read` and the new operator-granted `history_changes:read`; a user token is 403 `SCOPE_REQUIRED`, like `/v2/folders/holders`. Purged accounts leave the feed, since the deleted-accounts feed already covers them.
+- **`/v2/me/privacy` gains `browsing_history_cleared_at`**, the same instant the feed delivers. A site reads it when it renders its history page, so a clear made on another site shows there at once, before the feed has been polled.
+- **The gate** names operator scopes in one map (`operatorScopes`) instead of one `if` per path. claim-events keeps its 401 for a user token, as before.
+- **Purge.** `PurgeAccount` deletes the account's control row.
+
+How a site consumes it is in the developer portal's user-data guide (`apps/developer/docs/user-data.md#site-history`).
+
+Spec 2.93.0, additive: one operation, one field on `UserPrivacy`. **Migration:** `go run ./cmd/migrate catalog` creates `catalog_user_history_control` and gives every account whose browsing history is off a row, with both times set to its privacy `updated_at`. Without that row a site would keep recording accounts that switched off before this release. An account that already has a row is skipped, so the step does nothing on later runs. The `migrate-catalog` deploy job runs it.

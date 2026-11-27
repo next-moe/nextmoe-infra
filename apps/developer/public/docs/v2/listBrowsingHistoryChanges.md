@@ -1,0 +1,33 @@
+# Browsing history switches and clears feed · Public API v2
+
+> NextMoe·未萌 开放 API —— ACGN 数据，以此为准。同一部作品在六个源各有一个页面，NextMoe 把它们对齐成一条记录，逐字段给出裁定后的标准答案，并附上答案取自哪个源。
+
+- Base URL：https://api.nextmoe.dev
+- 文档：https://developer.nextmoe.dev/docs
+- MCP 端点：https://mcp.nextmoe.dev/mcp
+- 调用与编辑都完全免费，没有付费档位，只有一层防滥用的限流。
+
+**署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
+
+## GET /v2/browsing-history/changes
+
+Browsing history switches and clears feed
+
+Every account whose browsing history each app must act on, oldest change first, keyset-paginated: it switched browsing_history off or back on, or cleared every app's history. **This is the channel for a site that keeps its own browsing history** of things the catalog does not hold, such as forum topics or resources. Apply each entry as the account's current state: browsing_history off means delete everything you keep for the account and record nothing until an entry says on; either way delete the account's entries viewed at or before cleared_at. An account appears once, at its latest change, so applying entries in order is idempotent. Bootstrap from an empty cursor (the first drain lists every account that ever switched off or cleared), then poll at your own cadence. next_cursor comes only with a full page, so keep the last one you received and poll from it: the partial page after it is read again. A change surfaces five seconds after it commits. Deleted accounts are not listed; they come from the sign-in service's deleted-accounts feed. Requires an application key with the history_changes:read scope on top of catalog:read; a user access token is refused. The scope is granted by an operator, not self-service, because the answer names accounts and when they cleared their history.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：catalog:read + history_changes:read
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. |
+| `limit` | query | 否 | string | Page size 1-100, default 100. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/browsing-history/changes" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+---
+本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/v2/listBrowsingHistoryChanges

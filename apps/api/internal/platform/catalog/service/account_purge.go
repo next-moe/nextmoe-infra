@@ -16,7 +16,7 @@ type AccountPurged struct {
 	DiscussionPosts, DiscussionWatches                                                                                 int64
 	MergeCopies                                                                                                        int64
 	WalkthroughDrafts                                                                                                  int64
-	BrowsingHistory                                                                                                    int64
+	BrowsingHistory, HistoryControl                                                                                    int64
 	ActivityItems                                                                                                      int64
 }
 
@@ -59,6 +59,7 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 			{&model.CatalogUserTagBlock{}, &out.TagBlocks},
 			{&model.CatalogUserPrivacy{}, &out.Privacy},
 			{&model.CatalogUserWorkView{}, &out.BrowsingHistory},
+			{&model.CatalogUserHistoryControl{}, &out.HistoryControl},
 			{&model.CatalogActivityItem{}, &out.ActivityItems},
 		} {
 			res := tx.Where("actor_uid = ?", uid).Delete(step.model)
@@ -108,7 +109,7 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 			"tag_blocks", out.TagBlocks, "privacy", out.Privacy,
 			"discussion_posts", out.DiscussionPosts, "discussion_watches", out.DiscussionWatches,
 			"walkthrough_drafts", out.WalkthroughDrafts, "browsing_history", out.BrowsingHistory,
-			"merge_copies", out.MergeCopies)
+			"history_control", out.HistoryControl, "merge_copies", out.MergeCopies)
 	}
 	return out, nil
 }

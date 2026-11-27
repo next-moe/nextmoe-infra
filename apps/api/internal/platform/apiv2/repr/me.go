@@ -311,13 +311,23 @@ type WorkStateBatchItem struct {
 }
 
 type UserPrivacy struct {
-	_                      struct{} `json:"-" additionalProperties:"true"`
-	Object                 string   `json:"object" enum:"privacy" doc:"Type discriminant. Always privacy."`
-	PlayRecords            string   `json:"play_records" enum:"public,private" doc:"Who may read the account's play states and playtimes on /v2/work-records. public, the default, lets any application read them; private refuses everyone but the account itself with 403 PLAY_RECORDS_PRIVATE. Ratings are public either way, and a rating still carries its author's play state."`
-	FollowedCompanies      string   `json:"followed_companies" enum:"public,private" doc:"Who may read the companies the account follows on /v2/followed-companies. private, the default, refuses everyone but the account itself with 403 FOLLOWED_COMPANIES_PRIVATE; public lets any application read the list. A company's follower_count counts every follower either way."`
-	BrowsingHistory        string   `json:"browsing_history" enum:"on,off" doc:"Whether the server keeps the account's browsing history (/v2/me/history). on is the default. off erases every app's history at once, and from then on PUT /v2/me/history/works/{work_id} stores nothing."`
-	BrowsingHistorySharing string   `json:"browsing_history_sharing" enum:"per_app,shared" doc:"per_app, the default, lets each app read only the history it recorded. shared also lets an app holding history:read read every app's history merged, with scope=all."`
-	UpdatedAt              *string  `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the last change to any switch. null while the account has never changed one."`
+	_                        struct{} `json:"-" additionalProperties:"true"`
+	Object                   string   `json:"object" enum:"privacy" doc:"Type discriminant. Always privacy."`
+	PlayRecords              string   `json:"play_records" enum:"public,private" doc:"Who may read the account's play states and playtimes on /v2/work-records. public, the default, lets any application read them; private refuses everyone but the account itself with 403 PLAY_RECORDS_PRIVATE. Ratings are public either way, and a rating still carries its author's play state."`
+	FollowedCompanies        string   `json:"followed_companies" enum:"public,private" doc:"Who may read the companies the account follows on /v2/followed-companies. private, the default, refuses everyone but the account itself with 403 FOLLOWED_COMPANIES_PRIVATE; public lets any application read the list. A company's follower_count counts every follower either way."`
+	BrowsingHistory          string   `json:"browsing_history" enum:"on,off" doc:"Whether the server keeps the account's browsing history (/v2/me/history). on is the default. off erases every app's history at once, and from then on PUT /v2/me/history/works/{work_id} stores nothing."`
+	BrowsingHistorySharing   string   `json:"browsing_history_sharing" enum:"per_app,shared" doc:"per_app, the default, lets each app read only the history it recorded. shared also lets an app holding history:read read every app's history merged, with scope=all."`
+	BrowsingHistoryClearedAt *string  `json:"browsing_history_cleared_at" format:"date-time" maxLength:"40" doc:"RFC 3339 UTC with sub-second precision. Every app must drop this account's history viewed at or before it: it moves when browsing_history is switched off and when every app's history is cleared (DELETE /v2/me/history?scope=all). An app that keeps its own history (topics, resources) hides older entries when it reads this, and deletes them when /v2/browsing-history/changes delivers it. null while neither has happened."`
+	UpdatedAt                *string  `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the last change to any switch. null while the account has never changed one."`
+}
+
+type BrowsingHistoryChange struct {
+	_               struct{} `json:"-" additionalProperties:"true"`
+	Object          string   `json:"object" enum:"browsing_history_change" doc:"Type discriminant. Always browsing_history_change."`
+	UserID          string   `json:"user_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The central sign-in user id shared by every NextMoe site, not one site's own user id."`
+	BrowsingHistory string   `json:"browsing_history" enum:"on,off" doc:"The account's switch as it stands now. off: delete every entry you keep for this account and record none until an entry says on."`
+	ClearedAt       string   `json:"cleared_at" format:"date-time" maxLength:"40" doc:"RFC 3339 UTC with sub-second precision. Delete this account's entries viewed at or before it. It is the time of the last switch to off or the last clear across apps, whichever is later; switching back on does not move it."`
+	ChangedAt       string   `json:"changed_at" format:"date-time" maxLength:"40" doc:"RFC 3339 UTC with sub-second precision. When the entry last moved. The feed's order."`
 }
 
 type BrowsingHistoryEntry struct {

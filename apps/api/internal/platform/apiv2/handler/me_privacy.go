@@ -31,13 +31,13 @@ func registerMePrivacy(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "getMyPrivacy", Method: http.MethodGet, Path: "/v2/me/privacy",
 		Summary:     "My privacy switches",
-		Description: "play_records says who may read the bearer's play states and playtimes on /v2/work-records; followed_companies who may read the companies they follow on /v2/followed-companies; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers play_records public, followed_companies private, browsing_history on and browsing_history_sharing per_app, with a null updated_at. Requires a user access token. Any app may call this; no scope is required.",
+		Description: "play_records says who may read the bearer's play states and playtimes on /v2/work-records; followed_companies who may read the companies they follow on /v2/followed-companies; browsing_history and browsing_history_sharing govern /v2/me/history, and browsing_history_cleared_at says up to when every app must have dropped the account's history. An account that never changed a switch answers play_records public, followed_companies private, browsing_history on and browsing_history_sharing per_app, with a null updated_at. Requires a user access token. Any app may call this; no scope is required.",
 		Tags:        me, Errors: errs, SkipValidateParams: true,
 	}, getMyPrivacy(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "patchMyPrivacy", Method: http.MethodPatch, Path: "/v2/me/privacy",
 		Summary:     "Change my privacy switches",
-		Description: "Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required.",
+		Description: "Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers and moves browsing_history_cleared_at; apps that keep their own history learn of it from /v2/browsing-history/changes. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required.",
 		Tags:        me, Errors: append(errs, http.StatusUnprocessableEntity), SkipValidateParams: true,
 	}, patchMyPrivacy(cat))
 }
@@ -78,6 +78,10 @@ func privacyRepr(p catsvc.AccountPrivacy, h catsvc.BrowsingHistorySettings) repr
 	}
 	if h.Shared {
 		out.BrowsingHistorySharing = "shared"
+	}
+	if h.ClearedAt != nil {
+		s := h.ClearedAt.UTC().Format(time.RFC3339Nano)
+		out.BrowsingHistoryClearedAt = &s
 	}
 	if p.UpdatedAt != nil {
 		s := p.UpdatedAt.UTC().Format(time.RFC3339)

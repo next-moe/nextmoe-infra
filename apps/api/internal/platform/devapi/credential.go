@@ -21,6 +21,9 @@ const (
 	// lookup answers who keeps a work in a folder, private folders included, so
 	// it discloses a person's own collection rather than the catalog's rows.
 	ScopeFolderHoldersRead = "folder_holders:read"
+	// Operator-granted for the same reason: the feed names every account that
+	// switched browsing history off or cleared it, and when.
+	ScopeHistoryChangesRead = "history_changes:read"
 	// Operator-granted, and checked by moyu rather than here: its
 	// /v2/moyu/resources/{id}/file route reads X-NextMoe-Scopes and answers a
 	// patch's artifact link and archive password, the bulk export the rest of

@@ -13,7 +13,7 @@
 
 Clear my browsing history
 
-Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. Requires a user access token. Any app may call this; no scope is required.
+Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. scope=all also moves browsing_history_cleared_at on /v2/me/privacy, and apps that keep their own history (topics, resources) delete theirs when /v2/browsing-history/changes delivers it. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. Requires a user access token. Any app may call this; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

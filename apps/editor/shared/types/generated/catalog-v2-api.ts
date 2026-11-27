@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/v2/browsing-history/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browsing history switches and clears feed
+         * @description Every account whose browsing history each app must act on, oldest change first, keyset-paginated: it switched browsing_history off or back on, or cleared every app's history. **This is the channel for a site that keeps its own browsing history** of things the catalog does not hold, such as forum topics or resources. Apply each entry as the account's current state: browsing_history off means delete everything you keep for the account and record nothing until an entry says on; either way delete the account's entries viewed at or before cleared_at. An account appears once, at its latest change, so applying entries in order is idempotent. Bootstrap from an empty cursor (the first drain lists every account that ever switched off or cleared), then poll at your own cadence. next_cursor comes only with a full page, so keep the last one you received and poll from it: the partial page after it is read again. A change surfaces five seconds after it commits. Deleted accounts are not listed; they come from the sign-in service's deleted-accounts feed. Requires an application key with the history_changes:read scope on top of catalog:read; a user access token is refused. The scope is granted by an operator, not self-service, because the answer names accounts and when they cleared their history.
+         */
+        get: operations["listBrowsingHistoryChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/catalog/calendar": {
         parameters: {
             query?: never;
@@ -2044,7 +2064,7 @@ export interface paths {
         post?: never;
         /**
          * Clear my browsing history
-         * @description Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. Requires a user access token. Any app may call this; no scope is required.
+         * @description Deletes the bearer's browsing history: this app's with the default scope=app, every app's with scope=all. scope=all also moves browsing_history_cleared_at on /v2/me/privacy, and apps that keep their own history (topics, resources) delete theirs when /v2/browsing-history/changes delivers it. Recording goes on afterwards; to stop it, set browsing_history to off on PATCH /v2/me/privacy. 204 with no body. Requires a user access token. Any app may call this; no scope is required.
          */
         delete: operations["clearMyBrowsingHistory"];
         options?: never;
@@ -2337,7 +2357,7 @@ export interface paths {
         };
         /**
          * My privacy switches
-         * @description play_records says who may read the bearer's play states and playtimes on /v2/work-records; followed_companies who may read the companies they follow on /v2/followed-companies; browsing_history and browsing_history_sharing govern /v2/me/history. An account that never changed a switch answers play_records public, followed_companies private, browsing_history on and browsing_history_sharing per_app, with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
+         * @description play_records says who may read the bearer's play states and playtimes on /v2/work-records; followed_companies who may read the companies they follow on /v2/followed-companies; browsing_history and browsing_history_sharing govern /v2/me/history, and browsing_history_cleared_at says up to when every app must have dropped the account's history. An account that never changed a switch answers play_records public, followed_companies private, browsing_history on and browsing_history_sharing per_app, with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
          */
         get: operations["getMyPrivacy"];
         put?: never;
@@ -2347,7 +2367,7 @@ export interface paths {
         head?: never;
         /**
          * Change my privacy switches
-         * @description Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required.
+         * @description Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next request. browsing_history=off deletes every app's browsing history before it answers and moves browsing_history_cleared_at; apps that keep their own history learn of it from /v2/browsing-history/changes. A third-party app may switch browsing history off and sharing back to per_app, never the other way: that is 422 VALIDATION_FAILED with reason NOT_PERMITTED, and nothing in the body is applied. Requires a user access token. Any app may call this; no scope is required.
          */
         patch: operations["patchMyPrivacy"];
         trace?: never;
@@ -3575,6 +3595,32 @@ export interface components {
             readonly $schema?: string;
             /** @description At most 100 items. */
             items: components["schemas"]["WorkStateBatchEntry"][];
+        } & {
+            [key: string]: unknown;
+        };
+        BrowsingHistoryChange: {
+            /**
+             * @description The account's switch as it stands now. off: delete every entry you keep for this account and record none until an entry says on.
+             * @enum {string}
+             */
+            browsing_history: "on" | "off";
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC with sub-second precision. When the entry last moved. The feed's order.
+             */
+            changed_at: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC with sub-second precision. Delete this account's entries viewed at or before it. It is the time of the last switch to off or the last clear across apps, whichever is later; switching back on does not move it.
+             */
+            cleared_at: string;
+            /**
+             * @description Type discriminant. Always browsing_history_change.
+             * @enum {string}
+             */
+            object: "browsing_history_change";
+            /** @description The central sign-in user id shared by every NextMoe site, not one site's own user id. */
+            user_id: string;
         } & {
             [key: string]: unknown;
         };
@@ -5701,6 +5747,41 @@ export interface components {
             };
             /** @description Members of this page. Empty array, never null. */
             items: components["schemas"]["Appearance"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListBrowsingHistoryChange: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListBrowsingHistoryChange.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["BrowsingHistoryChange"][];
             /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
             missing?: string[];
             /** @description Opaque keyset cursor. Omitted on the last page. */
@@ -11301,6 +11382,11 @@ export interface components {
              */
             browsing_history: "on" | "off";
             /**
+             * Format: date-time
+             * @description RFC 3339 UTC with sub-second precision. Every app must drop this account's history viewed at or before it: it moves when browsing_history is switched off and when every app's history is cleared (DELETE /v2/me/history?scope=all). An app that keeps its own history (topics, resources) hides older entries when it reads this, and deletes them when /v2/browsing-history/changes delivers it. null while neither has happened.
+             */
+            browsing_history_cleared_at: string | null;
+            /**
              * @description per_app, the default, lets each app read only the history it recorded. shared also lets an app holding history:read read every app's history merged, with scope=all.
              * @enum {string}
              */
@@ -12312,6 +12398,101 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listBrowsingHistoryChanges: {
+        parameters: {
+            query?: {
+                /** @description Opaque keyset cursor from a prior next_cursor. */
+                cursor?: string;
+                /** @description Page size 1-100, default 100. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. */
+                limit?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListBrowsingHistoryChange"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listCatalogCalendar: {
         parameters: {
             query?: {
